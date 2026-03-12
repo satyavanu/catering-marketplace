@@ -1,0 +1,17 @@
+{
+  "name": "@catering/themes",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist", "src"],
+  "scripts": {
+    "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
+  }
+}

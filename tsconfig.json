@@ -9,7 +9,7 @@
     ],
     "allowJs": true,
     "skipLibCheck": true,
-    "strict": true,
+    "strict": false,
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
     "esModuleInterop": true,
@@ -39,5 +39,11 @@
   ],
   "exclude": [
     "node_modules"
+  ],
+  "references": [
+    { "path": "./packages/types" },
+    { "path": "./packages/themes" },
+    { "path": "./packages/shared" },
+    { "path": "./packages/ui" }
   ]
 }

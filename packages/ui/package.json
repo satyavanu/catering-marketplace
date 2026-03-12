@@ -1,0 +1,25 @@
+{
+  "name": "@catering/ui",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist", "src"],
+  "scripts": {
+    "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "@catering/types": "*",
+    "@catering/themes": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/react": "^18.2.0",
+    "@types/node": "^20.0.0",
+    "@types/react-dom": "^18.2.0"
+  }
+}

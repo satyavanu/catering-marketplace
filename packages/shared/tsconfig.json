@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "strict": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "baseUrl": ".",
+    "composite": true,
+    "paths": {
+      "@catering/types": ["../types/dist/index.d.ts"]
+    },
+    "allowJs": true,
+    "noImplicitAny": false
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"],
+  "references": [
+    { "path": "../types" }
+  ]
+}

@@ -1,24 +1,177 @@
 {
   "name": "catering-marketplace",
   "version": "1.0.0",
+  "description": "Catering marketplace with web and POS applications",
   "private": true,
+  "workspaces": [
+    "packages/types",
+    "packages/themes",
+    "packages/shared",
+    "packages/ui",
+    "apps/web",
+    "apps/pos",
+    "apps/dashboard"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint .",
-    "format": "prettier --write ."
-  },
-  "dependencies": {
-    "next": "latest",
-    "react": "latest",
-    "react-dom": "latest"
+    "dev": "npm run dev:dashboard",
+    "dev:web": "cd apps/web && npm run dev",
+    "dev:pos": "cd apps/pos && npm run dev",
+    "dev:dashboard": "cd apps/dashboard && npm run dev",
+    "dev:all": "concurrently \"npm run dev:web\" \"npm run dev:pos\"",
+    "build": "npm run build:types && npm run build:themes && npm run build:shared && npm run build:ui && npm run build:dashboard",
+    "build:types": "cd packages/types && npm run build",
+    "build:themes": "cd packages/themes && npm run build",
+    "build:shared": "cd packages/shared && npm run build",
+    "build:ui": "cd packages/ui && npm run build",
+    "build:dashboard": "cd apps/dashboard && npm run build",
+    "build:apps": "turbo run build --filter='./apps/*'",
+    "type-check": "turbo run type-check",
+    "lint": "turbo run lint",
+    "format": "turbo run format"
   },
   "devDependencies": {
     "@types/node": "25.4.0",
     "eslint": "latest",
     "eslint-config-next": "latest",
     "prettier": "latest",
-    "typescript": "latest"
+    "turbo": "^1.10.0",
+    "typescript": "^5.0.0",
+    "concurrently": "^8.2.0"
+  },
+  "apps": {
+    "web": {
+      "name": "@catering/web",
+      "version": "1.0.0",
+      "private": true,
+      "scripts": {
+        "dev": "next dev --port 3000 || next dev --port 3001 || next dev --port 3002",
+        "build": "next build",
+        "start": "next start --port 3000",
+        "lint": "next lint",
+        "type-check": "tsc --noEmit",
+        "format": "prettier --write ."
+      },
+      "dependencies": {
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0",
+        "next": "^14.0.0",
+        "@catering/types": "file:../../packages/types",
+        "@catering/shared": "file:../../packages/shared",
+        "@catering/ui": "file:../../packages/ui",
+        "@catering/themes": "file:../../packages/themes"
+      },
+      "devDependencies": {
+        "typescript": "^5.0.0",
+        "@types/react": "^18.2.0",
+        "@types/node": "^20.0.0",
+        "@types/react-dom": "^18.2.0",
+        "prettier": "^3.0.0"
+      }
+    },
+    "pos": {
+      "name": "@catering/pos",
+      "version": "1.0.0",
+      "private": true,
+      "scripts": {
+        "dev": "next dev --port 3001 || next dev --port 3002 || next dev --port 3003",
+        "build": "next build",
+        "start": "next start --port 3001",
+        "lint": "next lint",
+        "type-check": "tsc --noEmit",
+        "format": "prettier --write ."
+      },
+      "dependencies": {
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0",
+        "next": "^14.0.0",
+        "@catering/types": "file:../../packages/types",
+        "@catering/shared": "file:../../packages/shared",
+        "@catering/ui": "file:../../packages/ui",
+        "@catering/themes": "file:../../packages/themes"
+      },
+      "devDependencies": {
+        "typescript": "^5.0.0",
+        "@types/react": "^18.2.0",
+        "@types/node": "^20.0.0",
+        "@types/react-dom": "^18.2.0",
+        "prettier": "^3.0.0"
+      }
+    }
+  },
+  "packages": {
+    "ui": {
+      "name": "@catering/ui",
+      "version": "1.0.0",
+      "private": true,
+      "main": "dist/index.js",
+      "types": "dist/index.d.ts",
+      "scripts": {
+        "build": "tsc",
+        "type-check": "tsc --noEmit",
+        "format": "prettier --write ."
+      },
+      "dependencies": {
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0",
+        "@catering/types": "file:../types",
+        "@catering/themes": "file:../themes"
+      },
+      "devDependencies": {
+        "typescript": "^5.0.0",
+        "@types/react": "^18.2.0",
+        "@types/node": "^20.0.0"
+      }
+    },
+    "shared": {
+      "name": "@catering/shared",
+      "version": "1.0.0",
+      "private": true,
+      "main": "dist/index.js",
+      "types": "dist/index.d.ts",
+      "scripts": {
+        "build": "tsc",
+        "type-check": "tsc --noEmit",
+        "format": "prettier --write ."
+      },
+      "dependencies": {
+        "@catering/types": "file:../types"
+      },
+      "devDependencies": {
+        "typescript": "^5.0.0",
+        "@types/node": "^20.0.0"
+      }
+    },
+    "types": {
+      "name": "@catering/types",
+      "version": "1.0.0",
+      "private": true,
+      "main": "dist/index.js",
+      "types": "dist/index.d.ts",
+      "scripts": {
+        "build": "tsc",
+        "type-check": "tsc --noEmit",
+        "format": "prettier --write ."
+      },
+      "devDependencies": {
+        "typescript": "^5.0.0",
+        "@types/node": "^20.0.0"
+      }
+    },
+    "themes": {
+      "name": "@catering/themes",
+      "version": "1.0.0",
+      "private": true,
+      "main": "dist/index.js",
+      "types": "dist/index.d.ts",
+      "scripts": {
+        "build": "tsc",
+        "type-check": "tsc --noEmit",
+        "format": "prettier --write ."
+      },
+      "devDependencies": {
+        "typescript": "^5.0.0",
+        "@types/node": "^20.0.0"
+      }
+    }
   }
 }
