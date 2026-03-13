@@ -43,8 +43,6 @@ export default function LoginPage() {
       <div
         style={{
           flex: 1,
-          backgroundColor: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
-          backgroundImage: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
@@ -59,7 +57,6 @@ export default function LoginPage() {
         <p style={{ fontSize: '1.25rem', marginBottom: '2rem', textAlign: 'center', opacity: 0.9 }}>
           Catering Business Management Dashboard
         </p>
-        <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>📊</div>
         <p style={{ fontSize: '1rem', opacity: 0.9, textAlign: 'center', maxWidth: '400px' }}>
           Manage your catering business, orders, menu, and customers all in one place.
         </p>
@@ -86,7 +83,7 @@ export default function LoginPage() {
           <h2 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '0.5rem' }}>
             Welcome Back
           </h2>
-          <p style={{ color: '#6b7280', marginBottom: '2rem' }}>
+          <p style={{ color: '#ece', marginBottom: '2rem' }}>
             Sign in to your catering dashboard
           </p>
 
@@ -144,7 +141,7 @@ export default function LoginPage() {
 
             {/* Remember & Forgot */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: '#6b7280' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: '#ece' }}>
                 <input type="checkbox" style={{ cursor: 'pointer' }} />
                 Remember me
               </label>
