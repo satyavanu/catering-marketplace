@@ -31,12 +31,12 @@
   },
   "devDependencies": {
     "@types/node": "25.4.0",
+    "concurrently": "^8.2.0",
     "eslint": "latest",
     "eslint-config-next": "latest",
     "prettier": "latest",
     "turbo": "^1.10.0",
-    "typescript": "^5.0.0",
-    "concurrently": "^8.2.0"
+    "typescript": "^5.0.0"
   },
   "apps": {
     "web": {
@@ -173,5 +173,9 @@
         "@types/node": "^20.0.0"
       }
     }
+  },
+  "dependencies": {
+    "@heroicons/react": "^2.2.0",
+    "lucide-react": "^0.577.0"
   }
 }

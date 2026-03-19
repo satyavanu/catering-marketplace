@@ -53,30 +53,7 @@ export default function SignupPage() {
 
   return (
     <div style={{ display: 'flex', flex: 1 }}>
-      {/* Left Side - Branding */}
-      <div
-        style={{
-          flex: 1,
-          backgroundColor: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
-          color: 'white',
-          padding: '2rem',
-        }}
-      >
-        <h1 style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '1rem', textAlign: 'center' }}>
-          🍽️ CaterHub
-        </h1>
-        <p style={{ fontSize: '1.25rem', marginBottom: '2rem', textAlign: 'center', opacity: 0.9 }}>
-          Join Thousands of Caterers
-        </p>
-        <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🚀</div>
-        <p style={{ fontSize: '1rem', opacity: 0.9, textAlign: 'center', maxWidth: '400px' }}>
-          Start managing your catering business today. Easy setup, powerful tools.
-        </p>
-      </div>
+    
 
       {/* Right Side - Form */}
       <div

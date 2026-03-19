@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface TopNavbarProps {
   onToggleSidebar: () => void;
@@ -41,8 +41,31 @@ const ArrowLeftOnRectangleIcon = (props: any) => (
 export default function TopNavbar({ onToggleSidebar }: TopNavbarProps) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [cateringVisible, setCateringVisible] = useState(true);
+  const [mounted, setMounted] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
+
+  // Hydration fix - load from localStorage on mount
+  useEffect(() => {
+    setMounted(true);
+    const saved = localStorage.getItem('cateringShopVisible');
+    if (saved !== null) {
+      setCateringVisible(JSON.parse(saved));
+    }
+  }, []);
+
+  const handleCateringToggle = () => {
+    const newValue = !cateringVisible;
+    setCateringVisible(newValue);
+    localStorage.setItem('cateringShopVisible', JSON.stringify(newValue));
+    
+    // Dispatch custom event for other components to listen
+    window.dispatchEvent(
+      new CustomEvent('cateringVisibilityChange', { detail: newValue })
+    );
+  };
 
   const handleLogout = () => {
     router.push('/auth/login');
@@ -53,6 +76,8 @@ export default function TopNavbar({ onToggleSidebar }: TopNavbarProps) {
     { id: 2, message: 'User registration', time: '1 hour ago', type: 'user' },
     { id: 3, message: 'System update completed', time: '3 hours ago', type: 'system' },
   ];
+
+  if (!mounted) return null;
 
   return (
     <header
@@ -152,6 +177,153 @@ export default function TopNavbar({ onToggleSidebar }: TopNavbarProps) {
 
       {/* Right Side - Actions */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+        {/* Catering Shop Toggle with Switch */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            padding: '0.75rem 1rem',
+            backgroundColor: '#f8fafc',
+            borderRadius: '8px',
+            border: '1px solid #e2e8f0',
+            position: 'relative',
+          }}
+          onMouseEnter={() => setShowTooltip(true)}
+          onMouseLeave={() => setShowTooltip(false)}
+          title="Toggle catering shop visibility"
+        >
+          {/* Label */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <span
+              style={{
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                color: '#64748b',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+              }}
+            >
+              Catering Shop
+            </span>
+            <span
+              style={{
+                fontSize: '0.7rem',
+                color: '#94a3b8',
+                fontWeight: 500,
+              }}
+            >
+              {cateringVisible ? 'Currently Open' : 'Currently Closed'}
+            </span>
+          </div>
+
+          {/* Toggle Switch */}
+          <div
+            onClick={handleCateringToggle}
+            style={{
+              width: '44px',
+              height: '24px',
+              borderRadius: '9999px',
+              backgroundColor: cateringVisible ? '#22c55e' : '#cbd5e1',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'center',
+              padding: '2px',
+              boxShadow: cateringVisible
+                ? '0 0 0 3px rgba(34, 197, 94, 0.1)'
+                : 'none',
+            }}
+          >
+            {/* Toggle Thumb */}
+            <div
+              style={{
+                width: '20px',
+                height: '20px',
+                borderRadius: '50%',
+                backgroundColor: 'white',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                transition: 'all 0.3s ease',
+                transform: cateringVisible ? 'translateX(20px)' : 'translateX(0)',
+              }}
+            />
+          </div>
+
+          {/* Info Icon */}
+          <div
+            style={{
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '20px',
+              height: '20px',
+              borderRadius: '50%',
+              backgroundColor: '#e0e7ff',
+              color: '#667eea',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              cursor: 'help',
+              marginLeft: '4px',
+            }}
+            title="What does this do?"
+          >
+            ?
+            
+            {/* Tooltip */}
+            {showTooltip && (
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: '100%',
+                  right: 0,
+                  marginBottom: '0.75rem',
+                  width: '280px',
+                  backgroundColor: '#1e293b',
+                  color: 'white',
+                  padding: '12px 16px',
+                  borderRadius: '8px',
+                  fontSize: '0.85rem',
+                  lineHeight: '1.5',
+                  zIndex: 100,
+                  boxShadow: '0 10px 25px rgba(0, 0, 0, 0.3)',
+                  pointerEvents: 'none',
+                  border: '1px solid #334155',
+                  animation: 'fadeIn 0.2s ease',
+                }}
+              >
+                <div style={{ fontWeight: 700, marginBottom: '8px' }}>
+                  🍽️ Catering Shop Status
+                </div>
+                <div style={{ marginBottom: '8px' }}>
+                  <strong>Turn ON:</strong> Your catering services are visible to customers on the marketplace.
+                </div>
+                <div>
+                  <strong>Turn OFF:</strong> Hide your services temporarily without losing your profile data.
+                </div>
+                
+                {/* Tooltip Arrow */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: '-6px',
+                    right: '12px',
+                    width: '12px',
+                    height: '12px',
+                    backgroundColor: '#1e293b',
+                    transform: 'rotate(45deg)',
+                    border: '1px solid #334155',
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div style={{ width: '1px', height: '24px', backgroundColor: '#e2e8f0' }} />
+
         {/* Notifications */}
         <div style={{ position: 'relative' }}>
           <button
@@ -466,6 +638,19 @@ export default function TopNavbar({ onToggleSidebar }: TopNavbarProps) {
           )}
         </div>
       </div>
+
+      <style>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(4px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </header>
   );
 }
