@@ -444,7 +444,6 @@ const ExperiencesPage = () => {
 
   return (
     <div style={{ backgroundColor: "#f8fafc", minHeight: "100vh" }}>
-      <Header />
 
       {/* Hero Section */}
       <div
