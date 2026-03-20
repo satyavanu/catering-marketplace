@@ -8,6 +8,8 @@ export { apiClient } from './config/axios';
 // Query Hooks
 export * from './queries/caterers';
 export * from './queries/venues';
+export * from './queries/decorations';
+export * from './queries/reviews';
 
 // Mutation Hooks
 export * from './mutations/newsletter';

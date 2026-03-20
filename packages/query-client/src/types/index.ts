@@ -28,10 +28,38 @@ export interface VenueData {
 export interface DecorationData {
   id: string;
   name: string;
+  company: string;
   type: string;
-  price: number;
+  theme: string;
+  rating: number;
+  reviews: number;
+  image: string;
+  details: string;
+  country: string;
+  price: any;
 }
 
 export interface NewsletterSubscription {
   email: string;
+}
+
+export interface Reply {
+  id: string;
+  name: string;
+  text: string;
+  date: string;
+  avatar?: string;
+  isOwner?: boolean;
+}
+
+export interface Review {
+  id: string;
+  name: string;
+  rating: number;
+  text: string;
+  date: string;
+  avatar?: string;
+  verified?: boolean;
+  helpful?: number;
+  replies?: Reply[];
 }
