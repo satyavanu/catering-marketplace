@@ -32,6 +32,9 @@
       ],
       "@catering/themes": [
         "../../packages/themes/src"
+      ],
+      "@catering-marketplace/query-client": [
+        "../../packages/query-client/src"
       ]
     },
     "plugins": [

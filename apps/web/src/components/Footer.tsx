@@ -2,10 +2,13 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useSubscribeNewsletter } from '@catering-marketplace/query-client';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
   const [expandedSection, setExpandedSection] = useState<string | null>('countries');
+  const [email, setEmail] = useState('');
+  const { mutate: subscribe, isPending } = useSubscribeNewsletter();
 
   const countries = [
     { name: 'United States', emoji: '🇺🇸' },
@@ -91,6 +94,14 @@ const Footer = () => {
     setExpandedSection(expandedSection === section ? null : section);
   };
 
+  const handleSubscribe = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (email) {
+      subscribe({ email });
+      setEmail('');
+    }
+  };
+
   return (
     <footer
       style={{
@@ -141,15 +152,17 @@ const Footer = () => {
               Book your perfect catering experience on the go. Available on iOS and Android with exclusive mobile-only deals!
             </p>
 
-            <div style={{ display: 'grid', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               {/* iOS App */}
               <a
                 href="#"
                 style={{
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
-                  gap: '1rem',
-                  padding: '1rem',
+                  justifyContent: 'center',
+                  gap: '0.75rem',
+                  padding: '1.5rem 1rem',
                   backgroundColor: '#1e293b',
                   borderRadius: '8px',
                   textDecoration: 'none',
@@ -159,15 +172,19 @@ const Footer = () => {
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = '#334155';
                   e.currentTarget.style.borderColor = '#f97316';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(249, 115, 22, 0.2)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = '#1e293b';
                   e.currentTarget.style.borderColor = '#334155';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
                 }}
               >
-                <span style={{ fontSize: '2rem' }}>🍎</span>
-                <div>
-                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#94a3b8' }}>
+                <span style={{ fontSize: '3rem', lineHeight: '1' }}>🍎</span>
+                <div style={{ textAlign: 'center' }}>
+                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#94a3b8', fontWeight: '500' }}>
                     Download on
                   </p>
                   <p
@@ -188,9 +205,11 @@ const Footer = () => {
                 href="#"
                 style={{
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
-                  gap: '1rem',
-                  padding: '1rem',
+                  justifyContent: 'center',
+                  gap: '0.75rem',
+                  padding: '1.5rem 1rem',
                   backgroundColor: '#1e293b',
                   borderRadius: '8px',
                   textDecoration: 'none',
@@ -200,15 +219,19 @@ const Footer = () => {
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = '#334155';
                   e.currentTarget.style.borderColor = '#f97316';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(249, 115, 22, 0.2)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = '#1e293b';
                   e.currentTarget.style.borderColor = '#334155';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
                 }}
               >
-                <span style={{ fontSize: '2rem' }}>🤖</span>
-                <div>
-                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#94a3b8' }}>
+                <span style={{ fontSize: '3rem', lineHeight: '1' }}>🤖</span>
+                <div style={{ textAlign: 'center' }}>
+                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#94a3b8', fontWeight: '500' }}>
                     Get it on
                   </p>
                   <p
@@ -252,10 +275,13 @@ const Footer = () => {
               Get exclusive deals, new experiences, and catering tips delivered to your inbox weekly!
             </p>
 
-            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+            <form onSubmit={handleSubscribe} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
               <input
                 type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter your email"
+                required
                 style={{
                   flex: 1,
                   padding: '0.75rem',
@@ -277,6 +303,8 @@ const Footer = () => {
                 }}
               />
               <button
+                type="submit"
+                disabled={isPending}
                 style={{
                   padding: '0.75rem 1.5rem',
                   backgroundColor: '#f97316',
@@ -294,9 +322,9 @@ const Footer = () => {
                   e.currentTarget.style.backgroundColor = '#f97316';
                 }}
               >
-                Subscribe
+                {isPending ? 'Subscribing...' : 'Subscribe'}
               </button>
-            </div>
+            </form>
             <p style={{ color: '#64748b', fontSize: '0.75rem', margin: 0 }}>
               ✓ We respect your privacy. Unsubscribe at any time.
             </p>
