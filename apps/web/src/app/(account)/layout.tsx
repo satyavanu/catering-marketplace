@@ -66,7 +66,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
   }
 
   if (status === 'unauthenticated') {
-    router.push('/auth/signin');
+    router.push('/login');
     return null;
   }
 
