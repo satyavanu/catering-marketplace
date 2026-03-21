@@ -178,8 +178,8 @@ export default function BecomeCatererPage() {
   };
 
   const handleSignup = (planId: string) => {
-    // Redirect to external signup domain with plan parameter
-    window.location.href = `http://localhost:3002/signup?plan=${planId}`;
+    // Open signup in a new tab/window
+    window.open(`http://localhost:3002/signup?plan=${planId}`, '_blank');
   };
 
   return (

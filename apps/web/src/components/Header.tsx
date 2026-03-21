@@ -159,46 +159,19 @@ const Header = () => {
           </Link>
 
           {/* Desktop Navigation Menu */}
-          <nav
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '32px',
-              flex: 1,
-              '@media (max-width: 1024px)': {
-                display: 'none',
-              },
-            } as any}
-          >
+          <nav className="desktop-nav">
             {navLinks.map((link) => (
               <NavLink key={link.href} href={link.href} label={link.label} />
             ))}
           </nav>
 
           {/* Desktop Search Bar */}
-          <div
-            style={{
-              display: 'flex',
-              '@media (max-width: 1024px)': {
-                display: 'none',
-              },
-            } as any}
-          >
+          <div className="desktop-search">
             <SearchBar isMobile={false} />
           </div>
 
           {/* Right Actions - Desktop Only */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              flexShrink: 0,
-              '@media (max-width: 1024px)': {
-                display: 'none',
-              },
-            } as any}
-          >
+          <div className="desktop-actions">
             <Link
               href="/become-caterer"
               style={{
@@ -250,17 +223,7 @@ const Header = () => {
           </div>
 
           {/* Mobile Header - Logo + Search + Hamburger */}
-          <div
-            style={{
-              display: 'none',
-              '@media (max-width: 1024px)': {
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                flex: 1,
-              },
-            } as any}
-          >
+          <div className="mobile-header">
             <SearchBar isMobile={true} />
 
             <button
@@ -295,20 +258,9 @@ const Header = () => {
           </div>
         </div>
 
-        {/* Mobile Menu - Only Navigation + Actions */}
+        {/* Mobile Menu - Navigation + Actions */}
         {isMobileMenuOpen && (
-          <div
-            style={{
-              display: 'none',
-              '@media (max-width: 1024px)': {
-                display: 'block',
-              },
-              borderTop: '1px solid #e2e8f0',
-              backgroundColor: '#f8fafc',
-              padding: '16px 0',
-              animation: 'slideDown 0.3s ease-out',
-            } as any}
-          >
+          <div className="mobile-menu">
             {/* Navigation Links */}
             <nav
               style={{
@@ -427,20 +379,75 @@ const Header = () => {
           }
         }
 
-        @media (max-width: 1024px) {
-          nav {
-            display: none !important;
+        /* Desktop - iPad and above (1024px+) */
+        @media (min-width: 1024px) {
+          .desktop-nav {
+            display: flex;
+            align-items: center;
+            gap: 32px;
+            flex: 1;
+          }
+
+          .desktop-search {
+            display: flex;
+          }
+
+          .desktop-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+          }
+
+          .mobile-header {
+            display: none;
+          }
+
+          .mobile-menu {
+            display: none;
           }
         }
 
-        @media (max-width: 768px) {
-          div {
+        /* Tablet/Mobile - Below iPad resolution (< 1024px) */
+        @media (max-width: 1023px) {
+          .desktop-nav {
+            display: none;
+          }
+
+          .desktop-search {
+            display: none;
+          }
+
+          .desktop-actions {
+            display: none;
+          }
+
+          .mobile-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+          }
+
+          .mobile-menu {
+            display: block;
+            border-top: 1px solid #e2e8f0;
+            background-color: #f8fafc;
+            padding: 16px 0;
+            animation: slideDown 0.3s ease-out;
+          }
+        }
+
+        /* Extra small screens - iPad mini and below (< 768px) */
+        @media (max-width: 767px) {
+          header div {
             padding: 0 12px;
           }
         }
 
-        @media (max-width: 640px) {
-          span {
+        /* Small phones (< 640px) */
+        @media (max-width: 639px) {
+          header span {
             display: none;
           }
         }
