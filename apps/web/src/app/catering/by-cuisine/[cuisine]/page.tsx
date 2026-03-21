@@ -1,117 +1,171 @@
 'use client';
 
 import React, { useState } from 'react';
-import { FireIcon, ArrowRightIcon, BoltIcon, TruckIcon, ShieldCheckIcon, StarIcon, HeartIcon, MapPinIcon, ClockIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { useParams } from 'next/navigation';
+import { FireIcon, ArrowRightIcon, BoltIcon, TruckIcon, ShieldCheckIcon, StarIcon, HeartIcon, MapPinIcon, ClockIcon, CheckIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 import ServiceContainer from '@/components/ServiceDisplay/ServiceContainer';
 import BenefitsSection from '@/components/Sections/BenefitsSection';
 import CTASection from '@/components/Sections/CTASection';
-import FeaturedSection from '@/components/Sections/FeaturedSection';
 import { FilterConfig } from '@/components/ServiceFilters/FilterSection';
 import Link from 'next/link';
 
-const CateringPage = () => {
+// Mock data - same as in main page
+const ALL_CATERING_SERVICES = [
+  {
+    id: 1,
+    title: "Premium Multi-Cuisine Catering",
+    location: "New York, NY",
+    image: "https://images.unsplash.com/photo-1555939594-58d7cb561e1f?w=500&h=300&fit=crop",
+    rating: 4.9,
+    reviews: 528,
+    pricePerPerson: "₹2,499",
+    guestCount: "50-500",
+    tags: ["Multi-Cuisine", "Premium", "Full Service"],
+    isFeatured: true,
+    cuisineType: "Multi-Cuisine",
+    occasion: "Wedding",
+    priceRange: "over-3000",
+    country: "United States",
+  },
+  {
+    id: 2,
+    title: "Italian Fine Dining Catering",
+    location: "Los Angeles, CA",
+    image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500&h=300&fit=crop",
+    rating: 4.8,
+    reviews: 342,
+    pricePerPerson: "₹1,999",
+    guestCount: "20-200",
+    tags: ["Italian", "Fine Dining", "European"],
+    isFeatured: false,
+    cuisineType: "Italian",
+    occasion: "Corporate",
+    priceRange: "2000-3000",
+    country: "United States",
+  },
+  {
+    id: 3,
+    title: "Indian Feast Catering Service",
+    location: "Mumbai, India",
+    image: "https://images.unsplash.com/photo-1585937421612-70a19fb6930b?w=500&h=300&fit=crop",
+    rating: 4.9,
+    reviews: 612,
+    pricePerPerson: "₹1,499",
+    guestCount: "50-1000",
+    tags: ["Indian", "Traditional", "Authentic"],
+    isFeatured: true,
+    cuisineType: "Indian",
+    occasion: "Wedding",
+    priceRange: "1500-2000",
+    country: "India",
+  },
+  {
+    id: 4,
+    title: "Asian Fusion Catering",
+    location: "Singapore, Singapore",
+    image: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&h=300&fit=crop",
+    rating: 4.7,
+    reviews: 289,
+    pricePerPerson: "₹1,799",
+    guestCount: "30-300",
+    tags: ["Asian Fusion", "Modern", "Creative"],
+    isFeatured: false,
+    cuisineType: "Asian Fusion",
+    occasion: "Corporate",
+    priceRange: "1500-2000",
+    country: "Singapore",
+  },
+  {
+    id: 5,
+    title: "Vegetarian Gourmet Catering",
+    location: "London, UK",
+    image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=500&h=300&fit=crop",
+    rating: 4.8,
+    reviews: 276,
+    pricePerPerson: "₹1,299",
+    guestCount: "20-400",
+    tags: ["Vegetarian", "Gourmet", "Healthy"],
+    isFeatured: true,
+    cuisineType: "Vegetarian",
+    occasion: "Birthday",
+    priceRange: "1000-1500",
+    country: "United Kingdom",
+  },
+  {
+    id: 6,
+    title: "BBQ & Grill Catering",
+    location: "Austin, TX",
+    image: "https://images.unsplash.com/photo-1555939594-58d7cb561e1f?w=500&h=300&fit=crop",
+    rating: 4.6,
+    reviews: 198,
+    pricePerPerson: "₹999",
+    guestCount: "50-300",
+    tags: ["BBQ", "Casual", "Outdoor"],
+    isFeatured: false,
+    cuisineType: "BBQ",
+    occasion: "Private",
+    priceRange: "under-1000",
+    country: "United States",
+  },
+];
+
+const CUISINE_DETAILS: Record<string, { emoji: string; description: string; icon: string }> = {
+  'multi-cuisine': {
+    emoji: '🍽️',
+    description: 'Experience diverse culinary traditions in one celebration',
+    icon: 'Multi-Cuisine',
+  },
+  'italian': {
+    emoji: '🇮🇹',
+    description: 'Authentic Italian flavors with traditional preparation methods',
+    icon: 'Italian',
+  },
+  'indian': {
+    emoji: '🇮🇳',
+    description: 'Traditional Indian spices and aromatic culinary excellence',
+    icon: 'Indian',
+  },
+  'asian-fusion': {
+    emoji: '🥢',
+    description: 'Modern blend of Asian cuisines with creative presentation',
+    icon: 'Asian Fusion',
+  },
+  'vegetarian': {
+    emoji: '🥗',
+    description: 'Plant-based gourmet dishes that delight every palate',
+    icon: 'Vegetarian',
+  },
+  'bbq': {
+    emoji: '🔥',
+    description: 'Smoky, grilled delights for casual outdoor gatherings',
+    icon: 'BBQ',
+  },
+};
+
+const CuisineFilterPage = () => {
+  const params = useParams();
+  const cuisineSlug = params.cuisine as string;
   const [favorites, setFavorites] = useState<number[]>([]);
+
+  // Decode and normalize cuisine slug
+  const cuisineName = decodeURIComponent(cuisineSlug).replace('-', ' ');
+  const cuisineKey = cuisineSlug.toLowerCase();
+  const cuisineDetail = CUISINE_DETAILS[cuisineKey] || {
+    emoji: '🍽️',
+    description: 'Discover premium catering services',
+    icon: 'Cuisine',
+  };
+
+  // Filter services by cuisine
+  const filteredServices = ALL_CATERING_SERVICES.filter(
+    service => service.cuisineType.toLowerCase() === cuisineName.toLowerCase()
+  );
 
   const toggleFavorite = (id: number) => {
     setFavorites(prev =>
       prev.includes(id) ? prev.filter(fav => fav !== id) : [...prev, id]
     );
   };
-
-  const cateringServices = [
-    {
-      id: 1,
-      title: "Premium Multi-Cuisine Catering",
-      location: "New York, NY",
-      image: "https://images.unsplash.com/photo-1555939594-58d7cb561e1f?w=500&h=300&fit=crop",
-      rating: 4.9,
-      reviews: 528,
-      pricePerPerson: "₹2,499",
-      guestCount: "50-500",
-      tags: ["Multi-Cuisine", "Premium", "Full Service"],
-      isFeatured: true,
-      cuisineType: "Multi-Cuisine",
-      occasion: "Wedding",
-      priceRange: "over-3000",
-    },
-    {
-      id: 2,
-      title: "Italian Fine Dining Catering",
-      location: "Los Angeles, CA",
-      image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500&h=300&fit=crop",
-      rating: 4.8,
-      reviews: 342,
-      pricePerPerson: "₹1,999",
-      guestCount: "20-200",
-      tags: ["Italian", "Fine Dining", "European"],
-      isFeatured: false,
-      cuisineType: "Italian",
-      occasion: "Corporate",
-      priceRange: "2000-3000",
-    },
-    {
-      id: 3,
-      title: "Indian Feast Catering Service",
-      location: "Mumbai, India",
-      image: "https://images.unsplash.com/photo-1585937421612-70a19fb6930b?w=500&h=300&fit=crop",
-      rating: 4.9,
-      reviews: 612,
-      pricePerPerson: "₹1,499",
-      guestCount: "50-1000",
-      tags: ["Indian", "Traditional", "Authentic"],
-      isFeatured: true,
-      cuisineType: "Indian",
-      occasion: "Wedding",
-      priceRange: "1500-2000",
-    },
-    {
-      id: 4,
-      title: "Asian Fusion Catering",
-      location: "Singapore, Singapore",
-      image: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&h=300&fit=crop",
-      rating: 4.7,
-      reviews: 289,
-      pricePerPerson: "₹1,799",
-      guestCount: "30-300",
-      tags: ["Asian Fusion", "Modern", "Creative"],
-      isFeatured: false,
-      cuisineType: "Asian Fusion",
-      occasion: "Corporate",
-      priceRange: "1500-2000",
-    },
-    {
-      id: 5,
-      title: "Vegetarian Gourmet Catering",
-      location: "London, UK",
-      image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=500&h=300&fit=crop",
-      rating: 4.8,
-      reviews: 276,
-      pricePerPerson: "₹1,299",
-      guestCount: "20-400",
-      tags: ["Vegetarian", "Gourmet", "Healthy"],
-      isFeatured: true,
-      cuisineType: "Vegetarian",
-      occasion: "Birthday",
-      priceRange: "1000-1500",
-    },
-    {
-      id: 6,
-      title: "BBQ & Grill Catering",
-      location: "Austin, TX",
-      image: "https://images.unsplash.com/photo-1555939594-58d7cb561e1f?w=500&h=300&fit=crop",
-      rating: 4.6,
-      reviews: 198,
-      pricePerPerson: "₹999",
-      guestCount: "50-300",
-      tags: ["BBQ", "Casual", "Outdoor"],
-      isFeatured: false,
-      cuisineType: "BBQ",
-      occasion: "Private",
-      priceRange: "under-1000",
-    },
-  ];
-
-  const featuredServices = cateringServices.filter(service => service.isFeatured);
 
   const filterConfig: FilterConfig[] = [
     {
@@ -135,33 +189,6 @@ const CateringPage = () => {
       ],
     },
     {
-      name: 'guestCount',
-      label: 'Guest Count',
-      type: 'select',
-      icon: '👥',
-      options: [
-        { value: '20-50', label: '20 - 50 guests' },
-        { value: '50-100', label: '50 - 100 guests' },
-        { value: '100-200', label: '100 - 200 guests' },
-        { value: '200-500', label: '200 - 500 guests' },
-        { value: '500+', label: '500+ guests' },
-      ],
-    },
-    {
-      name: 'cuisineType',
-      label: 'Cuisine Type',
-      type: 'select',
-      icon: '🍜',
-      options: [
-        { value: 'Indian', label: 'Indian' },
-        { value: 'Italian', label: 'Italian' },
-        { value: 'Asian Fusion', label: 'Asian Fusion' },
-        { value: 'Continental', label: 'Continental' },
-        { value: 'Vegetarian', label: 'Vegetarian' },
-        { value: 'BBQ', label: 'BBQ & Grill' },
-      ],
-    },
-    {
       name: 'occasion',
       label: 'Occasion',
       type: 'select',
@@ -177,14 +204,11 @@ const CateringPage = () => {
   ];
 
   const handleFilterApply = (filters: Record<string, string | string[]>) => {
-    return cateringServices.filter(service => {
+    return filteredServices.filter(service => {
       if (filters.location && !service.location.toLowerCase().includes(String(filters.location).toLowerCase())) {
         return false;
       }
       if (filters.priceRange && service.priceRange !== filters.priceRange) {
-        return false;
-      }
-      if (filters.cuisineType && service.cuisineType !== filters.cuisineType) {
         return false;
       }
       if (filters.occasion && service.occasion !== filters.occasion) {
@@ -194,7 +218,7 @@ const CateringPage = () => {
     });
   };
 
-  const CateringCard = ({ item }: { item: typeof cateringServices[0] }) => (
+  const CateringCard = ({ item }: { item: typeof ALL_CATERING_SERVICES[0] }) => (
     <div
       style={{
         backgroundColor: "white",
@@ -217,7 +241,6 @@ const CateringPage = () => {
         e.currentTarget.style.transform = "translateY(0)";
       }}
     >
-      {/* Image Container */}
       <div
         style={{
           position: "relative",
@@ -246,7 +269,6 @@ const CateringPage = () => {
           }}
         />
 
-        {/* Featured Badge */}
         {item.isFeatured && (
           <div
             style={{
@@ -270,7 +292,6 @@ const CateringPage = () => {
           </div>
         )}
 
-        {/* Favorite Button */}
         <button
           onClick={() => toggleFavorite(item.id)}
           style={{
@@ -310,7 +331,6 @@ const CateringPage = () => {
           />
         </button>
 
-        {/* Price Tag */}
         <div
           style={{
             position: "absolute",
@@ -329,9 +349,7 @@ const CateringPage = () => {
         </div>
       </div>
 
-      {/* Content Container */}
       <div style={{ padding: "18px", flex: 1, display: "flex", flexDirection: "column" }}>
-        {/* Header with Rating */}
         <div
           style={{
             display: "flex",
@@ -370,7 +388,6 @@ const CateringPage = () => {
           </div>
         </div>
 
-        {/* Location */}
         <div
           style={{
             display: "flex",
@@ -385,7 +402,6 @@ const CateringPage = () => {
           <span>{item.location}</span>
         </div>
 
-        {/* Tags */}
         <div
           style={{
             display: "flex",
@@ -412,7 +428,6 @@ const CateringPage = () => {
           ))}
         </div>
 
-        {/* CTA Button */}
         <Link href={`/catering/${item.id}`} style={{ textDecoration: "none", marginTop: "auto" }}>
           <button
             style={{
@@ -462,6 +477,43 @@ const CateringPage = () => {
           textAlign: "center",
         }}
       >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "16px",
+            marginBottom: "20px",
+          }}
+        >
+          <Link href="/catering" style={{ textDecoration: "none", color: "white" }}>
+            <button
+              style={{
+                backgroundColor: "rgba(255, 255, 255, 0.2)",
+                border: "none",
+                color: "white",
+                padding: "8px 16px",
+                borderRadius: "8px",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                fontWeight: "600",
+                transition: "all 0.2s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.3)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
+              }}
+            >
+              <ArrowLeftIcon style={{ width: "16px", height: "16px" }} />
+              Back to Catering
+            </button>
+          </Link>
+        </div>
+
         <h1
           style={{
             fontSize: "48px",
@@ -470,7 +522,7 @@ const CateringPage = () => {
             letterSpacing: "-1px",
           }}
         >
-          🍽️ Premium Catering Services
+          {cuisineDetail.emoji} {cuisineName} Catering
         </h1>
         <p
           style={{
@@ -480,7 +532,7 @@ const CateringPage = () => {
             fontWeight: "500",
           }}
         >
-          Exquisite culinary experiences tailored for every occasion
+          {cuisineDetail.description}
         </p>
       </div>
 
@@ -492,77 +544,67 @@ const CateringPage = () => {
           padding: "48px 32px",
         }}
       >
-        {/* FEATURED SECTION */}
-        <FeaturedSection
-          title="Featured Services"
-          description="Handpicked premium catering services for your special occasions"
-          items={featuredServices}
-          cardComponent={CateringCard}
-          itemsPerView={3}
-          accentColor="#f59e0b"
-        />
-
-        {/* SERVICE CONTAINER - Generic Filters + Grid */}
+        {/* SERVICE CONTAINER */}
         <ServiceContainer
-          initialItems={cateringServices}
+          initialItems={filteredServices}
           filterConfig={filterConfig}
           cardComponent={CateringCard}
-          title="All Catering Services"
-          description={`Discover ${cateringServices.length} exceptional catering options for your event`}
+          title={`All ${cuisineName} Catering Services`}
+          description={`Discover ${filteredServices.length} exceptional ${cuisineName} catering options for your event`}
           onFilterApply={handleFilterApply}
           mapPlaceholder="Interactive map with catering service locations will be available soon"
         />
 
         {/* BENEFITS SECTION */}
         <BenefitsSection
-          title="Why Choose Our Catering Services?"
-          description="Experience the perfect blend of taste, quality, and professionalism for your special events"
+          title={`Why Choose ${cuisineName} Catering?`}
+          description="Experience authentic flavors with professional service excellence"
           benefits={[
             {
               icon: <BoltIcon style={{ width: '24px', height: '24px' }} />,
               title: "Expert Chefs",
-              description: "Our team of experienced culinary experts craft exquisite dishes with premium ingredients.",
+              description: "Specialized in authentic preparation methods and traditional recipes.",
             },
             {
               icon: <TruckIcon style={{ width: '24px', height: '24px' }} />,
               title: "Reliable Delivery",
-              description: "On-time delivery with hot, fresh meals guaranteed. Professional setup and service included.",
+              description: "Fresh preparation with timely delivery to your venue.",
             },
             {
               icon: <ShieldCheckIcon style={{ width: '24px', height: '24px' }} />,
               title: "Quality Assured",
-              description: "Food safety certified with strict hygiene standards and quality control at every step.",
+              description: "Premium ingredients with food safety certifications.",
             },
             {
               icon: <CheckIcon style={{ width: '24px', height: '24px' }} />,
               title: "Customizable Menus",
-              description: "Tailor every detail to match your preferences, dietary requirements, and event theme.",
+              description: "Adapt traditional dishes to your preferences and dietary needs.",
             },
             {
               icon: <StarIcon style={{ width: '24px', height: '24px' }} />,
               title: "Premium Ingredients",
-              description: "We source only the finest, freshest ingredients from trusted suppliers worldwide.",
+              description: "Authentic ingredients sourced from trusted suppliers.",
             },
             {
               icon: <ClockIcon style={{ width: '24px', height: '24px' }} />,
               title: "24/7 Support",
-              description: "Our dedicated team is available round the clock to handle any special requests or concerns.",
+              description: "Dedicated support for your catering needs.",
             },
           ]}
         />
 
         {/* CTA SECTION */}
         <CTASection
-          title="Ready to Make Your Event Unforgettable?"
-          description="Browse our premium catering services, compare options, and book the perfect service for your special occasion. From intimate dinners to grand celebrations, we've got you covered."
+          title={`Ready to Enjoy ${cuisineName} Catering?`}
+          description={`Book one of our specialized ${cuisineName} catering services today. Browse our selection, compare options, and secure your perfect culinary experience.`}
           buttons={[
             {
-              label: "Browse All Services",
+              label: "Browse Services",
               href: "#",
               variant: "primary",
             },
             {
-              label: "Get Custom Quote",
+              label: "Get Quote",
               href: "#",
               variant: "secondary",
             },
@@ -573,4 +615,4 @@ const CateringPage = () => {
   );
 };
 
-export default CateringPage;
+export default CuisineFilterPage;
