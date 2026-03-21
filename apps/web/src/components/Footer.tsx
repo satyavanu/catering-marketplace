@@ -184,75 +184,59 @@ const Footer = () => {
               Book your perfect catering experience on the go. Available on iOS and Android with exclusive mobile-only deals!
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'flex-start' }}>
               <a
-                href="#"
+                href="https://apps.apple.com/app/id1234567890"
+                target="_blank"
+                rel="noopener noreferrer"
                 style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.75rem',
-                  padding: '1.5rem 1rem',
-                  backgroundColor: '#1e293b',
-                  borderRadius: '8px',
-                  textDecoration: 'none',
+                  display: 'inline-block',
                   transition: 'all 0.3s ease',
-                  border: '1px solid #334155',
+                  opacity: 1,
+                  transform: 'scale(1)',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#334155';
-                  e.currentTarget.style.borderColor = '#f97316';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(249, 115, 22, 0.2)';
+                  e.currentTarget.style.opacity = '0.85';
+                  e.currentTarget.style.transform = 'scale(1.05)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#1e293b';
-                  e.currentTarget.style.borderColor = '#334155';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = 'none';
+                  e.currentTarget.style.opacity = '1';
+                  e.currentTarget.style.transform = 'scale(1)';
                 }}
               >
-                <span style={{ fontSize: '3rem', lineHeight: '1' }}>🍎</span>
-                <div style={{ textAlign: 'center' }}>
-                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#94a3b8', fontWeight: '500' }}>Download on</p>
-                  <p style={{ margin: 0, fontWeight: '700', fontSize: '1rem', color: 'white' }}>App Store</p>
-                </div>
+                <img
+                  alt="Download on the App Store"
+                  src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg"
+                  height="60"
+                  style={{ display: 'block' }}
+                />
               </a>
 
               <a
-                href="#"
+                href="https://play.google.com/store/apps/details?id=com.caterhub.app"
+                target="_blank"
+                rel="noopener noreferrer"
                 style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.75rem',
-                  padding: '1.5rem 1rem',
-                  backgroundColor: '#1e293b',
-                  borderRadius: '8px',
-                  textDecoration: 'none',
+                  display: 'inline-block',
                   transition: 'all 0.3s ease',
-                  border: '1px solid #334155',
+                  opacity: 1,
+                  transform: 'scale(1)',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#334155';
-                  e.currentTarget.style.borderColor = '#f97316';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(249, 115, 22, 0.2)';
+                  e.currentTarget.style.opacity = '0.85';
+                  e.currentTarget.style.transform = 'scale(1.05)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#1e293b';
-                  e.currentTarget.style.borderColor = '#334155';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = 'none';
+                  e.currentTarget.style.opacity = '1';
+                  e.currentTarget.style.transform = 'scale(1)';
                 }}
               >
-                <span style={{ fontSize: '3rem', lineHeight: '1' }}>🤖</span>
-                <div style={{ textAlign: 'center' }}>
-                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#94a3b8', fontWeight: '500' }}>Get it on</p>
-                  <p style={{ margin: 0, fontWeight: '700', fontSize: '1rem', color: 'white' }}>Google Play</p>
-                </div>
+                <img
+                  alt="Get it on Google Play"
+                  src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png"
+                  height="60"
+                  style={{ display: 'block' }}
+                />
               </a>
             </div>
           </div>

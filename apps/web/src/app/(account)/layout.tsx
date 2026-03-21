@@ -330,26 +330,29 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
       {/* MAIN CONTENT */}
       <main style={{
         flex: 1,
-        overflow: "hidden",
-        padding: "24px 32px",
         display: "flex",
         flexDirection: "column",
         height: "100vh",
+        overflow: "hidden",
+        padding: "24px 32px",
       }}>
-        {/* TOP BAR WITH BREADCRUMBS - Fixed */}
+        {/* TOP BAR WITH BREADCRUMBS - Responsive */}
         <div style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
           marginBottom: "24px",
-          gap: "24px",
+          gap: "12px",
           flexShrink: 0,
+          flexWrap: "wrap",
         }}>
           <div style={{
             display: "flex",
             alignItems: "center",
             gap: "8px",
-            flex: 1,
+            flex: "1 1 auto",
+            minWidth: "150px",
+            order: 1,
           }}>
             {breadcrumbs[activeMenu]?.map((crumb, idx) => (
               <div key={idx} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -390,7 +393,9 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            flex: 1,
+            flex: "0 1 auto",
+            order: 2,
+            minWidth: "120px",
           }}>
             <span style={{
               fontSize: "14px",
@@ -406,8 +411,11 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
             display: "flex",
             alignItems: "center",
             gap: "12px",
-            flex: 1,
+            flex: "1 1 auto",
             justifyContent: "flex-end",
+            order: 3,
+            minWidth: "280px",
+            flexWrap: "wrap",
           }}>
             <div style={{
               display: "flex",
@@ -416,7 +424,8 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
               borderRadius: "10px",
               paddingLeft: "14px",
               paddingRight: "14px",
-              width: "100%",
+              flex: "1 1 200px",
+              minWidth: "200px",
               maxWidth: "280px",
               backgroundColor: "white",
               border: "2px solid #e2e8f0",
@@ -433,7 +442,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
               e.currentTarget.style.boxShadow = "0 1px 3px rgba(0, 0, 0, 0.05)";
             }}
             >
-              <MagnifyingGlassIcon style={{ width: "18px", height: "18px", color: "#94a3b8" }} />
+              <MagnifyingGlassIcon style={{ width: "18px", height: "18px", color: "#94a3b8", flexShrink: 0 }} />
               <input
                 placeholder="Search..."
                 style={{
@@ -443,6 +452,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
                   backgroundColor: "transparent",
                   fontSize: "13px",
                   color: "#1e293b",
+                  minWidth: "0",
                 }}
               />
             </div>
@@ -455,6 +465,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
               padding: "6px",
               borderRadius: "8px",
               transition: "all 0.2s ease",
+              flexShrink: 0,
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = "#f1f5f9";
@@ -488,6 +499,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
               border: "1px solid #e2e8f0",
               cursor: "pointer",
               transition: "all 0.2s ease",
+              flexShrink: 0,
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.1)";
@@ -503,6 +515,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
                   height: "28px",
                   borderRadius: "50%",
                   border: "2px solid #e2e8f0",
+                  flexShrink: 0,
                 }}
               />
               <span style={{
@@ -516,12 +529,11 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
           </div>
         </div>
 
-        {/* SCROLLABLE CHILDREN AREA */}
+        {/* CONTENT AREA - Full Height No Scroll */}
         <div style={{
           flex: 1,
-          overflowY: "auto",
-          overflowX: "hidden",
-          paddingRight: "12px",
+          overflow: "auto",
+          paddingRight: "8px",
         }}>
           {children}
         </div>
