@@ -177,7 +177,7 @@ const CateringDetailPage = () => {
     // Add current page
     items.push({
       label: service?.title || 'Service Details',
-      href: undefined,
+      href: service?.title ? undefined : '/',
       icon: undefined,
     });
 
@@ -227,6 +227,14 @@ const CateringDetailPage = () => {
         url: window.location.href,
       });
     }
+  };
+
+  const handleGetQuote = () => {
+    router.push(`/quote?serviceId=${service.id}&serviceName=${encodeURIComponent(service.title)}`);
+  };
+
+  const handleViewMenu = () => {
+    router.push(`/menu?serviceId=${service.id}&serviceName=${encodeURIComponent(service.title)}`);
   };
 
   return (
@@ -551,6 +559,7 @@ const CateringDetailPage = () => {
             {/* CTA Buttons */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <button
+                onClick={handleGetQuote}
                 style={{
                   backgroundColor: '#f59e0b',
                   color: 'white',
@@ -577,40 +586,37 @@ const CateringDetailPage = () => {
                 Get Custom Quote
               </button>
 
-              <Link href={`/catering/${service.id}`} style={{ textDecoration: "none", marginTop: "auto" }}>
-                <button
-                  style={{
-                    width: "100%",
-                    backgroundColor: "#f59e0b",
-                    color: "white",
-                    border: "none",
-                    padding: "12px",
-                    borderRadius: "10px",
-                    fontSize: "13px",
-                    fontWeight: "700",
-                    cursor: "pointer",
-                    transition: "all 0.2s ease",
-                    letterSpacing: "0.5px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "6px",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = "#d97706";
-                    e.currentTarget.style.transform = "translateY(-2px)";
-                    e.currentTarget.style.boxShadow = "0 8px 16px rgba(245, 158, 11, 0.3)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = "#f59e0b";
-                    e.currentTarget.style.transform = "translateY(0)";
-                    e.currentTarget.style.boxShadow = "none";
-                  }}
-                >
-                  View Menu
-                  <ArrowRightIcon style={{ width: "14px", height: "14px" }} />
-                </button>
-              </Link>
+              <button
+                onClick={handleViewMenu}
+                style={{
+                  width: "100%",
+                  backgroundColor: "transparent",
+                  color: "#f59e0b",
+                  border: "2px solid #f59e0b",
+                  padding: "12px",
+                  borderRadius: "10px",
+                  fontSize: "13px",
+                  fontWeight: "700",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                  letterSpacing: "0.5px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "#fef3c7";
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.transform = "translateY(0)";
+                }}
+              >
+                View Menu
+                <ArrowRightIcon style={{ width: "14px", height: "14px" }} />
+              </button>
             </div>
           </div>
         </div>
