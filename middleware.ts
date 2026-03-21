@@ -1,0 +1,1 @@
+export { authMiddleware as middleware, authConfig as config } from '@catering-marketplace/auth';

@@ -35,6 +35,9 @@
       ],
       "@catering-marketplace/query-client": [
         "../../packages/query-client/src"
+      ],
+      "@catering-marketplace/auth": [
+        "../../packages/auth/src"
       ]
     },
     "plugins": [

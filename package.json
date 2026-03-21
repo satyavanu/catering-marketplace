@@ -8,6 +8,7 @@
     "packages/themes",
     "packages/shared",
     "packages/ui",
+    "packages/auth",
     "apps/web",
     "apps/pos",
     "apps/dashboard"
@@ -58,7 +59,8 @@
         "@catering/types": "file:../../packages/types",
         "@catering/shared": "file:../../packages/shared",
         "@catering/ui": "file:../../packages/ui",
-        "@catering/themes": "file:../../packages/themes"
+        "@catering/themes": "file:../../packages/themes",
+        "@catering/auth": "file:../../packages/auth"
       },
       "devDependencies": {
         "typescript": "^5.0.0",
@@ -87,7 +89,8 @@
         "@catering/types": "file:../../packages/types",
         "@catering/shared": "file:../../packages/shared",
         "@catering/ui": "file:../../packages/ui",
-        "@catering/themes": "file:../../packages/themes"
+        "@catering/themes": "file:../../packages/themes",
+        "@catering/auth": "file:../../packages/auth"
       },
       "devDependencies": {
         "typescript": "^5.0.0",
@@ -175,9 +178,11 @@
     }
   },
   "dependencies": {
+    "@catering-marketplace/auth": "^1.0.0",
     "@heroicons/react": "^2.2.0",
     "@tanstack/react-query": "^5.91.2",
     "@tanstack/react-query-devtools": "^5.91.3",
-    "lucide-react": "^0.577.0"
+    "lucide-react": "^0.577.0",
+    "next-auth": "^4.24.13"
   }
 }

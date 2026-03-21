@@ -44,6 +44,6 @@
     { "path": "./packages/types" },
     { "path": "./packages/themes" },
     { "path": "./packages/shared" },
-    { "path": "./packages/ui" }
+    { "path": "./packages/ui" },
   ]
 }

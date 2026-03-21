@@ -3,11 +3,12 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 import { EnvelopeIcon, LockClosedIcon } from '@heroicons/react/24/outline';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('chef@example.com');
+  const [email, setEmail] = useState('demo@example.com');
   const [password, setPassword] = useState('password');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -18,34 +19,34 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
 
-    // Mock authentication
-    if (email && password) {
-      setTimeout(() => {
-        localStorage.setItem('authToken', JSON.stringify({
-          email,
-          loginTime: new Date().toISOString(),
-        }));
+    try {
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+        callbackUrl: '/account',
+      });
+
+      if (result?.error) {
+        setError('Invalid email or password');
+        setLoading(false);
+      } else if (result?.ok) {
         router.push('/account');
-      }, 1000);
-    } else {
-      setError('Please fill in all fields');
+      }
+    } catch (err) {
+      setError('An error occurred. Please try again.');
       setLoading(false);
     }
   };
 
-  const handleSocialLogin = (provider: string) => {
+  const handleSocialLogin = async (provider: 'google' | 'github') => {
     setSocialLoading(provider);
-
-    // Mock social login
-    setTimeout(() => {
-      localStorage.setItem('authToken', JSON.stringify({
-        email: `user@${provider}.com`,
-        provider: provider,
-        loginTime: new Date().toISOString(),
-      }));
+    try {
+      await signIn(provider, { callbackUrl: '/account' });
+    } catch (err) {
+      setError(`Failed to sign in with ${provider}`);
       setSocialLoading(null);
-      router.push('/account');
-    }, 1500);
+    }
   };
 
   const SocialLoginButton = ({
@@ -56,7 +57,7 @@ export default function LoginPage() {
     bgHoverColor,
     borderColor,
   }: {
-    provider: string;
+    provider: 'google' | 'github' | 'apple';
     icon: React.ComponentType<{ style?: React.CSSProperties }>;
     label: string;
     bgColor: string;
@@ -64,11 +65,17 @@ export default function LoginPage() {
     borderColor: string;
   }) => {
     const Icon = IconComponent;
+    const isLoading = socialLoading === provider;
+
     return (
       <button
         type="button"
-        onClick={() => handleSocialLogin(provider)}
-        disabled={socialLoading !== null}
+        onClick={() => {
+          if (provider !== 'apple') {
+            handleSocialLogin(provider as 'google' | 'github');
+          }
+        }}
+        disabled={socialLoading !== null || provider === 'apple'}
         style={{
           flex: 1,
           padding: '0.75rem 1rem',
@@ -77,9 +84,15 @@ export default function LoginPage() {
           border: `2px solid ${borderColor}`,
           borderRadius: '0.5rem',
           fontWeight: '600',
-          cursor: socialLoading ? 'not-allowed' : 'pointer',
+          cursor: 
+            socialLoading !== null || provider === 'apple' 
+              ? 'not-allowed' 
+              : 'pointer',
           fontSize: '0.875rem',
-          opacity: socialLoading && socialLoading !== provider ? 0.5 : 1,
+          opacity: 
+            (socialLoading && !isLoading) || provider === 'apple' 
+              ? 0.5 
+              : 1,
           transition: 'all 0.3s ease',
           display: 'flex',
           alignItems: 'center',
@@ -87,7 +100,7 @@ export default function LoginPage() {
           gap: '0.5rem',
         }}
         onMouseEnter={(e) => {
-          if (!socialLoading) {
+          if (!socialLoading && provider !== 'apple') {
             e.currentTarget.style.backgroundColor = bgHoverColor;
             e.currentTarget.style.transform = 'translateY(-2px)';
             e.currentTarget.style.boxShadow = `0 4px 12px rgba(0, 0, 0, 0.15)`;
@@ -100,7 +113,7 @@ export default function LoginPage() {
         }}
       >
         <Icon style={{ width: '18px', height: '18px' }} />
-        {socialLoading === provider ? `Connecting...` : label}
+        {isLoading ? `Connecting...` : label}
       </button>
     );
   };
@@ -123,7 +136,7 @@ export default function LoginPage() {
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          margin: "0 auto",
+          margin: '0 auto',
           color: 'white',
           '@media (max-width: 1024px)': {
             display: 'none',
@@ -233,7 +246,7 @@ export default function LoginPage() {
             </h2>
             <p
               style={{
-                color: '#ffffff',
+                color: '#6b7280',
                 fontSize: '0.875rem',
                 '@media (max-width: 640px)': {
                   fontSize: '0.8125rem',
@@ -295,6 +308,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
+                  disabled={loading || socialLoading !== null}
                   style={{
                     flex: 1,
                     border: 'none',
@@ -305,6 +319,15 @@ export default function LoginPage() {
                   }}
                 />
               </div>
+              <p
+                style={{
+                  fontSize: '0.75rem',
+                  color: '#9ca3af',
+                  margin: '0.5rem 0 0 0',
+                }}
+              >
+                Demo: demo@example.com
+              </p>
             </div>
 
             {/* Password */}
@@ -353,6 +376,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
+                  disabled={loading || socialLoading !== null}
                   style={{
                     flex: 1,
                     border: 'none',
@@ -363,6 +387,15 @@ export default function LoginPage() {
                   }}
                 />
               </div>
+              <p
+                style={{
+                  fontSize: '0.75rem',
+                  color: '#9ca3af',
+                  margin: '0.5rem 0 0 0',
+                }}
+              >
+                Demo: password
+              </p>
             </div>
 
             {/* Error Message */}
@@ -405,14 +438,15 @@ export default function LoginPage() {
                   alignItems: 'center',
                   gap: '0.5rem',
                   fontSize: '0.875rem',
-                  color: '#fff',
+                  color: '#374151',
                   cursor: 'pointer',
                   userSelect: 'none',
                 }}
               >
                 <input
                   type="checkbox"
-                  style={{ cursor: 'pointer', accentColor: '#fff' }}
+                  style={{ cursor: 'pointer', accentColor: '#667eea' }}
+                  disabled={loading || socialLoading !== null}
                 />
                 Remember me
               </label>
@@ -493,7 +527,7 @@ export default function LoginPage() {
             <p
               style={{
                 textAlign: 'center',
-                color: '#ffffff',
+                color: '#374151',
                 fontSize: '0.875rem',
                 marginBottom: '1rem',
                 fontWeight: '500',
@@ -526,7 +560,13 @@ export default function LoginPage() {
                     style={style}
                   >
                     <circle cx="12" cy="12" r="10" />
-                    <text x="12" y="15" textAnchor="middle" fill="currentColor" fontSize="10">
+                    <text
+                      x="12"
+                      y="15"
+                      textAnchor="middle"
+                      fill="currentColor"
+                      fontSize="10"
+                    >
                       G
                     </text>
                   </svg>
@@ -537,7 +577,7 @@ export default function LoginPage() {
                 borderColor="#4285f4"
               />
               <SocialLoginButton
-                provider="facebook"
+                provider="github"
                 icon={({ style }) => (
                   <svg
                     width="18"
@@ -546,13 +586,13 @@ export default function LoginPage() {
                     fill="currentColor"
                     style={style}
                   >
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v 3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
                   </svg>
                 )}
-                label="Facebook"
-                bgColor="#1877f2"
-                bgHoverColor="#166fe5"
-                borderColor="#1877f2"
+                label="GitHub"
+                bgColor="#333333"
+                bgHoverColor="#1a1a1a"
+                borderColor="#333333"
               />
               <SocialLoginButton
                 provider="apple"
@@ -573,13 +613,23 @@ export default function LoginPage() {
                 borderColor="#000000"
               />
             </div>
+            <p
+              style={{
+                fontSize: '0.75rem',
+                color: '#9ca3af',
+                textAlign: 'center',
+                marginTop: '0.75rem',
+              }}
+            >
+              Apple login coming soon
+            </p>
           </div>
 
           {/* Sign Up Link */}
           <p
             style={{
               textAlign: 'center',
-              color: '#ffffff',
+              color: '#374151',
               fontSize: '0.875rem',
             }}
           >
