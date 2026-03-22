@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   ArrowLeftIcon,
@@ -21,21 +21,6 @@ const ADDITIONAL_SERVICES = [
   { id: 6, name: 'Live Cooking Station', price: 25000, description: 'Chef cooking live at your event' },
 ];
 
-// Mock user data (In real app, this would come from your backend)
-const MOCK_USERS: Record<string, any> = {
-  'user@example.com': {
-    id: '1',
-    email: 'user@example.com',
-    password: 'password123',
-    fullName: 'John Doe',
-    phone: '+91 98765 43210',
-    addresses: [
-      { id: '1', label: 'Home', address: '123 Main Street', city: 'Mumbai', zipCode: '400001', isDefault: true },
-      { id: '2', label: 'Office', address: '456 Business Park', city: 'Mumbai', zipCode: '400002', isDefault: false },
-    ],
-  },
-};
-
 // Mock payment methods
 const PAYMENT_METHODS = [
   { id: 'card', name: 'Credit/Debit Card', icon: '💳', description: 'Visa, Mastercard, Amex' },
@@ -50,15 +35,14 @@ const QuotePage = () => {
   const serviceId = searchParams.get('serviceId');
   const serviceName = searchParams.get('serviceName');
   const selectedItems = searchParams.get('selectedItems')?.split(',').filter(Boolean) || [];
+  const fromLogin = searchParams.get('fromLogin') === 'true';
 
   const ENABLE_ORDERING = true;
 
   // Auth States
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [loginError, setLoginError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
   // Mode States
   const [mode, setMode] = useState<'quote' | 'order'>('quote');
@@ -87,33 +71,57 @@ const QuotePage = () => {
 
   const [orderSummary, setOrderSummary] = useState<any>(null);
 
-  // Login Handler
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoginError('');
+  // Check if user is logged in on mount
+  useEffect(() => {
+    const checkAuth = () => {
+      try {
+        const userStr = localStorage.getItem('user');
+        const token = localStorage.getItem('authToken');
 
-    const user = MOCK_USERS[loginEmail];
-    if (user && user.password === loginPassword) {
-      setIsLoggedIn(true);
-      setCurrentUser(user);
-      setFormData(prev => ({
-        ...prev,
-        fullName: user.fullName,
-        email: user.email,
-        phone: user.phone,
-        selectedAddressId: user.addresses[0].id,
-        useExistingAddress: true,
-      }));
-      setLoginEmail('');
-      setLoginPassword('');
-    } else {
-      setLoginError('Invalid email or password. Try user@example.com / password123');
-    }
+        if (userStr && token) {
+          const user = JSON.parse(userStr);
+          setIsLoggedIn(true);
+          setCurrentUser(user);
+          setFormData(prev => ({
+            ...prev,
+            fullName: user.fullName || user.name || '',
+            email: user.email || '',
+            phone: user.phone || '',
+            selectedAddressId: user.addresses?.[0]?.id || '',
+            useExistingAddress: user.addresses && user.addresses.length > 0,
+          }));
+          
+          // If coming from login, switch to order mode
+          setMode('order');
+        }
+      } catch (error) {
+        console.error('Auth check error:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, [fromLogin]);
+
+  const handleLoginRedirect = () => {
+    // Store current quote state in sessionStorage for retrieval after login
+    sessionStorage.setItem('quoteParams', JSON.stringify({
+      serviceId,
+      serviceName,
+      selectedItems,
+    }));
+
+    // Redirect to login with returnUrl that includes fromLogin flag
+    const returnUrl = `/quote?fromLogin=true&serviceId=${serviceId}&serviceName=${encodeURIComponent(serviceName || '')}&selectedItems=${selectedItems.join(',')}`;
+    router.push(`/login?returnUrl=${encodeURIComponent(returnUrl)}`);
   };
 
   const handleLogout = () => {
     setIsLoggedIn(false);
     setCurrentUser(null);
+    localStorage.removeItem('user');
+    localStorage.removeItem('authToken');
     setFormData({
       eventDate: '',
       guestCount: '',
@@ -160,9 +168,9 @@ const QuotePage = () => {
   };
 
   const getAddressDisplay = () => {
-    if (formData.useExistingAddress && currentUser) {
+    if (formData.useExistingAddress && currentUser?.addresses) {
       const addr = currentUser.addresses.find((a: any) => a.id === formData.selectedAddressId);
-      return addr;
+      return addr || { address: formData.address, city: formData.city, zipCode: formData.zipCode };
     }
     return { address: formData.address, city: formData.city, zipCode: formData.zipCode };
   };
@@ -212,172 +220,13 @@ const QuotePage = () => {
     setStep('confirmation');
   };
 
-  // Login Screen
-  if (!isLoggedIn && mode === 'order') {
+  // Loading state
+  if (isLoading) {
     return (
-      <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px' }}>
-        <div
-          style={{
-            backgroundColor: 'white',
-            borderRadius: '16px',
-            padding: '48px',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
-            maxWidth: '420px',
-            width: '100%',
-          }}
-        >
-          <div
-            style={{
-              width: '64px',
-              height: '64px',
-              backgroundColor: '#fef3c7',
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 0 24px 0',
-            }}
-          >
-            <LockClosedIcon style={{ width: '32px', height: '32px', color: '#f59e0b' }} />
-          </div>
-
-          <h1
-            style={{
-              fontSize: '28px',
-              fontWeight: '900',
-              color: '#1e293b',
-              margin: '0 0 8px 0',
-            }}
-          >
-            Sign In to Order
-          </h1>
-          <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '32px' }}>
-            Login to your account to place an order
-          </p>
-
-          <form onSubmit={handleLogin}>
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
-                Email Address
-              </label>
-              <input
-                type="email"
-                value={loginEmail}
-                onChange={(e) => setLoginEmail(e.target.value)}
-                placeholder="user@example.com"
-                required
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontFamily: 'inherit',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
-                Password
-              </label>
-              <input
-                type="password"
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                placeholder="Enter your password"
-                required
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontFamily: 'inherit',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
-
-            {loginError && (
-              <div
-                style={{
-                  backgroundColor: '#fee2e2',
-                  border: '1px solid #fecaca',
-                  color: '#991b1b',
-                  padding: '12px',
-                  borderRadius: '8px',
-                  fontSize: '13px',
-                  marginBottom: '20px',
-                }}
-              >
-                {loginError}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              style={{
-                width: '100%',
-                backgroundColor: '#f59e0b',
-                color: 'white',
-                border: 'none',
-                padding: '14px 24px',
-                borderRadius: '8px',
-                fontSize: '15px',
-                fontWeight: '800',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                marginBottom: '16px',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#d97706';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#f59e0b';
-              }}
-            >
-              Sign In
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setMode('quote')}
-              style={{
-                width: '100%',
-                backgroundColor: 'transparent',
-                color: '#f59e0b',
-                border: '2px solid #f59e0b',
-                padding: '12px 24px',
-                borderRadius: '8px',
-                fontSize: '15px',
-                fontWeight: '800',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#fffbeb';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
-            >
-              Get Quote Instead
-            </button>
-          </form>
-
-          <div style={{ marginTop: '24px', padding: '16px', backgroundColor: '#f0f9ff', borderRadius: '8px', border: '1px solid #bae6fd' }}>
-            <p style={{ fontSize: '12px', fontWeight: '700', color: '#0369a1', marginBottom: '8px' }}>
-              Demo Credentials:
-            </p>
-            <p style={{ fontSize: '12px', color: '#0369a1', margin: '4px 0' }}>
-              Email: user@example.com
-            </p>
-            <p style={{ fontSize: '12px', color: '#0369a1', margin: 0 }}>
-              Password: password123
-            </p>
-          </div>
+      <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
+          <p style={{ color: '#64748b', fontSize: '16px' }}>Loading...</p>
         </div>
       </div>
     );
@@ -469,13 +318,7 @@ const QuotePage = () => {
                 <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', margin: '0 0 16px 0' }}>
                   📋 Event Details
                 </h2>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr',
-                    gap: '16px',
-                  }}
-                >
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '12px' }}>
                     <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 6px 0', fontWeight: '600' }}>
                       Service
@@ -538,13 +381,7 @@ const QuotePage = () => {
                 <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', margin: '0 0 16px 0' }}>
                   👤 Contact Information
                 </h2>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr',
-                    gap: '16px',
-                  }}
-                >
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '12px' }}>
                     <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 6px 0', fontWeight: '600' }}>
                       Name
@@ -561,14 +398,7 @@ const QuotePage = () => {
                       {orderSummary?.phone}
                     </p>
                   </div>
-                  <div
-                    style={{
-                      backgroundColor: '#f8fafc',
-                      padding: '16px',
-                      borderRadius: '12px',
-                      gridColumn: '1 / -1',
-                    }}
-                  >
+                  <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '12px', gridColumn: '1 / -1' }}>
                     <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 6px 0', fontWeight: '600' }}>
                       Email
                     </p>
@@ -647,13 +477,7 @@ const QuotePage = () => {
               )}
 
               {/* Price Breakdown */}
-              <div
-                style={{
-                  backgroundColor: '#f8fafc',
-                  padding: '24px',
-                  borderRadius: '12px',
-                }}
-              >
+              <div style={{ backgroundColor: '#f8fafc', padding: '24px', borderRadius: '12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '14px' }}>
                   <span style={{ color: '#64748b', fontWeight: '600' }}>
                     Base Catering ({orderSummary?.guestCount} guests × ₹500)
@@ -718,9 +542,7 @@ const QuotePage = () => {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <button
-                  onClick={() => {
-                    setStep('payment');
-                  }}
+                  onClick={() => setStep('payment')}
                   style={{
                     backgroundColor: '#f59e0b',
                     color: 'white',
@@ -1009,7 +831,7 @@ const QuotePage = () => {
                   fontSize: '15px',
                   fontWeight: '800',
                   cursor: 'pointer',
-              }}
+                }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = '#f8fafc';
                 }}
@@ -1106,7 +928,7 @@ const QuotePage = () => {
                   cursor: 'pointer',
                 }}
               >
-                Sign Out ({currentUser?.fullName})
+                Sign Out ({currentUser?.fullName || currentUser?.name})
               </button>
             )}
           </div>
@@ -1154,8 +976,12 @@ const QuotePage = () => {
             </button>
             <button
               onClick={() => {
-                setMode('order');
-                setSubmitted(false);
+                if (!isLoggedIn) {
+                  handleLoginRedirect();
+                } else {
+                  setMode('order');
+                  setSubmitted(false);
+                }
               }}
               style={{
                 backgroundColor: mode === 'order' ? '#f59e0b' : 'transparent',
@@ -1206,6 +1032,50 @@ const QuotePage = () => {
             marginBottom: '48px',
           }}
         >
+          {/* Login Required Message */}
+          {mode === 'order' && !isLoggedIn && (
+            <div
+              style={{
+                backgroundColor: '#fef3c7',
+                border: '1px solid #fcd34d',
+                borderRadius: '12px',
+                padding: '24px',
+                marginBottom: '32px',
+                textAlign: 'center',
+              }}
+            >
+              <p style={{ fontSize: '16px', color: '#92400e', fontWeight: '700', margin: '0 0 12px 0' }}>
+                🔐 Please Login to Continue
+              </p>
+              <p style={{ fontSize: '14px', color: '#b45309', margin: 0 }}>
+                You need to sign in to your account to place an order.
+              </p>
+              <button
+                onClick={handleLoginRedirect}
+                style={{
+                  marginTop: '16px',
+                  backgroundColor: '#f59e0b',
+                  color: 'white',
+                  border: 'none',
+                  padding: '12px 24px',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#d97706';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f59e0b';
+                }}
+              >
+                Go to Sign In
+              </button>
+            </div>
+          )}
+
           {/* Selected Items Summary */}
           {selectedItems.length > 0 && (
             <div
@@ -1240,164 +1110,93 @@ const QuotePage = () => {
             </div>
           )}
 
-          <form onSubmit={handleSubmitForm}>
-            {/* Event Details */}
-            <div style={{ marginBottom: '32px' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', marginBottom: '20px', marginTop: 0 }}>
-                Event Details
-              </h2>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
-                    Event Date *
-                  </label>
-                  <input
-                    type="date"
-                    name="eventDate"
-                    value={formData.eventDate}
-                    onChange={handleInputChange}
-                    required
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      fontFamily: 'inherit',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
-                    {mode === 'order' ? 'Event Time *' : 'Event Time'}
-                  </label>
-                  <input
-                    type="time"
-                    name="eventTime"
-                    value={formData.eventTime}
-                    onChange={handleInputChange}
-                    required={mode === 'order'}
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      fontFamily: 'inherit',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
-                    Number of Guests *
-                  </label>
-                  <input
-                    type="number"
-                    name="guestCount"
-                    value={formData.guestCount}
-                    onChange={handleInputChange}
-                    placeholder="e.g., 50"
-                    required
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      fontFamily: 'inherit',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
-                    Event Type *
-                  </label>
-                  <select
-                    name="eventType"
-                    value={formData.eventType}
-                    onChange={handleInputChange}
-                    required
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      fontFamily: 'inherit',
-                      boxSizing: 'border-box',
-                    }}
-                  >
-                    <option value="">Select an event type...</option>
-                    <option value="Wedding">Wedding</option>
-                    <option value="Corporate">Corporate Event</option>
-                    <option value="Birthday">Birthday Party</option>
-                    <option value="Anniversary">Anniversary</option>
-                    <option value="Private Dinner">Private Dinner</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Address - Only for Orders */}
-            {mode === 'order' && (
+          {/* Show form only if quote mode or user is logged in for order mode */}
+          {mode === 'quote' || (mode === 'order' && isLoggedIn) ? (
+            <form onSubmit={handleSubmitForm}>
+              {/* ...rest of the form remains the same... */}
+              {/* Event Details */}
               <div style={{ marginBottom: '32px' }}>
                 <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', marginBottom: '20px', marginTop: 0 }}>
-                  📍 Delivery Address
+                  Event Details
                 </h2>
 
-                {/* Use Existing Address Toggle */}
-                {currentUser?.addresses?.length > 0 && (
-                  <div style={{ marginBottom: '20px' }}>
-                    <label
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
+                      Event Date *
+                    </label>
+                    <input
+                      type="date"
+                      name="eventDate"
+                      value={formData.eventDate}
+                      onChange={handleInputChange}
+                      required
                       style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        padding: '16px',
+                        width: '100%',
+                        padding: '12px 16px',
                         border: '1px solid #e2e8f0',
                         borderRadius: '8px',
-                        cursor: 'pointer',
-                        backgroundColor: formData.useExistingAddress ? '#fffbeb' : 'white',
+                        fontSize: '14px',
+                        fontFamily: 'inherit',
+                        boxSizing: 'border-box',
                       }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={formData.useExistingAddress}
-                        onChange={(e) =>
-                          setFormData(prev => ({
-                            ...prev,
-                            useExistingAddress: e.target.checked,
-                          }))
-                        }
-                        style={{ marginRight: '12px', cursor: 'pointer', width: '18px', height: '18px' }}
-                      />
-                      <span style={{ fontWeight: '600', color: '#1e293b' }}>
-                        Use saved address from my profile
-                      </span>
-                    </label>
+                    />
                   </div>
-                )}
-
-                {formData.useExistingAddress && currentUser?.addresses?.length > 0 ? (
-                  <div style={{ marginBottom: '20px' }}>
+                  <div>
                     <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
-                      Select Address *
+                      {mode === 'order' ? 'Event Time *' : 'Event Time'}
+                    </label>
+                    <input
+                      type="time"
+                      name="eventTime"
+                      value={formData.eventTime}
+                      onChange={handleInputChange}
+                      required={mode === 'order'}
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontFamily: 'inherit',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
+                      Number of Guests *
+                    </label>
+                    <input
+                      type="number"
+                      name="guestCount"
+                      value={formData.guestCount}
+                      onChange={handleInputChange}
+                      placeholder="e.g., 50"
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontFamily: 'inherit',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
+                      Event Type *
                     </label>
                     <select
-                      value={formData.selectedAddressId}
-                      onChange={(e) =>
-                        setFormData(prev => ({
-                          ...prev,
-                          selectedAddressId: e.target.value,
-                        }))
-                      }
+                      name="eventType"
+                      value={formData.eventType}
+                      onChange={handleInputChange}
+                      required
                       style={{
                         width: '100%',
                         padding: '12px 16px',
@@ -1408,26 +1207,69 @@ const QuotePage = () => {
                         boxSizing: 'border-box',
                       }}
                     >
-                      {currentUser.addresses.map((addr: any) => (
-                        <option key={addr.id} value={addr.id}>
-                          {addr.label} - {addr.address}, {addr.city}
-                        </option>
-                      ))}
+                      <option value="">Select an event type...</option>
+                      <option value="Wedding">Wedding</option>
+                      <option value="Corporate">Corporate Event</option>
+                      <option value="Birthday">Birthday Party</option>
+                      <option value="Anniversary">Anniversary</option>
+                      <option value="Private Dinner">Private Dinner</option>
+                      <option value="Other">Other</option>
                     </select>
                   </div>
-                ) : (
-                  <>
+                </div>
+              </div>
+
+              {/* Address - Only for Orders */}
+              {mode === 'order' && (
+                <div style={{ marginBottom: '32px' }}>
+                  <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', marginBottom: '20px', marginTop: 0 }}>
+                    📍 Delivery Address
+                  </h2>
+
+                  {currentUser?.addresses?.length > 0 && (
+                    <div style={{ marginBottom: '20px' }}>
+                      <label
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          padding: '16px',
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          backgroundColor: formData.useExistingAddress ? '#fffbeb' : 'white',
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={formData.useExistingAddress}
+                          onChange={(e) =>
+                            setFormData(prev => ({
+                              ...prev,
+                              useExistingAddress: e.target.checked,
+                            }))
+                          }
+                          style={{ marginRight: '12px', cursor: 'pointer', width: '18px', height: '18px' }}
+                        />
+                        <span style={{ fontWeight: '600', color: '#1e293b' }}>
+                          Use saved address from my profile
+                        </span>
+                      </label>
+                    </div>
+                  )}
+
+                  {formData.useExistingAddress && currentUser?.addresses?.length > 0 ? (
                     <div style={{ marginBottom: '20px' }}>
                       <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
-                        Street Address *
+                        Select Address *
                       </label>
-                      <input
-                        type="text"
-                        name="address"
-                        value={formData.address}
-                        onChange={handleInputChange}
-                        placeholder="Enter your street address"
-                        required={mode === 'order' && !formData.useExistingAddress}
+                      <select
+                        value={formData.selectedAddressId}
+                        onChange={(e) =>
+                          setFormData(prev => ({
+                            ...prev,
+                            selectedAddressId: e.target.value,
+                          }))
+                        }
                         style={{
                           width: '100%',
                           padding: '12px 16px',
@@ -1437,20 +1279,26 @@ const QuotePage = () => {
                           fontFamily: 'inherit',
                           boxSizing: 'border-box',
                         }}
-                      />
+                      >
+                        {currentUser.addresses.map((addr: any) => (
+                          <option key={addr.id} value={addr.id}>
+                            {addr.label} - {addr.address}, {addr.city}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
-                      <div>
+                  ) : (
+                    <>
+                      <div style={{ marginBottom: '20px' }}>
                         <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
-                          City *
+                          Street Address *
                         </label>
                         <input
                           type="text"
-                          name="city"
-                          value={formData.city}
+                          name="address"
+                          value={formData.address}
                           onChange={handleInputChange}
-                          placeholder="City"
+                          placeholder="Enter your street address"
                           required={mode === 'order' && !formData.useExistingAddress}
                           style={{
                             width: '100%',
@@ -1463,318 +1311,343 @@ const QuotePage = () => {
                           }}
                         />
                       </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
-                          ZIP Code *
-                        </label>
-                        <input
-                          type="text"
-                          name="zipCode"
-                          value={formData.zipCode}
-                          onChange={handleInputChange}
-                          placeholder="ZIP"
-                          required={mode === 'order' && !formData.useExistingAddress}
-                          style={{
-                            width: '100%',
-                            padding: '12px 16px',
-                            border: '1px solid #e2e8f0',
-                            borderRadius: '8px',
-                            fontSize: '14px',
-                            fontFamily: 'inherit',
-                            boxSizing: 'border-box',
-                          }}
-                        />
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
+                            City *
+                          </label>
+                          <input
+                            type="text"
+                            name="city"
+                            value={formData.city}
+                            onChange={handleInputChange}
+                            placeholder="City"
+                            required={mode === 'order' && !formData.useExistingAddress}
+                            style={{
+                              width: '100%',
+                              padding: '12px 16px',
+                              border: '1px solid #e2e8f0',
+                              borderRadius: '8px',
+                              fontSize: '14px',
+                              fontFamily: 'inherit',
+                              boxSizing: 'border-box',
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
+                            ZIP Code *
+                          </label>
+                          <input
+                            type="text"
+                            name="zipCode"
+                            value={formData.zipCode}
+                            onChange={handleInputChange}
+                            placeholder="ZIP"
+                            required={mode === 'order' && !formData.useExistingAddress}
+                            style={{
+                              width: '100%',
+                              padding: '12px 16px',
+                              border: '1px solid #e2e8f0',
+                              borderRadius: '8px',
+                              fontSize: '14px',
+                              fontFamily: 'inherit',
+                              boxSizing: 'border-box',
+                            }}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* Contact Information */}
-            <div style={{ marginBottom: '32px' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', marginBottom: '20px', marginTop: 0 }}>
-                Contact Information
-              </h2>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
-                    Full Name *
-                  </label>
-                  <input
-                    type="text"
-                    name="fullName"
-                    value={formData.fullName}
-                    onChange={handleInputChange}
-                    placeholder="Your name"
-                    required
-                    disabled={isLoggedIn}
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      fontFamily: 'inherit',
-                      boxSizing: 'border-box',
-                      backgroundColor: isLoggedIn ? '#f8fafc' : 'white',
-                    }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
-                    Phone Number *
-                  </label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    placeholder="Your phone"
-                    required
-                    disabled={isLoggedIn}
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      fontFamily: 'inherit',
-                      boxSizing: 'border-box',
-                      backgroundColor: isLoggedIn ? '#f8fafc' : 'white',
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
-                  Email Address *
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  placeholder="your.email@example.com"
-                  required
-                  disabled={isLoggedIn}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontFamily: 'inherit',
-                    boxSizing: 'border-box',
-                    backgroundColor: isLoggedIn ? '#f8fafc' : 'white',
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Additional Services - Only for Orders */}
-            {mode === 'order' && (
-              <div style={{ marginBottom: '32px' }}>
-                <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', marginBottom: '20px', marginTop: 0 }}>
-                  ⭐ Additional Services
-                </h2>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  {ADDITIONAL_SERVICES.map(service => (
-                    <label
-                      key={service.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        padding: '16px',
-                        border: formData.selectedServices.includes(service.id)
-                          ? '2px solid #f59e0b'
-                          : '1px solid #e2e8f0',
-                        borderRadius: '12px',
-                        cursor: 'pointer',
-                        backgroundColor: formData.selectedServices.includes(service.id)
-                          ? '#fffbeb'
-                          : 'white',
-                        transition: 'all 0.2s ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!formData.selectedServices.includes(service.id)) {
-                          e.currentTarget.style.borderColor = '#cbd5e1';
-                          e.currentTarget.style.backgroundColor = '#f8fafc';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!formData.selectedServices.includes(service.id)) {
-                          e.currentTarget.style.borderColor = '#e2e8f0';
-                          e.currentTarget.style.backgroundColor = 'white';
-                        }
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={formData.selectedServices.includes(service.id)}
-                        onChange={() => handleServiceToggle(service.id)}
-                        style={{
-                          marginRight: '12px',
-                          marginTop: '2px',
-                          cursor: 'pointer',
-                          width: '18px',
-                          height: '18px',
-                        }}
-                      />
-                      <div>
-                        <p style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b', margin: '0 0 4px 0' }}>
-                          {service.name}
-                        </p>
-                        <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>
-                          {service.description}
-                        </p>
-                        <p style={{ fontSize: '13px', fontWeight: '700', color: '#f59e0b', margin: '6px 0 0 0' }}>
-                          ₹{service.price.toLocaleString('en-IN')}
-                        </p>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Special Requests */}
-            <div style={{ marginBottom: '32px' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', marginBottom: '20px', marginTop: 0 }}>
-                {mode === 'order' ? '📝 Special Requests' : 'Budget & Special Requests'}
-              </h2>
-
-              {mode === 'quote' && (
-                <div style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
-                    Estimated Budget (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    name="budget"
-                    value={formData.budget}
-                    onChange={handleInputChange}
-                    placeholder="e.g., ₹1,00,000"
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      fontFamily: 'inherit',
-                      boxSizing: 'border-box',
-                    }}
-                  />
+                    </>
+                  )}
                 </div>
               )}
 
-              <div>
-                <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
-                  Special Requests or Dietary Requirements
-                </label>
-                <textarea
-                  name="specialRequests"
-                  value={formData.specialRequests}
-                  onChange={handleInputChange}
-                  placeholder="Tell us about any special requirements, dietary restrictions, or preferences..."
-                  rows={5}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontFamily: 'inherit',
-                    boxSizing: 'border-box',
-                    resize: 'vertical',
-                  }}
-                />
-              </div>
-            </div>
+              {/* Contact Information */}
+              <div style={{ marginBottom: '32px' }}>
+                <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', marginBottom: '20px', marginTop: 0 }}>
+                  Contact Information
+                </h2>
 
-            {/* Order Summary - Only for Orders */}
-            {mode === 'order' && (
-              <div
-                style={{
-                  backgroundColor: '#f8fafc',
-                  padding: '20px',
-                  borderRadius: '12px',
-                  marginBottom: '32px',
-                  border: '1px solid #e2e8f0',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '600' }}>
-                    Base Catering ({formData.guestCount} guests × ₹500)
-                  </span>
-                  <span style={{ fontWeight: '700', color: '#1e293b' }}>
-                    ₹{(parseInt(formData.guestCount || '0') * 500).toLocaleString('en-IN')}
-                  </span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
+                      Full Name *
+                    </label>
+                    <input
+                      type="text"
+                      name="fullName"
+                      value={formData.fullName}
+                      onChange={handleInputChange}
+                      placeholder="Your name"
+                      required
+                      disabled={isLoggedIn}
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontFamily: 'inherit',
+                        boxSizing: 'border-box',
+                        backgroundColor: isLoggedIn ? '#f8fafc' : 'white',
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
+                      Phone Number *
+                    </label>
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      placeholder="Your phone"
+                      required
+                      disabled={isLoggedIn}
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontFamily: 'inherit',
+                        boxSizing: 'border-box',
+                        backgroundColor: isLoggedIn ? '#f8fafc' : 'white',
+                      }}
+                    />
+                  </div>
                 </div>
-                {formData.selectedServices.length > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                    <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '600' }}>
-                      Additional Services ({formData.selectedServices.length})
-                    </span>
-                    <span style={{ fontWeight: '700', color: '#1e293b' }}>
-                      ₹
-                      {formData.selectedServices
-                        .reduce((total, id) => {
-                          const service = ADDITIONAL_SERVICES.find(s => s.id === id);
-                          return total + (service?.price || 0);
-                        }, 0)
-                        .toLocaleString('en-IN')}
-                    </span>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
+                    Email Address *
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    placeholder="your.email@example.com"
+                    required
+                    disabled={isLoggedIn}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      fontFamily: 'inherit',
+                      boxSizing: 'border-box',
+                      backgroundColor: isLoggedIn ? '#f8fafc' : 'white',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Additional Services - Only for Orders */}
+              {mode === 'order' && (
+                <div style={{ marginBottom: '32px' }}>
+                  <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', marginBottom: '20px', marginTop: 0 }}>
+                    ⭐ Additional Services
+                  </h2>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    {ADDITIONAL_SERVICES.map(service => (
+                      <label
+                        key={service.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          padding: '16px',
+                          border: formData.selectedServices.includes(service.id)
+                            ? '2px solid #f59e0b'
+                            : '1px solid #e2e8f0',
+                          borderRadius: '12px',
+                          cursor: 'pointer',
+                          backgroundColor: formData.selectedServices.includes(service.id)
+                            ? '#fffbeb'
+                            : 'white',
+                          transition: 'all 0.2s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!formData.selectedServices.includes(service.id)) {
+                            e.currentTarget.style.borderColor = '#cbd5e1';
+                            e.currentTarget.style.backgroundColor = '#f8fafc';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!formData.selectedServices.includes(service.id)) {
+                            e.currentTarget.style.borderColor = '#e2e8f0';
+                            e.currentTarget.style.backgroundColor = 'white';
+                          }
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={formData.selectedServices.includes(service.id)}
+                          onChange={() => handleServiceToggle(service.id)}
+                          style={{
+                            marginRight: '12px',
+                            marginTop: '2px',
+                            cursor: 'pointer',
+                            width: '18px',
+                            height: '18px',
+                          }}
+                        />
+                        <div>
+                          <p style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b', margin: '0 0 4px 0' }}>
+                            {service.name}
+                          </p>
+                          <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>
+                            {service.description}
+                          </p>
+                          <p style={{ fontSize: '13px', fontWeight: '700', color: '#f59e0b', margin: '6px 0 0 0' }}>
+                            ₹{service.price.toLocaleString('en-IN')}
+                          </p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Special Requests */}
+              <div style={{ marginBottom: '32px' }}>
+                <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', marginBottom: '20px', marginTop: 0 }}>
+                  {mode === 'order' ? '📝 Special Requests' : 'Budget & Special Requests'}
+                </h2>
+
+                {mode === 'quote' && (
+                  <div style={{ marginBottom: '20px' }}>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
+                      Estimated Budget (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      name="budget"
+                      value={formData.budget}
+                      onChange={handleInputChange}
+                      placeholder="e.g., ₹1,00,000"
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontFamily: 'inherit',
+                        boxSizing: 'border-box',
+                      }}
+                    />
                   </div>
                 )}
-                <div
-                  style={{
-                    borderTop: '2px solid #e2e8f0',
-                    paddingTop: '12px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    fontSize: '16px',
-                    fontWeight: '900',
-                  }}
-                >
-                  <span style={{ color: '#1e293b' }}>Total Amount</span>
-                  <span style={{ color: '#f59e0b' }}>
-                    ₹{calculateOrderTotal().toLocaleString('en-IN')}
-                  </span>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
+                    Special Requests or Dietary Requirements
+                  </label>
+                  <textarea
+                    name="specialRequests"
+                    value={formData.specialRequests}
+                    onChange={handleInputChange}
+                    placeholder="Tell us about any special requirements, dietary restrictions, or preferences..."
+                    rows={5}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      fontFamily: 'inherit',
+                      boxSizing: 'border-box',
+                      resize: 'vertical',
+                    }}
+                  />
                 </div>
               </div>
-            )}
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              style={{
-                width: '100%',
-                backgroundColor: '#f59e0b',
-                color: 'white',
-                border: 'none',
-                padding: '16px 24px',
-                borderRadius: '12px',
-                fontSize: '16px',
-                fontWeight: '800',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                boxShadow: '0 8px 20px rgba(245, 158, 11, 0.3)',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#d97706';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#f59e0b';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
-            >
-              {mode === 'quote' ? 'Submit Quote Request' : 'Proceed to Payment'}
-            </button>
-          </form>
+              {/* Order Summary - Only for Orders */}
+              {mode === 'order' && (
+                <div
+                  style={{
+                    backgroundColor: '#f8fafc',
+                    padding: '20px',
+                    borderRadius: '12px',
+                    marginBottom: '32px',
+                    border: '1px solid #e2e8f0',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                    <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '600' }}>
+                      Base Catering ({formData.guestCount} guests × ₹500)
+                    </span>
+                    <span style={{ fontWeight: '700', color: '#1e293b' }}>
+                      ₹{(parseInt(formData.guestCount || '0') * 500).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                  {formData.selectedServices.length > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '600' }}>
+                        Additional Services ({formData.selectedServices.length})
+                      </span>
+                      <span style={{ fontWeight: '700', color: '#1e293b' }}>
+                        ₹
+                        {formData.selectedServices
+                          .reduce((total, id) => {
+                            const service = ADDITIONAL_SERVICES.find(s => s.id === id);
+                            return total + (service?.price || 0);
+                          }, 0)
+                          .toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                  )}
+                  <div
+                    style={{
+                      borderTop: '2px solid #e2e8f0',
+                      paddingTop: '12px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: '16px',
+                      fontWeight: '900',
+                    }}
+                  >
+                    <span style={{ color: '#1e293b' }}>Total Amount</span>
+                    <span style={{ color: '#f59e0b' }}>
+                      ₹{calculateOrderTotal().toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                style={{
+                  width: '100%',
+                  backgroundColor: '#f59e0b',
+                  color: 'white',
+                  border: 'none',
+                  padding: '16px 24px',
+                  borderRadius: '12px',
+                  fontSize: '16px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 8px 20px rgba(245, 158, 11, 0.3)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#d97706';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f59e0b';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                {mode === 'quote' ? 'Submit Quote Request' : 'Proceed to Payment'}
+              </button>
+            </form>
+          ) : null}
         </div>
       </div>
     </div>

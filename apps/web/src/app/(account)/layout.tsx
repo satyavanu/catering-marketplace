@@ -74,7 +74,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
     { name: 'Dashboard', icon: HomeIcon, color: 'from-blue-500 to-cyan-500', path: '/account' },
     { name: 'My Orders', icon: ClipboardDocumentListIcon, color: 'from-purple-500 to-pink-500', path: '/orders' },
     { name: 'Saved Caterers', icon: HeartIcon, color: 'from-red-500 to-orange-500', path: '/saved-caterers' },
-    { name: 'Event Planner', icon: CalendarDaysIcon, color: 'from-green-500 to-emerald-500', path: '/event-planner' },
+   // { name: 'Event Planner', icon: CalendarDaysIcon, color: 'from-green-500 to-emerald-500', path: '/event-planner' },
     { name: 'Messages', icon: ChatBubbleLeftRightIcon, color: 'from-yellow-500 to-amber-500', path: '/messages' },
     { name: 'Reviews', icon: StarIcon, color: 'from-indigo-500 to-purple-500', path: '/reviews' },
     { name: 'Payments', icon: CreditCardIcon, color: 'from-cyan-500 to-blue-500', path: '/payments' },
@@ -85,7 +85,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
   const breadcrumbs: { [key: string]: string[] } = {
     Dashboard: ['Home'],
     'My Orders': ['Home', 'Orders'],
-    'Saved Caterers': ['Home', 'Saved'],
+    'Saved': ['Home', 'Saved'],
     'Event Planner': ['Home', 'Events'],
     Messages: ['Home', 'Messages'],
     Reviews: ['Home', 'Reviews'],

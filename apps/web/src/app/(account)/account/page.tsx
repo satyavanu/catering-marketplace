@@ -47,58 +47,6 @@ export default function AccountPage() {
             Plan your next amazing event with our top caterers
           </p>
         </div>
-
-        <div style={{
-          display: "flex",
-          gap: "10px",
-          flexShrink: 0,
-        }}>
-          <button style={{
-            backgroundColor: "#667eea",
-            backgroundImage: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-            color: "white",
-            border: "none",
-            padding: "10px 20px",
-            borderRadius: "8px",
-            fontSize: "13px",
-            fontWeight: "600",
-            cursor: "pointer",
-            transition: "all 0.3s ease",
-            boxShadow: "0 4px 12px rgba(102, 126, 234, 0.3)",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = "translateY(-2px)";
-            e.currentTarget.style.boxShadow = "0 8px 20px rgba(102, 126, 234, 0.4)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = "translateY(0)";
-            e.currentTarget.style.boxShadow = "0 4px 12px rgba(102, 126, 234, 0.3)";
-          }}
-          >
-            Book Caterer
-          </button>
-
-          <button style={{
-            backgroundColor: "white",
-            color: "#667eea",
-            border: "2px solid #667eea",
-            padding: "8px 20px",
-            borderRadius: "8px",
-            fontSize: "13px",
-            fontWeight: "600",
-            cursor: "pointer",
-            transition: "all 0.2s ease",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = "#f0f4ff";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = "white";
-          }}
-          >
-            Create Event
-          </button>
-        </div>
       </div>
 
       {/* STATS CARDS */}
