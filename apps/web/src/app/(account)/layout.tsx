@@ -73,7 +73,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
   const menu = [
     { name: 'Dashboard', icon: HomeIcon, color: 'from-blue-500 to-cyan-500', path: '/account' },
     { name: 'My Orders', icon: ClipboardDocumentListIcon, color: 'from-purple-500 to-pink-500', path: '/orders' },
-    { name: 'Saved Caterers', icon: HeartIcon, color: 'from-red-500 to-orange-500', path: '/saved-caterers' },
+    { name: 'Saved', icon: HeartIcon, color: 'from-red-500 to-orange-500', path: '/saved-caterers' },
    // { name: 'Event Planner', icon: CalendarDaysIcon, color: 'from-green-500 to-emerald-500', path: '/event-planner' },
     { name: 'Messages', icon: ChatBubbleLeftRightIcon, color: 'from-yellow-500 to-amber-500', path: '/messages' },
     { name: 'Reviews', icon: StarIcon, color: 'from-indigo-500 to-purple-500', path: '/reviews' },
@@ -103,7 +103,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', backgroundColor: '#f8fafc' }}>
+    <div style={{ display: 'flex', backgroundColor: '#f8fafc' }}>
       {/* SIDEBAR - Fixed Height No Scroll */}
       <aside
         style={{
@@ -406,8 +406,6 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
-          height: '100vh',
-          overflow: 'hidden',
           padding: '24px 32px',
         }}
       >
@@ -469,27 +467,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
             ))}
           </div>
 
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flex: '0 1 auto',
-              order: 2,
-              minWidth: '120px',
-            }}
-          >
-            <span
-              style={{
-                fontSize: '14px',
-                fontWeight: '600',
-                color: '#1e293b',
-                textTransform: 'capitalize',
-              }}
-            >
-              {activeMenu}
-            </span>
-          </div>
+      
 
           <div
             style={{
