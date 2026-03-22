@@ -24,6 +24,24 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@catering/types": [
+        "../../packages/types/src"
+      ],
+      "@catering/shared": [
+        "../../packages/shared/src"
+      ],
+      "@catering/ui": [
+        "../../packages/ui/src"
+      ],
+      "@catering/themes": [
+        "../../packages/themes/src"
+      ],
+      "@catering-marketplace/query-client": [
+        "../../packages/query-client/src"
+      ],
+      "@catering-marketplace/auth": [
+        "../../packages/auth/src"
       ]
     },
     "plugins": [

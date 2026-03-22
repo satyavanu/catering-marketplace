@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { Providers } from './providers';
 
 export const metadata: Metadata = {
   title: 'Dashboard - Catering Marketplace',
@@ -14,7 +15,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body style={{ margin: 0, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-        {children}
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );

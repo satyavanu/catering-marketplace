@@ -879,6 +879,140 @@ export default function BecomeCatererPage() {
         </div>
       </section>
 
+      {/* Onboarding Section */}
+      <section style={{ width: '100%', background: 'linear-gradient(to bottom, white, #f9fafb)', padding: '80px 32px', borderTop: '1px solid #e5e7eb' }}>
+        <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
+          <h2 className="section-title">Get Started: It Only Takes 10 Minutes</h2>
+          <p className="section-subtitle">Everything you need to know before joining CaterHub</p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '48px', alignItems: 'center' }} className="@media (min-width: 1024px)">
+            {/* Left Side - Requirements */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+              {/* Documents Section */}
+              <div style={{ background: 'white', borderRadius: '16px', padding: '32px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px rgba(0,0,0,0.07)' }}>
+                <h3 style={{ fontSize: '20px', fontWeight: '700', color: '#111827', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ fontSize: '28px' }}>📋</span>
+                  Documents Required
+                </h3>
+                <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <li style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', color: '#4b5563', fontSize: '14px' }}>
+                    <span style={{ color: '#16a34a', fontWeight: '700', marginTop: '2px' }}>✓</span>
+                    <div>
+                      <div style={{ fontWeight: '600', color: '#111827' }}>Business Registration</div>
+                      <div style={{ fontSize: '12px', marginTop: '4px' }}>FSSAI license, GST registration, or business license</div>
+                    </div>
+                  </li>
+                  <li style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', color: '#4b5563', fontSize: '14px' }}>
+                    <span style={{ color: '#16a34a', fontWeight: '700', marginTop: '2px' }}>✓</span>
+                    <div>
+                      <div style={{ fontWeight: '600', color: '#111827' }}>Bank Account Details</div>
+                      <div style={{ fontSize: '12px', marginTop: '4px' }}>For secure payment settlements</div>
+                    </div>
+                  </li>
+                  <li style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', color: '#4b5563', fontSize: '14px' }}>
+                    <span style={{ color: '#16a34a', fontWeight: '700', marginTop: '2px' }}>✓</span>
+                    <div>
+                      <div style={{ fontWeight: '600', color: '#111827' }}>Identity Proof</div>
+                      <div style={{ fontSize: '12px', marginTop: '4px' }}>Aadhaar, PAN, or Passport</div>
+                    </div>
+                  </li>
+                  <li style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', color: '#4b5563', fontSize: '14px' }}>
+                    <span style={{ color: '#16a34a', fontWeight: '700', marginTop: '2px' }}>✓</span>
+                    <div>
+                      <div style={{ fontWeight: '600', color: '#111827' }}>Address Proof</div>
+                      <div style={{ fontSize: '12px', marginTop: '4px' }}>Utility bill or rental agreement</div>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Profile Section */}
+              <div style={{ background: 'white', borderRadius: '16px', padding: '32px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px rgba(0,0,0,0.07)' }}>
+                <h3 style={{ fontSize: '20px', fontWeight: '700', color: '#111827', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ fontSize: '28px' }}>🍽️</span>
+                  Profile Information
+                </h3>
+                <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <li style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', color: '#4b5563', fontSize: '14px' }}>
+                    <span style={{ color: '#16a34a', fontWeight: '700', marginTop: '2px' }}>✓</span>
+                    <div>
+                      <div style={{ fontWeight: '600', color: '#111827' }}>Business Name & Details</div>
+                      <div style={{ fontSize: '12px', marginTop: '4px' }}>Your catering business name and contact info</div>
+                    </div>
+                  </li>
+                  <li style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', color: '#4b5563', fontSize: '14px' }}>
+                    <span style={{ color: '#16a34a', fontWeight: '700', marginTop: '2px' }}>✓</span>
+                    <div>
+                      <div style={{ fontWeight: '600', color: '#111827' }}>Menu & Pricing</div>
+                      <div style={{ fontSize: '12px', marginTop: '4px' }}>Create your initial menu with dishes and prices</div>
+                    </div>
+                  </li>
+                  <li style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', color: '#4b5563', fontSize: '14px' }}>
+                    <span style={{ color: '#16a34a', fontWeight: '700', marginTop: '2px' }}>✓</span>
+                    <div>
+                      <div style={{ fontWeight: '600', color: '#111827' }}>Professional Photos</div>
+                      <div style={{ fontSize: '12px', marginTop: '4px' }}>High-quality images of your dishes & kitchen</div>
+                    </div>
+                  </li>
+                  <li style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', color: '#4b5563', fontSize: '14px' }}>
+                    <span style={{ color: '#16a34a', fontWeight: '700', marginTop: '2px' }}>✓</span>
+                    <div>
+                      <div style={{ fontWeight: '600', color: '#111827' }}>Operating Areas</div>
+                      <div style={{ fontSize: '12px', marginTop: '4px' }}>Service locations and delivery areas</div>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Timeline & Info Box */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
+              {/* Timeline Box */}
+              <div style={{ background: 'linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%)', borderRadius: '16px', padding: '32px', border: '1px solid #c7d2fe' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#111827', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ fontSize: '24px' }}>⏱️</span>
+                  Verification Timeline
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div style={{ display: 'flex', gap: '16px' }}>
+                    <div style={{ background: '#4f46e5', color: 'white', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', flexShrink: 0 }}>1</div>
+                    <div>
+                      <div style={{ fontWeight: '600', color: '#111827' }}>Submit Documents</div>
+                      <div style={{ fontSize: '12px', color: '#4b5563', marginTop: '4px' }}>5-10 minutes</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '16px' }}>
+                    <div style={{ background: '#4f46e5', color: 'white', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', flexShrink: 0 }}>2</div>
+                    <div>
+                      <div style={{ fontWeight: '600', color: '#111827' }}>Document Verification</div>
+                      <div style={{ fontSize: '12px', color: '#4b5563', marginTop: '4px' }}>24-48 hours</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '16px' }}>
+                    <div style={{ background: '#4f46e5', color: 'white', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', flexShrink: 0 }}>3</div>
+                    <div>
+                      <div style={{ fontWeight: '600', color: '#111827' }}>Account Activation</div>
+                      <div style={{ fontSize: '12px', color: '#4b5563', marginTop: '4px' }}>Instant once approved</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Info Box */}
+              <div style={{ background: '#eff6ff', borderRadius: '16px', padding: '24px', border: '1px solid #93c5fd', display: 'flex', gap: '16px' }}>
+                <span style={{ fontSize: '24px', flexShrink: 0 }}>ℹ️</span>
+                <div>
+                  <div style={{ fontWeight: '600', color: '#1e40af', marginBottom: '8px' }}>Need Help?</div>
+                  <div style={{ fontSize: '14px', color: '#1e3a8a' }}>
+                    Our onboarding team is available 24/7 to help you through the process. <a href="mailto:support@caterhub.com" style={{ color: '#4f46e5', fontWeight: '600', textDecoration: 'none' }}>Contact support</a> anytime.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Benefits Section */}
       <section className="benefits-section">
         <h2 className="section-title">Why Join CaterHub?</h2>
