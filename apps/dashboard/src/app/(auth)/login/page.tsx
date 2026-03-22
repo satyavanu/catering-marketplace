@@ -3,39 +3,53 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('chef@example.com');
-  const [password, setPassword] = useState('password');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    // Mock authentication - any email/password combination works
-    if (email && password) {
-      setTimeout(() => {
-        // Store mock auth token
-        localStorage.setItem('authToken', JSON.stringify({
-          email,
-          loginTime: new Date().toISOString(),
-        }));
-        router.push('/dashboard');
-      }, 1000);
-    } else {
-      setError('Please fill in all fields');
-      setLoading(false);
-    }
-  };
-
-  const handleDemoLogin = () => {
-    setEmail('chef@example.com');
-    setPassword('password123');
-  };
+   const [email, setEmail] = useState('chef@example.com');
+   const [password, setPassword] = useState('password123');
+   const [rememberMe, setRememberMe] = useState(false);
+   const [error, setError] = useState('');
+   const [loading, setLoading] = useState(false);
+ 
+   const handleLogin = async (e: React.FormEvent) => {
+     e.preventDefault();
+     setError('');
+     setLoading(true);
+ 
+     try {
+       const result = await signIn('credentials', {
+         email,
+         password,
+         redirect: false,
+       });
+ 
+       if (result?.error) {
+         setError(result.error || 'Invalid email or password');
+         setLoading(false);
+       } else if (result?.ok) {
+         // Store remember me preference
+         if (rememberMe) {
+           localStorage.setItem('rememberEmail', email);
+         } else {
+           localStorage.removeItem('rememberEmail');
+         }
+ 
+         // Redirect to dashboard
+         router.push('/dashboard');
+       }
+     } catch (err) {
+       setError('An error occurred. Please try again.');
+       console.error(err);
+       setLoading(false);
+     }
+   };
+ 
+   const handleDemoLogin = () => {
+     setEmail('chef@example.com');
+     setPassword('password123');
+   };
 
   return (
     <div style={{ display: 'flex', flex: 1 }}>
@@ -61,12 +75,6 @@ export default function LoginPage() {
           Manage your catering business, orders, menu, and customers all in one place.
         </p>
         
-        {/* Demo Credentials */}
-        <div style={{ marginTop: '3rem', backgroundColor: 'rgba(255,255,255,0.1)', padding: '1.5rem', borderRadius: '0.75rem', maxWidth: '400px', backdropFilter: 'blur(10px)' }}>
-          <p style={{ fontSize: '0.875rem', marginBottom: '0.75rem', fontWeight: '600' }}>📝 Demo Credentials:</p>
-          <p style={{ fontSize: '0.75rem', margin: '0.25rem 0', opacity: 0.9 }}>Email: <code style={{ backgroundColor: 'rgba(0,0,0,0.2)', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }}>chef@example.com</code></p>
-          <p style={{ fontSize: '0.75rem', margin: '0.25rem 0', opacity: 0.9 }}>Password: <code style={{ backgroundColor: 'rgba(0,0,0,0.2)', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }}>password123</code></p>
-        </div>
       </div>
 
       {/* Right Side - Form */}
@@ -177,34 +185,17 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Demo Login Button */}
-          <button
-            onClick={handleDemoLogin}
-            style={{
-              width: '100%',
-              padding: '0.75rem 1rem',
-              backgroundColor: '#e5e7eb',
-              color: '#1f2937',
-              border: 'none',
-              borderRadius: '0.5rem',
-              fontWeight: '600',
-              cursor: 'pointer',
-              fontSize: '0.875rem',
-              marginTop: '1rem',
-            }}
-          >
-            Use Demo Credentials
-          </button>
+
 
           {/* Divider */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', margin: '2rem 0', color: '#d1d5db' }}>
             <div style={{ flex: 1, height: '1px', backgroundColor: '#e5e7eb' }} />
-            <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>or</span>
+            <span style={{ fontSize: '0.875rem', color: '#fff' }}>or</span>
             <div style={{ flex: 1, height: '1px', backgroundColor: '#e5e7eb' }} />
           </div>
 
           {/* Sign Up Link */}
-          <p style={{ textAlign: 'center', color: '#6b7280', fontSize: '0.875rem' }}>
+          <p style={{ textAlign: 'center', color: '#fff', fontSize: '0.875rem' }}>
             Don't have an account?{' '}
             <Link href="/signup" style={{ color: '#f97316', textDecoration: 'none', fontWeight: '600' }}>
               Sign up here
