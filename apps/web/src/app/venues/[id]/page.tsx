@@ -102,6 +102,7 @@ const VenueDetailPage = ({ params }: { params: { id: string } }) => {
             width: "100%",
             height: "100%",
             objectFit: "cover",
+            transition: "opacity 0.3s ease",
           }}
         />
 
@@ -123,9 +124,16 @@ const VenueDetailPage = ({ params }: { params: { id: string } }) => {
             justifyContent: "center",
             cursor: "pointer",
             transition: "all 0.2s ease",
+            zIndex: 10,
           }}
-          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "white"}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.9)"}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = "white";
+            e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.15)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.9)";
+            e.currentTarget.style.boxShadow = "none";
+          }}
         >
           <ChevronLeftIcon style={{ width: "20px", height: "20px", color: "#667eea" }} />
         </button>
@@ -147,9 +155,16 @@ const VenueDetailPage = ({ params }: { params: { id: string } }) => {
             justifyContent: "center",
             cursor: "pointer",
             transition: "all 0.2s ease",
+            zIndex: 10,
           }}
-          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "white"}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.9)"}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = "white";
+            e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.15)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.9)";
+            e.currentTarget.style.boxShadow = "none";
+          }}
         >
           <ChevronRightIcon style={{ width: "20px", height: "20px", color: "#667eea" }} />
         </button>
@@ -165,8 +180,68 @@ const VenueDetailPage = ({ params }: { params: { id: string } }) => {
           borderRadius: "6px",
           fontSize: "13px",
           fontWeight: "600",
+          backdropFilter: "blur(4px)",
         }}>
           {currentImageIndex + 1} / {venue.images.length}
+        </div>
+      </div>
+
+      {/* Thumbnail Gallery */}
+      <div style={{
+        backgroundColor: "white",
+        padding: "16px 32px",
+        borderBottom: "1px solid #e2e8f0",
+        overflowX: "auto",
+        overflowY: "hidden",
+      }}>
+        <div style={{
+          display: "flex",
+          gap: "12px",
+          minWidth: "fit-content",
+          paddingBottom: "8px",
+        }}>
+          {venue.images.map((image, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrentImageIndex(idx)}
+              style={{
+                flexShrink: 0,
+                width: "120px",
+                height: "80px",
+                borderRadius: "8px",
+                overflow: "hidden",
+                border: currentImageIndex === idx ? "3px solid #667eea" : "2px solid #e2e8f0",
+                padding: 0,
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+                backgroundColor: "#f1f5f9",
+              }}
+              onMouseEnter={(e) => {
+                if (currentImageIndex !== idx) {
+                  e.currentTarget.style.borderColor = "#cbd5e1";
+                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.1)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (currentImageIndex !== idx) {
+                  e.currentTarget.style.borderColor = "#e2e8f0";
+                  e.currentTarget.style.boxShadow = "none";
+                }
+              }}
+            >
+              <img
+                src={image}
+                alt={`${venue.name} - Image ${idx + 1}`}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  opacity: currentImageIndex === idx ? 1 : 0.7,
+                  transition: "opacity 0.2s ease",
+                }}
+              />
+            </button>
+          ))}
         </div>
       </div>
 

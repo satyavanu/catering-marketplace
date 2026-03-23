@@ -8,8 +8,79 @@ import {
   ShoppingCartIcon,
   DocumentTextIcon,
   XMarkIcon,
-  LockClosedIcon,
+  TrashIcon,
+  PlusIcon,
+  MinusIcon,
+  CheckIcon,
 } from '@heroicons/react/24/outline';
+
+// Mock menu items from the service
+const MENU_ITEMS = [
+  {
+    id: 1,
+    category: 'Appetizers',
+    name: 'Paneer Tikka',
+    description: 'Grilled cottage cheese with spices',
+    servingSize: 'per serving',
+    image: '🥘',
+  },
+  {
+    id: 2,
+    category: 'Appetizers',
+    name: 'Samosa',
+    description: 'Crispy fried pastries with potato & peas',
+    servingSize: 'per piece',
+    image: '🥐',
+  },
+  {
+    id: 3,
+    category: 'Main Course',
+    name: 'Butter Chicken',
+    description: 'Tender chicken in creamy tomato gravy',
+    servingSize: 'per serving',
+    image: '🍗',
+  },
+  {
+    id: 4,
+    category: 'Main Course',
+    name: 'Biryani',
+    description: 'Fragrant rice with meat and spices',
+    servingSize: 'per serving',
+    image: '🍚',
+  },
+  {
+    id: 5,
+    category: 'Main Course',
+    name: 'Dal Makhani',
+    description: 'Creamy black lentils',
+    servingSize: 'per serving',
+    image: '🫕',
+  },
+  {
+    id: 6,
+    category: 'Desserts',
+    name: 'Gulab Jamun',
+    description: 'Soft milk solids in sugar syrup',
+    servingSize: 'per piece',
+    image: '🍮',
+  },
+  {
+    id: 7,
+    category: 'Desserts',
+    name: 'Kheer',
+    description: 'Rice pudding with cardamom & nuts',
+    servingSize: 'per serving',
+    image: '🥛',
+  },
+  {
+    id: 8,
+    category: 'Beverages',
+    name: 'Lassi',
+    description: 'Traditional yogurt drink',
+    servingSize: 'per glass',
+    image: '🥤',
+  },
+];
 
 // Mock additional services
 const ADDITIONAL_SERVICES = [
@@ -29,26 +100,53 @@ const PAYMENT_METHODS = [
   { id: 'bank', name: 'Bank Transfer', icon: '🏦', description: 'Direct bank transfer' },
 ];
 
+const TERMS_AND_CONDITIONS = [
+  {
+    title: 'Cancellation Policy',
+    description: 'Free cancellation up to 14 days before the event. 50% charges apply for cancellations between 7-14 days. No refund within 7 days of the event.',
+  },
+  {
+    title: '100% Refund Policy',
+    description: 'We guarantee 100% refund of your full payment if we fail to deliver the service on your event date. No questions asked.',
+  },
+  {
+    title: 'Payment Terms',
+    description: 'Full payment required after quote approval. Payment is held securely until event completion.',
+  },
+  {
+    title: 'Menu Customization',
+    description: 'Menu can be customized up to 10 days before the event. Changes within 10 days may incur additional charges.',
+  },
+  {
+    title: 'Guest Count',
+    description: 'Final guest count must be confirmed 5 days before the event. Additional guests can be accommodated on availability.',
+  },
+  {
+    title: 'Dietary Requirements',
+    description: 'Please inform us of any dietary restrictions at the time of booking. Special requests are subject to availability.',
+  },
+];
+
 const QuotePage = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
   const serviceId = searchParams.get('serviceId');
   const serviceName = searchParams.get('serviceName');
-  const selectedItems = searchParams.get('selectedItems')?.split(',').filter(Boolean) || [];
   const fromLogin = searchParams.get('fromLogin') === 'true';
-
-  const ENABLE_ORDERING = true;
 
   // Auth States
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Mode States
+  // Mode & Step States
   const [mode, setMode] = useState<'quote' | 'order'>('quote');
-  const [step, setStep] = useState<'form' | 'payment' | 'confirmation'>('form');
-  const [submitted, setSubmitted] = useState(false);
+  const [step, setStep] = useState<'form' | 'menu-selection' | 'quote-confirmation' | 'catering-review' | 'terms' | 'payment' | 'confirmation'>('form');
+  const [quoteSubmitted, setQuoteSubmitted] = useState(false);
+  const [quoteStatus, setQuoteStatus] = useState<'pending' | 'approved' | 'rejected'>('pending');
   const [orderStatus, setOrderStatus] = useState<'success' | 'failed'>('success');
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [isSubmittingQuote, setIsSubmittingQuote] = useState(false);
 
   const [formData, setFormData] = useState({
     eventDate: '',
@@ -69,7 +167,12 @@ const QuotePage = () => {
     selectedPaymentMethod: '',
   });
 
+  // Menu selection state
+  const [selectedMenuItems, setSelectedMenuItems] = useState<{ [key: number]: number }>({});
+
+  const [quoteData, setQuoteData] = useState<any>(null);
   const [orderSummary, setOrderSummary] = useState<any>(null);
+  const [caterResponse, setCaterResponse] = useState<any>(null);
 
   // Check if user is logged in on mount
   useEffect(() => {
@@ -90,8 +193,7 @@ const QuotePage = () => {
             selectedAddressId: user.addresses?.[0]?.id || '',
             useExistingAddress: user.addresses && user.addresses.length > 0,
           }));
-          
-          // If coming from login, switch to order mode
+
           setMode('order');
         }
       } catch (error) {
@@ -105,15 +207,7 @@ const QuotePage = () => {
   }, [fromLogin]);
 
   const handleLoginRedirect = () => {
-    // Store current quote state in sessionStorage for retrieval after login
-    sessionStorage.setItem('quoteParams', JSON.stringify({
-      serviceId,
-      serviceName,
-      selectedItems,
-    }));
-
-    // Redirect to login with returnUrl that includes fromLogin flag
-    const returnUrl = `/quote?fromLogin=true&serviceId=${serviceId}&serviceName=${encodeURIComponent(serviceName || '')}&selectedItems=${selectedItems.join(',')}`;
+    const returnUrl = `/quote?fromLogin=true&serviceId=${serviceId}&serviceName=${encodeURIComponent(serviceName || '')}`;
     router.push(`/login?returnUrl=${encodeURIComponent(returnUrl)}`);
   };
 
@@ -159,6 +253,30 @@ const QuotePage = () => {
     }));
   };
 
+  const updateMenuItemQuantity = (itemId: number, quantity: number) => {
+    if (quantity <= 0) {
+      setSelectedMenuItems(prev => {
+        const newItems = { ...prev };
+        delete newItems[itemId];
+        return newItems;
+      });
+    } else {
+      setSelectedMenuItems(prev => ({
+        ...prev,
+        [itemId]: quantity,
+      }));
+    }
+  };
+
+  const getSelectedMenuDetails = () => {
+    return Object.entries(selectedMenuItems)
+      .map(([itemId, quantity]) => {
+        const item = MENU_ITEMS.find(m => m.id === parseInt(itemId));
+        return item ? { ...item, quantity } : null;
+      })
+      .filter(Boolean);
+  };
+
   const calculateOrderTotal = () => {
     const servicesTotal = formData.selectedServices.reduce((total, id) => {
       const service = ADDITIONAL_SERVICES.find(s => s.id === id);
@@ -167,25 +285,87 @@ const QuotePage = () => {
     return servicesTotal + (parseInt(formData.guestCount || '0') * 500);
   };
 
-  const getAddressDisplay = () => {
-    if (formData.useExistingAddress && currentUser?.addresses) {
-      const addr = currentUser.addresses.find((a: any) => a.id === formData.selectedAddressId);
-      return addr || { address: formData.address, city: formData.city, zipCode: formData.zipCode };
-    }
-    return { address: formData.address, city: formData.city, zipCode: formData.zipCode };
-  };
-
   const handleSubmitForm = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (mode === 'quote') {
-      console.log('Quote Request:', { ...formData, serviceId, serviceName, selectedItems });
-      setSubmitted(true);
-      setTimeout(() => {
-        router.push('/');
-      }, 3000);
+      // Move to menu selection
+      setStep('menu-selection');
     } else {
-      // Move to payment step for orders
+      // Move to menu selection for orders
+      setStep('menu-selection');
+    }
+  };
+
+  const handleSubmitMenuAndCreateQuote = async () => {
+    if (Object.keys(selectedMenuItems).length === 0) {
+      alert('Please select at least one menu item');
+      return;
+    }
+
+    setIsSubmittingQuote(true);
+
+    try {
+      // Prepare quote data
+      const newQuoteData = {
+        quoteId: `QT-${Date.now()}`,
+        ...formData,
+        serviceId,
+        serviceName,
+        selectedMenuItems: getSelectedMenuDetails(),
+        selectedServices: formData.selectedServices.map(id =>
+          ADDITIONAL_SERVICES.find(s => s.id === id)
+        ),
+        guestCount: formData.guestCount,
+        createdAt: new Date().toLocaleDateString('en-IN'),
+        status: 'pending',
+        userId: currentUser?.id,
+      };
+
+      // TODO: Send to backend API
+      // const response = await fetch('/api/quotes', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(newQuoteData),
+      // });
+
+      // Simulate backend response
+      console.log('Submitting quote to backend:', newQuoteData);
+
+      setQuoteData(newQuoteData);
+      setStep('quote-confirmation');
+    } catch (error) {
+      console.error('Error submitting quote:', error);
+      alert('Failed to submit quote. Please try again.');
+    } finally {
+      setIsSubmittingQuote(false);
+    }
+  };
+
+  // Simulate catering approval (in real app, this comes from backend)
+  const simulateCateringApproval = () => {
+    const approvedQuote = {
+      ...quoteData,
+      status: 'approved',
+      approvedAt: new Date().toLocaleDateString('en-IN'),
+      approvedBy: 'Catering Team',
+      totalPrice: calculateOrderTotal(),
+      breakdown: {
+        basePrice: parseInt(formData.guestCount || '0') * 500,
+        servicesPrice: formData.selectedServices.reduce((total, id) => {
+          const service = ADDITIONAL_SERVICES.find(s => s.id === id);
+          return total + (service?.price || 0);
+        }, 0),
+      },
+    };
+
+    setCaterResponse(approvedQuote);
+    setQuoteStatus('approved');
+    setStep('terms');
+  };
+
+  const handleAcceptTerms = () => {
+    if (termsAccepted) {
       setStep('payment');
     }
   };
@@ -196,26 +376,19 @@ const QuotePage = () => {
       return;
     }
 
-    // Simulate payment processing (randomly success or fail for demo)
-    const isSuccess = Math.random() > 0.3;
+    const isSuccess = Math.random() > 0.2;
 
-    const orderData = {
-      ...formData,
-      serviceId,
-      serviceName,
-      selectedItems,
-      selectedServices: formData.selectedServices.map(id =>
-        ADDITIONAL_SERVICES.find(s => s.id === id)
-      ),
-      total: calculateOrderTotal(),
+    const finalOrder = {
+      ...caterResponse,
       orderId: `ORD-${Date.now()}`,
       paymentMethod: PAYMENT_METHODS.find(m => m.id === formData.selectedPaymentMethod)?.name,
-      orderDate: new Date().toLocaleDateString('en-IN'),
-      status: isSuccess ? 'success' : 'failed',
+      paymentDate: new Date().toLocaleDateString('en-IN'),
+      paymentStatus: isSuccess ? 'completed' : 'failed',
+      refundPolicy: '100% refundable in case of non-delivery',
     };
 
-    console.log('Order Submission:', orderData);
-    setOrderSummary(orderData);
+    console.log('Final Order:', finalOrder);
+    setOrderSummary(finalOrder);
     setOrderStatus(isSuccess ? 'success' : 'failed');
     setStep('confirmation');
   };
@@ -223,571 +396,707 @@ const QuotePage = () => {
   // Loading state
   if (isLoading) {
     return (
-      <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'clamp(16px, 5vw, 32px)' }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
-          <p style={{ color: '#64748b', fontSize: '16px' }}>Loading...</p>
+          <div style={{ fontSize: 'clamp(40px, 12vw, 48px)', marginBottom: '16px' }}>⏳</div>
+          <p style={{ color: '#64748b', fontSize: 'clamp(14px, 4vw, 16px)' }}>Loading...</p>
         </div>
       </div>
     );
   }
 
-  // Order Confirmation Screen
-  if (step === 'confirmation') {
-    return (
-      <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh', padding: '32px' }}>
-        <div style={{ maxWidth: '900px', margin: '0 auto' }}>
-          {/* Status Header */}
-          <div
-            style={{
-              backgroundColor: 'white',
-              borderRadius: '16px',
-              padding: '48px',
-              textAlign: 'center',
-              marginBottom: '32px',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
-            }}
-          >
-            <div
-              style={{
-                width: '100px',
-                height: '100px',
-                backgroundColor: orderStatus === 'success' ? '#dcfce7' : '#fee2e2',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 24px',
-              }}
-            >
-              {orderStatus === 'success' ? (
-                <CheckCircleIcon style={{ width: '60px', height: '60px', color: '#22c55e' }} />
-              ) : (
-                <XMarkIcon style={{ width: '60px', height: '60px', color: '#dc2626' }} />
-              )}
-            </div>
-            <h1
-              style={{
-                fontSize: '36px',
-                fontWeight: '900',
-                color: '#1e293b',
-                margin: '0 0 12px 0',
-              }}
-            >
-              {orderStatus === 'success' ? 'Order Confirmed! 🎉' : 'Payment Failed ❌'}
-            </h1>
-            <p style={{ fontSize: '16px', color: '#64748b', margin: 0 }}>
-              {orderStatus === 'success'
-                ? 'Your catering order has been successfully placed.'
-                : 'Your payment could not be processed. Please try again.'}
-            </p>
-          </div>
-
-          {/* Order Details */}
-          {orderStatus === 'success' && (
-            <div
-              style={{
-                backgroundColor: 'white',
-                borderRadius: '16px',
-                padding: '32px',
-                marginBottom: '32px',
-                border: '1px solid #e2e8f0',
-              }}
-            >
-              {/* Order ID */}
-              <div
-                style={{
-                  backgroundColor: '#fef3c7',
-                  border: '1px solid #fcd34d',
-                  borderRadius: '12px',
-                  padding: '16px',
-                  marginBottom: '24px',
-                  textAlign: 'center',
-                }}
-              >
-                <p style={{ fontSize: '12px', fontWeight: '700', color: '#92400e', margin: 0, marginBottom: '6px' }}>
-                  ORDER ID
-                </p>
-                <p style={{ fontSize: '20px', fontWeight: '900', color: '#1e293b', margin: 0, fontFamily: 'monospace' }}>
-                  {orderSummary?.orderId}
-                </p>
-              </div>
-
-              {/* Event Details */}
-              <div style={{ marginBottom: '32px' }}>
-                <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', margin: '0 0 16px 0' }}>
-                  📋 Event Details
-                </h2>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '12px' }}>
-                    <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 6px 0', fontWeight: '600' }}>
-                      Service
-                    </p>
-                    <p style={{ fontSize: '16px', fontWeight: '800', color: '#1e293b', margin: 0 }}>
-                      {orderSummary?.serviceName}
-                    </p>
-                  </div>
-                  <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '12px' }}>
-                    <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 6px 0', fontWeight: '600' }}>
-                      Event Type
-                    </p>
-                    <p style={{ fontSize: '16px', fontWeight: '800', color: '#1e293b', margin: 0 }}>
-                      {orderSummary?.eventType}
-                    </p>
-                  </div>
-                  <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '12px' }}>
-                    <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 6px 0', fontWeight: '600' }}>
-                      Date & Time
-                    </p>
-                    <p style={{ fontSize: '16px', fontWeight: '800', color: '#1e293b', margin: 0 }}>
-                      {orderSummary?.eventDate} at {orderSummary?.eventTime}
-                    </p>
-                  </div>
-                  <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '12px' }}>
-                    <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 6px 0', fontWeight: '600' }}>
-                      Guests
-                    </p>
-                    <p style={{ fontSize: '16px', fontWeight: '800', color: '#1e293b', margin: 0 }}>
-                      {orderSummary?.guestCount}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Delivery Address */}
-              <div style={{ marginBottom: '32px' }}>
-                <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', margin: '0 0 16px 0' }}>
-                  📍 Delivery Address
-                </h2>
-                <div
-                  style={{
-                    backgroundColor: '#f8fafc',
-                    padding: '16px',
-                    borderRadius: '12px',
-                    borderLeft: '4px solid #f59e0b',
-                  }}
-                >
-                  <p style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', margin: 0 }}>
-                    {getAddressDisplay().address}
-                  </p>
-                  <p style={{ fontSize: '13px', color: '#64748b', margin: '6px 0 0 0' }}>
-                    {getAddressDisplay().city}, {getAddressDisplay().zipCode}
-                  </p>
-                </div>
-              </div>
-
-              {/* Contact Information */}
-              <div style={{ marginBottom: '32px' }}>
-                <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', margin: '0 0 16px 0' }}>
-                  👤 Contact Information
-                </h2>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '12px' }}>
-                    <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 6px 0', fontWeight: '600' }}>
-                      Name
-                    </p>
-                    <p style={{ fontSize: '15px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
-                      {orderSummary?.fullName}
-                    </p>
-                  </div>
-                  <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '12px' }}>
-                    <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 6px 0', fontWeight: '600' }}>
-                      Phone
-                    </p>
-                    <p style={{ fontSize: '15px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
-                      {orderSummary?.phone}
-                    </p>
-                  </div>
-                  <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '12px', gridColumn: '1 / -1' }}>
-                    <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 6px 0', fontWeight: '600' }}>
-                      Email
-                    </p>
-                    <p style={{ fontSize: '15px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
-                      {orderSummary?.email}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Payment Method */}
-              <div style={{ marginBottom: '32px' }}>
-                <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', margin: '0 0 16px 0' }}>
-                  💳 Payment Method
-                </h2>
-                <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '12px', borderLeft: '4px solid #22c55e' }}>
-                  <p style={{ fontSize: '15px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
-                    {orderSummary?.paymentMethod}
-                  </p>
-                </div>
-              </div>
-
-              {/* Menu Items */}
-              {orderSummary?.selectedItems?.length > 0 && (
-                <div style={{ marginBottom: '32px' }}>
-                  <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', margin: '0 0 16px 0' }}>
-                    🍽️ Menu Items
-                  </h2>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                    {orderSummary?.selectedItems?.map((item: string, idx: number) => (
-                      <span
-                        key={idx}
-                        style={{
-                          backgroundColor: '#f59e0b',
-                          color: 'white',
-                          padding: '8px 14px',
-                          borderRadius: '8px',
-                          fontSize: '13px',
-                          fontWeight: '700',
-                        }}
-                      >
-                        ✓ {item}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Additional Services */}
-              {orderSummary?.selectedServices?.length > 0 && (
-                <div style={{ marginBottom: '32px' }}>
-                  <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', margin: '0 0 16px 0' }}>
-                    ⭐ Additional Services
-                  </h2>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    {orderSummary?.selectedServices?.map((service: any, idx: number) => (
-                      <div
-                        key={idx}
-                        style={{
-                          backgroundColor: '#f8fafc',
-                          padding: '12px',
-                          borderRadius: '8px',
-                          borderLeft: '4px solid #22c55e',
-                        }}
-                      >
-                        <p style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
-                          {service.name}
-                        </p>
-                        <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0 0' }}>
-                          ₹{service.price.toLocaleString('en-IN')}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Price Breakdown */}
-              <div style={{ backgroundColor: '#f8fafc', padding: '24px', borderRadius: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '14px' }}>
-                  <span style={{ color: '#64748b', fontWeight: '600' }}>
-                    Base Catering ({orderSummary?.guestCount} guests × ₹500)
-                  </span>
-                  <span style={{ fontWeight: '700', color: '#1e293b' }}>
-                    ₹{(parseInt(orderSummary?.guestCount || '0') * 500).toLocaleString('en-IN')}
-                  </span>
-                </div>
-                {orderSummary?.selectedServices?.length > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '14px' }}>
-                    <span style={{ color: '#64748b', fontWeight: '600' }}>
-                      Additional Services
-                    </span>
-                    <span style={{ fontWeight: '700', color: '#1e293b' }}>
-                      ₹
-                      {orderSummary?.selectedServices
-                        ?.reduce((total: number, s: any) => total + (s?.price || 0), 0)
-                        .toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                )}
-                <div
-                  style={{
-                    borderTop: '2px solid #e2e8f0',
-                    paddingTop: '12px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    fontSize: '16px',
-                    fontWeight: '900',
-                  }}
-                >
-                  <span style={{ color: '#1e293b' }}>Total Amount</span>
-                  <span style={{ color: '#22c55e' }}>
-                    ₹{orderSummary?.total?.toLocaleString('en-IN')}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Failure Message */}
-          {orderStatus === 'failed' && (
-            <div
-              style={{
-                backgroundColor: 'white',
-                borderRadius: '16px',
-                padding: '32px',
-                marginBottom: '32px',
-                border: '1px solid #e2e8f0',
-                textAlign: 'center',
-              }}
-            >
-              <div style={{ marginBottom: '24px' }}>
-                <p style={{ fontSize: '16px', color: '#64748b', lineHeight: '1.6', margin: 0 }}>
-                  Unfortunately, your payment could not be processed. This might be due to:
-                </p>
-                <ul style={{ fontSize: '14px', color: '#64748b', margin: '16px 0 0 0', paddingLeft: '20px' }}>
-                  <li>Insufficient funds</li>
-                  <li>Network connectivity issues</li>
-                  <li>Invalid payment details</li>
-                </ul>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <button
-                  onClick={() => setStep('payment')}
-                  style={{
-                    backgroundColor: '#f59e0b',
-                    color: 'white',
-                    border: 'none',
-                    padding: '14px 24px',
-                    borderRadius: '12px',
-                    fontSize: '15px',
-                    fontWeight: '800',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#d97706';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = '#f59e0b';
-                  }}
-                >
-                  Try Another Payment
-                </button>
-                <button
-                  onClick={() => {
-                    handleLogout();
-                    setStep('form');
-                  }}
-                  style={{
-                    backgroundColor: 'white',
-                    color: '#1e293b',
-                    border: '2px solid #e2e8f0',
-                    padding: '12px 24px',
-                    borderRadius: '12px',
-                    fontSize: '15px',
-                    fontWeight: '800',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Go Home
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Action Buttons */}
-          {orderStatus === 'success' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              <button
-                onClick={() => router.push('/')}
-                style={{
-                  backgroundColor: 'white',
-                  color: '#1e293b',
-                  border: '2px solid #e2e8f0',
-                  padding: '14px 24px',
-                  borderRadius: '12px',
-                  fontSize: '15px',
-                  fontWeight: '800',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#f8fafc';
-                  e.currentTarget.style.borderColor = '#cbd5e1';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'white';
-                  e.currentTarget.style.borderColor = '#e2e8f0';
-                }}
-              >
-                Continue Shopping
-              </button>
-              <button
-                onClick={() => {
-                  handleLogout();
-                  setStep('form');
-                }}
-                style={{
-                  backgroundColor: '#22c55e',
-                  color: 'white',
-                  border: 'none',
-                  padding: '14px 24px',
-                  borderRadius: '12px',
-                  fontSize: '15px',
-                  fontWeight: '800',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  boxShadow: '0 8px 20px rgba(34, 197, 94, 0.3)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#16a34a';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#22c55e';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                Back to Home
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // Payment Selection Screen
-  if (step === 'payment') {
+  // Menu Selection Screen
+  if (step === 'menu-selection') {
     return (
       <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh' }}>
-        <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '48px 32px' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: 'clamp(20px, 4vw, 40px) clamp(16px, 5vw, 32px)' }}>
           {/* Header */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '32px',
-            }}
-          >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: 'clamp(20px, 5vw, 40px)' }}>
             <button
               onClick={() => setStep('form')}
               style={{
                 backgroundColor: 'transparent',
                 border: '1px solid #e2e8f0',
                 color: '#1e293b',
-                padding: '8px 16px',
+                padding: '8px 12px',
                 borderRadius: '8px',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
                 fontWeight: '600',
-                fontSize: '14px',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#f1f5f9';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
+                fontSize: 'clamp(12px, 2.5vw, 14px)',
               }}
             >
-              <ArrowLeftIcon style={{ width: '16px', height: '16px' }} />
-              Back
+              <ArrowLeftIcon style={{ width: '16px', height: '16px', minWidth: '16px' }} />
             </button>
+            <h1 style={{ fontSize: 'clamp(24px, 8vw, 40px)', fontWeight: '900', color: '#1e293b', margin: 0 }}>
+              🍽️ Select Menu Items
+            </h1>
+          </div>
+
+          {/* Info */}
+          <div style={{ backgroundColor: '#f0f9ff', border: '1px solid #bfdbfe', borderRadius: '12px', padding: 'clamp(12px, 3vw, 16px)', marginBottom: 'clamp(16px, 4vw, 24px)' }}>
+            <p style={{ fontSize: 'clamp(12px, 2.5vw, 14px)', color: '#1e40af', margin: 0 }}>
+              ℹ️ Choose menu items for your event. The catering team will review and provide exact pricing.
+            </p>
+          </div>
+
+          {/* Menu by Category */}
+          {['Appetizers', 'Main Course', 'Desserts', 'Beverages'].map(category => (
+            <div key={category} style={{ marginBottom: 'clamp(24px, 5vw, 40px)' }}>
+              <h2 style={{ fontSize: 'clamp(16px, 4vw, 20px)', fontWeight: '800', color: '#1e293b', marginBottom: 'clamp(12px, 3vw, 16px)' }}>
+                {category}
+              </h2>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                gap: 'clamp(12px, 2vw, 16px)',
+              }}>
+                {MENU_ITEMS.filter(item => item.category === category).map(item => (
+                  <div
+                    key={item.id}
+                    style={{
+                      backgroundColor: 'white',
+                      borderRadius: '12px',
+                      padding: 'clamp(14px, 3vw, 18px)',
+                      border: selectedMenuItems[item.id]
+                        ? '2px solid #6366f1'
+                        : '1px solid #e2e8f0',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '12px' }}>
+                      <span style={{ fontSize: 'clamp(28px, 6vw, 36px)' }}>{item.image}</span>
+                      <div style={{ flex: 1 }}>
+                        <h3 style={{ fontSize: 'clamp(13px, 3vw, 15px)', fontWeight: '800', color: '#1e293b', margin: '0 0 4px 0' }}>
+                          {item.name}
+                        </h3>
+                        <p style={{ fontSize: 'clamp(11px, 2.5vw, 12px)', color: '#64748b', margin: 0 }}>
+                          {item.description}
+                        </p>
+                        <p style={{ fontSize: 'clamp(10px, 2vw, 11px)', color: '#94a3b8', margin: '4px 0 0 0' }}>
+                          {item.servingSize}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Quantity Control */}
+                    {selectedMenuItems[item.id] ? (
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        backgroundColor: '#e0e7ff',
+                        padding: '8px',
+                        borderRadius: '8px',
+                      }}>
+                        <button
+                          onClick={() => updateMenuItemQuantity(item.id, (selectedMenuItems[item.id] || 0) - 1)}
+                          style={{
+                            backgroundColor: 'white',
+                            border: '1px solid #c7d2fe',
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <MinusIcon style={{ width: '14px', height: '14px', color: '#6366f1' }} />
+                        </button>
+                        <span style={{ flex: 1, textAlign: 'center', fontWeight: '700', color: '#6366f1', fontSize: 'clamp(12px, 2.5vw, 14px)' }}>
+                          {selectedMenuItems[item.id]}
+                        </span>
+                        <button
+                          onClick={() => updateMenuItemQuantity(item.id, (selectedMenuItems[item.id] || 0) + 1)}
+                          style={{
+                            backgroundColor: 'white',
+                            border: '1px solid #c7d2fe',
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <PlusIcon style={{ width: '14px', height: '14px', color: '#6366f1' }} />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => updateMenuItemQuantity(item.id, 1)}
+                        style={{
+                          width: '100%',
+                          backgroundColor: '#f1f5f9',
+                          color: '#6366f1',
+                          border: '1px solid #cbd5e1',
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontWeight: '700',
+                          fontSize: 'clamp(12px, 2.5vw, 13px)',
+                          transition: 'all 0.2s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#e0e7ff';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = '#f1f5f9';
+                        }}
+                      >
+                        <PlusIcon style={{ width: '14px', height: '14px', marginRight: '6px', display: 'inline' }} />
+                        Add
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {/* Selected Items Summary */}
+          {Object.keys(selectedMenuItems).length > 0 && (
+            <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: 'clamp(16px, 3vw, 20px)', marginBottom: 'clamp(20px, 4vw, 32px)', border: '1px solid #e2e8f0' }}>
+              <h3 style={{ fontSize: 'clamp(14px, 3vw, 16px)', fontWeight: '800', color: '#1e293b', marginBottom: '12px' }}>
+                ✓ Selected Items ({Object.keys(selectedMenuItems).length})
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                {getSelectedMenuDetails().map(item => (
+                  <div key={item?.id} style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <p style={{ fontSize: 'clamp(12px, 2.5vw, 13px)', fontWeight: '700', color: '#1e293b', margin: 0 }}>
+                        {item?.name}
+                      </p>
+                      <p style={{ fontSize: 'clamp(11px, 2vw, 12px)', color: '#64748b', margin: '2px 0 0 0' }}>
+                        Qty: {item?.quantity}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => updateMenuItemQuantity(item?.id, 0)}
+                      style={{
+                        backgroundColor: 'transparent',
+                        border: 'none',
+                        color: '#dc2626',
+                        cursor: 'pointer',
+                        padding: '4px',
+                      }}
+                    >
+                      <TrashIcon style={{ width: '18px', height: '18px' }} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 'clamp(12px, 3vw, 16px)' }}>
             <button
-              onClick={handleLogout}
+              onClick={() => setStep('form')}
               style={{
-                backgroundColor: 'transparent',
-                color: '#64748b',
-                border: 'none',
-                fontSize: '14px',
-                fontWeight: '600',
+                backgroundColor: 'white',
+                color: '#1e293b',
+                border: '2px solid #e2e8f0',
+                padding: 'clamp(12px, 2vw, 14px) clamp(16px, 3vw, 24px)',
+                borderRadius: '12px',
+                fontSize: 'clamp(13px, 2.5vw, 15px)',
+                fontWeight: '800',
                 cursor: 'pointer',
               }}
             >
-              Sign Out
+              Back
             </button>
+            <button
+              onClick={handleSubmitMenuAndCreateQuote}
+              disabled={Object.keys(selectedMenuItems).length === 0 || isSubmittingQuote}
+              style={{
+                backgroundColor: Object.keys(selectedMenuItems).length > 0 ? '#6366f1' : '#cbd5e1',
+                color: 'white',
+                border: 'none',
+                padding: 'clamp(12px, 2vw, 14px) clamp(16px, 3vw, 24px)',
+                borderRadius: '12px',
+                fontSize: 'clamp(13px, 2.5vw, 15px)',
+                fontWeight: '800',
+                cursor: Object.keys(selectedMenuItems).length > 0 ? 'pointer' : 'not-allowed',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              {isSubmittingQuote ? 'Submitting...' : 'Continue to Confirmation'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Quote Confirmation Screen
+  if (step === 'quote-confirmation' && quoteData) {
+    return (
+      <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh', padding: 'clamp(16px, 4vw, 32px)' }}>
+        <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+          {/* Status Header */}
+          <div
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '16px',
+              padding: 'clamp(24px, 5vw, 48px)',
+              textAlign: 'center',
+              marginBottom: 'clamp(16px, 5vw, 32px)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
+            }}
+          >
+            <div
+              style={{
+                width: 'clamp(70px, 20vw, 100px)',
+                height: 'clamp(70px, 20vw, 100px)',
+                backgroundColor: '#e0e7ff',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto clamp(16px, 3vw, 24px)',
+              }}
+            >
+              <DocumentTextIcon style={{ width: 'clamp(40px, 12vw, 60px)', height: 'clamp(40px, 12vw, 60px)', color: '#6366f1' }} />
+            </div>
+            <h1
+              style={{
+                fontSize: 'clamp(24px, 8vw, 36px)',
+                fontWeight: '900',
+                color: '#1e293b',
+                margin: '0 0 12px 0',
+              }}
+            >
+              Quote Request Submitted! ✅
+            </h1>
+            <p style={{ fontSize: 'clamp(14px, 3vw, 16px)', color: '#64748b', margin: 0 }}>
+              Your quote has been sent to our catering team. They will review your menu selection and send you a detailed quote within 24 hours.
+            </p>
+          </div>
+
+          {/* Quote Details */}
+          <div
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '16px',
+              padding: 'clamp(16px, 4vw, 32px)',
+              marginBottom: 'clamp(16px, 5vw, 32px)',
+              border: '1px solid #e2e8f0',
+            }}
+          >
+            {/* Quote ID */}
+            <div
+              style={{
+                backgroundColor: '#e0e7ff',
+                border: '1px solid #c7d2fe',
+                borderRadius: '12px',
+                padding: 'clamp(12px, 3vw, 16px)',
+                marginBottom: 'clamp(16px, 4vw, 24px)',
+                textAlign: 'center',
+              }}
+            >
+              <p style={{ fontSize: 'clamp(10px, 2.5vw, 12px)', fontWeight: '700', color: '#4338ca', margin: 0, marginBottom: '6px' }}>
+                QUOTE ID
+              </p>
+              <p style={{ fontSize: 'clamp(16px, 4vw, 20px)', fontWeight: '900', color: '#1e293b', margin: 0, fontFamily: 'monospace' }}>
+                {quoteData?.quoteId}
+              </p>
+            </div>
+
+            {/* Event Details */}
+            <div style={{ marginBottom: 'clamp(16px, 5vw, 32px)' }}>
+              <h2 style={{ fontSize: 'clamp(16px, 4vw, 18px)', fontWeight: '800', color: '#1e293b', margin: '0 0 clamp(12px, 3vw, 16px) 0' }}>
+                📋 Event Details
+              </h2>
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                gap: 'clamp(12px, 3vw, 16px)',
+              }}>
+                <div style={{ backgroundColor: '#f8fafc', padding: 'clamp(12px, 3vw, 16px)', borderRadius: '12px' }}>
+                  <p style={{ fontSize: 'clamp(10px, 2.5vw, 12px)', color: '#64748b', margin: '0 0 6px 0', fontWeight: '600' }}>
+                    Event Date
+                  </p>
+                  <p style={{ fontSize: 'clamp(13px, 3vw, 16px)', fontWeight: '800', color: '#1e293b', margin: 0 }}>
+                    {quoteData?.eventDate}
+                  </p>
+                </div>
+                <div style={{ backgroundColor: '#f8fafc', padding: 'clamp(12px, 3vw, 16px)', borderRadius: '12px' }}>
+                  <p style={{ fontSize: 'clamp(10px, 2.5vw, 12px)', color: '#64748b', margin: '0 0 6px 0', fontWeight: '600' }}>
+                    Event Type
+                  </p>
+                  <p style={{ fontSize: 'clamp(13px, 3vw, 16px)', fontWeight: '800', color: '#1e293b', margin: 0 }}>
+                    {quoteData?.eventType}
+                  </p>
+                </div>
+                <div style={{ backgroundColor: '#f8fafc', padding: 'clamp(12px, 3vw, 16px)', borderRadius: '12px' }}>
+                  <p style={{ fontSize: 'clamp(10px, 2.5vw, 12px)', color: '#64748b', margin: '0 0 6px 0', fontWeight: '600' }}>
+                    Guests
+                  </p>
+                  <p style={{ fontSize: 'clamp(13px, 3vw, 16px)', fontWeight: '800', color: '#1e293b', margin: 0 }}>
+                    {quoteData?.guestCount}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Selected Menu Items */}
+            <div style={{ marginBottom: 'clamp(16px, 5vw, 32px)' }}>
+              <h2 style={{ fontSize: 'clamp(16px, 4vw, 18px)', fontWeight: '800', color: '#1e293b', margin: '0 0 clamp(12px, 3vw, 16px) 0' }}>
+                🍽️ Menu Selection
+              </h2>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: 'clamp(10px, 2vw, 12px)',
+              }}>
+                {quoteData?.selectedMenuItems?.map((item: any, idx: number) => (
+                  <div
+                    key={idx}
+                    style={{
+                      backgroundColor: '#f8fafc',
+                      padding: 'clamp(10px, 2vw, 12px)',
+                      borderRadius: '8px',
+                      borderLeft: '4px solid #6366f1',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                      <span style={{ fontSize: '18px' }}>{item.image}</span>
+                      <p style={{ fontSize: 'clamp(12px, 2.5vw, 13px)', fontWeight: '700', color: '#1e293b', margin: 0 }}>
+                        {item.name}
+                      </p>
+                    </div>
+                    <p style={{ fontSize: 'clamp(11px, 2vw, 12px)', color: '#64748b', margin: 0 }}>
+                      Qty: {item.quantity}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Info Box */}
+            <div
+              style={{
+                backgroundColor: '#f0f9ff',
+                border: '1px solid #bfdbfe',
+                borderRadius: '12px',
+                padding: 'clamp(12px, 3vw, 16px)',
+              }}
+            >
+              <p style={{ fontSize: 'clamp(12px, 2.5vw, 13px)', color: '#1e40af', margin: 0, fontWeight: '600' }}>
+                ⏱️ What happens next?
+              </p>
+              <ul style={{ fontSize: 'clamp(11px, 2vw, 12px)', color: '#1e40af', margin: '12px 0 0 0', paddingLeft: '20px' }}>
+                <li>Our catering team reviews your menu selection</li>
+                <li>You'll receive a detailed quote with pricing within 24 hours</li>
+                <li>Once you approve the quote, you can proceed to payment</li>
+                <li>Full payment is required to secure your booking</li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 'clamp(12px, 3vw, 16px)' }}>
+            <button
+              onClick={() => router.push('/')}
+              style={{
+                backgroundColor: 'white',
+                color: '#1e293b',
+                border: '2px solid #e2e8f0',
+                padding: 'clamp(12px, 2vw, 14px) clamp(16px, 3vw, 24px)',
+                borderRadius: '12px',
+                fontSize: 'clamp(13px, 2.5vw, 15px)',
+                fontWeight: '800',
+                cursor: 'pointer',
+              }}
+            >
+              Back to Home
+            </button>
+            <button
+              onClick={() => {
+                // Simulate catering review
+                setTimeout(() => {
+                  simulateCateringApproval();
+                }, 2000);
+              }}
+              style={{
+                backgroundColor: '#6366f1',
+                color: 'white',
+                border: 'none',
+                padding: 'clamp(12px, 2vw, 14px) clamp(16px, 3vw, 24px)',
+                borderRadius: '12px',
+                fontSize: 'clamp(13px, 2.5vw, 15px)',
+                fontWeight: '800',
+                cursor: 'pointer',
+              }}
+            >
+              Simulate Approval
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Terms and Conditions Screen
+  if (step === 'terms' && caterResponse) {
+    return (
+      <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh' }}>
+        <div style={{ maxWidth: '900px', margin: '0 auto', padding: 'clamp(20px, 4vw, 40px) clamp(16px, 5vw, 32px)' }}>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: 'clamp(20px, 5vw, 40px)' }}>
+            <button
+              onClick={() => router.back()}
+              style={{
+                backgroundColor: 'transparent',
+                border: '1px solid #e2e8f0',
+                color: '#1e293b',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontWeight: '600',
+                fontSize: 'clamp(12px, 2.5vw, 14px)',
+              }}
+            >
+              <ArrowLeftIcon style={{ width: '16px', height: '16px', minWidth: '16px' }} />
+            </button>
+          </div>
+
+          {/* Approved Quote Details */}
+          <div style={{ backgroundColor: '#dcfce7', border: '1px solid #bbf7d0', borderRadius: '12px', padding: 'clamp(14px, 3vw, 20px)', marginBottom: 'clamp(20px, 5vw, 32px)' }}>
+            <h2 style={{ fontSize: 'clamp(14px, 3vw, 16px)', fontWeight: '800', color: '#15803d', margin: '0 0 12px 0' }}>
+              ✓ Your Quote Has Been Approved!
+            </h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 'clamp(12px, 2vw, 16px)' }}>
+              <div>
+                <p style={{ fontSize: 'clamp(10px, 2.5vw, 12px)', color: '#15803d', fontWeight: '600', margin: 0 }}>Total Price</p>
+                <p style={{ fontSize: 'clamp(18px, 5vw, 22px)', fontWeight: '900', color: '#1e293b', margin: '4px 0 0 0' }}>
+                  ₹{caterResponse?.totalPrice?.toLocaleString('en-IN')}
+                </p>
+              </div>
+              <div>
+                <p style={{ fontSize: 'clamp(10px, 2.5vw, 12px)', color: '#15803d', fontWeight: '600', margin: 0 }}>Base Price</p>
+                <p style={{ fontSize: 'clamp(14px, 3vw, 16px)', fontWeight: '700', color: '#1e293b', margin: '4px 0 0 0' }}>
+                  ₹{caterResponse?.breakdown?.basePrice?.toLocaleString('en-IN')}
+                </p>
+              </div>
+              <div>
+                <p style={{ fontSize: 'clamp(10px, 2.5vw, 12px)', color: '#15803d', fontWeight: '600', margin: 0 }}>Services</p>
+                <p style={{ fontSize: 'clamp(14px, 3vw, 16px)', fontWeight: '700', color: '#1e293b', margin: '4px 0 0 0' }}>
+                  ₹{caterResponse?.breakdown?.servicesPrice?.toLocaleString('en-IN')}
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Title */}
           <h1
             style={{
-              fontSize: '40px',
+              fontSize: 'clamp(24px, 8vw, 40px)',
               fontWeight: '900',
               color: '#1e293b',
-              margin: '0 0 8px 0',
-              marginBottom: '48px',
+              margin: '0 0 12px 0',
             }}
           >
-            Select Payment Method
+            📋 Terms & Conditions
           </h1>
+          <p style={{ fontSize: 'clamp(14px, 3vw, 16px)', color: '#64748b', margin: '0 0 clamp(20px, 5vw, 40px) 0' }}>
+            Please review and accept our terms before proceeding with payment
+          </p>
 
-          {/* Order Summary Card */}
-          <div
-            style={{
-              backgroundColor: 'white',
-              borderRadius: '16px',
-              padding: '24px',
-              marginBottom: '32px',
-              border: '1px solid #e2e8f0',
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '24px',
-            }}
-          >
-            <div>
-              <p style={{ fontSize: '12px', color: '#64748b', fontWeight: '600', margin: 0 }}>
-                Order Total
-              </p>
-              <p style={{ fontSize: '32px', fontWeight: '900', color: '#f59e0b', margin: '8px 0 0 0' }}>
-                ₹{calculateOrderTotal().toLocaleString('en-IN')}
-              </p>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <p style={{ fontSize: '12px', color: '#64748b', fontWeight: '600', margin: 0 }}>
-                Delivery
-              </p>
-              <p style={{ fontSize: '16px', fontWeight: '800', color: '#1e293b', margin: '8px 0 0 0' }}>
-                {formData.eventDate} at {formData.eventTime}
-              </p>
-            </div>
+          {/* Terms Cards */}
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: 'clamp(16px, 3vw, 24px)',
+            marginBottom: 'clamp(24px, 5vw, 40px)',
+          }}>
+            {TERMS_AND_CONDITIONS.map((term, idx) => (
+              <div
+                key={idx}
+                style={{
+                  backgroundColor: 'white',
+                  borderRadius: '12px',
+                  padding: 'clamp(16px, 3vw, 20px)',
+                  border: '1px solid #e2e8f0',
+                }}
+              >
+                <h3 style={{ fontSize: 'clamp(13px, 3vw, 15px)', fontWeight: '800', color: '#1e293b', margin: '0 0 12px 0' }}>
+                  {term.title}
+                </h3>
+                <p style={{ fontSize: 'clamp(12px, 2.5vw, 13px)', lineHeight: '1.6', color: '#64748b', margin: 0 }}>
+                  {term.description}
+                </p>
+              </div>
+            ))}
           </div>
 
-          {/* Payment Methods */}
+          {/* Acceptance Checkbox */}
           <div
             style={{
               backgroundColor: 'white',
-              borderRadius: '16px',
-              padding: '40px',
+              borderRadius: '12px',
+              padding: 'clamp(16px, 3vw, 20px)',
               border: '1px solid #e2e8f0',
-              marginBottom: '32px',
+              marginBottom: 'clamp(20px, 4vw, 32px)',
             }}
           >
-            <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', margin: '0 0 24px 0' }}>
-              💳 Choose Payment Method
-            </h2>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '12px',
+                cursor: 'pointer',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={termsAccepted}
+                onChange={(e) => setTermsAccepted(e.target.checked)}
+                style={{
+                  marginTop: '4px',
+                  cursor: 'pointer',
+                  width: '20px',
+                  height: '20px',
+                  minWidth: '20px',
+                }}
+              />
+              <div>
+                <p style={{ fontSize: 'clamp(13px, 3vw, 15px)', fontWeight: '700', color: '#1e293b', margin: '0 0 6px 0' }}>
+                  I agree to the Terms & Conditions
+                </p>
+                <p style={{ fontSize: 'clamp(11px, 2.5vw, 12px)', color: '#64748b', margin: 0 }}>
+                  I understand the 100% refund policy in case of non-delivery and agree to all payment terms.
+                </p>
+              </div>
+            </label>
+          </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '32px' }}>
+          {/* Action Buttons */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 'clamp(12px, 3vw, 16px)' }}>
+            <button
+              onClick={() => router.push('/')}
+              style={{
+                backgroundColor: 'white',
+                color: '#1e293b',
+                border: '2px solid #e2e8f0',
+                padding: 'clamp(12px, 2vw, 14px) clamp(16px, 3vw, 24px)',
+                borderRadius: '12px',
+                fontSize: 'clamp(13px, 2.5vw, 15px)',
+                fontWeight: '800',
+                cursor: 'pointer',
+              }}
+            >
+              Decline
+            </button>
+            <button
+              onClick={handleAcceptTerms}
+              disabled={!termsAccepted}
+              style={{
+                backgroundColor: termsAccepted ? '#6366f1' : '#cbd5e1',
+                color: 'white',
+                border: 'none',
+                padding: 'clamp(12px, 2vw, 14px) clamp(16px, 3vw, 24px)',
+                borderRadius: '12px',
+                fontSize: 'clamp(13px, 2.5vw, 15px)',
+                fontWeight: '800',
+                cursor: termsAccepted ? 'pointer' : 'not-allowed',
+              }}
+            >
+              Accept & Pay
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Payment Screen
+  if (step === 'payment' && caterResponse) {
+    return (
+      <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh', padding: 'clamp(20px, 4vw, 40px) clamp(16px, 5vw, 32px)' }}>
+        <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: 'clamp(20px, 5vw, 40px)' }}>
+            <button
+              onClick={() => setStep('terms')}
+              style={{
+                backgroundColor: 'transparent',
+                border: '1px solid #e2e8f0',
+                color: '#1e293b',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontWeight: '600',
+              }}
+            >
+              <ArrowLeftIcon style={{ width: '16px', height: '16px' }} />
+            </button>
+          </div>
+
+          <h1 style={{ fontSize: 'clamp(24px, 8vw, 40px)', fontWeight: '900', color: '#1e293b', margin: '0 0 12px 0' }}>
+            💳 Complete Payment
+          </h1>
+          <p style={{ fontSize: 'clamp(14px, 3vw, 16px)', color: '#64748b', marginBottom: 'clamp(20px, 5vw, 40px)' }}>
+            Your full payment is 100% refundable if we fail to deliver the service
+          </p>
+
+          {/* Payment Details */}
+          <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: 'clamp(16px, 3vw, 24px)', marginBottom: 'clamp(20px, 5vw, 32px)', border: '1px solid #e2e8f0' }}>
+            {/* Amount */}
+            <div style={{ textAlign: 'center', paddingBottom: 'clamp(16px, 3vw, 24px)', borderBottom: '2px solid #e2e8f0', marginBottom: 'clamp(16px, 3vw, 24px)' }}>
+              <p style={{ fontSize: 'clamp(12px, 2.5vw, 14px)', color: '#64748b', margin: 0, marginBottom: '8px', fontWeight: '600' }}>
+                Total Amount to Pay
+              </p>
+              <p style={{ fontSize: 'clamp(36px, 10vw, 48px)', fontWeight: '900', color: '#6366f1', margin: 0 }}>
+                ₹{caterResponse?.totalPrice?.toLocaleString('en-IN')}
+              </p>
+            </div>
+
+            {/* Refund Policy */}
+            <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', padding: 'clamp(12px, 2vw, 16px)', marginBottom: 'clamp(16px, 3vw, 24px)' }}>
+              <p style={{ fontSize: 'clamp(12px, 2.5vw, 14px)', color: '#15803d', fontWeight: '700', margin: '0 0 8px 0' }}>
+                ✓ 100% Refund Guarantee
+              </p>
+              <p style={{ fontSize: 'clamp(11px, 2.5vw, 12px)', color: '#166534', margin: 0 }}>
+                {caterResponse?.refundPolicy}
+              </p>
+            </div>
+
+            {/* Payment Methods */}
+            <h3 style={{ fontSize: 'clamp(13px, 3vw, 15px)', fontWeight: '800', color: '#1e293b', margin: '0 0 clamp(12px, 2vw, 16px) 0' }}>
+              Select Payment Method
+            </h3>
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: 'clamp(10px, 2vw, 12px)',
+              marginBottom: 'clamp(16px, 3vw, 24px)',
+            }}>
               {PAYMENT_METHODS.map(method => (
                 <label
                   key={method.id}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    padding: '20px',
+                    padding: 'clamp(12px, 2vw, 16px)',
                     border: formData.selectedPaymentMethod === method.id
-                      ? '2px solid #f59e0b'
+                      ? '2px solid #6366f1'
                       : '1px solid #e2e8f0',
                     borderRadius: '12px',
                     cursor: 'pointer',
                     backgroundColor: formData.selectedPaymentMethod === method.id
-                      ? '#fffbeb'
+                      ? '#e0e7ff'
                       : 'white',
-                    transition: 'all 0.2s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (formData.selectedPaymentMethod !== method.id) {
-                      e.currentTarget.style.borderColor = '#cbd5e1';
-                      e.currentTarget.style.backgroundColor = '#f8fafc';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (formData.selectedPaymentMethod !== method.id) {
-                      e.currentTarget.style.borderColor = '#e2e8f0';
-                      e.currentTarget.style.backgroundColor = 'white';
-                    }
                   }}
                 >
                   <input
@@ -796,84 +1105,218 @@ const QuotePage = () => {
                     value={method.id}
                     checked={formData.selectedPaymentMethod === method.id}
                     onChange={(e) => setFormData(prev => ({ ...prev, selectedPaymentMethod: e.target.value }))}
-                    style={{
-                      marginRight: '16px',
-                      cursor: 'pointer',
-                      width: '20px',
-                      height: '20px',
-                    }}
+                    style={{ marginRight: '12px', cursor: 'pointer', width: '18px', height: '18px' }}
                   />
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                      <span style={{ fontSize: '20px' }}>{method.icon}</span>
-                      <p style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', margin: 0 }}>
+                      <span style={{ fontSize: 'clamp(14px, 3vw, 16px)' }}>{method.icon}</span>
+                      <p style={{ fontSize: 'clamp(12px, 2.5vw, 14px)', fontWeight: '700', color: '#1e293b', margin: 0 }}>
                         {method.name}
                       </p>
                     </div>
-                    <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>
+                    <p style={{ fontSize: 'clamp(10px, 2vw, 11px)', color: '#64748b', margin: 0 }}>
                       {method.description}
                     </p>
                   </div>
                 </label>
               ))}
             </div>
+          </div>
 
-            {/* Action Buttons */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              <button
-                onClick={() => setStep('form')}
-                style={{
-                  backgroundColor: 'white',
-                  color: '#1e293b',
-                  border: '2px solid #e2e8f0',
-                  padding: '14px 24px',
-                  borderRadius: '12px',
-                  fontSize: '15px',
-                  fontWeight: '800',
-                  cursor: 'pointer',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#f8fafc';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'white';
-                }}
-              >
-                Back to Order Form
-              </button>
-              <button
-                onClick={handlePaymentSubmit}
-                style={{
-                  backgroundColor: '#f59e0b',
-                  color: 'white',
-                  border: 'none',
-                  padding: '14px 24px',
-                  borderRadius: '12px',
-                  fontSize: '15px',
-                  fontWeight: '800',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  boxShadow: '0 8px 20px rgba(245, 158, 11, 0.3)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#d97706';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#f59e0b';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                Complete Payment
-              </button>
-            </div>
+          {/* Action Buttons */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 'clamp(12px, 3vw, 16px)' }}>
+            <button
+              onClick={() => setStep('terms')}
+              style={{
+                backgroundColor: 'white',
+                color: '#1e293b',
+                border: '2px solid #e2e8f0',
+                padding: 'clamp(12px, 2vw, 14px) clamp(16px, 3vw, 24px)',
+                borderRadius: '12px',
+                fontSize: 'clamp(13px, 2.5vw, 15px)',
+                fontWeight: '800',
+                cursor: 'pointer',
+              }}
+            >
+              Back
+            </button>
+            <button
+              onClick={handlePaymentSubmit}
+              style={{
+                backgroundColor: '#6366f1',
+                color: 'white',
+                border: 'none',
+                padding: 'clamp(12px, 2vw, 14px) clamp(16px, 3vw, 24px)',
+                borderRadius: '12px',
+                fontSize: 'clamp(13px, 2.5vw, 15px)',
+                fontWeight: '800',
+                cursor: 'pointer',
+              }}
+            >
+              Complete Payment
+            </button>
           </div>
         </div>
       </div>
     );
   }
 
-  // Main Form Screen
+  // Final Confirmation Screen
+  if (step === 'confirmation' && orderSummary) {
+    return (
+      <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh', padding: 'clamp(16px, 4vw, 32px)' }}>
+        <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+          {/* Status Header */}
+          <div
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '16px',
+              padding: 'clamp(24px, 5vw, 48px)',
+              textAlign: 'center',
+              marginBottom: 'clamp(16px, 5vw, 32px)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
+            }}
+          >
+            <div
+              style={{
+                width: 'clamp(70px, 20vw, 100px)',
+                height: 'clamp(70px, 20vw, 100px)',
+                backgroundColor: orderStatus === 'success' ? '#dcfce7' : '#fee2e2',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto clamp(16px, 3vw, 24px)',
+              }}
+            >
+              {orderStatus === 'success' ? (
+                <CheckCircleIcon style={{ width: 'clamp(40px, 12vw, 60px)', height: 'clamp(40px, 12vw, 60px)', color: '#22c55e' }} />
+              ) : (
+                <XMarkIcon style={{ width: 'clamp(40px, 12vw, 60px)', height: 'clamp(40px, 12vw, 60px)', color: '#dc2626' }} />
+              )}
+            </div>
+            <h1
+              style={{
+                fontSize: 'clamp(24px, 8vw, 36px)',
+                fontWeight: '900',
+                color: '#1e293b',
+                margin: '0 0 12px 0',
+              }}
+            >
+              {orderStatus === 'success' ? 'Booking Confirmed! 🎉' : 'Payment Failed ❌'}
+            </h1>
+            <p style={{ fontSize: 'clamp(14px, 3vw, 16px)', color: '#64748b', margin: 0 }}>
+              {orderStatus === 'success'
+                ? 'Your catering booking has been confirmed. A confirmation email has been sent.'
+                : 'Your payment could not be processed. Please try again.'}
+            </p>
+          </div>
+
+          {/* Booking Details */}
+          {orderStatus === 'success' && (
+            <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: 'clamp(16px, 4vw, 32px)', marginBottom: 'clamp(16px, 5vw, 32px)', border: '1px solid #e2e8f0' }}>
+              {/* Order ID */}
+              <div style={{ backgroundColor: '#dcfce7', border: '1px solid #bbf7d0', borderRadius: '12px', padding: 'clamp(12px, 3vw, 16px)', marginBottom: 'clamp(16px, 4vw, 24px)', textAlign: 'center' }}>
+                <p style={{ fontSize: 'clamp(10px, 2.5vw, 12px)', fontWeight: '700', color: '#15803d', margin: 0, marginBottom: '6px' }}>
+                  BOOKING CONFIRMED
+                </p>
+                <p style={{ fontSize: 'clamp(16px, 4vw, 20px)', fontWeight: '900', color: '#1e293b', margin: 0, fontFamily: 'monospace' }}>
+                  {orderSummary?.orderId}
+                </p>
+              </div>
+
+              {/* Payment Confirmation */}
+              <div style={{ marginBottom: 'clamp(16px, 5vw, 32px)' }}>
+                <h2 style={{ fontSize: 'clamp(16px, 4vw, 18px)', fontWeight: '800', color: '#1e293b', margin: '0 0 clamp(12px, 3vw, 16px) 0' }}>
+                  ✓ Payment Completed
+                </h2>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 'clamp(12px, 3vw, 16px)' }}>
+                  <div style={{ backgroundColor: '#dcfce7', padding: 'clamp(12px, 3vw, 16px)', borderRadius: '12px' }}>
+                    <p style={{ fontSize: 'clamp(10px, 2.5vw, 12px)', color: '#15803d', margin: '0 0 6px 0', fontWeight: '600' }}>
+                      Amount Paid
+                    </p>
+                    <p style={{ fontSize: 'clamp(18px, 5vw, 22px)', fontWeight: '900', color: '#1e293b', margin: 0 }}>
+                      ₹{orderSummary?.totalPrice?.toLocaleString('en-IN')}
+                    </p>
+                  </div>
+                  <div style={{ backgroundColor: '#f0fdf4', padding: 'clamp(12px, 3vw, 16px)', borderRadius: '12px' }}>
+                    <p style={{ fontSize: 'clamp(10px, 2.5vw, 12px)', color: '#15803d', margin: '0 0 6px 0', fontWeight: '600' }}>
+                      Refund Status
+                    </p>
+                    <p style={{ fontSize: 'clamp(12px, 2.5vw, 13px)', fontWeight: '700', color: '#1e293b', margin: 0 }}>
+                      100% Refundable
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Next Steps */}
+              <div style={{ backgroundColor: '#f0f9ff', border: '1px solid #bfdbfe', borderRadius: '12px', padding: 'clamp(14px, 3vw, 20px)' }}>
+                <h3 style={{ fontSize: 'clamp(13px, 3vw, 15px)', fontWeight: '800', color: '#1e40af', margin: '0 0 12px 0' }}>
+                  📌 What's Next?
+                </h3>
+                <ul style={{ fontSize: 'clamp(12px, 2.5vw, 13px)', color: '#1e40af', margin: 0, paddingLeft: '20px' }}>
+                  <li style={{ marginBottom: '8px' }}>
+                    <strong>Confirmation Email:</strong> Check your email for full booking details
+                  </li>
+                  <li style={{ marginBottom: '8px' }}>
+                    <strong>Refund Guarantee:</strong> Your payment is 100% refundable if we don't deliver
+                  </li>
+                  <li style={{ marginBottom: '8px' }}>
+                    <strong>Final Confirmation:</strong> We'll contact you 2 days before your event
+                  </li>
+                  <li>
+                    <strong>24/7 Support:</strong> Reach out anytime with questions
+                  </li>
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 'clamp(12px, 3vw, 16px)' }}>
+            <button
+              onClick={() => router.push('/')}
+              style={{
+                backgroundColor: 'white',
+                color: '#1e293b',
+                border: '2px solid #e2e8f0',
+                padding: 'clamp(12px, 2vw, 14px) clamp(16px, 3vw, 24px)',
+                borderRadius: '12px',
+                fontSize: 'clamp(13px, 2.5vw, 15px)',
+                fontWeight: '800',
+                cursor: 'pointer',
+              }}
+            >
+              Back to Home
+            </button>
+            {orderStatus === 'success' && (
+              <button
+                onClick={() => {
+                  handleLogout();
+                  router.push('/bookings');
+                }}
+                style={{
+                  backgroundColor: '#6366f1',
+                  color: 'white',
+                  border: 'none',
+                  padding: 'clamp(12px, 2vw, 14px) clamp(16px, 3vw, 24px)',
+                  borderRadius: '12px',
+                  fontSize: 'clamp(13px, 2.5vw, 15px)',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                }}
+              >
+                View My Bookings
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Main Quote Form Screen
   return (
     <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh' }}>
       {/* Header */}
@@ -881,7 +1324,7 @@ const QuotePage = () => {
         style={{
           backgroundColor: 'white',
           borderBottom: '1px solid #e2e8f0',
-          padding: '16px 32px',
+          padding: 'clamp(12px, 3vw, 16px) clamp(16px, 5vw, 32px)',
           position: 'sticky',
           top: 0,
           zIndex: 40,
@@ -889,32 +1332,24 @@ const QuotePage = () => {
         }}
       >
         <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
             <button
               onClick={() => router.back()}
               style={{
                 backgroundColor: 'transparent',
                 border: '1px solid #e2e8f0',
                 color: '#1e293b',
-                padding: '8px 16px',
+                padding: '8px 12px',
                 borderRadius: '8px',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
                 fontWeight: '600',
-                fontSize: '14px',
-                transition: 'all 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#f1f5f9';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
+                fontSize: 'clamp(12px, 2.5vw, 14px)',
               }}
             >
-              <ArrowLeftIcon style={{ width: '16px', height: '16px' }} />
-              Back
+              <ArrowLeftIcon style={{ width: '16px', height: '16px', minWidth: '16px' }} />
             </button>
             {isLoggedIn && (
               <button
@@ -923,12 +1358,12 @@ const QuotePage = () => {
                   backgroundColor: 'transparent',
                   color: '#64748b',
                   border: 'none',
-                  fontSize: '14px',
+                  fontSize: 'clamp(12px, 2.5vw, 14px)',
                   fontWeight: '600',
                   cursor: 'pointer',
                 }}
               >
-                Sign Out ({currentUser?.fullName || currentUser?.name})
+                Sign Out
               </button>
             )}
           </div>
@@ -936,88 +1371,21 @@ const QuotePage = () => {
       </div>
 
       {/* Main Content */}
-      <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '48px 32px' }}>
-        {/* Mode Toggle */}
-        {ENABLE_ORDERING && (
-          <div
-            style={{
-              display: 'flex',
-              gap: '16px',
-              marginBottom: '48px',
-              backgroundColor: 'white',
-              padding: '8px',
-              borderRadius: '12px',
-              border: '1px solid #e2e8f0',
-              width: 'fit-content',
-            }}
-          >
-            <button
-              onClick={() => {
-                setMode('quote');
-                setSubmitted(false);
-              }}
-              style={{
-                backgroundColor: mode === 'quote' ? '#f59e0b' : 'transparent',
-                color: mode === 'quote' ? 'white' : '#64748b',
-                border: 'none',
-                padding: '10px 20px',
-                borderRadius: '8px',
-                fontWeight: '700',
-                fontSize: '14px',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
-            >
-              <DocumentTextIcon style={{ width: '16px', height: '16px' }} />
-              Get Quote
-            </button>
-            <button
-              onClick={() => {
-                if (!isLoggedIn) {
-                  handleLoginRedirect();
-                } else {
-                  setMode('order');
-                  setSubmitted(false);
-                }
-              }}
-              style={{
-                backgroundColor: mode === 'order' ? '#f59e0b' : 'transparent',
-                color: mode === 'order' ? 'white' : '#64748b',
-                border: 'none',
-                padding: '10px 20px',
-                borderRadius: '8px',
-                fontWeight: '700',
-                fontSize: '14px',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
-            >
-              <ShoppingCartIcon style={{ width: '16px', height: '16px' }} />
-              Order Now
-            </button>
-          </div>
-        )}
-
+      <div style={{ maxWidth: '1000px', margin: '0 auto', padding: 'clamp(20px, 4vw, 40px) clamp(16px, 5vw, 32px)' }}>
         {/* Title */}
-        <div style={{ marginBottom: '48px' }}>
+        <div style={{ marginBottom: 'clamp(20px, 5vw, 40px)' }}>
           <h1
             style={{
-              fontSize: '40px',
+              fontSize: 'clamp(24px, 8vw, 40px)',
               fontWeight: '900',
               color: '#1e293b',
               margin: '0 0 8px 0',
               letterSpacing: '-0.5px',
             }}
           >
-            {mode === 'quote' ? 'Get Your Custom Quote' : 'Place Your Order'}
+            Get Your Custom Quote
           </h1>
-          <p style={{ fontSize: '16px', color: '#64748b', margin: 0 }}>
+          <p style={{ fontSize: 'clamp(14px, 3vw, 16px)', color: '#64748b', margin: 0 }}>
             {serviceName && `for ${serviceName}`}
           </p>
         </div>
@@ -1027,48 +1395,35 @@ const QuotePage = () => {
           style={{
             backgroundColor: 'white',
             borderRadius: '16px',
-            padding: '40px',
+            padding: 'clamp(16px, 3vw, 32px)',
             border: '1px solid #e2e8f0',
-            marginBottom: '48px',
           }}
         >
-          {/* Login Required Message */}
           {mode === 'order' && !isLoggedIn && (
             <div
               style={{
                 backgroundColor: '#fef3c7',
                 border: '1px solid #fcd34d',
                 borderRadius: '12px',
-                padding: '24px',
-                marginBottom: '32px',
+                padding: 'clamp(14px, 3vw, 20px)',
+                marginBottom: 'clamp(16px, 4vw, 24px)',
                 textAlign: 'center',
               }}
             >
-              <p style={{ fontSize: '16px', color: '#92400e', fontWeight: '700', margin: '0 0 12px 0' }}>
+              <p style={{ fontSize: 'clamp(14px, 3vw, 16px)', color: '#92400e', fontWeight: '700', margin: '0 0 12px 0' }}>
                 🔐 Please Login to Continue
-              </p>
-              <p style={{ fontSize: '14px', color: '#b45309', margin: 0 }}>
-                You need to sign in to your account to place an order.
               </p>
               <button
                 onClick={handleLoginRedirect}
                 style={{
-                  marginTop: '16px',
                   backgroundColor: '#f59e0b',
                   color: 'white',
                   border: 'none',
-                  padding: '12px 24px',
+                  padding: 'clamp(10px, 2vw, 12px) clamp(14px, 3vw, 20px)',
                   borderRadius: '8px',
-                  fontSize: '14px',
+                  fontSize: 'clamp(12px, 2.5vw, 14px)',
                   fontWeight: '700',
                   cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#d97706';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#f59e0b';
                 }}
               >
                 Go to Sign In
@@ -1076,53 +1431,17 @@ const QuotePage = () => {
             </div>
           )}
 
-          {/* Selected Items Summary */}
-          {selectedItems.length > 0 && (
-            <div
-              style={{
-                backgroundColor: '#fef3c7',
-                border: '1px solid #fcd34d',
-                borderRadius: '12px',
-                padding: '16px',
-                marginBottom: '32px',
-              }}
-            >
-              <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#92400e', margin: '0 0 12px 0' }}>
-                📋 Selected Items from Menu:
-              </h3>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                {selectedItems.map((item, idx) => (
-                  <span
-                    key={idx}
-                    style={{
-                      backgroundColor: '#f59e0b',
-                      color: 'white',
-                      padding: '6px 12px',
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                      fontWeight: '600',
-                    }}
-                  >
-                    {item}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Show form only if quote mode or user is logged in for order mode */}
           {mode === 'quote' || (mode === 'order' && isLoggedIn) ? (
             <form onSubmit={handleSubmitForm}>
-              {/* ...rest of the form remains the same... */}
               {/* Event Details */}
-              <div style={{ marginBottom: '32px' }}>
-                <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', marginBottom: '20px', marginTop: 0 }}>
+              <div style={{ marginBottom: 'clamp(16px, 4vw, 24px)' }}>
+                <h2 style={{ fontSize: 'clamp(14px, 3.5vw, 16px)', fontWeight: '800', color: '#1e293b', marginBottom: 'clamp(12px, 2vw, 16px)', marginTop: 0 }}>
                   Event Details
                 </h2>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 'clamp(10px, 2vw, 16px)', marginBottom: 'clamp(10px, 2vw, 16px)' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
+                    <label style={{ display: 'block', fontSize: 'clamp(11px, 2.5vw, 13px)', fontWeight: '700', color: '#1e293b', marginBottom: '6px' }}>
                       Event Date *
                     </label>
                     <input
@@ -1133,42 +1452,38 @@ const QuotePage = () => {
                       required
                       style={{
                         width: '100%',
-                        padding: '12px 16px',
+                        padding: 'clamp(8px, 2vw, 10px) clamp(10px, 2vw, 12px)',
                         border: '1px solid #e2e8f0',
                         borderRadius: '8px',
-                        fontSize: '14px',
+                        fontSize: 'clamp(11px, 2.5vw, 13px)',
                         fontFamily: 'inherit',
                         boxSizing: 'border-box',
                       }}
                     />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
-                      {mode === 'order' ? 'Event Time *' : 'Event Time'}
+                    <label style={{ display: 'block', fontSize: 'clamp(11px, 2.5vw, 13px)', fontWeight: '700', color: '#1e293b', marginBottom: '6px' }}>
+                      Event Time
                     </label>
                     <input
                       type="time"
                       name="eventTime"
                       value={formData.eventTime}
                       onChange={handleInputChange}
-                      required={mode === 'order'}
                       style={{
                         width: '100%',
-                        padding: '12px 16px',
+                        padding: 'clamp(8px, 2vw, 10px) clamp(10px, 2vw, 12px)',
                         border: '1px solid #e2e8f0',
                         borderRadius: '8px',
-                        fontSize: '14px',
+                        fontSize: 'clamp(11px, 2.5vw, 13px)',
                         fontFamily: 'inherit',
                         boxSizing: 'border-box',
                       }}
                     />
                   </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
-                      Number of Guests *
+                    <label style={{ display: 'block', fontSize: 'clamp(11px, 2.5vw, 13px)', fontWeight: '700', color: '#1e293b', marginBottom: '6px' }}>
+                      Guests *
                     </label>
                     <input
                       type="number"
@@ -1179,17 +1494,17 @@ const QuotePage = () => {
                       required
                       style={{
                         width: '100%',
-                        padding: '12px 16px',
+                        padding: 'clamp(8px, 2vw, 10px) clamp(10px, 2vw, 12px)',
                         border: '1px solid #e2e8f0',
                         borderRadius: '8px',
-                        fontSize: '14px',
+                        fontSize: 'clamp(11px, 2.5vw, 13px)',
                         fontFamily: 'inherit',
                         boxSizing: 'border-box',
                       }}
                     />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
+                    <label style={{ display: 'block', fontSize: 'clamp(11px, 2.5vw, 13px)', fontWeight: '700', color: '#1e293b', marginBottom: '6px' }}>
                       Event Type *
                     </label>
                     <select
@@ -1199,18 +1514,18 @@ const QuotePage = () => {
                       required
                       style={{
                         width: '100%',
-                        padding: '12px 16px',
+                        padding: 'clamp(8px, 2vw, 10px) clamp(10px, 2vw, 12px)',
                         border: '1px solid #e2e8f0',
                         borderRadius: '8px',
-                        fontSize: '14px',
+                        fontSize: 'clamp(11px, 2.5vw, 13px)',
                         fontFamily: 'inherit',
                         boxSizing: 'border-box',
                       }}
                     >
-                      <option value="">Select an event type...</option>
+                      <option value="">Select type...</option>
                       <option value="Wedding">Wedding</option>
-                      <option value="Corporate">Corporate Event</option>
-                      <option value="Birthday">Birthday Party</option>
+                      <option value="Corporate">Corporate</option>
+                      <option value="Birthday">Birthday</option>
                       <option value="Anniversary">Anniversary</option>
                       <option value="Private Dinner">Private Dinner</option>
                       <option value="Other">Other</option>
@@ -1219,159 +1534,15 @@ const QuotePage = () => {
                 </div>
               </div>
 
-              {/* Address - Only for Orders */}
-              {mode === 'order' && (
-                <div style={{ marginBottom: '32px' }}>
-                  <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', marginBottom: '20px', marginTop: 0 }}>
-                    📍 Delivery Address
-                  </h2>
-
-                  {currentUser?.addresses?.length > 0 && (
-                    <div style={{ marginBottom: '20px' }}>
-                      <label
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          padding: '16px',
-                          border: '1px solid #e2e8f0',
-                          borderRadius: '8px',
-                          cursor: 'pointer',
-                          backgroundColor: formData.useExistingAddress ? '#fffbeb' : 'white',
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={formData.useExistingAddress}
-                          onChange={(e) =>
-                            setFormData(prev => ({
-                              ...prev,
-                              useExistingAddress: e.target.checked,
-                            }))
-                          }
-                          style={{ marginRight: '12px', cursor: 'pointer', width: '18px', height: '18px' }}
-                        />
-                        <span style={{ fontWeight: '600', color: '#1e293b' }}>
-                          Use saved address from my profile
-                        </span>
-                      </label>
-                    </div>
-                  )}
-
-                  {formData.useExistingAddress && currentUser?.addresses?.length > 0 ? (
-                    <div style={{ marginBottom: '20px' }}>
-                      <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
-                        Select Address *
-                      </label>
-                      <select
-                        value={formData.selectedAddressId}
-                        onChange={(e) =>
-                          setFormData(prev => ({
-                            ...prev,
-                            selectedAddressId: e.target.value,
-                          }))
-                        }
-                        style={{
-                          width: '100%',
-                          padding: '12px 16px',
-                          border: '1px solid #e2e8f0',
-                          borderRadius: '8px',
-                          fontSize: '14px',
-                          fontFamily: 'inherit',
-                          boxSizing: 'border-box',
-                        }}
-                      >
-                        {currentUser.addresses.map((addr: any) => (
-                          <option key={addr.id} value={addr.id}>
-                            {addr.label} - {addr.address}, {addr.city}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  ) : (
-                    <>
-                      <div style={{ marginBottom: '20px' }}>
-                        <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
-                          Street Address *
-                        </label>
-                        <input
-                          type="text"
-                          name="address"
-                          value={formData.address}
-                          onChange={handleInputChange}
-                          placeholder="Enter your street address"
-                          required={mode === 'order' && !formData.useExistingAddress}
-                          style={{
-                            width: '100%',
-                            padding: '12px 16px',
-                            border: '1px solid #e2e8f0',
-                            borderRadius: '8px',
-                            fontSize: '14px',
-                            fontFamily: 'inherit',
-                            boxSizing: 'border-box',
-                          }}
-                        />
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
-                        <div>
-                          <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
-                            City *
-                          </label>
-                          <input
-                            type="text"
-                            name="city"
-                            value={formData.city}
-                            onChange={handleInputChange}
-                            placeholder="City"
-                            required={mode === 'order' && !formData.useExistingAddress}
-                            style={{
-                              width: '100%',
-                              padding: '12px 16px',
-                              border: '1px solid #e2e8f0',
-                              borderRadius: '8px',
-                              fontSize: '14px',
-                              fontFamily: 'inherit',
-                              boxSizing: 'border-box',
-                            }}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
-                            ZIP Code *
-                          </label>
-                          <input
-                            type="text"
-                            name="zipCode"
-                            value={formData.zipCode}
-                            onChange={handleInputChange}
-                            placeholder="ZIP"
-                            required={mode === 'order' && !formData.useExistingAddress}
-                            style={{
-                              width: '100%',
-                              padding: '12px 16px',
-                              border: '1px solid #e2e8f0',
-                              borderRadius: '8px',
-                              fontSize: '14px',
-                              fontFamily: 'inherit',
-                              boxSizing: 'border-box',
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-
               {/* Contact Information */}
-              <div style={{ marginBottom: '32px' }}>
-                <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', marginBottom: '20px', marginTop: 0 }}>
+              <div style={{ marginBottom: 'clamp(16px, 4vw, 24px)' }}>
+                <h2 style={{ fontSize: 'clamp(14px, 3.5vw, 16px)', fontWeight: '800', color: '#1e293b', marginBottom: 'clamp(12px, 2vw, 16px)', marginTop: 0 }}>
                   Contact Information
                 </h2>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 'clamp(10px, 2vw, 16px)', marginBottom: 'clamp(10px, 2vw, 16px)' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
+                    <label style={{ display: 'block', fontSize: 'clamp(11px, 2.5vw, 13px)', fontWeight: '700', color: '#1e293b', marginBottom: '6px' }}>
                       Full Name *
                     </label>
                     <input
@@ -1384,10 +1555,10 @@ const QuotePage = () => {
                       disabled={isLoggedIn}
                       style={{
                         width: '100%',
-                        padding: '12px 16px',
+                        padding: 'clamp(8px, 2vw, 10px) clamp(10px, 2vw, 12px)',
                         border: '1px solid #e2e8f0',
                         borderRadius: '8px',
-                        fontSize: '14px',
+                        fontSize: 'clamp(11px, 2.5vw, 13px)',
                         fontFamily: 'inherit',
                         boxSizing: 'border-box',
                         backgroundColor: isLoggedIn ? '#f8fafc' : 'white',
@@ -1395,8 +1566,8 @@ const QuotePage = () => {
                     />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
-                      Phone Number *
+                    <label style={{ display: 'block', fontSize: 'clamp(11px, 2.5vw, 13px)', fontWeight: '700', color: '#1e293b', marginBottom: '6px' }}>
+                      Phone *
                     </label>
                     <input
                       type="tel"
@@ -1408,10 +1579,10 @@ const QuotePage = () => {
                       disabled={isLoggedIn}
                       style={{
                         width: '100%',
-                        padding: '12px 16px',
+                        padding: 'clamp(8px, 2vw, 10px) clamp(10px, 2vw, 12px)',
                         border: '1px solid #e2e8f0',
                         borderRadius: '8px',
-                        fontSize: '14px',
+                        fontSize: 'clamp(11px, 2.5vw, 13px)',
                         fontFamily: 'inherit',
                         boxSizing: 'border-box',
                         backgroundColor: isLoggedIn ? '#f8fafc' : 'white',
@@ -1421,8 +1592,8 @@ const QuotePage = () => {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
-                    Email Address *
+                  <label style={{ display: 'block', fontSize: 'clamp(11px, 2.5vw, 13px)', fontWeight: '700', color: '#1e293b', marginBottom: '6px' }}>
+                    Email *
                   </label>
                   <input
                     type="email"
@@ -1434,10 +1605,10 @@ const QuotePage = () => {
                     disabled={isLoggedIn}
                     style={{
                       width: '100%',
-                      padding: '12px 16px',
+                      padding: 'clamp(8px, 2vw, 10px) clamp(10px, 2vw, 12px)',
                       border: '1px solid #e2e8f0',
                       borderRadius: '8px',
-                      fontSize: '14px',
+                      fontSize: 'clamp(11px, 2.5vw, 13px)',
                       fontFamily: 'inherit',
                       boxSizing: 'border-box',
                       backgroundColor: isLoggedIn ? '#f8fafc' : 'white',
@@ -1446,205 +1617,56 @@ const QuotePage = () => {
                 </div>
               </div>
 
-              {/* Additional Services - Only for Orders */}
-              {mode === 'order' && (
-                <div style={{ marginBottom: '32px' }}>
-                  <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', marginBottom: '20px', marginTop: 0 }}>
-                    ⭐ Additional Services
-                  </h2>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                    {ADDITIONAL_SERVICES.map(service => (
-                      <label
-                        key={service.id}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'flex-start',
-                          padding: '16px',
-                          border: formData.selectedServices.includes(service.id)
-                            ? '2px solid #f59e0b'
-                            : '1px solid #e2e8f0',
-                          borderRadius: '12px',
-                          cursor: 'pointer',
-                          backgroundColor: formData.selectedServices.includes(service.id)
-                            ? '#fffbeb'
-                            : 'white',
-                          transition: 'all 0.2s ease',
-                        }}
-                        onMouseEnter={(e) => {
-                          if (!formData.selectedServices.includes(service.id)) {
-                            e.currentTarget.style.borderColor = '#cbd5e1';
-                            e.currentTarget.style.backgroundColor = '#f8fafc';
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!formData.selectedServices.includes(service.id)) {
-                            e.currentTarget.style.borderColor = '#e2e8f0';
-                            e.currentTarget.style.backgroundColor = 'white';
-                          }
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={formData.selectedServices.includes(service.id)}
-                          onChange={() => handleServiceToggle(service.id)}
-                          style={{
-                            marginRight: '12px',
-                            marginTop: '2px',
-                            cursor: 'pointer',
-                            width: '18px',
-                            height: '18px',
-                          }}
-                        />
-                        <div>
-                          <p style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b', margin: '0 0 4px 0' }}>
-                            {service.name}
-                          </p>
-                          <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>
-                            {service.description}
-                          </p>
-                          <p style={{ fontSize: '13px', fontWeight: '700', color: '#f59e0b', margin: '6px 0 0 0' }}>
-                            ₹{service.price.toLocaleString('en-IN')}
-                          </p>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Special Requests */}
-              <div style={{ marginBottom: '32px' }}>
-                <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', marginBottom: '20px', marginTop: 0 }}>
-                  {mode === 'order' ? '📝 Special Requests' : 'Budget & Special Requests'}
-                </h2>
-
-                {mode === 'quote' && (
-                  <div style={{ marginBottom: '20px' }}>
-                    <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
-                      Estimated Budget (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      name="budget"
-                      value={formData.budget}
-                      onChange={handleInputChange}
-                      placeholder="e.g., ₹1,00,000"
-                      style={{
-                        width: '100%',
-                        padding: '12px 16px',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '8px',
-                        fontSize: '14px',
-                        fontFamily: 'inherit',
-                        boxSizing: 'border-box',
-                      }}
-                    />
-                  </div>
-                )}
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: '#1e293b', marginBottom: '8px' }}>
-                    Special Requests or Dietary Requirements
-                  </label>
-                  <textarea
-                    name="specialRequests"
-                    value={formData.specialRequests}
-                    onChange={handleInputChange}
-                    placeholder="Tell us about any special requirements, dietary restrictions, or preferences..."
-                    rows={5}
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      fontFamily: 'inherit',
-                      boxSizing: 'border-box',
-                      resize: 'vertical',
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Order Summary - Only for Orders */}
-              {mode === 'order' && (
-                <div
+              <div style={{ marginBottom: 'clamp(16px, 4vw, 24px)' }}>
+                <label style={{ display: 'block', fontSize: 'clamp(11px, 2.5vw, 13px)', fontWeight: '700', color: '#1e293b', marginBottom: '6px' }}>
+                  Special Requests or Dietary Requirements
+                </label>
+                <textarea
+                  name="specialRequests"
+                  value={formData.specialRequests}
+                  onChange={handleInputChange}
+                  placeholder="Tell us about any special requirements..."
+                  rows={3}
                   style={{
-                    backgroundColor: '#f8fafc',
-                    padding: '20px',
-                    borderRadius: '12px',
-                    marginBottom: '32px',
+                    width: '100%',
+                    padding: 'clamp(8px, 2vw, 10px) clamp(10px, 2vw, 12px)',
                     border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    fontSize: 'clamp(11px, 2.5vw, 13px)',
+                    fontFamily: 'inherit',
+                    boxSizing: 'border-box',
+                    resize: 'vertical',
                   }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                    <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '600' }}>
-                      Base Catering ({formData.guestCount} guests × ₹500)
-                    </span>
-                    <span style={{ fontWeight: '700', color: '#1e293b' }}>
-                      ₹{(parseInt(formData.guestCount || '0') * 500).toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                  {formData.selectedServices.length > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                      <span style={{ fontSize: '14px', color: '#64748b', fontWeight: '600' }}>
-                        Additional Services ({formData.selectedServices.length})
-                      </span>
-                      <span style={{ fontWeight: '700', color: '#1e293b' }}>
-                        ₹
-                        {formData.selectedServices
-                          .reduce((total, id) => {
-                            const service = ADDITIONAL_SERVICES.find(s => s.id === id);
-                            return total + (service?.price || 0);
-                          }, 0)
-                          .toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                  )}
-                  <div
-                    style={{
-                      borderTop: '2px solid #e2e8f0',
-                      paddingTop: '12px',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      fontSize: '16px',
-                      fontWeight: '900',
-                    }}
-                  >
-                    <span style={{ color: '#1e293b' }}>Total Amount</span>
-                    <span style={{ color: '#f59e0b' }}>
-                      ₹{calculateOrderTotal().toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                </div>
-              )}
+                />
+              </div>
 
               {/* Submit Button */}
               <button
                 type="submit"
                 style={{
                   width: '100%',
-                  backgroundColor: '#f59e0b',
+                  backgroundColor: '#6366f1',
                   color: 'white',
                   border: 'none',
-                  padding: '16px 24px',
+                  padding: 'clamp(10px, 2.5vw, 12px) clamp(14px, 3vw, 20px)',
                   borderRadius: '12px',
-                  fontSize: '16px',
+                  fontSize: 'clamp(12px, 3vw, 14px)',
                   fontWeight: '800',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
-                  boxShadow: '0 8px 20px rgba(245, 158, 11, 0.3)',
+                  boxShadow: '0 8px 20px rgba(99, 102, 241, 0.3)',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#d97706';
+                  e.currentTarget.style.backgroundColor = '#4f46e5';
                   e.currentTarget.style.transform = 'translateY(-2px)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#f59e0b';
+                  e.currentTarget.style.backgroundColor = '#6366f1';
                   e.currentTarget.style.transform = 'translateY(0)';
                 }}
               >
-                {mode === 'quote' ? 'Submit Quote Request' : 'Proceed to Payment'}
+                Next: Choose Menu →
               </button>
             </form>
           ) : null}

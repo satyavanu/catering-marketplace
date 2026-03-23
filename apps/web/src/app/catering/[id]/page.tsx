@@ -134,6 +134,7 @@ const CateringDetailPage = () => {
   const searchParams = useSearchParams();
   const cateringId = params.id as string;
   const [isFavorite, setIsFavorite] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Get service from mock data
   const service = useMemo(
@@ -141,7 +142,7 @@ const CateringDetailPage = () => {
     [cateringId]
   );
 
-  // Get the source for breadcrumb (cuisine, country, or main catering page)
+  // Get the source for breadcrumb
   const source = searchParams.get('from');
 
   // Build breadcrumb items dynamically
@@ -159,7 +160,6 @@ const CateringDetailPage = () => {
       },
     ];
 
-    // Add intermediate breadcrumb based on source
     if (source === 'cuisine' && service?.cuisineType) {
       items.push({
         label: `${service.cuisineType} Catering`,
@@ -174,7 +174,6 @@ const CateringDetailPage = () => {
       });
     }
 
-    // Add current page
     items.push({
       label: service?.title || 'Service Details',
       href: service?.title ? undefined : '/',
@@ -186,10 +185,10 @@ const CateringDetailPage = () => {
 
   if (!service) {
     return (
-      <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh', padding: '48px 32px' }}>
+      <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh', padding: '24px 16px' }}>
         <div style={{ textAlign: 'center' }}>
-          <h1 style={{ color: '#1e293b', marginBottom: '16px' }}>Service Not Found</h1>
-          <p style={{ color: '#64748b', marginBottom: '24px' }}>
+          <h1 style={{ color: '#1e293b', marginBottom: '16px', fontSize: 'clamp(24px, 8vw, 40px)' }}>Service Not Found</h1>
+          <p style={{ color: '#64748b', marginBottom: '24px', fontSize: 'clamp(14px, 4vw, 16px)' }}>
             The catering service you're looking for doesn't exist.
           </p>
           <Link href="/catering">
@@ -203,6 +202,7 @@ const CateringDetailPage = () => {
                 fontWeight: '700',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
+                fontSize: 'clamp(13px, 3vw, 15px)',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.backgroundColor = '#d97706';
@@ -244,7 +244,7 @@ const CateringDetailPage = () => {
         style={{
           backgroundColor: 'white',
           borderBottom: '1px solid #e2e8f0',
-          padding: '16px 32px',
+          padding: 'clamp(12px, 3vw, 16px) clamp(16px, 5vw, 32px)',
           position: 'sticky',
           top: 0,
           zIndex: 40,
@@ -258,6 +258,8 @@ const CateringDetailPage = () => {
               alignItems: 'center',
               justifyContent: 'space-between',
               marginBottom: '12px',
+              gap: '12px',
+              flexWrap: 'wrap',
             }}
           >
             <button
@@ -266,15 +268,16 @@ const CateringDetailPage = () => {
                 backgroundColor: 'transparent',
                 border: '1px solid #e2e8f0',
                 color: '#1e293b',
-                padding: '8px 16px',
+                padding: '8px 12px',
                 borderRadius: '8px',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
                 fontWeight: '600',
-                fontSize: '14px',
+                fontSize: 'clamp(12px, 3vw, 14px)',
                 transition: 'all 0.2s ease',
+                minWidth: 'fit-content',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.backgroundColor = '#f1f5f9';
@@ -283,25 +286,25 @@ const CateringDetailPage = () => {
                 e.currentTarget.style.backgroundColor = 'transparent';
               }}
             >
-              <ArrowLeftIcon style={{ width: '16px', height: '16px' }} />
-              Back
+              <ArrowLeftIcon style={{ width: '16px', height: '16px', minWidth: '16px' }} />
+              <span style={{ display: 'none' }} className="sm:inline">Back</span>
             </button>
 
-            <div style={{ display: 'flex', gap: '12px' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
               <button
                 onClick={() => setIsFavorite(!isFavorite)}
                 style={{
                   backgroundColor: isFavorite ? '#f59e0b' : 'transparent',
                   border: `2px solid ${isFavorite ? '#f59e0b' : '#e2e8f0'}`,
                   color: isFavorite ? 'white' : '#1e293b',
-                  padding: '8px 16px',
+                  padding: '8px 12px',
                   borderRadius: '8px',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
                   fontWeight: '600',
-                  fontSize: '14px',
+                  fontSize: 'clamp(12px, 3vw, 14px)',
                   transition: 'all 0.2s ease',
                 }}
                 onMouseEnter={(e) => {
@@ -317,9 +320,10 @@ const CateringDetailPage = () => {
                     width: '16px',
                     height: '16px',
                     fill: isFavorite ? 'white' : 'none',
+                    minWidth: '16px',
                   }}
                 />
-                {isFavorite ? 'Saved' : 'Save'}
+                <span style={{ display: 'none' }} className="sm:inline">{isFavorite ? 'Saved' : 'Save'}</span>
               </button>
 
               <button
@@ -328,14 +332,14 @@ const CateringDetailPage = () => {
                   backgroundColor: 'transparent',
                   border: '1px solid #e2e8f0',
                   color: '#1e293b',
-                  padding: '8px 16px',
+                  padding: '8px 12px',
                   borderRadius: '8px',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
                   fontWeight: '600',
-                  fontSize: '14px',
+                  fontSize: 'clamp(12px, 3vw, 14px)',
                   transition: 'all 0.2s ease',
                 }}
                 onMouseEnter={(e) => {
@@ -345,26 +349,28 @@ const CateringDetailPage = () => {
                   e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
-                <ShareIcon style={{ width: '16px', height: '16px' }} />
-                Share
+                <ShareIcon style={{ width: '16px', height: '16px', minWidth: '16px' }} />
+                <span style={{ display: 'none' }} className="sm:inline">Share</span>
               </button>
             </div>
           </div>
 
-          {/* Breadcrumb */}
-          <Breadcrumb items={breadcrumbItems} accentColor="#f59e0b" />
+          {/* Breadcrumb - Hidden on mobile */}
+          <div style={{ display: 'none' }} className="sm:block">
+            <Breadcrumb items={breadcrumbItems} accentColor="#f59e0b" />
+          </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '48px 32px' }}>
+      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: 'clamp(24px, 5vw, 48px) clamp(16px, 5vw, 32px)' }}>
         {/* Hero Section with Image */}
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '48px',
-            marginBottom: '64px',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+            gap: 'clamp(24px, 5vw, 48px)',
+            marginBottom: 'clamp(32px, 10vw, 64px)',
             alignItems: 'start',
           }}
         >
@@ -377,7 +383,8 @@ const CateringDetailPage = () => {
                 overflow: 'hidden',
                 backgroundColor: '#e2e8f0',
                 marginBottom: '16px',
-                height: '400px',
+                height: 'clamp(250px, 50vw, 400px)',
+                width: '100%',
               }}
             >
               <img
@@ -395,13 +402,13 @@ const CateringDetailPage = () => {
                 <div
                   style={{
                     position: 'absolute',
-                    top: '20px',
-                    left: '20px',
+                    top: '12px',
+                    left: '12px',
                     backgroundColor: '#f59e0b',
                     color: 'white',
-                    padding: '10px 16px',
+                    padding: 'clamp(8px, 2vw, 10px) clamp(12px, 3vw, 16px)',
                     borderRadius: '10px',
-                    fontSize: '13px',
+                    fontSize: 'clamp(11px, 2.5vw, 13px)',
                     fontWeight: '800',
                     display: 'flex',
                     alignItems: 'center',
@@ -409,17 +416,17 @@ const CateringDetailPage = () => {
                     boxShadow: '0 8px 24px rgba(245, 158, 11, 0.3)',
                   }}
                 >
-                  <FireIcon style={{ width: '18px', height: '18px' }} />
-                  Featured Service
+                  <FireIcon style={{ width: '16px', height: '16px', minWidth: '16px' }} />
+                  <span style={{ display: 'none' }} className="sm:inline">Featured Service</span>
                 </div>
               )}
             </div>
 
-            {/* Thumbnail Gallery */}
+            {/* Thumbnail Gallery - Responsive Grid */}
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(60px, 1fr))',
                 gap: '12px',
               }}
             >
@@ -429,7 +436,8 @@ const CateringDetailPage = () => {
                   style={{
                     borderRadius: '10px',
                     overflow: 'hidden',
-                    height: '80px',
+                    height: 'clamp(60px, 15vw, 80px)',
+                    width: '100%',
                     backgroundColor: '#e2e8f0',
                     cursor: 'pointer',
                     opacity: idx === 0 ? 1 : 0.6,
@@ -459,14 +467,14 @@ const CateringDetailPage = () => {
 
           {/* Right - Details */}
           <div>
-            {/* Tags */}
+            {/* Tags - Responsive wrap */}
             <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
               {service.tags.map((tag, idx) => (
                 <span
                   key={idx}
                   style={{
-                    fontSize: '12px',
-                    padding: '6px 12px',
+                    fontSize: 'clamp(11px, 2vw, 12px)',
+                    padding: 'clamp(4px, 1vw, 6px) clamp(8px, 2vw, 12px)',
                     backgroundColor: '#fef3c7',
                     color: '#f59e0b',
                     borderRadius: '8px',
@@ -479,10 +487,10 @@ const CateringDetailPage = () => {
               ))}
             </div>
 
-            {/* Title */}
+            {/* Title - Responsive font size */}
             <h1
               style={{
-                fontSize: '40px',
+                fontSize: 'clamp(24px, 8vw, 40px)',
                 fontWeight: '900',
                 color: '#1e293b',
                 margin: '0 0 16px 0',
@@ -493,84 +501,91 @@ const CateringDetailPage = () => {
               {service.title}
             </h1>
 
-            {/* Rating */}
+            {/* Rating - Responsive */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '16px',
+                gap: '12px',
                 marginBottom: '24px',
+                flexWrap: 'wrap',
               }}
             >
               <div style={{ display: 'flex', gap: '4px' }}>
                 {[...Array(5)].map((_, i) => (
-                  <span key={i} style={{ fontSize: '18px', opacity: i < Math.floor(service.rating) ? 1 : 0.3 }}>
+                  <span key={i} style={{ fontSize: 'clamp(14px, 3vw, 18px)', opacity: i < Math.floor(service.rating) ? 1 : 0.3 }}>
                     ⭐
                   </span>
                 ))}
               </div>
-              <div>
-                <span style={{ fontSize: '16px', fontWeight: '800', color: '#1e293b' }}>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <span style={{ fontSize: 'clamp(14px, 3vw, 16px)', fontWeight: '800', color: '#1e293b' }}>
                   {service.rating}/5
                 </span>
-                <span style={{ fontSize: '14px', color: '#64748b', marginLeft: '8px' }}>
+                <span style={{ fontSize: 'clamp(12px, 2.5vw, 14px)', color: '#64748b' }}>
                   ({service.reviews} reviews)
                 </span>
               </div>
             </div>
 
-            {/* Location */}
+            {/* Location - Responsive */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '12px',
                 marginBottom: '20px',
-                fontSize: '15px',
+                fontSize: 'clamp(13px, 3vw, 15px)',
                 color: '#475569',
                 fontWeight: '600',
+                flexWrap: 'wrap',
               }}
             >
-              <MapPinIcon style={{ width: '20px', height: '20px', color: '#f59e0b' }} />
+              <MapPinIcon style={{ width: '20px', height: '20px', color: '#f59e0b', minWidth: '20px' }} />
               {service.location}, {service.country}
             </div>
 
-            {/* Pricing */}
+            {/* Pricing - Responsive */}
             <div
               style={{
                 backgroundColor: '#f1f5f9',
-                padding: '20px',
+                padding: 'clamp(16px, 3vw, 20px)',
                 borderRadius: '12px',
                 marginBottom: '24px',
                 borderLeft: '4px solid #f59e0b',
               }}
             >
-              <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '700', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              <div style={{ fontSize: 'clamp(11px, 2vw, 13px)', color: '#64748b', fontWeight: '700', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                 Starting From
               </div>
-              <div style={{ fontSize: '36px', fontWeight: '900', color: '#f59e0b', lineHeight: '1' }}>
+              <div style={{ fontSize: 'clamp(28px, 8vw, 36px)', fontWeight: '900', color: '#f59e0b', lineHeight: '1' }}>
                 {service.pricePerPerson}
               </div>
-              <div style={{ fontSize: '14px', color: '#64748b', fontWeight: '600', marginTop: '8px' }}>
+              <div style={{ fontSize: 'clamp(12px, 2.5vw, 14px)', color: '#64748b', fontWeight: '600', marginTop: '8px' }}>
                 per person • {service.guestCount} guests
               </div>
             </div>
 
-            {/* CTA Buttons */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            {/* CTA Buttons - Stack on mobile */}
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+              gap: '12px'
+            }}>
               <button
                 onClick={handleGetQuote}
                 style={{
                   backgroundColor: '#f59e0b',
                   color: 'white',
                   border: 'none',
-                  padding: '16px 24px',
+                  padding: 'clamp(12px, 3vw, 16px) clamp(16px, 4vw, 24px)',
                   borderRadius: '12px',
-                  fontSize: '15px',
+                  fontSize: 'clamp(13px, 3vw, 15px)',
                   fontWeight: '800',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
                   boxShadow: '0 8px 20px rgba(245, 158, 11, 0.3)',
+                  minWidth: '100px',
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = '#d97706';
@@ -583,7 +598,7 @@ const CateringDetailPage = () => {
                   e.currentTarget.style.boxShadow = '0 8px 20px rgba(245, 158, 11, 0.3)';
                 }}
               >
-                Get Custom Quote
+                Get Quote
               </button>
 
               <button
@@ -593,9 +608,9 @@ const CateringDetailPage = () => {
                   backgroundColor: "transparent",
                   color: "#f59e0b",
                   border: "2px solid #f59e0b",
-                  padding: "12px",
+                  padding: "clamp(10px, 2vw, 12px)",
                   borderRadius: "10px",
-                  fontSize: "13px",
+                  fontSize: "clamp(12px, 3vw, 13px)",
                   fontWeight: "700",
                   cursor: "pointer",
                   transition: "all 0.2s ease",
@@ -604,6 +619,7 @@ const CateringDetailPage = () => {
                   alignItems: "center",
                   justifyContent: "center",
                   gap: "6px",
+                  minWidth: '100px',
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = "#fef3c7";
@@ -621,19 +637,19 @@ const CateringDetailPage = () => {
           </div>
         </div>
 
-        {/* Description & Details Sections */}
+        {/* Description & Details Sections - Responsive */}
         <div
           style={{
             backgroundColor: 'white',
             borderRadius: '16px',
-            padding: '40px',
-            marginBottom: '64px',
+            padding: 'clamp(24px, 5vw, 40px)',
+            marginBottom: 'clamp(32px, 10vw, 64px)',
             border: '1px solid #e2e8f0',
           }}
         >
           <h2
             style={{
-              fontSize: '28px',
+              fontSize: 'clamp(20px, 6vw, 28px)',
               fontWeight: '800',
               color: '#1e293b',
               marginBottom: '16px',
@@ -644,24 +660,28 @@ const CateringDetailPage = () => {
           </h2>
           <p
             style={{
-              fontSize: '16px',
+              fontSize: 'clamp(14px, 3vw, 16px)',
               lineHeight: '1.8',
               color: '#475569',
               marginBottom: '32px',
-              margin: 0,
+              margin: '0 0 32px 0',
             }}
           >
             {service.description}
           </p>
 
-          {/* Grid Layout for Info Sections */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+          {/* Grid Layout for Info Sections - Responsive */}
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '32px' 
+          }}>
             {/* What's Included */}
             {service.included && service.included.length > 0 && (
               <div>
                 <h3
                   style={{
-                    fontSize: '18px',
+                    fontSize: 'clamp(16px, 4vw, 18px)',
                     fontWeight: '800',
                     color: '#1e293b',
                     marginBottom: '16px',
@@ -670,7 +690,7 @@ const CateringDetailPage = () => {
                     gap: '8px',
                   }}
                 >
-                  <CheckCircleIcon style={{ width: '24px', height: '24px', color: '#f59e0b' }} />
+                  <CheckCircleIcon style={{ width: '24px', height: '24px', color: '#f59e0b', minWidth: '24px' }} />
                   What's Included
                 </h3>
                 <ul
@@ -687,7 +707,7 @@ const CateringDetailPage = () => {
                     <li
                       key={idx}
                       style={{
-                        fontSize: '14px',
+                        fontSize: 'clamp(13px, 3vw, 14px)',
                         color: '#475569',
                         fontWeight: '600',
                         display: 'flex',
@@ -722,7 +742,7 @@ const CateringDetailPage = () => {
               <div>
                 <h3
                   style={{
-                    fontSize: '18px',
+                    fontSize: 'clamp(16px, 4vw, 18px)',
                     fontWeight: '800',
                     color: '#1e293b',
                     marginBottom: '16px',
@@ -738,8 +758,8 @@ const CateringDetailPage = () => {
                     <span
                       key={idx}
                       style={{
-                        fontSize: '14px',
-                        padding: '10px 14px',
+                        fontSize: 'clamp(12px, 3vw, 14px)',
+                        padding: 'clamp(8px, 2vw, 10px) clamp(10px, 2.5vw, 14px)',
                         backgroundColor: '#fef3c7',
                         color: '#d97706',
                         borderRadius: '8px',
@@ -756,7 +776,7 @@ const CateringDetailPage = () => {
           </div>
         </div>
 
-        {/* Why You'll Love It */}
+        {/* Why You'll Love It - Pass responsive classes */}
         {service.whyLoveIt && service.whyLoveIt.length > 0 && (
           <BenefitsSection
             title="Why You'll Love It"
