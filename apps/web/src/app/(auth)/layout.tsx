@@ -23,12 +23,12 @@ export default function AuthLayout({
       <div
         style={{
           position: 'absolute',
-          width: '400px',
-          height: '400px',
+          width: 'clamp(200px, 50vw, 400px)',
+          height: 'clamp(200px, 50vw, 400px)',
           background: 'rgba(102, 126, 234, 0.08)',
           borderRadius: '50%',
-          top: '-100px',
-          right: '-100px',
+          top: 'clamp(-50px, -15vw, -100px)',
+          right: 'clamp(-50px, -15vw, -100px)',
           animation: 'float 8s ease-in-out infinite',
           filter: 'blur(40px)',
         }}
@@ -36,12 +36,12 @@ export default function AuthLayout({
       <div
         style={{
           position: 'absolute',
-          width: '300px',
-          height: '300px',
+          width: 'clamp(150px, 40vw, 300px)',
+          height: 'clamp(150px, 40vw, 300px)',
           background: 'rgba(240, 147, 251, 0.06)',
           borderRadius: '50%',
-          bottom: '-50px',
-          left: '-50px',
+          bottom: 'clamp(-50px, -10vw, -50px)',
+          left: 'clamp(-50px, -10vw, -50px)',
           animation: 'float 10s ease-in-out infinite reverse',
           filter: 'blur(40px)',
         }}
@@ -53,7 +53,8 @@ export default function AuthLayout({
           zIndex: 10,
           width: '100%',
           maxWidth: '100%',
-          padding: '2rem',
+          padding: 'clamp(1rem, 5vw, 2rem)',
+          boxSizing: 'border-box',
         }}
       >
         {children}
@@ -66,6 +67,17 @@ export default function AuthLayout({
           }
           50% {
             transform: translateY(-30px) translateX(15px);
+          }
+        }
+
+        @media (max-width: 640px) {
+          @keyframes float {
+            0%, 100% {
+              transform: translateY(0px) translateX(0px);
+            }
+            50% {
+              transform: translateY(-15px) translateX(8px);
+            }
           }
         }
       `}</style>

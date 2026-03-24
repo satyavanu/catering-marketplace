@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import {
@@ -18,6 +19,9 @@ import {
   ChevronRightIcon,
   SparklesIcon,
   ChevronLeftIcon,
+  DocumentCheckIcon,
+  Bars3Icon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 
 export default function AccountLayout({ children }: { children: React.ReactNode }) {
@@ -25,6 +29,23 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
   const { data: session, status } = useSession();
   const [activeMenu, setActiveMenu] = useState('Dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile on mount and resize
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 1024;
+      setIsMobile(mobile);
+      if (mobile) {
+        setSidebarOpen(false);
+      }
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Redirect to signin if not authenticated
   if (status === 'loading') {
@@ -38,26 +59,9 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
           backgroundColor: '#f8fafc',
         }}
       >
-        <div
-          style={{
-            textAlign: 'center',
-          }}
-        >
-          <div
-            style={{
-              fontSize: '48px',
-              marginBottom: '16px',
-            }}
-          >
-            ⏳
-          </div>
-          <p
-            style={{
-              fontSize: '16px',
-              color: '#64748b',
-              fontWeight: '500',
-            }}
-          >
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
+          <p style={{ fontSize: '16px', color: '#64748b', fontWeight: '500' }}>
             Loading...
           </p>
         </div>
@@ -72,19 +76,19 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
 
   const menu = [
     { name: 'Dashboard', icon: HomeIcon, color: 'from-blue-500 to-cyan-500', path: '/account' },
-    { name: 'My Orders', icon: ClipboardDocumentListIcon, color: 'from-purple-500 to-pink-500', path: '/orders' },
-    { name: 'Saved', icon: HeartIcon, color: 'from-red-500 to-orange-500', path: '/saved-caterers' },
-   // { name: 'Event Planner', icon: CalendarDaysIcon, color: 'from-green-500 to-emerald-500', path: '/event-planner' },
+    { name: 'My Orders', icon: ClipboardDocumentListIcon, color: 'from-purple-500 to-pink-500', path: '/account/orders' },
+    { name: 'My Quotes', icon: DocumentCheckIcon, color: 'from-green-500 to-emerald-500', path: '/myquotes' },
+    { name: 'Saved', icon: HeartIcon, color: 'from-red-500 to-orange-500', path: '/saved' },
     { name: 'Messages', icon: ChatBubbleLeftRightIcon, color: 'from-yellow-500 to-amber-500', path: '/messages' },
-    { name: 'Reviews', icon: StarIcon, color: 'from-indigo-500 to-purple-500', path: '/reviews' },
+    { name: 'Reviews', icon: StarIcon, color: 'from-indigo-500 to-purple-500', path: '/account/reviews' },
     { name: 'Payments', icon: CreditCardIcon, color: 'from-cyan-500 to-blue-500', path: '/payments' },
     { name: 'Profile', icon: UserCircleIcon, color: 'from-pink-500 to-rose-500', path: '/profile' },
   ];
 
-  // Breadcrumb paths
   const breadcrumbs: { [key: string]: string[] } = {
     Dashboard: ['Home'],
     'My Orders': ['Home', 'Orders'],
+    'My Quotes': ['Home', 'Quotes'],
     'Saved': ['Home', 'Saved'],
     'Event Planner': ['Home', 'Events'],
     Messages: ['Home', 'Messages'],
@@ -96,6 +100,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
   const handleMenuClick = (item: (typeof menu)[0]) => {
     setActiveMenu(item.name);
     router.push(item.path);
+    setMobileMenuOpen(false); // Close mobile menu after navigation
   };
 
   const handleSignOut = async () => {
@@ -103,22 +108,42 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
   };
 
   return (
-    <div style={{ display: 'flex', backgroundColor: '#f8fafc' }}>
-      {/* SIDEBAR - Fixed Height No Scroll */}
+    <div style={{ display: 'flex', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
+      {/* MOBILE OVERLAY */}
+      {mobileMenuOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 30,
+            animation: 'fadeIn 0.2s ease',
+          }}
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* SIDEBAR - Desktop & Mobile */}
       <aside
         style={{
-          width: sidebarOpen ? '280px' : '80px',
+          position: isMobile && mobileMenuOpen ? 'fixed' : 'relative',
+          left: 0,
+          top: 0,
+          width: isMobile ? (mobileMenuOpen ? '280px' : '0px') : sidebarOpen ? '280px' : '80px',
           backgroundColor: 'white',
           borderRight: '1px solid #e2e8f0',
-          padding: '24px 16px',
+          padding: isMobile ? (mobileMenuOpen ? '24px 16px' : '0px') : '24px 16px',
           overflow: 'hidden',
-          transition: 'all 0.3s ease',
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07)',
-          position: 'relative',
-          zIndex: 40,
+          transition: isMobile ? 'width 0.3s ease, padding 0.3s ease' : 'all 0.3s ease',
+          boxShadow: isMobile && mobileMenuOpen ? '0 20px 25px rgba(0, 0, 0, 0.15)' : '0 4px 6px rgba(0, 0, 0, 0.07)',
+          height: isMobile && mobileMenuOpen ? '100vh' : '100vh',
+          zIndex: isMobile ? (mobileMenuOpen ? 40 : -1) : 40,
           display: 'flex',
           flexDirection: 'column',
-          height: '100vh',
+          overflowY: isMobile && mobileMenuOpen ? 'auto' : 'hidden',
         }}
       >
         {/* Logo & Brand */}
@@ -131,6 +156,8 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
             gap: '10px',
             paddingBottom: '16px',
             borderBottom: '1px solid #e2e8f0',
+            opacity: isMobile && !mobileMenuOpen ? 0 : 1,
+            transition: 'opacity 0.3s ease',
           }}
         >
           <div
@@ -150,7 +177,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
           >
             🍽️
           </div>
-          {sidebarOpen && (
+          {(sidebarOpen || (isMobile && mobileMenuOpen)) && (
             <div>
               <h1
                 style={{
@@ -176,45 +203,76 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
               </p>
             </div>
           )}
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '8px',
-              borderRadius: '8px',
-              color: '#94a3b8',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'all 0.2s ease',
-              marginLeft: sidebarOpen ? 'auto' : '0',
-              flexShrink: 0,
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#f1f5f9';
-              e.currentTarget.style.color = '#667eea';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = '#94a3b8';
-            }}
-            title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-          >
-            {sidebarOpen ? (
-              <ChevronLeftIcon style={{ width: '20px', height: '20px' }} />
-            ) : (
-              <ChevronRightIcon style={{ width: '20px', height: '20px' }} />
-            )}
-          </button>
+          {isMobile && mobileMenuOpen ? (
+            <button
+              onClick={() => setMobileMenuOpen(false)}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '8px',
+                borderRadius: '8px',
+                color: '#94a3b8',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s ease',
+                marginLeft: 'auto',
+                flexShrink: 0,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f1f5f9';
+                e.currentTarget.style.color = '#667eea';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = '#94a3b8';
+              }}
+              title="Close menu"
+            >
+              <XMarkIcon style={{ width: '24px', height: '24px' }} />
+            </button>
+          ) : !isMobile ? (
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '8px',
+                borderRadius: '8px',
+                color: '#94a3b8',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s ease',
+                marginLeft: sidebarOpen ? 'auto' : '0',
+                flexShrink: 0,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f1f5f9';
+                e.currentTarget.style.color = '#667eea';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = '#94a3b8';
+              }}
+              title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+            >
+              {sidebarOpen ? (
+                <ChevronLeftIcon style={{ width: '20px', height: '20px' }} />
+              ) : (
+                <ChevronRightIcon style={{ width: '20px', height: '20px' }} />
+              )}
+            </button>
+          ) : null}
         </div>
 
-        {/* Navigation Menu - Fixed Height */}
+        {/* Navigation Menu */}
         <nav
           style={{
             flex: 1,
-            overflow: 'hidden',
+            overflow: isMobile && mobileMenuOpen ? 'auto' : 'hidden',
             marginBottom: '16px',
             display: 'flex',
             flexDirection: 'column',
@@ -229,21 +287,22 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
                 width: '100%',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: sidebarOpen ? 'flex-start' : 'center',
+                justifyContent: (sidebarOpen || (isMobile && mobileMenuOpen)) ? 'flex-start' : 'center',
                 gap: '12px',
-                padding: sidebarOpen ? '10px 12px' : '10px',
+                padding: (sidebarOpen || (isMobile && mobileMenuOpen)) ? '10px 12px' : '10px',
                 borderRadius: '8px',
                 border: 'none',
                 cursor: 'pointer',
                 backgroundColor: activeMenu === item.name ? '#f0f4ff' : 'transparent',
                 borderLeft: activeMenu === item.name ? '4px solid #667eea' : '4px solid transparent',
                 transition: 'all 0.2s ease',
-                paddingLeft: activeMenu === item.name ? (sidebarOpen ? '8px' : '10px') : sidebarOpen ? '12px' : '10px',
+                paddingLeft: activeMenu === item.name ? ((sidebarOpen || (isMobile && mobileMenuOpen)) ? '8px' : '10px') : (sidebarOpen || (isMobile && mobileMenuOpen)) ? '12px' : '10px',
                 position: 'relative',
                 minHeight: '40px',
                 fontSize: '14px',
+                opacity: isMobile && !mobileMenuOpen && !sidebarOpen ? 0 : 1,
               }}
-              title={!sidebarOpen ? item.name : undefined}
+              title={(!sidebarOpen && !isMobile) ? item.name : undefined}
               onMouseEnter={(e) => {
                 if (activeMenu !== item.name) {
                   e.currentTarget.style.backgroundColor = '#f8fafc';
@@ -264,7 +323,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
                   flexShrink: 0,
                 }}
               />
-              {sidebarOpen && (
+              {(sidebarOpen || (isMobile && mobileMenuOpen)) && (
                 <>
                   <span
                     style={{
@@ -297,20 +356,20 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
         {/* Help Card */}
         <div
           style={{
-            backgroundColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             backgroundImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             borderRadius: '10px',
-            padding: sidebarOpen ? '14px' : '10px',
+            padding: (sidebarOpen || (isMobile && mobileMenuOpen)) ? '14px' : '10px',
             color: 'white',
             marginBottom: '12px',
             display: 'flex',
             flexDirection: 'column',
-            alignItems: sidebarOpen ? 'flex-start' : 'center',
+            alignItems: (sidebarOpen || (isMobile && mobileMenuOpen)) ? 'flex-start' : 'center',
             transition: 'all 0.3s ease',
             flexShrink: 0,
+            opacity: isMobile && !mobileMenuOpen && !sidebarOpen ? 0 : 1,
           }}
         >
-          {sidebarOpen ? (
+          {(sidebarOpen || (isMobile && mobileMenuOpen)) ? (
             <>
               <div
                 style={{
@@ -369,9 +428,9 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
             width: '100%',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: sidebarOpen ? 'flex-start' : 'center',
+            justifyContent: (sidebarOpen || (isMobile && mobileMenuOpen)) ? 'flex-start' : 'center',
             gap: '12px',
-            padding: sidebarOpen ? '10px 12px' : '10px',
+            padding: (sidebarOpen || (isMobile && mobileMenuOpen)) ? '10px 12px' : '10px',
             borderRadius: '8px',
             border: '1px solid #e2e8f0',
             backgroundColor: '#f8fafc',
@@ -382,8 +441,9 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
             color: '#64748b',
             minHeight: '40px',
             flexShrink: 0,
+            opacity: isMobile && !mobileMenuOpen && !sidebarOpen ? 0 : 1,
           }}
-          title={!sidebarOpen ? 'Sign Out' : undefined}
+          title={(!sidebarOpen && !isMobile) ? 'Sign Out' : undefined}
           onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = '#fee2e2';
             e.currentTarget.style.color = '#dc2626';
@@ -396,7 +456,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
           }}
         >
           <ArrowLeftOnRectangleIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} />
-          {sidebarOpen && 'Sign Out'}
+          {(sidebarOpen || (isMobile && mobileMenuOpen)) && 'Sign Out'}
         </button>
       </aside>
 
@@ -406,10 +466,12 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
-          padding: '24px 32px',
+          padding: isMobile ? '16px' : '24px 32px',
+          minHeight: '100vh',
+          overflowX: 'hidden',
         }}
       >
-        {/* TOP BAR WITH BREADCRUMBS - Responsive */}
+        {/* TOP BAR WITH HAMBURGER - Responsive */}
         <div
           style={{
             display: 'flex',
@@ -421,6 +483,42 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
             flexWrap: 'wrap',
           }}
         >
+          {/* Mobile Hamburger */}
+          {isMobile && (
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '6px',
+                borderRadius: '8px',
+                color: '#64748b',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s ease',
+                order: -1,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f1f5f9';
+                e.currentTarget.style.color = '#667eea';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = '#64748b';
+              }}
+              title="Toggle menu"
+            >
+              {mobileMenuOpen ? (
+                <XMarkIcon style={{ width: '24px', height: '24px' }} />
+              ) : (
+                <Bars3Icon style={{ width: '24px', height: '24px' }} />
+              )}
+            </button>
+          )}
+
+          {/* Breadcrumbs */}
           <div
             style={{
               display: 'flex',
@@ -429,21 +527,23 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
               flex: '1 1 auto',
               minWidth: '150px',
               order: 1,
+              overflowX: 'auto',
             }}
           >
             {breadcrumbs[activeMenu]?.map((crumb, idx) => (
-              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                 <button
                   style={{
                     background: 'none',
                     border: 'none',
                     cursor: 'pointer',
                     color: idx === breadcrumbs[activeMenu].length - 1 ? '#667eea' : '#94a3b8',
-                    fontSize: '13px',
+                    fontSize: isMobile ? '12px' : '13px',
                     fontWeight: idx === breadcrumbs[activeMenu].length - 1 ? '600' : '500',
                     transition: 'all 0.2s ease',
                     padding: '4px 8px',
                     borderRadius: '4px',
+                    whiteSpace: 'nowrap',
                   }}
                   onMouseEnter={(e) => {
                     if (idx !== breadcrumbs[activeMenu].length - 1) {
@@ -461,14 +561,13 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
                   {crumb}
                 </button>
                 {idx < breadcrumbs[activeMenu].length - 1 && (
-                  <ChevronRightIcon style={{ width: '16px', height: '16px', color: '#cbd5e1' }} />
+                  <ChevronRightIcon style={{ width: '16px', height: '16px', color: '#cbd5e1', flexShrink: 0 }} />
                 )}
               </div>
             ))}
           </div>
 
-      
-
+          {/* Search & Icons */}
           <div
             style={{
               display: 'flex',
@@ -477,53 +576,80 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
               flex: '1 1 auto',
               justifyContent: 'flex-end',
               order: 3,
-              minWidth: '280px',
-              flexWrap: 'wrap',
+              minWidth: isMobile ? '0' : '280px',
+              flexWrap: isMobile ? 'wrap' : 'nowrap',
             }}
           >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                borderRadius: '10px',
-                paddingLeft: '14px',
-                paddingRight: '14px',
-                flex: '1 1 200px',
-                minWidth: '200px',
-                maxWidth: '280px',
-                backgroundColor: 'white',
-                border: '2px solid #e2e8f0',
-                transition: 'all 0.2s ease',
-                height: '40px',
-                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = '#667eea';
-                e.currentTarget.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = '#e2e8f0';
-                e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
-              }}
-            >
-              <MagnifyingGlassIcon
-                style={{ width: '18px', height: '18px', color: '#94a3b8', flexShrink: 0 }}
-              />
-              <input
-                placeholder="Search..."
+            {/* Search Bar - Hide on very small mobile */}
+            {!isMobile && (
+              <div
                 style={{
-                  flex: 1,
-                  border: 'none',
-                  outline: 'none',
-                  backgroundColor: 'transparent',
-                  fontSize: '13px',
-                  color: '#1e293b',
-                  minWidth: '0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  borderRadius: '10px',
+                  paddingLeft: '14px',
+                  paddingRight: '14px',
+                  flex: '1 1 200px',
+                  minWidth: '200px',
+                  maxWidth: '280px',
+                  backgroundColor: 'white',
+                  border: '2px solid #e2e8f0',
+                  transition: 'all 0.2s ease',
+                  height: '40px',
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
                 }}
-              />
-            </div>
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = '#667eea';
+                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = '#e2e8f0';
+                  e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
+                }}
+              >
+                <MagnifyingGlassIcon
+                  style={{ width: '18px', height: '18px', color: '#94a3b8', flexShrink: 0 }}
+                />
+                <input
+                  placeholder="Search..."
+                  style={{
+                    flex: 1,
+                    border: 'none',
+                    outline: 'none',
+                    backgroundColor: 'transparent',
+                    fontSize: '13px',
+                    color: '#1e293b',
+                    minWidth: '0',
+                  }}
+                />
+              </div>
+            )}
 
+            {/* Mobile Search Icon */}
+            {isMobile && (
+              <button
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '6px',
+                  borderRadius: '8px',
+                  transition: 'all 0.2s ease',
+                  flexShrink: 0,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f1f5f9';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <MagnifyingGlassIcon style={{ width: '20px', height: '20px', color: '#64748b' }} />
+              </button>
+            )}
+
+            {/* Notifications */}
             <button
               style={{
                 position: 'relative',
@@ -557,13 +683,14 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
               />
             </button>
 
+            {/* User Profile - Mobile Responsive */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '10px',
-                paddingLeft: '12px',
-                paddingRight: '12px',
+                gap: isMobile ? '6px' : '10px',
+                paddingLeft: isMobile ? '8px' : '12px',
+                paddingRight: isMobile ? '8px' : '12px',
                 height: '40px',
                 backgroundColor: 'white',
                 borderRadius: '10px',
@@ -590,20 +717,22 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
                   flexShrink: 0,
                 }}
               />
-              <span
-                style={{
-                  fontSize: '13px',
-                  fontWeight: '500',
-                  color: '#1e293b',
-                }}
-              >
-                {session?.user?.name?.split(' ')[0] || 'User'}
-              </span>
+              {!isMobile && (
+                <span
+                  style={{
+                    fontSize: '13px',
+                    fontWeight: '500',
+                    color: '#1e293b',
+                  }}
+                >
+                  {session?.user?.name?.split(' ')[0] || 'User'}
+                </span>
+              )}
             </div>
           </div>
         </div>
 
-        {/* CONTENT AREA - Full Height No Scroll */}
+        {/* CONTENT AREA */}
         <div
           style={{
             flex: 1,
@@ -615,8 +744,17 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
         </div>
       </main>
 
-      {/* Scrollbar styling */}
+      {/* Scrollbar styling & animations */}
       <style>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+
         div::-webkit-scrollbar {
           width: 8px;
         }
@@ -632,6 +770,13 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
         
         div::-webkit-scrollbar-thumb:hover {
           background: #94a3b8;
+        }
+
+        /* Mobile menu smooth transition */
+        @media (max-width: 1023px) {
+          aside {
+            box-shadow: ${mobileMenuOpen ? '0 20px 25px rgba(0, 0, 0, 0.15)' : 'none'};
+          }
         }
       `}</style>
     </div>
