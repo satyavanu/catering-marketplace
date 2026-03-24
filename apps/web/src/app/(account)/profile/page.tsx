@@ -24,10 +24,12 @@ import {
   Download,
   Edit,
   Plus,
+  Menu,
 } from 'lucide-react';
 
 export default function ProfilePage() {
   const [activeSection, setActiveSection] = useState('account');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [addresses, setAddresses] = useState([
     { id: 1, street: '123 Main Street', city: 'New York', state: 'NY', country: 'United States', zip: '10001', isDefault: true },
     { id: 2, street: '456 Oak Avenue', city: 'Boston', state: 'MA', country: 'United States', zip: '02101', isDefault: false },
@@ -733,45 +735,199 @@ export default function ProfilePage() {
   );
 
   return (
-    <div style={styles.container}>
-      <div style={styles.wrapper}>
-        {/* Sidebar */}
-        <div style={styles.sidebar}>
-          <div style={styles.sidebarHeader}>
-            <h1 style={styles.sidebarTitle}>Profile</h1>
-            <p style={styles.sidebarSubtitle}>Manage your account</p>
-          </div>
-          <nav style={styles.nav}>
-            {sections.map((section) => {
-              const Icon = section.icon;
-              return (
-                <button
-                  key={section.id}
-                  onClick={() => setActiveSection(section.id)}
-                  style={{
-                    ...styles.navItem,
-                    ...(activeSection === section.id
-                      ? styles.navItemActive
-                      : styles.navItemInactive),
-                  }}
-                >
-                  <Icon size={18} />
-                  <span>{section.label}</span>
-                  {activeSection === section.id && <ChevronRight size={18} />}
-                </button>
-              );
-            })}
-          </nav>
-        </div>
+    <>
+      <style>{`
+        * {
+          box-sizing: border-box;
+        }
 
-        {/* Main Content */}
-        <div style={styles.mainContent}>
-          {activeSection === 'account' && renderAccountSection()}
-          {activeSection === 'notifications' && renderNotificationsSection()}
-          {activeSection === 'preferences' && renderPreferencesSection()}
-          {activeSection === 'privacy' && renderPrivacySection()}
-          {activeSection === 'addresses' && renderAddressesSection()}
-          {activeSection === 'logins' && renderLoginsSection()}
+        @media (max-width: 768px) {
+          .profile-mobile-menu-btn {
+            display: flex !important;
+          }
+
+          .profile-wrapper {
+            flex-direction: column !important;
+            gap: 0 !important;
+          }
+
+          .profile-sidebar {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 100vh !important;
+            max-height: 100vh !important;
+            border-radius: 0 !important;
+            z-index: 50 !important;
+            transform: translateX(-100%) !important;
+            transition: transform 0.3s ease !important;
+            overflow-y: auto !important;
+          }
+
+          .profile-sidebar.open {
+            transform: translateX(0) !important;
+          }
+
+          .profile-sidebar-header {
+            padding: 1.5rem !important;
+          }
+
+          .profile-main-content {
+            width: 100% !important;
+            z-index: 10 !important;
+          }
+
+          .section-title {
+            font-size: clamp(1.3rem, 4vw, 1.75rem) !important;
+          }
+
+          .form-row {
+            grid-template-columns: 1fr !important;
+          }
+
+          .address-grid {
+            grid-template-columns: 1fr !important;
+          }
+
+          .theme-grid {
+            grid-template-columns: 1fr !important;
+          }
+
+          .status-info {
+            grid-template-columns: 1fr !important;
+          }
+
+          .login-card {
+            flex-direction: column !important;
+            gap: 12px !important;
+            align-items: flex-start !important;
+          }
+
+          .login-actions {
+            width: 100% !important;
+            justify-content: space-between !important;
+            gap: 8px !important;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .profile-sidebar-header {
+            padding: 1rem !important;
+          }
+
+          .profile-nav {
+            gap: 4px !important;
+          }
+
+          .container {
+            padding: 0.5rem !important;
+          }
+
+          .profile-main-content {
+            padding: 1rem !important;
+          }
+
+          .card-body {
+            padding: 1rem !important;
+          }
+
+          .button-primary,
+          .button-secondary,
+          .button-danger {
+            font-size: 0.8rem !important;
+            padding: 0.6rem 1rem !important;
+          }
+
+          .address-grid {
+            grid-template-columns: 1fr !important;
+          }
+
+          .section-title {
+            font-size: 1.25rem !important;
+          }
+        }
+      `}</style>
+
+      <div style={styles.container} className="container">
+        {/* Mobile Menu Button */}
+        <button
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          style={styles.mobileMenuBtn}
+          className="profile-mobile-menu-btn"
+          aria-label="Toggle menu"
+        >
+          <Menu size={24} color="#111827" />
+        </button>
+
+        {/* Mobile Menu Overlay */}
+        {mobileMenuOpen && (
+          <div
+            style={styles.mobileOverlay}
+            className="profile-mobile-overlay"
+            onClick={() => setMobileMenuOpen(false)}
+            role="presentation"
+          />
+        )}
+
+        <div style={styles.wrapper} className="profile-wrapper">
+          {/* Sidebar */}
+          <div
+            style={{
+              ...styles.sidebar,
+              ...(mobileMenuOpen ? styles.sidebarOpen : {}),
+            }}
+            className={`profile-sidebar ${mobileMenuOpen ? 'open' : ''}`}
+          >
+            <div style={styles.sidebarHeader} className="profile-sidebar-header">
+              <div style={styles.sidebarTitleWrapper}>
+                <h1 style={styles.sidebarTitle}>Profile</h1>
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  style={styles.closeSidebarBtn}
+                  className="profile-close-sidebar"
+                  aria-label="Close menu"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+              <p style={styles.sidebarSubtitle}>Manage your account</p>
+            </div>
+            <nav style={styles.nav} className="profile-nav">
+              {sections.map((section) => {
+                const Icon = section.icon;
+                return (
+                  <button
+                    key={section.id}
+                    onClick={() => {
+                      setActiveSection(section.id);
+                      setMobileMenuOpen(false);
+                    }}
+                    style={{
+                      ...styles.navItem,
+                      ...(activeSection === section.id
+                        ? styles.navItemActive
+                        : styles.navItemInactive),
+                    }}
+                  >
+                    <Icon size={18} />
+                    <span>{section.label}</span>
+                    {activeSection === section.id && <ChevronRight size={18} />}
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+
+          {/* Main Content */}
+          <div style={styles.mainContent} className="profile-main-content">
+            {activeSection === 'account' && renderAccountSection()}
+            {activeSection === 'notifications' && renderNotificationsSection()}
+            {activeSection === 'preferences' && renderPreferencesSection()}
+            {activeSection === 'privacy' && renderPrivacySection()}
+            {activeSection === 'addresses' && renderAddressesSection()}
+            {activeSection === 'logins' && renderLoginsSection()}
+          </div>
         </div>
       </div>
 
@@ -846,7 +1002,7 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
@@ -854,43 +1010,90 @@ const styles = {
   container: {
     minHeight: '100vh',
     backgroundColor: '#f9fafb',
-    padding: '24px',
+    padding: 'clamp(1rem, 3vw, 2rem)',
+  },
+  mobileMenuBtn: {
+    display: 'none',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
+    padding: '8px 12px',
+    cursor: 'pointer',
+    marginBottom: '12px',
+    zIndex: 30,
+  },
+  mobileOverlay: {
+    position: 'fixed' as const,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    zIndex: 45,
   },
   wrapper: {
     maxWidth: '1400px',
     margin: '0 auto',
     display: 'flex',
-    gap: '32px',
+    gap: 'clamp(1rem, 3vw, 2rem)',
   },
   sidebar: {
-    width: '280px',
+    width: 'clamp(200px, 25vw, 280px)',
     backgroundColor: '#ffffff',
     borderRadius: '12px',
     boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
     border: '1px solid #e5e7eb',
-    padding: '24px',
+    padding: 'clamp(1rem, 2vw, 1.5rem)',
     height: 'fit-content',
-    position: 'sticky',
-    top: '24px',
+    position: 'sticky' as const,
+    top: 'clamp(1rem, 2vw, 1.5rem)',
+  },
+  sidebarOpen: {
+    position: 'fixed' as const,
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100vh',
+    borderRadius: 0,
+    overflowY: 'auto' as const,
+    zIndex: 50,
+    padding: 0,
   },
   sidebarHeader: {
     marginBottom: '24px',
     borderBottom: '1px solid #e5e7eb',
     paddingBottom: '16px',
   },
+  sidebarTitleWrapper: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '8px',
+  },
+  closeSidebarBtn: {
+    display: 'none',
+    backgroundColor: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+    color: '#6b7280',
+    padding: '4px',
+  },
   sidebarTitle: {
-    fontSize: '20px',
+    fontSize: 'clamp(1.25rem, 3vw, 1.5rem)',
     fontWeight: '700',
     color: '#111827',
+    margin: 0,
   },
   sidebarSubtitle: {
-    fontSize: '13px',
+    fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
     color: '#6b7280',
-    marginTop: '4px',
+    margin: '4px 0 0 0',
   },
   nav: {
     display: 'flex',
-    flexDirection: 'column',
+    flexDirection: 'column' as const,
     gap: '8px',
   },
   navItem: {
@@ -905,10 +1108,11 @@ const styles = {
     border: 'none',
     cursor: 'pointer',
     transition: 'all 0.2s',
-    fontSize: '14px',
+    fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
     fontWeight: '600',
     width: '100%',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
+    backgroundColor: 'transparent',
   },
   navItemActive: {
     backgroundColor: '#eff6ff',
@@ -920,37 +1124,44 @@ const styles = {
   mainContent: {
     flex: 1,
     display: 'flex',
-    flexDirection: 'column',
-    gap: '24px',
+    flexDirection: 'column' as const,
+    gap: 'clamp(1rem, 3vw, 2rem)',
+    minWidth: 0,
   },
   sectionHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '24px',
+    marginBottom: 'clamp(1rem, 3vw, 1.5rem)',
+    flexWrap: 'wrap',
+    gap: '12px',
   },
   sectionTitleGroup: {
     display: 'flex',
-    gap: '16px',
+    gap: 'clamp(0.75rem, 2vw, 1rem)',
     alignItems: 'flex-start',
+    flex: 1,
   },
   sectionIcon: {
-    width: '56px',
-    height: '56px',
+    width: 'clamp(40px, 8vw, 56px)',
+    height: 'clamp(40px, 8vw, 56px)',
     borderRadius: '12px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   sectionTitle: {
-    fontSize: '28px',
+    fontSize: 'clamp(1.5rem, 5vw, 2rem)',
     fontWeight: '700',
     color: '#111827',
+    margin: 0,
+    className: 'section-title',
   },
   sectionSubtitle: {
-    fontSize: '14px',
+    fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
     color: '#6b7280',
-    marginTop: '4px',
+    margin: '4px 0 0 0',
   },
   badge: {
     display: 'inline-block',
@@ -961,7 +1172,7 @@ const styles = {
     paddingTop: '6px',
     paddingBottom: '6px',
     borderRadius: '20px',
-    fontSize: '12px',
+    fontSize: 'clamp(0.7rem, 2vw, 0.75rem)',
     fontWeight: '600',
   },
   card: {
@@ -970,33 +1181,34 @@ const styles = {
     boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
     border: '1px solid #e5e7eb',
     overflow: 'hidden',
-    marginBottom: '24px',
+    marginBottom: 'clamp(1rem, 3vw, 1.5rem)',
   },
   cardHeader: {
-    paddingLeft: '24px',
-    paddingRight: '24px',
+    paddingLeft: 'clamp(1rem, 3vw, 1.5rem)',
+    paddingRight: 'clamp(1rem, 3vw, 1.5rem)',
     paddingTop: '16px',
     paddingBottom: '16px',
     borderBottom: '1px solid #e5e7eb',
     backgroundColor: '#f9fafb',
   },
   cardTitle: {
-    fontSize: '16px',
+    fontSize: 'clamp(0.9rem, 2.5vw, 1rem)',
     fontWeight: '700',
     color: '#111827',
+    margin: 0,
   },
   cardBody: {
-    paddingLeft: '24px',
-    paddingRight: '24px',
-    paddingTop: '24px',
-    paddingBottom: '24px',
+    paddingLeft: 'clamp(1rem, 3vw, 1.5rem)',
+    paddingRight: 'clamp(1rem, 3vw, 1.5rem)',
+    paddingTop: 'clamp(1rem, 3vw, 1.5rem)',
+    paddingBottom: 'clamp(1rem, 3vw, 1.5rem)',
   },
   formGroup: {
-    marginBottom: '20px',
+    marginBottom: 'clamp(1rem, 2vw, 1.25rem)',
   },
   formLabel: {
     display: 'block',
-    fontSize: '14px',
+    fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
     fontWeight: '600',
     color: '#374151',
     marginBottom: '8px',
@@ -1009,26 +1221,27 @@ const styles = {
     paddingBottom: '10px',
     border: '1px solid #d1d5db',
     borderRadius: '8px',
-    fontSize: '14px',
+    fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
     outline: 'none',
     transition: 'all 0.2s',
-    boxSizing: 'border-box',
+    boxSizing: 'border-box' as const,
     backgroundColor: '#ffffff',
   },
   inputHint: {
-    fontSize: '12px',
+    fontSize: 'clamp(0.7rem, 1.5vw, 0.75rem)',
     color: '#9ca3af',
-    marginTop: '6px',
+    margin: '6px 0 0 0',
   },
   formRow: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
-    gap: '16px',
+    gap: 'clamp(0.75rem, 2vw, 1rem)',
   },
   formButtons: {
     display: 'flex',
-    gap: '12px',
-    marginTop: '24px',
+    gap: 'clamp(0.5rem, 2vw, 0.75rem)',
+    marginTop: 'clamp(1rem, 3vw, 1.5rem)',
+    flexWrap: 'wrap',
   },
   toggleCard: {
     display: 'flex',
@@ -1037,26 +1250,30 @@ const styles = {
     paddingTop: '16px',
     paddingBottom: '16px',
     borderBottom: '1px solid #e5e7eb',
+    flexWrap: 'wrap',
+    gap: '12px',
   },
   toggleLabel: {
-    fontSize: '14px',
+    fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
     fontWeight: '600',
     color: '#111827',
+    margin: 0,
   },
   toggleDescription: {
-    fontSize: '12px',
+    fontSize: 'clamp(0.7rem, 1.5vw, 0.75rem)',
     color: '#6b7280',
-    marginTop: '4px',
+    margin: '4px 0 0 0',
   },
   switch: {
-    position: 'relative',
+    position: 'relative' as const,
     display: 'inline-block',
     width: '52px',
     height: '28px',
     cursor: 'pointer',
+    flexShrink: 0,
   },
   switchTrack: {
-    position: 'absolute',
+    position: 'absolute' as const,
     cursor: 'pointer',
     top: 0,
     left: 0,
@@ -1067,7 +1284,7 @@ const styles = {
     borderRadius: '34px',
   },
   switchThumb: {
-    position: 'absolute',
+    position: 'absolute' as const,
     content: '""',
     height: '24px',
     width: '24px',
@@ -1080,16 +1297,16 @@ const styles = {
   statusInfo: {
     display: 'grid',
     gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '16px',
+    gap: 'clamp(0.75rem, 2vw, 1rem)',
   },
   statusLabel: {
-    fontSize: '12px',
+    fontSize: 'clamp(0.7rem, 1.5vw, 0.75rem)',
     fontWeight: '600',
     color: '#6b7280',
     textTransform: 'uppercase',
   },
   statusValue: {
-    fontSize: '16px',
+    fontSize: 'clamp(0.9rem, 2.5vw, 1rem)',
     fontWeight: '700',
     color: '#111827',
     marginTop: '4px',
@@ -1103,18 +1320,18 @@ const styles = {
     paddingTop: '4px',
     paddingBottom: '4px',
     borderRadius: '6px',
-    fontSize: '12px',
+    fontSize: 'clamp(0.7rem, 1.5vw, 0.75rem)',
     fontWeight: '600',
     marginTop: '4px',
   },
   themeGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '12px',
+    gap: 'clamp(0.5rem, 2vw, 0.75rem)',
   },
   themeButton: {
     display: 'flex',
-    flexDirection: 'column',
+    flexDirection: 'column' as const,
     alignItems: 'center',
     gap: '8px',
     paddingTop: '16px',
@@ -1126,7 +1343,7 @@ const styles = {
     backgroundColor: '#ffffff',
     cursor: 'pointer',
     transition: 'all 0.2s',
-    fontSize: '14px',
+    fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
     fontWeight: '600',
     color: '#6b7280',
   },
@@ -1142,15 +1359,15 @@ const styles = {
   },
   addressGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-    gap: '16px',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(clamp(250px, 80vw, 320px), 1fr))',
+    gap: 'clamp(0.75rem, 2vw, 1rem)',
   },
   addressCard: {
     backgroundColor: '#ffffff',
     borderRadius: '12px',
     boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
     border: '1px solid #e5e7eb',
-    padding: '20px',
+    padding: 'clamp(1rem, 2vw, 1.25rem)',
   },
   addressCardHeader: {
     display: 'flex',
@@ -1159,20 +1376,22 @@ const styles = {
     marginBottom: '16px',
     paddingBottom: '12px',
     borderBottom: '1px solid #e5e7eb',
+    flexWrap: 'wrap',
+    gap: '8px',
   },
   addressTitle: {
-    fontSize: '14px',
+    fontSize: 'clamp(0.85rem, 2vw, 0.875rem)',
     fontWeight: '700',
     color: '#111827',
     margin: 0,
   },
   addressSubtitle: {
-    fontSize: '13px',
+    fontSize: 'clamp(0.8rem, 1.5vw, 0.8125rem)',
     color: '#6b7280',
     margin: '4px 0 0 0',
   },
   addressCountry: {
-    fontSize: '12px',
+    fontSize: 'clamp(0.7rem, 1.5vw, 0.75rem)',
     color: '#9ca3af',
     margin: '2px 0 0 0',
     fontWeight: '500',
@@ -1186,60 +1405,68 @@ const styles = {
     paddingTop: '4px',
     paddingBottom: '4px',
     borderRadius: '4px',
-    fontSize: '11px',
+    fontSize: 'clamp(0.65rem, 1.5vw, 0.7rem)',
     fontWeight: '600',
+    whiteSpace: 'nowrap' as const,
   },
   addressCardFooter: {
     display: 'flex',
-    gap: '8px',
+    gap: 'clamp(0.5rem, 1vw, 0.6rem)',
+    flexWrap: 'wrap',
   },
   loginsList: {
     display: 'flex',
-    flexDirection: 'column',
-    gap: '16px',
+    flexDirection: 'column' as const,
+    gap: 'clamp(0.75rem, 2vw, 1rem)',
   },
   loginCard: {
     backgroundColor: '#ffffff',
     borderRadius: '12px',
     boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
     border: '1px solid #e5e7eb',
-    padding: '20px',
+    padding: 'clamp(1rem, 2vw, 1.25rem)',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: '16px',
   },
   loginInfo: {
     display: 'flex',
-    gap: '16px',
+    gap: 'clamp(0.75rem, 2vw, 1rem)',
     flex: 1,
+    minWidth: 0,
   },
   loginIcon: {
-    width: '48px',
-    height: '48px',
+    width: 'clamp(40px, 8vw, 48px)',
+    height: 'clamp(40px, 8vw, 48px)',
     backgroundColor: '#f3f4f6',
     borderRadius: '8px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     color: '#6b7280',
+    flexShrink: 0,
   },
   loginDetails: {
     flex: 1,
+    minWidth: 0,
   },
   loginDevice: {
-    fontSize: '14px',
+    fontSize: 'clamp(0.8rem, 2vw, 0.875rem)',
     fontWeight: '600',
     color: '#111827',
+    margin: 0,
   },
   loginLocation: {
-    fontSize: '12px',
+    fontSize: 'clamp(0.7rem, 1.5vw, 0.75rem)',
     color: '#6b7280',
     marginTop: '4px',
   },
   loginActions: {
     display: 'flex',
     alignItems: 'center',
-    gap: '16px',
+    gap: 'clamp(0.75rem, 2vw, 1rem)',
+    flexShrink: 0,
   },
   loginStatus: {
     display: 'flex',
@@ -1251,11 +1478,13 @@ const styles = {
     height: '8px',
     borderRadius: '50%',
     backgroundColor: '#10b981',
+    flexShrink: 0,
   },
   loginTime: {
-    fontSize: '12px',
+    fontSize: 'clamp(0.7rem, 1.5vw, 0.75rem)',
     color: '#6b7280',
     margin: 0,
+    whiteSpace: 'nowrap' as const,
   },
   buttonPrimary: {
     display: 'flex',
@@ -1271,7 +1500,7 @@ const styles = {
     paddingLeft: '16px',
     paddingRight: '16px',
     fontWeight: '600',
-    fontSize: '14px',
+    fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
     cursor: 'pointer',
     transition: 'all 0.2s',
     width: '100%',
@@ -1290,7 +1519,7 @@ const styles = {
     paddingLeft: '16px',
     paddingRight: '16px',
     fontWeight: '600',
-    fontSize: '14px',
+    fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
     cursor: 'pointer',
     transition: 'all 0.2s',
     flex: 1,
@@ -1309,7 +1538,7 @@ const styles = {
     paddingLeft: '16px',
     paddingRight: '16px',
     fontWeight: '600',
-    fontSize: '14px',
+    fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
     cursor: 'pointer',
     transition: 'all 0.2s',
     width: '100%',
@@ -1328,10 +1557,11 @@ const styles = {
     paddingLeft: '16px',
     paddingRight: '16px',
     fontWeight: '600',
-    fontSize: '14px',
+    fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
     cursor: 'pointer',
     transition: 'all 0.2s',
-    marginBottom: '24px',
+    marginBottom: 'clamp(1rem, 2vw, 1.5rem)',
+    width: '100%',
   },
   buttonSmallEdit: {
     display: 'flex',
@@ -1346,10 +1576,11 @@ const styles = {
     paddingBottom: '8px',
     paddingLeft: '10px',
     paddingRight: '10px',
-    fontSize: '12px',
+    fontSize: 'clamp(0.7rem, 1.5vw, 0.75rem)',
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.2s',
+    flex: 1,
   },
   buttonSmallSecondary: {
     flex: 1,
@@ -1359,7 +1590,7 @@ const styles = {
     borderRadius: '6px',
     paddingTop: '8px',
     paddingBottom: '8px',
-    fontSize: '12px',
+    fontSize: 'clamp(0.7rem, 1.5vw, 0.75rem)',
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.2s',
@@ -1377,13 +1608,13 @@ const styles = {
     paddingBottom: '8px',
     paddingLeft: '10px',
     paddingRight: '10px',
-    fontSize: '12px',
+    fontSize: 'clamp(0.7rem, 1.5vw, 0.75rem)',
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.2s',
   },
   dangerText: {
-    fontSize: '14px',
+    fontSize: 'clamp(0.8rem, 2vw, 0.875rem)',
     color: '#6b7280',
     marginBottom: '16px',
   },
@@ -1396,19 +1627,19 @@ const styles = {
     borderRadius: '8px',
     padding: '12px',
     marginBottom: '24px',
-    fontSize: '14px',
+    fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
     color: '#991b1b',
     fontWeight: '600',
   },
   modalOverlay: {
-    position: 'fixed',
+    position: 'fixed' as const,
     inset: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     padding: '16px',
-    zIndex: 50,
+    zIndex: 60,
   },
   modalContent: {
     backgroundColor: '#ffffff',
@@ -1416,7 +1647,7 @@ const styles = {
     boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
     maxWidth: '480px',
     width: '100%',
-    padding: '32px',
+    padding: 'clamp(1.5rem, 5vw, 2rem)',
   },
   modalHeader: {
     display: 'flex',
@@ -1425,7 +1656,7 @@ const styles = {
     marginBottom: '16px',
   },
   modalTitle: {
-    fontSize: '20px',
+    fontSize: 'clamp(1.1rem, 4vw, 1.25rem)',
     fontWeight: '700',
     color: '#111827',
   },
@@ -1438,21 +1669,22 @@ const styles = {
     alignItems: 'center',
   },
   modalDescription: {
-    fontSize: '14px',
+    fontSize: 'clamp(0.8rem, 2vw, 0.875rem)',
     color: '#6b7280',
     marginBottom: '24px',
   },
   modalButtons: {
     display: 'flex',
     gap: '12px',
+    flexWrap: 'wrap',
   },
   emptyState: {
     backgroundColor: '#ffffff',
     borderRadius: '12px',
     boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
     border: '1px solid #e5e7eb',
-    padding: '64px 24px',
-    textAlign: 'center',
+    padding: 'clamp(2rem, 8vw, 4rem) clamp(1rem, 3vw, 1.5rem)',
+    textAlign: 'center' as const,
   },
   emptyIcon: {
     color: '#d1d5db',
@@ -1461,12 +1693,13 @@ const styles = {
     marginRight: 'auto',
   },
   emptyTitle: {
-    fontSize: '18px',
+    fontSize: 'clamp(1rem, 3vw, 1.125rem)',
     fontWeight: '600',
     color: '#111827',
     marginBottom: '8px',
   },
   emptyText: {
     color: '#6b7280',
+    fontSize: 'clamp(0.8rem, 2vw, 0.875rem)',
   },
 };
