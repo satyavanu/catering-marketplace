@@ -25,6 +25,14 @@ import {
   Edit,
   Plus,
   Menu,
+  CreditCard,
+  TrendingUp,
+  Calendar,
+  Zap,
+  FileText,
+  CheckCircle,
+  AlertTriangle,
+  Upload,
 } from 'lucide-react';
 
 export default function ProfilePage() {
@@ -78,8 +86,130 @@ export default function ProfilePage() {
     { id: 3, device: 'Chrome on Windows', location: 'Boston, MA', lastActive: '1 day ago', current: false },
   ]);
 
+  const [isPartner, setIsPartner] = useState(true);
+  const [showMembershipModal, setShowMembershipModal] = useState(false);
+
+  const [partnerData, setPartnerData] = useState({
+    membershipType: 'Pro',
+    membershipStartDate: 'March 15, 2024',
+    membershipEndDate: 'March 15, 2025',
+    daysRemaining: 287,
+    restaurantName: 'Delicious Catering Co.',
+    restaurantEmail: 'contact@deliciouscatering.com',
+    businessRegistration: 'REG-2024-001',
+    rating: 4.8,
+    totalOrders: 342,
+    totalRevenue: '₹2,45,670',
+    verificationStatus: 'Verified',
+    nextBillingDate: 'April 15, 2025',
+    monthlyAmount: '₹4,999',
+    autoRenewal: true,
+  });
+
+  const [subscriptionTransactions, setSubscriptionTransactions] = useState([
+    {
+      id: 1,
+      date: 'March 15, 2025',
+      type: 'Renewal',
+      description: 'Pro Plan - Annual Renewal',
+      amount: '₹4,999',
+      status: 'Completed',
+      transactionId: 'TXN-2025-001',
+      invoiceUrl: '#',
+    },
+    {
+      id: 2,
+      date: 'March 10, 2025',
+      type: 'Upgrade',
+      description: 'Upgraded from Basic to Pro',
+      amount: '₹2,499',
+      status: 'Completed',
+      transactionId: 'TXN-2025-002',
+      invoiceUrl: '#',
+    },
+    {
+      id: 3,
+      date: 'March 15, 2024',
+      type: 'Initial',
+      description: 'Pro Plan - Initial Subscription',
+      amount: '₹4,999',
+      status: 'Completed',
+      transactionId: 'TXN-2024-001',
+      invoiceUrl: '#',
+    },
+    {
+      id: 4,
+      date: 'February 15, 2024',
+      type: 'Initial',
+      description: 'Basic Plan - Initial Subscription',
+      amount: '₹1,999',
+      status: 'Completed',
+      transactionId: 'TXN-2024-002',
+      invoiceUrl: '#',
+    },
+  ]);
+
+  const [membershipPlans, setMembershipPlans] = useState([
+    {
+      id: 'basic',
+      name: 'Basic',
+      price: '₹1,999',
+      period: '/month',
+      description: 'Perfect for getting started',
+      features: [
+        'Up to 50 menu items',
+        'Basic analytics',
+        'Email support',
+        'Standard commission rate (15%)',
+        'Mobile app access',
+      ],
+      current: partnerData.membershipType === 'Basic',
+    },
+    {
+      id: 'pro',
+      name: 'Pro',
+      price: '₹4,999',
+      period: '/month',
+      description: 'Best for growing businesses',
+      features: [
+        'Up to 500 menu items',
+        'Advanced analytics',
+        'Priority support',
+        'Reduced commission rate (10%)',
+        'Mobile app access',
+        'API access',
+        'Custom branding',
+      ],
+      current: partnerData.membershipType === 'Pro',
+      popular: true,
+    },
+    {
+      id: 'premium',
+      name: 'Premium',
+      price: '₹9,999',
+      period: '/month',
+      description: 'For established restaurants',
+      features: [
+        'Unlimited menu items',
+        'Full analytics suite',
+        'Dedicated account manager',
+        'Premium commission rate (5%)',
+        'Mobile app access',
+        'API access',
+        'Custom branding',
+        'Multi-location support',
+        'Marketing tools',
+      ],
+      current: partnerData.membershipType === 'Premium',
+    },
+  ]);
+
   const sections = [
     { id: 'account', label: 'Account', icon: User },
+    ...(isPartner ? [
+      { id: 'membership', label: 'Membership', icon: Zap },
+      { id: 'verification', label: 'Business Verification', icon: FileText },
+    ] : []),
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'preferences', label: 'Preferences', icon: Settings },
     { id: 'privacy', label: 'Privacy', icon: Shield },
@@ -159,6 +289,13 @@ export default function ProfilePage() {
 
   const handleLogoutDevice = (id) => {
     setLogins(logins.filter((login) => login.id !== id));
+  };
+
+  const handleUpgradeMembership = (planId) => {
+    const planName = membershipPlans.find((p) => p.id === planId)?.name;
+    alert(`Upgrading to ${planName} plan. Processing payment...`);
+    setPartnerData({ ...partnerData, membershipType: planName });
+    setShowMembershipModal(false);
   };
 
   const InputField = ({ label, type = 'text', value, onChange, placeholder, disabled }) => (
@@ -734,6 +871,316 @@ export default function ProfilePage() {
     </div>
   );
 
+  const renderMembershipSection = () => (
+    <div>
+      <div style={styles.sectionHeader}>
+        <div style={styles.sectionTitleGroup}>
+          <div style={{ ...styles.sectionIcon, backgroundColor: '#fef3c7' }}>
+            <Zap size={24} color="#92400e" />
+          </div>
+          <div>
+            <h2 style={styles.sectionTitle}>Membership & Subscription</h2>
+            <p style={styles.sectionSubtitle}>Manage your partnership plan and billing</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Current Membership Status */}
+      <div style={styles.card}>
+        <div style={styles.cardHeader}>
+          <h3 style={styles.cardTitle}>Current Membership</h3>
+        </div>
+        <div style={styles.cardBody}>
+          <div style={styles.membershipStatusGrid}>
+            <div style={styles.membershipStatusItem}>
+              <div style={styles.statusIconBox} style={{ backgroundColor: '#eff6ff' }}>
+                <Zap size={24} color="#0c4a6e" />
+              </div>
+              <div>
+                <p style={styles.statusLabel}>Plan Type</p>
+                <p style={styles.statusValueLarge}>{partnerData.membershipType}</p>
+              </div>
+            </div>
+
+            <div style={styles.membershipStatusItem}>
+              <div style={styles.statusIconBox} style={{ backgroundColor: '#fef3c7' }}>
+                <Calendar size={24} color="#92400e" />
+              </div>
+              <div>
+                <p style={styles.statusLabel}>Valid Until</p>
+                <p style={styles.statusValueLarge}>{partnerData.membershipEndDate}</p>
+                <p style={styles.daysRemaining}>{partnerData.daysRemaining} days remaining</p>
+              </div>
+            </div>
+
+            <div style={styles.membershipStatusItem}>
+              <div style={styles.statusIconBox} style={{ backgroundColor: '#dcfce7' }}>
+                <Check size={24} color="#166534" />
+              </div>
+              <div>
+                <p style={styles.statusLabel}>Status</p>
+                <p style={styles.statusValueLarge}>
+                  <span style={styles.verifiedBadge}>{partnerData.verificationStatus}</span>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Billing Information */}
+      <div style={styles.card}>
+        <div style={styles.cardHeader}>
+          <h3 style={styles.cardTitle}>Billing Information</h3>
+        </div>
+        <div style={styles.cardBody}>
+          <div style={styles.billingGrid}>
+            <div style={styles.billingItem}>
+              <p style={styles.billingLabel}>Monthly Amount</p>
+              <p style={styles.billingValue}>{partnerData.monthlyAmount}</p>
+            </div>
+            <div style={styles.billingItem}>
+              <p style={styles.billingLabel}>Next Billing Date</p>
+              <p style={styles.billingValue}>{partnerData.nextBillingDate}</p>
+            </div>
+            <div style={styles.billingItem}>
+              <p style={styles.billingLabel}>Auto Renewal</p>
+              <p style={styles.billingValue}>
+                <span style={partnerData.autoRenewal ? styles.activeBadge : styles.inactiveBadge}>
+                  {partnerData.autoRenewal ? 'Enabled' : 'Disabled'}
+                </span>
+              </p>
+            </div>
+          </div>
+          <div style={styles.billingInfo}>
+            <div style={styles.billingInfoItem}>
+              <p style={styles.billingLabel}>Billing Email</p>
+              <p style={styles.billingValue}>{partnerData.restaurantEmail}</p>
+            </div>
+            <div style={styles.billingInfoItem}>
+              <p style={styles.billingLabel}>Business Registration</p>
+              <p style={styles.billingValue}>{partnerData.businessRegistration}</p>
+            </div>
+          </div>
+          <div style={styles.billingActions}>
+            <button style={styles.buttonSecondary}>
+              <CreditCard size={18} />
+              Update Payment Method
+            </button>
+            <button style={styles.buttonSecondary}>
+              <FileText size={18} />
+              Download Invoice
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Business Overview */}
+      <div style={styles.card}>
+        <div style={styles.cardHeader}>
+          <h3 style={styles.cardTitle}>Business Overview</h3>
+        </div>
+        <div style={styles.cardBody}>
+          <div style={styles.businessGrid}>
+            <div style={styles.businessItem}>
+              <p style={styles.businessLabel}>Restaurant Name</p>
+              <p style={styles.businessValue}>{partnerData.restaurantName}</p>
+            </div>
+            <div style={styles.businessItem}>
+              <p style={styles.businessLabel}>Total Orders</p>
+              <p style={styles.businessValue}>{partnerData.totalOrders}</p>
+            </div>
+            <div style={styles.businessItem}>
+              <p style={styles.businessLabel}>Rating</p>
+              <p style={styles.businessValue}>⭐ {partnerData.rating}</p>
+            </div>
+            <div style={styles.businessItem}>
+              <p style={styles.businessLabel}>Total Revenue</p>
+              <p style={styles.businessValue}>{partnerData.totalRevenue}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Membership Plans */}
+      <div style={styles.card}>
+        <div style={styles.cardHeader}>
+          <h3 style={styles.cardTitle}>Available Plans</h3>
+        </div>
+        <div style={styles.cardBody}>
+          <div style={styles.plansGrid}>
+            {membershipPlans.map((plan) => (
+              <div
+                key={plan.id}
+                style={{
+                  ...styles.planCard,
+                  ...(plan.current && styles.planCardActive),
+                  ...(plan.popular && styles.planCardPopular),
+                }}
+              >
+                {plan.popular && <div style={styles.popularBadge}>Most Popular</div>}
+                {plan.current && <div style={styles.currentBadge}>Current Plan</div>}
+
+                <h4 style={styles.planName}>{plan.name}</h4>
+                <p style={styles.planDescription}>{plan.description}</p>
+
+                <div style={styles.planPrice}>
+                  <span style={styles.planPriceAmount}>{plan.price}</span>
+                  <span style={styles.planPricePeriod}>{plan.period}</span>
+                </div>
+
+                <ul style={styles.planFeatures}>
+                  {plan.features.map((feature, idx) => (
+                    <li key={idx} style={styles.planFeature}>
+                      <Check size={16} color="#10b981" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                {!plan.current && (
+                  <button
+                    onClick={() => {
+                      setShowMembershipModal(true);
+                      handleUpgradeMembership(plan.id);
+                    }}
+                    style={plan.popular ? styles.buttonPrimary : styles.buttonSecondary}
+                  >
+                    {partnerData.membershipType === 'Basic' && plan.name !== 'Basic' ? 'Upgrade' : partnerData.membershipType === 'Premium' && plan.name !== 'Premium' ? 'Downgrade' : 'Change'} to {plan.name}
+                  </button>
+                )}
+                {plan.current && (
+                  <button style={{ ...styles.buttonSecondary, opacity: 0.5, cursor: 'not-allowed' }}>
+                    Current Plan
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Subscription Transactions */}
+      <div style={styles.card}>
+        <div style={styles.cardHeader}>
+          <h3 style={styles.cardTitle}>Subscription Transactions</h3>
+        </div>
+        <div style={styles.cardBody}>
+          <div style={styles.transactionsList}>
+            {subscriptionTransactions.length === 0 ? (
+              <div style={styles.emptyState}>
+                <CreditCard size={48} style={styles.emptyIcon} />
+                <h3 style={styles.emptyTitle}>No transactions</h3>
+                <p style={styles.emptyText}>Your subscription transactions will appear here</p>
+              </div>
+            ) : (
+              subscriptionTransactions.map((transaction) => (
+                <div key={transaction.id} style={styles.transactionCard}>
+                  <div style={styles.transactionContent}>
+                    <div style={styles.transactionIconBox}>
+                      {transaction.type === 'Renewal' && <TrendingUp size={20} color="#ffffff" />}
+                      {transaction.type === 'Upgrade' && <Zap size={20} color="#ffffff" />}
+                      {transaction.type === 'Initial' && <CreditCard size={20} color="#ffffff" />}
+                    </div>
+                    <div style={styles.transactionDetails}>
+                      <div>
+                        <p style={styles.transactionDescription}>{transaction.description}</p>
+                        <p style={styles.transactionId}>ID: {transaction.transactionId}</p>
+                      </div>
+                      <p style={styles.transactionDate}>{transaction.date}</p>
+                    </div>
+                  </div>
+                  <div style={styles.transactionFooter}>
+                    <p style={styles.transactionAmount}>{transaction.amount}</p>
+                    <span
+                      style={{
+                        ...styles.transactionStatus,
+                        backgroundColor:
+                          transaction.status === 'Completed'
+                            ? '#dcfce7'
+                            : transaction.status === 'Pending'
+                            ? '#fef3c7'
+                            : '#fee2e2',
+                        color:
+                          transaction.status === 'Completed'
+                            ? '#166534'
+                            : transaction.status === 'Pending'
+                            ? '#92400e'
+                            : '#991b1b',
+                      }}
+                    >
+                      {transaction.status}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Billing Settings */}
+      <div style={styles.card}>
+        <div style={styles.cardHeader}>
+          <h3 style={styles.cardTitle}>Billing Settings</h3>
+        </div>
+        <div style={styles.cardBody}>
+          <div style={styles.settingsList}>
+            <div style={styles.settingItem}>
+              <div>
+                <p style={styles.settingLabel}>Auto Renewal</p>
+                <p style={styles.settingDescription}>Automatically renew your subscription on the billing date</p>
+              </div>
+              <label style={styles.switch}>
+                <input
+                  type="checkbox"
+                  checked={partnerData.autoRenewal}
+                  onChange={(e) => setPartnerData({ ...partnerData, autoRenewal: e.target.checked })}
+                  style={{ display: 'none' }}
+                />
+                <div style={{ ...styles.switchTrack, backgroundColor: partnerData.autoRenewal ? '#2563eb' : '#d1d5db' }}>
+                  <div
+                    style={{
+                      ...styles.switchThumb,
+                      transform: partnerData.autoRenewal ? 'translateX(24px)' : 'translateX(0)',
+                    }}
+                  />
+                </div>
+              </label>
+            </div>
+          </div>
+          <div style={styles.billingActions}>
+            <button style={styles.buttonDanger}>
+              <AlertTriangle size={18} />
+              Cancel Subscription
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Payment Methods */}
+      <div style={styles.card}>
+        <div style={styles.cardHeader}>
+          <h3 style={styles.cardTitle}>Payment Methods</h3>
+        </div>
+        <div style={styles.cardBody}>
+          <div style={styles.paymentMethodCard}>
+            <div style={styles.paymentMethodIcon}>💳</div>
+            <div>
+              <p style={styles.paymentMethodName}>Visa Card ending in 4242</p>
+              <p style={styles.paymentMethodExpiry}>Expires 12/2026</p>
+            </div>
+            <span style={styles.defaultPaymentBadge}>Default</span>
+          </div>
+          <button style={styles.buttonSecondary}>
+            <Plus size={18} />
+            Add Payment Method
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <>
       <style>{`
@@ -927,6 +1374,7 @@ export default function ProfilePage() {
             {activeSection === 'privacy' && renderPrivacySection()}
             {activeSection === 'addresses' && renderAddressesSection()}
             {activeSection === 'logins' && renderLoginsSection()}
+            {activeSection === 'membership' && isPartner && renderMembershipSection()}
           </div>
         </div>
       </div>
@@ -1701,5 +2149,319 @@ const styles = {
   emptyText: {
     color: '#6b7280',
     fontSize: 'clamp(0.8rem, 2vw, 0.875rem)',
+  },
+  membershipStatusGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: 'clamp(1rem, 2vw, 1.5rem)',
+  },
+  membershipStatusItem: {
+    display: 'flex',
+    gap: 'clamp(0.75rem, 2vw, 1rem)',
+    alignItems: 'flex-start',
+  },
+  statusIconBox: {
+    width: 'clamp(45px, 8vw, 56px)',
+    height: 'clamp(45px, 8vw, 56px)',
+    borderRadius: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  statusValueLarge: {
+    fontSize: 'clamp(1rem, 2.5vw, 1.125rem)',
+    fontWeight: '700',
+    color: '#111827',
+    margin: '8px 0 0 0',
+  },
+  daysRemaining: {
+    fontSize: 'clamp(0.7rem, 1.5vw, 0.75rem)',
+    color: '#10b981',
+    marginTop: '4px',
+    fontWeight: '600',
+  },
+  verifiedBadge: {
+    display: 'inline-block',
+    backgroundColor: '#dcfce7',
+    color: '#166534',
+    paddingLeft: '8px',
+    paddingRight: '8px',
+    paddingTop: '4px',
+    paddingBottom: '4px',
+    borderRadius: '6px',
+    fontSize: 'clamp(0.7rem, 1.5vw, 0.75rem)',
+    fontWeight: '600',
+  },
+  billingGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: 'clamp(1rem, 2vw, 1.5rem)',
+    marginBottom: 'clamp(1rem, 2vw, 1.5rem)',
+    paddingBottom: 'clamp(1rem, 2vw, 1.5rem)',
+    borderBottom: '1px solid #e5e7eb',
+  },
+  billingItem: {
+    paddingBottom: '12px',
+  },
+  billingInfo: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, 1fr)',
+    gap: 'clamp(1rem, 2vw, 1.5rem)',
+    marginBottom: 'clamp(1rem, 2vw, 1.5rem)',
+  },
+  billingInfoItem: {
+    paddingBottom: '12px',
+    borderBottom: '1px solid #e5e7eb',
+  },
+  billingActions: {
+    display: 'flex',
+    gap: 'clamp(0.5rem, 2vw, 0.75rem)',
+    flexWrap: 'wrap',
+  },
+  businessGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(4, 1fr)',
+    gap: 'clamp(1rem, 2vw, 1.5rem)',
+  },
+  businessItem: {
+    textAlign: 'center',
+  },
+  businessLabel: {
+    fontSize: 'clamp(0.7rem, 1.5vw, 0.75rem)',
+    fontWeight: '600',
+    color: '#6b7280',
+    textTransform: 'uppercase',
+    margin: 0,
+  },
+  businessValue: {
+    fontSize: 'clamp(0.9rem, 2.5vw, 1rem)',
+    fontWeight: '700',
+    color: '#111827',
+    marginTop: '8px',
+  },
+  plansGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: 'clamp(1rem, 2vw, 1.5rem)',
+  },
+  planCard: {
+    border: '2px solid #e5e7eb',
+    borderRadius: '12px',
+    padding: 'clamp(1rem, 2vw, 1.5rem)',
+    backgroundColor: '#ffffff',
+    position: 'relative' as const,
+    transition: 'all 0.2s',
+  },
+  planCardActive: {
+    borderColor: '#2563eb',
+    backgroundColor: '#eff6ff',
+  },
+  planCardPopular: {
+    transform: 'scale(1.05)',
+    boxShadow: '0 10px 30px rgba(37, 99, 235, 0.2)',
+  },
+  popularBadge: {
+    position: 'absolute' as const,
+    top: '12px',
+    right: '12px',
+    backgroundColor: '#ef4444',
+    color: '#ffffff',
+    padding: '6px 12px',
+    borderRadius: '20px',
+    fontSize: 'clamp(0.65rem, 1.5vw, 0.7rem)',
+    fontWeight: '700',
+  },
+  currentBadge: {
+    position: 'absolute' as const,
+    top: '12px',
+    right: '12px',
+    backgroundColor: '#10b981',
+    color: '#ffffff',
+    padding: '6px 12px',
+    borderRadius: '20px',
+    fontSize: 'clamp(0.65rem, 1.5vw, 0.7rem)',
+    fontWeight: '700',
+  },
+  planName: {
+    fontSize: 'clamp(1rem, 2.5vw, 1.125rem)',
+    fontWeight: '700',
+    color: '#111827',
+    marginTop: '8px',
+    marginBottom: '4px',
+  },
+  planDescription: {
+    fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
+    color: '#6b7280',
+    margin: '0 0 16px 0',
+  },
+  planPrice: {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: '4px',
+    marginBottom: '16px',
+  },
+  planPriceAmount: {
+    fontSize: 'clamp(1.5rem, 4vw, 2rem)',
+    fontWeight: '700',
+    color: '#111827',
+  },
+  planPricePeriod: {
+    fontSize: 'clamp(0.8rem, 1.5vw, 0.875rem)',
+    color: '#6b7280',
+  },
+  planFeatures: {
+    listStyle: 'none',
+    padding: 0,
+    margin: '16px 0',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '12px',
+  },
+  planFeature: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
+    color: '#374151',
+  },
+  transactionsList: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 'clamp(0.75rem, 1.5vw, 1rem)',
+  },
+  transactionCard: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    padding: 'clamp(0.75rem, 2vw, 1rem)',
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
+    backgroundColor: '#f9fafb',
+    gap: '12px',
+    flexWrap: 'wrap',
+  },
+  transactionContent: {
+    display: 'flex',
+    gap: 'clamp(0.75rem, 2vw, 1rem)',
+    flex: 1,
+    minWidth: 0,
+  },
+  transactionIconBox: {
+    width: '40px',
+    height: '40px',
+    backgroundColor: '#2563eb',
+    borderRadius: '8px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  transactionDetails: {
+    flex: 1,
+    minWidth: 0,
+  },
+  transactionDescription: {
+    fontSize: 'clamp(0.8rem, 1.5vw, 0.875rem)',
+    fontWeight: '600',
+    color: '#111827',
+    margin: 0,
+  },
+  transactionId: {
+    fontSize: 'clamp(0.7rem, 1.5vw, 0.75rem)',
+    color: '#9ca3af',
+    margin: '4px 0 0 0',
+  },
+  transactionDate: {
+    fontSize: 'clamp(0.7rem, 1.5vw, 0.75rem)',
+    color: '#6b7280',
+    margin: 0,
+  },
+  transactionFooter: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    flexShrink: 0,
+  },
+  transactionAmount: {
+    fontSize: 'clamp(0.85rem, 1.5vw, 0.875rem)',
+    fontWeight: '700',
+    color: '#111827',
+    minWidth: '80px',
+    textAlign: 'right' as const,
+  },
+  transactionStatus: {
+    display: 'inline-block',
+    paddingLeft: '10px',
+    paddingRight: '10px',
+    paddingTop: '4px',
+    paddingBottom: '4px',
+    borderRadius: '6px',
+    fontSize: 'clamp(0.7rem, 1.5vw, 0.75rem)',
+    fontWeight: '600',
+    whiteSpace: 'nowrap' as const,
+  },
+  settingsList: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '16px',
+    marginBottom: '16px',
+    paddingBottom: '16px',
+    borderBottom: '1px solid #e5e7eb',
+  },
+  settingItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: '12px',
+  },
+  settingLabel: {
+    fontSize: 'clamp(0.8rem, 1.5vw, 0.875rem)',
+    fontWeight: '600',
+    color: '#111827',
+    margin: 0,
+  },
+  settingDescription: {
+    fontSize: 'clamp(0.7rem, 1.5vw, 0.75rem)',
+    color: '#6b7280',
+    margin: '4px 0 0 0',
+  },
+  paymentMethodCard: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 'clamp(1rem, 2vw, 1.5rem)',
+    padding: 'clamp(1rem, 2vw, 1.25rem)',
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
+    backgroundColor: '#f9fafb',
+    marginBottom: 'clamp(1rem, 2vw, 1.5rem)',
+  },
+  paymentMethodIcon: {
+    fontSize: '32px',
+  },
+  paymentMethodName: {
+    fontSize: 'clamp(0.8rem, 1.5vw, 0.875rem)',
+    fontWeight: '600',
+    color: '#111827',
+    margin: 0,
+  },
+  paymentMethodExpiry: {
+    fontSize: 'clamp(0.7rem, 1.5vw, 0.75rem)',
+    color: '#6b7280',
+    margin: '4px 0 0 0',
+  },
+  defaultPaymentBadge: {
+    display: 'inline-block',
+    backgroundColor: '#dbeafe',
+    color: '#0c4a6e',
+    paddingLeft: '8px',
+    paddingRight: '8px',
+    paddingTop: '4px',
+    paddingBottom: '4px',
+    borderRadius: '6px',
+    fontSize: 'clamp(0.65rem, 1.5vw, 0.7rem)',
+    fontWeight: '600',
+    marginLeft: 'auto',
   },
 };
