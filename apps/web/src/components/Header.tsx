@@ -23,7 +23,7 @@ const Header = () => {
     { label: 'Explore', href: '/' },
     { label: 'Catering', href: '/catering' },
    { label: 'Venues', href: '/venues' },
-    { label: 'Photography', href: '/photography' },
+    { label: 'Meals', href: '/meals' },
     { label: 'Decorations', href: '/decorations' },
     { label: 'Experiences', href: '/experiences' },
   ];
