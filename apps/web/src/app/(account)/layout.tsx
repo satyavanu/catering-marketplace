@@ -22,6 +22,7 @@ import {
   DocumentCheckIcon,
   Bars3Icon,
   XMarkIcon,
+  GiftIcon,
 } from '@heroicons/react/24/outline';
 
 export default function AccountLayout({ children }: { children: React.ReactNode }) {
@@ -78,7 +79,8 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
     { name: 'Dashboard', icon: HomeIcon, color: 'from-blue-500 to-cyan-500', path: '/account' },
     { name: 'My Orders', icon: ClipboardDocumentListIcon, color: 'from-purple-500 to-pink-500', path: '/orders' },
     { name: 'My Quotes', icon: DocumentCheckIcon, color: 'from-green-500 to-emerald-500', path: '/myquotes' },
-    { name: 'Listings', icon: SparklesIcon, color: 'from-orange-500 to-yellow-500', path: '/listings' },
+    { name: 'My Menu', icon: SparklesIcon, color: 'from-orange-500 to-yellow-500', path: '/listings' },
+    { name: 'Packages', icon: GiftIcon, color: 'from-rose-500 to-pink-500', path: '/packages' },
     { name: 'Saved', icon: HeartIcon, color: 'from-red-500 to-orange-500', path: '/saved-caterers' },
     { name: 'Messages', icon: ChatBubbleLeftRightIcon, color: 'from-yellow-500 to-amber-500', path: '/messages' },
     { name: 'Reviews', icon: StarIcon, color: 'from-indigo-500 to-purple-500', path: '/reviews' },
@@ -91,6 +93,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
     'My Orders': ['Home', 'Orders'],
     'My Quotes': ['Home', 'Quotes'],
     'Listings': ['Home', 'Listings'],
+    'Packages': ['Home', 'Packages'],
     'Saved': ['Home', 'Saved'],
     'Event Planner': ['Home', 'Events'],
     Messages: ['Home', 'Messages'],
@@ -141,11 +144,10 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
           overflow: 'hidden',
           transition: isMobile ? 'width 0.3s ease, padding 0.3s ease' : 'all 0.3s ease',
           boxShadow: isMobile && mobileMenuOpen ? '0 20px 25px rgba(0, 0, 0, 0.15)' : '0 4px 6px rgba(0, 0, 0, 0.07)',
-          height: isMobile && mobileMenuOpen ? '100vh' : '100vh',
+          height: isMobile && mobileMenuOpen ? '100vh' : '740px',
           zIndex: isMobile ? (mobileMenuOpen ? 40 : -1) : 40,
           display: 'flex',
           flexDirection: 'column',
-          overflowY: isMobile && mobileMenuOpen ? 'auto' : 'hidden',
         }}
       >
         {/* Logo & Brand */}
@@ -160,6 +162,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
             borderBottom: '1px solid #e2e8f0',
             opacity: isMobile && !mobileMenuOpen ? 0 : 1,
             transition: 'opacity 0.3s ease',
+            flexShrink: 0,
           }}
         >
           <div
@@ -270,7 +273,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
           ) : null}
         </div>
 
-        {/* Navigation Menu */}
+        {/* Navigation Menu - Scrollable */}
         <nav
           style={{
             flex: 1,
@@ -279,6 +282,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
             display: 'flex',
             flexDirection: 'column',
             gap: '4px',
+            minHeight: 0,
           }}
         >
           {menu.map((item) => (
@@ -303,6 +307,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
                 minHeight: '40px',
                 fontSize: '14px',
                 opacity: isMobile && !mobileMenuOpen && !sidebarOpen ? 0 : 1,
+                flexShrink: 0,
               }}
               title={(!sidebarOpen && !isMobile) ? item.name : undefined}
               onMouseEnter={(e) => {
@@ -355,111 +360,120 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
           ))}
         </nav>
 
-        {/* Help Card */}
+        {/* Bottom Section - Fixed */}
         <div
           style={{
-            backgroundImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            borderRadius: '10px',
-            padding: (sidebarOpen || (isMobile && mobileMenuOpen)) ? '14px' : '10px',
-            color: 'white',
-            marginBottom: '12px',
             display: 'flex',
             flexDirection: 'column',
-            alignItems: (sidebarOpen || (isMobile && mobileMenuOpen)) ? 'flex-start' : 'center',
-            transition: 'all 0.3s ease',
-            flexShrink: 0,
-            opacity: isMobile && !mobileMenuOpen && !sidebarOpen ? 0 : 1,
-          }}
-        >
-          {(sidebarOpen || (isMobile && mobileMenuOpen)) ? (
-            <>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  marginBottom: '8px',
-                }}
-              >
-                <SparklesIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} />
-                <p style={{ fontSize: '12px', fontWeight: '700', margin: 0 }}>Need Help?</p>
-              </div>
-              <p
-                style={{
-                  fontSize: '11px',
-                  opacity: 0.9,
-                  margin: 0,
-                  lineHeight: '1.4',
-                  marginBottom: '10px',
-                }}
-              >
-                24/7 Support Available
-              </p>
-              <button
-                style={{
-                  width: '100%',
-                  padding: '6px 10px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                  color: 'white',
-                  border: '1px solid rgba(255, 255, 255, 0.3)',
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-                }}
-              >
-                Contact Support
-              </button>
-            </>
-          ) : (
-            <SparklesIcon style={{ width: '20px', height: '20px', flexShrink: 0 }} title="Need Help?" />
-          )}
-        </div>
-
-        {/* Logout */}
-        <button
-          onClick={handleSignOut}
-          style={{
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: (sidebarOpen || (isMobile && mobileMenuOpen)) ? 'flex-start' : 'center',
             gap: '12px',
-            padding: (sidebarOpen || (isMobile && mobileMenuOpen)) ? '10px 12px' : '10px',
-            borderRadius: '8px',
-            border: '1px solid #e2e8f0',
-            backgroundColor: '#f8fafc',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            fontSize: '13px',
-            fontWeight: '500',
-            color: '#64748b',
-            minHeight: '40px',
             flexShrink: 0,
+            borderTop: '1px solid #e2e8f0',
+            paddingTop: '16px',
             opacity: isMobile && !mobileMenuOpen && !sidebarOpen ? 0 : 1,
-          }}
-          title={(!sidebarOpen && !isMobile) ? 'Sign Out' : undefined}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#fee2e2';
-            e.currentTarget.style.color = '#dc2626';
-            e.currentTarget.style.borderColor = '#fca5a5';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = '#f8fafc';
-            e.currentTarget.style.color = '#64748b';
-            e.currentTarget.style.borderColor = '#e2e8f0';
+            transition: 'opacity 0.3s ease',
           }}
         >
-          <ArrowLeftOnRectangleIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} />
-          {(sidebarOpen || (isMobile && mobileMenuOpen)) && 'Sign Out'}
-        </button>
+          {/* Help Card */}
+          <div
+            style={{
+              backgroundImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              borderRadius: '10px',
+              padding: (sidebarOpen || (isMobile && mobileMenuOpen)) ? '14px' : '10px',
+              color: 'white',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: (sidebarOpen || (isMobile && mobileMenuOpen)) ? 'flex-start' : 'center',
+              transition: 'all 0.3s ease',
+            }}
+          >
+            {(sidebarOpen || (isMobile && mobileMenuOpen)) ? (
+              <>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginBottom: '8px',
+                  }}
+                >
+                  <SparklesIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} />
+                  <p style={{ fontSize: '12px', fontWeight: '700', margin: 0 }}>Need Help?</p>
+                </div>
+                <p
+                  style={{
+                    fontSize: '11px',
+                    opacity: 0.9,
+                    margin: 0,
+                    lineHeight: '1.4',
+                    marginBottom: '10px',
+                  }}
+                >
+                  24/7 Support Available
+                </p>
+                <button
+                  style={{
+                    width: '100%',
+                    padding: '6px 10px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                    color: 'white',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+                  }}
+                >
+                  Contact Support
+                </button>
+              </>
+            ) : (
+              <SparklesIcon style={{ width: '20px', height: '20px', flexShrink: 0 }} title="Need Help?" />
+            )}
+          </div>
+
+          {/* Logout */}
+          <button
+            onClick={handleSignOut}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: (sidebarOpen || (isMobile && mobileMenuOpen)) ? 'flex-start' : 'center',
+              gap: '12px',
+              padding: (sidebarOpen || (isMobile && mobileMenuOpen)) ? '10px 12px' : '10px',
+              borderRadius: '8px',
+              border: '1px solid #e2e8f0',
+              backgroundColor: '#f8fafc',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              fontSize: '13px',
+              fontWeight: '500',
+              color: '#64748b',
+              minHeight: '40px',
+            }}
+            title={(!sidebarOpen && !isMobile) ? 'Sign Out' : undefined}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#fee2e2';
+              e.currentTarget.style.color = '#dc2626';
+              e.currentTarget.style.borderColor = '#fca5a5';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#f8fafc';
+              e.currentTarget.style.color = '#64748b';
+              e.currentTarget.style.borderColor = '#e2e8f0';
+            }}
+          >
+            <ArrowLeftOnRectangleIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} />
+            {(sidebarOpen || (isMobile && mobileMenuOpen)) && 'Sign Out'}
+          </button>
+        </div>
       </aside>
 
       {/* MAIN CONTENT */}

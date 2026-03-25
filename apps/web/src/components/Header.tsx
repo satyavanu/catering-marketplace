@@ -22,7 +22,7 @@ const Header = () => {
   const navLinks = [
     { label: 'Explore', href: '/' },
     { label: 'Catering', href: '/catering' },
-    { label: 'Venues', href: '/venues' },
+   { label: 'Venues', href: '/venues' },
     { label: 'Photography', href: '/photography' },
     { label: 'Decorations', href: '/decorations' },
     { label: 'Experiences', href: '/experiences' },
@@ -426,9 +426,10 @@ const Header = () => {
           </nav>
 
           {/* Desktop Search Bar */}
+          
           <div className="desktop-search">
             <SearchBar isMobile={false} />
-          </div>
+          </div> 
 
           {/* Right Actions - Desktop Only */}
           <div className="desktop-actions">
