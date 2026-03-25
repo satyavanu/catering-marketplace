@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   CalendarIcon,
@@ -11,7 +11,10 @@ import {
   MagnifyingGlassIcon,
   AdjustmentsHorizontalIcon,
   SparklesIcon,
+  MapPinIcon,
 } from '@heroicons/react/24/outline';
+
+// ...existing interfaces...
 
 interface MealPlan {
   id: number;
@@ -36,15 +39,41 @@ interface MealPlan {
   tags: string[];
 }
 
-export default function MealPackagesPage() {
+interface City {
+  id: number;
+  name: string;
+  slug: string;
+  emoji: string;
+  description: string;
+  activeVendors: number;
+  popularPlans: number;
+}
+
+export default function MealPackagesPage({ initialCity }: { initialCity?: string }) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCity, setSelectedCity] = useState<City | null>(null);
+  const [searchLocation, setSearchLocation] = useState('');
   const [selectedMealType, setSelectedMealType] = useState('all');
   const [selectedDuration, setSelectedDuration] = useState('all');
   const [priceRange, setPriceRange] = useState([0, 25000]);
   const [selectedPlan, setSelectedPlan] = useState<number | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState('popular');
+  const [isLoading, setIsLoading] = useState(true);
+
+  const cities: City[] = [
+    { id: 1, name: 'Mumbai', slug: 'mumbai', emoji: '🌊', description: 'Metropolitan hub', activeVendors: 45, popularPlans: 128 },
+    { id: 2, name: 'Bangalore', slug: 'bangalore', emoji: '🏙️', description: 'Tech city', activeVendors: 38, popularPlans: 112 },
+    { id: 3, name: 'Delhi', slug: 'delhi', emoji: '🏛️', description: 'Capital city', activeVendors: 52, popularPlans: 156 },
+    { id: 4, name: 'Pune', slug: 'pune', emoji: '⛰️', description: 'Queen of Deccan', activeVendors: 28, popularPlans: 89 },
+    { id: 5, name: 'Hyderabad', slug: 'hyderabad', emoji: '🏞️', description: 'City of pearls', activeVendors: 32, popularPlans: 98 },
+    { id: 6, name: 'Chennai', slug: 'chennai', emoji: '🌴', description: 'Gateway of South', activeVendors: 24, popularPlans: 76 },
+    { id: 7, name: 'Kolkata', slug: 'kolkata', emoji: '🎭', description: 'City of joy', activeVendors: 18, popularPlans: 64 },
+    { id: 8, name: 'Jaipur', slug: 'jaipur', emoji: '🏰', description: 'Pink city', activeVendors: 15, popularPlans: 52 },
+  ];
+
+  // ...existing allPlans array...
 
   const allPlans: MealPlan[] = [
     {
@@ -174,6 +203,25 @@ export default function MealPackagesPage() {
     },
   ];
 
+  // Initialize city from prop on mount
+  useEffect(() => {
+    if (initialCity) {
+      const city = cities.find(c => c.slug === initialCity);
+      if (city) {
+        setSelectedCity(city);
+      }
+    }
+    setIsLoading(false);
+  }, [initialCity]);
+
+  const filteredCities = useMemo(() => {
+    if (!searchLocation) return cities;
+    return cities.filter(city =>
+      city.name.toLowerCase().includes(searchLocation.toLowerCase()) ||
+      city.description.toLowerCase().includes(searchLocation.toLowerCase())
+    );
+  }, [searchLocation]);
+
   const filteredPlans = useMemo(() => {
     let filtered = allPlans.filter((plan) => {
       const matchesSearch =
@@ -201,64 +249,99 @@ export default function MealPackagesPage() {
     return filtered;
   }, [searchQuery, selectedMealType, selectedDuration, priceRange, sortBy]);
 
+  const handleSelectCity = (city: City) => {
+    setSelectedCity(city);
+    router.push(`/city/${city.slug}/meals`);
+  };
+
   const handleSelectPlan = (plan: MealPlan) => {
     setSelectedPlan(plan.id);
-    // Navigate to checkout page with plan ID
-    router.push(`/checkout?planId=${plan.id}`);
+    const citySlug = selectedCity?.slug || 'mumbai';
+    router.push(`/checkout?planId=${plan.id}&city=${citySlug}`);
   };
+
+  const showCitySelector = !selectedCity;
+
+  if (isLoading) {
+    return (
+      <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
+          <p style={{ fontSize: '16px', color: '#64748b', fontWeight: '600' }}>Loading meals...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh' }}>
       {/* Hero Section */}
-      <HeroSection />
+      <HeroSection selectedCity={selectedCity} />
 
-      {/* How It Works */}
-      <HowItWorksSection />
+      {/* City Selector - Only show if no city selected */}
+      {showCitySelector && (
+        <CitySelector
+          cities={filteredCities}
+          searchLocation={searchLocation}
+          setSearchLocation={setSearchLocation}
+          onSelectCity={handleSelectCity}
+        />
+      )}
 
-      {/* Search & Filter */}
-      <SearchFilterSection
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        showFilters={showFilters}
-        setShowFilters={setShowFilters}
-        sortBy={sortBy}
-        setSortBy={setSortBy}
-        selectedMealType={selectedMealType}
-        setSelectedMealType={setSelectedMealType}
-        selectedDuration={selectedDuration}
-        setSelectedDuration={setSelectedDuration}
-        priceRange={priceRange}
-        setPriceRange={setPriceRange}
-      />
+      {/* Show meals content only if city is selected */}
+      {selectedCity && (
+        <>
+          {/* How It Works */}
+          <HowItWorksSection />
 
-      {/* Results Info */}
-      <div style={{ maxWidth: '1200px', margin: '20px auto 0', padding: '0 20px' }}>
-        <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>
-          Showing <strong>{filteredPlans.length}</strong> of <strong>{allPlans.length}</strong> plans
-        </span>
-      </div>
+          {/* Search & Filter */}
+          <SearchFilterSection
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            showFilters={showFilters}
+            setShowFilters={setShowFilters}
+            sortBy={sortBy}
+            setSortBy={setSortBy}
+            selectedMealType={selectedMealType}
+            setSelectedMealType={setSelectedMealType}
+            selectedDuration={selectedDuration}
+            setSelectedDuration={setSelectedDuration}
+            priceRange={priceRange}
+            setPriceRange={setPriceRange}
+            selectedCity={selectedCity}
+            onChangeCity={() => setSelectedCity(null)}
+          />
 
-      {/* Plans Grid */}
-      <PlansGrid 
-        plans={filteredPlans} 
-        selectedPlan={selectedPlan}
-        onSelectPlan={handleSelectPlan}
-      />
+          {/* Results Info */}
+          <div style={{ maxWidth: '1200px', margin: '20px auto 0', padding: '0 20px' }}>
+            <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '500' }}>
+              Showing <strong>{filteredPlans.length}</strong> of <strong>{allPlans.length}</strong> plans in {selectedCity.name}
+            </span>
+          </div>
 
-      {/* Policies Section */}
-      <PoliciesSection />
+          {/* Plans Grid */}
+          <PlansGrid 
+            plans={filteredPlans} 
+            selectedPlan={selectedPlan}
+            onSelectPlan={handleSelectPlan}
+          />
+
+          {/* Policies Section */}
+          <PoliciesSection />
+        </>
+      )}
     </div>
   );
 }
 
 // Hero Section Component
-function HeroSection() {
+function HeroSection({ selectedCity }: { selectedCity: any }) {
   return (
     <div style={{
       position: 'relative',
       overflow: 'hidden',
       paddingTop: '40px',
-      paddingBottom: '80px',
+      paddingBottom: selectedCity ? '80px' : '20px',
       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     }}>
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 20px', position: 'relative', zIndex: 1, textAlign: 'center' }}>
@@ -267,32 +350,118 @@ function HeroSection() {
           Premium Meal Subscriptions
         </div>
 
-        <h1 style={{ fontSize: '48px', fontWeight: '800', color: 'white', margin: '0 0 24px 0', lineHeight: '1.2' }}>
-          Nourish Your Life with
-          <span style={{ background: 'linear-gradient(135deg, #ffd89b 0%, #19547b 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}> Personalized Meal Plans</span>
+        <h1 style={{ fontSize: selectedCity ? '40px' : '48px', fontWeight: '800', color: 'white', margin: '0 0 24px 0', lineHeight: '1.2' }}>
+          {selectedCity ? (
+            <>
+              Nourish Your Life in <span style={{ background: 'linear-gradient(135deg, #ffd89b 0%, #19547b 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{selectedCity.name}</span>
+            </>
+          ) : (
+            <>
+              Nourish Your Life with
+              <span style={{ background: 'linear-gradient(135deg, #ffd89b 0%, #19547b 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}> Personalized Meal Plans</span>
+            </>
+          )}
         </h1>
 
         <p style={{ fontSize: '16px', color: 'rgba(255, 255, 255, 0.9)', margin: '0 auto 32px', maxWidth: '600px', lineHeight: '1.6' }}>
-          Discover flexible subscription plans tailored to your lifestyle. Save up to 30% and enjoy nutritious, delicious food delivered to your doorstep.
+          {selectedCity
+            ? `Discover flexible subscription plans tailored to your lifestyle in ${selectedCity.name}. Save up to 30% and enjoy nutritious food delivered to your doorstep.`
+            : 'Discover flexible subscription plans tailored to your lifestyle. Save up to 30% and enjoy nutritious, delicious food delivered to your doorstep.'}
         </p>
 
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginBottom: '60px', flexWrap: 'wrap' }}>
-          <button style={{ padding: '14px 32px', borderRadius: '50px', border: 'none', backgroundColor: 'white', color: '#667eea', cursor: 'pointer', fontWeight: '700', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            Explore Plans
-            <ArrowRightIcon style={{ width: '18px', height: '18px' }} />
-          </button>
+        {!selectedCity && (
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginBottom: '60px', flexWrap: 'wrap' }}>
+            <button style={{ padding: '14px 32px', borderRadius: '50px', border: 'none', backgroundColor: 'white', color: '#667eea', cursor: 'pointer', fontWeight: '700', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              Select Your City
+              <MapPinIcon style={{ width: '18px', height: '18px' }} />
+            </button>
+          </div>
+        )}
+
+        {!selectedCity && (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '48px', flexWrap: 'wrap', padding: '24px', backgroundColor: 'rgba(255, 255, 255, 0.08)', borderRadius: '20px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <span style={{ fontSize: '24px', fontWeight: '800', color: 'white' }}>8000+</span>
+              <span style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.7)', marginTop: '4px' }}>Happy Customers</span>
+            </div>
+            <div style={{ width: '1px', height: '40px', backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <span style={{ fontSize: '24px', fontWeight: '800', color: 'white' }}>4.8★</span>
+              <span style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.7)', marginTop: '4px' }}>Average Rating</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// City Selector Component
+function CitySelector({ cities, searchLocation, setSearchLocation, onSelectCity }: any) {
+  return (
+    <div style={{ backgroundColor: 'white', padding: '60px 20px' }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        <h2 style={{ fontSize: '36px', fontWeight: '800', color: '#1e293b', textAlign: 'center', margin: '0 0 12px 0' }}>Select Your City</h2>
+        <p style={{ fontSize: '16px', color: '#64748b', textAlign: 'center', margin: '0 0 32px 0' }}>Choose your location to see available meal plans</p>
+
+        {/* Search Box */}
+        <div style={{ position: 'relative', maxWidth: '500px', margin: '0 auto 40px', display: 'flex' }}>
+          <MagnifyingGlassIcon style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', width: '20px', height: '20px', color: '#94a3b8' }} />
+          <input
+            type="text"
+            placeholder="Search cities..."
+            value={searchLocation}
+            onChange={(e) => setSearchLocation(e.target.value)}
+            style={{ width: '100%', padding: '12px 16px 12px 40px', borderRadius: '10px', border: '2px solid #e2e8f0', fontSize: '14px', boxSizing: 'border-box' }}
+          />
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '48px', flexWrap: 'wrap', padding: '24px', backgroundColor: 'rgba(255, 255, 255, 0.08)', borderRadius: '20px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <span style={{ fontSize: '24px', fontWeight: '800', color: 'white' }}>8000+</span>
-            <span style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.7)', marginTop: '4px' }}>Happy Customers</span>
-          </div>
-          <div style={{ width: '1px', height: '40px', backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <span style={{ fontSize: '24px', fontWeight: '800', color: 'white' }}>4.8★</span>
-            <span style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.7)', marginTop: '4px' }}>Average Rating</span>
-          </div>
+        {/* Cities Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
+          {cities.map((city: City) => (
+            <button
+              key={city.id}
+              onClick={() => onSelectCity(city)}
+              style={{
+                backgroundColor: 'white',
+                border: '2px solid #e2e8f0',
+                borderRadius: '12px',
+                padding: '24px 20px',
+                cursor: 'pointer',
+                textAlign: 'center',
+                transition: 'all 0.3s ease',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '12px',
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.borderColor = '#2563eb';
+                (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 16px rgba(37, 99, 235, 0.1)';
+                (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)';
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.borderColor = '#e2e8f0';
+                (e.currentTarget as HTMLElement).style.boxShadow = 'none';
+                (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+              }}
+            >
+              <div style={{ fontSize: '48px' }}>{city.emoji}</div>
+              <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', margin: 0 }}>{city.name}</h3>
+              <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>{city.description}</p>
+              <div style={{ display: 'flex', gap: '16px', width: '100%', justifyContent: 'center', marginTop: '8px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <span style={{ fontSize: '14px', fontWeight: '700', color: '#2563eb' }}>{city.activeVendors}</span>
+                  <span style={{ fontSize: '10px', color: '#94a3b8' }}>Vendors</span>
+                </div>
+                <div style={{ width: '1px', backgroundColor: '#e2e8f0' }} />
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <span style={{ fontSize: '14px', fontWeight: '700', color: '#2563eb' }}>{city.popularPlans}</span>
+                  <span style={{ fontSize: '10px', color: '#94a3b8' }}>Plans</span>
+                </div>
+              </div>
+            </button>
+          ))}
         </div>
       </div>
     </div>
@@ -343,9 +512,35 @@ function SearchFilterSection({
   setSelectedDuration,
   priceRange,
   setPriceRange,
+  selectedCity,
+  onChangeCity,
 }: any) {
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 20px' }}>
+      {/* City Selector Button */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+        <button
+          onClick={onChangeCity}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 16px',
+            borderRadius: '8px',
+            border: '2px solid #2563eb',
+            backgroundColor: '#dbeafe',
+            color: '#1e40af',
+            cursor: 'pointer',
+            fontWeight: '600',
+            fontSize: '14px',
+          }}
+        >
+          <MapPinIcon style={{ width: '16px', height: '16px' }} />
+          {selectedCity?.emoji} {selectedCity?.name}
+          <ArrowRightIcon style={{ width: '14px', height: '14px' }} />
+        </button>
+      </div>
+
       <div style={{ position: 'relative', marginBottom: '20px' }}>
         <MagnifyingGlassIcon style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', width: '20px', height: '20px', color: '#94a3b8' }} />
         <input

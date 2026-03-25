@@ -11,9 +11,11 @@ import {
   ArrowRightIcon,
   ArrowLeftIcon,
   CheckCircleIcon,
+  ClockIcon,
+  DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 
-type CheckoutStep = 'date' | 'user-info' | 'payment' | 'confirmation';
+type CheckoutStep = 'date' | 'user-info' | 'approval' | 'review' | 'payment' | 'confirmation';
 
 interface PricingBreakdown {
   planPrice: number;
@@ -201,6 +203,8 @@ export default function CheckoutPage() {
 
   const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>('date');
   const [deliveryDistance, setDeliveryDistance] = useState(5);
+  const [approvalStatus, setApprovalStatus] = useState<'pending' | 'approved' | 'rejected'>('pending');
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const [subscriptionData, setSubscriptionData] = useState({
     planId,
@@ -365,6 +369,21 @@ export default function CheckoutPage() {
         alert('Please fill in all required fields');
         return;
       }
+      // Move to approval step
+      setCheckoutStep('approval');
+      // Simulate catering approval process
+      setTimeout(() => {
+        setApprovalStatus('approved');
+      }, 2000);
+    } else if (checkoutStep === 'approval') {
+      if (approvalStatus === 'approved') {
+        setCheckoutStep('review');
+      }
+    } else if (checkoutStep === 'review') {
+      if (!termsAccepted) {
+        alert('Please accept the terms and conditions');
+        return;
+      }
       setCheckoutStep('payment');
     } else if (checkoutStep === 'payment') {
       if (paymentMethod === 'card') {
@@ -388,7 +407,9 @@ export default function CheckoutPage() {
 
   const handlePreviousStep = () => {
     if (checkoutStep === 'confirmation') setCheckoutStep('payment');
-    else if (checkoutStep === 'payment') setCheckoutStep('user-info');
+    else if (checkoutStep === 'payment') setCheckoutStep('review');
+    else if (checkoutStep === 'review') setCheckoutStep('approval');
+    else if (checkoutStep === 'approval') setCheckoutStep('user-info');
     else if (checkoutStep === 'user-info') setCheckoutStep('date');
   };
 
@@ -404,7 +425,7 @@ export default function CheckoutPage() {
             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px', display: 'flex', alignItems: 'center', gap: '8px', color: '#2563eb', fontWeight: '600' }}
           >
             <ArrowLeftIcon style={{ width: '20px', height: '20px' }} />
-            <span style={{ display: 'none', fontSize: '14px' }} className="hidden sm:inline">Back to Meals</span>
+            <span style={{ fontSize: '14px' }} className="hidden sm:inline">Back to Meals</span>
           </button>
           <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#1e293b', textAlign: 'center', flex: 1 }}>Checkout</h1>
           <div style={{ width: '60px' }} />
@@ -416,7 +437,7 @@ export default function CheckoutPage() {
           {/* Main Content */}
           <div style={{ gridColumn: 'span 1', minHeight: '400px' }}>
             {/* Progress Indicator */}
-            <ProgressIndicator currentStep={checkoutStep} />
+            <ProgressIndicator currentStep={checkoutStep} approvalStatus={approvalStatus} />
 
             {/* Step Content */}
             <div style={{ marginTop: '24px', backgroundColor: 'white', borderRadius: '12px', padding: '24px', border: '1px solid #e2e8f0' }}>
@@ -433,6 +454,22 @@ export default function CheckoutPage() {
 
               {checkoutStep === 'user-info' && (
                 <UserInfoStep userInfo={userInfo} setUserInfo={setUserInfo} />
+              )}
+
+              {checkoutStep === 'approval' && (
+                <ApprovalStep approvalStatus={approvalStatus} currentPlan={currentPlan} />
+              )}
+
+              {checkoutStep === 'review' && (
+                <ReviewStep
+                  subscriptionData={subscriptionData}
+                  userInfo={userInfo}
+                  currentPlan={currentPlan}
+                  calculateDaysPerWeek={calculateDaysPerWeek}
+                  pricingBreakdown={pricingBreakdown}
+                  termsAccepted={termsAccepted}
+                  setTermsAccepted={setTermsAccepted}
+                />
               )}
 
               {checkoutStep === 'payment' && (
@@ -548,15 +585,17 @@ export default function CheckoutPage() {
 }
 
 // Progress Indicator Component
-function ProgressIndicator({ currentStep }: { currentStep: CheckoutStep }) {
+function ProgressIndicator({ currentStep, approvalStatus }: { currentStep: CheckoutStep, approvalStatus: 'pending' | 'approved' | 'rejected' }) {
   const steps = [
     { id: 'date', label: 'Schedule' },
     { id: 'user-info', label: 'Details' },
+    { id: 'approval', label: 'Approval' },
+    { id: 'review', label: 'Review' },
     { id: 'payment', label: 'Payment' },
     { id: 'confirmation', label: 'Confirmed' },
   ];
 
-  const stepOrder = ['date', 'user-info', 'payment', 'confirmation'];
+  const stepOrder = ['date', 'user-info', 'approval', 'review', 'payment', 'confirmation'];
   const currentIndex = stepOrder.indexOf(currentStep);
 
   return (
@@ -1085,6 +1124,128 @@ function ConfirmationStep({ orderConfirmation, subscriptionData, userInfo, calcu
           <li style={{ fontSize: '12px', color: '#065f46', marginBottom: '8px' }}>Meals prepared fresh on <strong>{orderConfirmation.subscriptionStartDate}</strong></li>
           <li style={{ fontSize: '12px', color: '#065f46' }}>Delivery between 7-9 AM at your address</li>
         </ul>
+      </div>
+    </>
+  );
+}
+
+// Approval Step
+function ApprovalStep({ approvalStatus, currentPlan }: any) {
+  return (
+    <>
+      <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', margin: '0 0 20px 0' }}>⏳ Approval Process</h2>
+      <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+        {approvalStatus === 'pending' && (
+          <>
+            <ClockIcon style={{ width: '40px', height: '40px', color: '#f59e0b', marginBottom: '16px' }} />
+            <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>Your order is being reviewed by our catering team.</p>
+            <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>Please wait a moment...</p>
+          </>
+        )}
+        {approvalStatus === 'approved' && (
+          <>
+            <CheckCircleIcon style={{ width: '40px', height: '40px', color: '#10b981', marginBottom: '16px' }} />
+            <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>Your order has been approved!</p>
+          </>
+        )}
+        {approvalStatus === 'rejected' && (
+          <>
+            <XMarkIcon style={{ width: '40px', height: '40px', color: '#ef4444', marginBottom: '16px' }} />
+            <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>Unfortunately, your order was not approved.</p>
+            <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>Please contact our support team for assistance.</p>
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
+// Review Step
+function ReviewStep({ subscriptionData, userInfo, currentPlan, calculateDaysPerWeek, pricingBreakdown, termsAccepted, setTermsAccepted }: any) {
+  return (
+    <>
+      <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', margin: '0 0 20px 0' }}>📄 Review Your Order</h2>
+
+      <div style={{ marginBottom: '24px' }}>
+        <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#1e293b', margin: '0 0 12px 0' }}>Plan Details</h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+          <div style={{ fontSize: '36px' }}>{currentPlan?.image}</div>
+          <div>
+            <h4 style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b', margin: 0 }}>{currentPlan?.name}</h4>
+            <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0 0' }}>{currentPlan?.mealTypeLabel}</p>
+          </div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '8px' }}>
+          <span style={{ color: '#64748b' }}>Duration:</span>
+          <span style={{ fontWeight: '600', color: '#1e293b' }}>{subscriptionData.duration}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '8px' }}>
+          <span style={{ color: '#64748b' }}>Days/Week:</span>
+          <span style={{ fontWeight: '600', color: '#1e293b' }}>{calculateDaysPerWeek()} days</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '8px' }}>
+          <span style={{ color: '#64748b' }}>Quantity:</span>
+          <span style={{ fontWeight: '600', color: '#1e293b' }}>{subscriptionData.quantity} {subscriptionData.quantity === 1 ? 'person' : 'people'}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+          <span style={{ color: '#64748b' }}>Delivery Distance:</span>
+          <span style={{ fontWeight: '600', color: '#1e293b' }}>{subscriptionData.deliveryDistance} km</span>
+        </div>
+      </div>
+
+      <div style={{ marginBottom: '24px' }}>
+        <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#1e293b', margin: '0 0 12px 0' }}>Delivery Information</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px', marginBottom: '16px' }}>
+          <div>
+            <label style={{ fontSize: '12px', fontWeight: '600', color: '#475569', display: 'block', marginBottom: '6px' }}>First Name</label>
+            <p style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', margin: 0 }}>{userInfo.firstName}</p>
+          </div>
+          <div>
+            <label style={{ fontSize: '12px', fontWeight: '600', color: '#475569', display: 'block', marginBottom: '6px' }}>Last Name</label>
+            <p style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', margin: 0 }}>{userInfo.lastName}</p>
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px', marginBottom: '16px' }}>
+          <div>
+            <label style={{ fontSize: '12px', fontWeight: '600', color: '#475569', display: 'block', marginBottom: '6px' }}>Email</label>
+            <p style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', margin: 0 }}>{userInfo.email}</p>
+          </div>
+          <div>
+            <label style={{ fontSize: '12px', fontWeight: '600', color: '#475569', display: 'block', marginBottom: '6px' }}>Phone</label>
+            <p style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', margin: 0 }}>{userInfo.phone}</p>
+          </div>
+        </div>
+        <div style={{ marginBottom: '16px' }}>
+          <label style={{ fontSize: '12px', fontWeight: '600', color: '#475569', display: 'block', marginBottom: '6px' }}>Address</label>
+          <p style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', margin: 0 }}>{userInfo.address}</p>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px' }}>
+          <div>
+            <label style={{ fontSize: '12px', fontWeight: '600', color: '#475569', display: 'block', marginBottom: '6px' }}>City</label>
+            <p style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', margin: 0 }}>{userInfo.city}</p>
+          </div>
+          <div>
+            <label style={{ fontSize: '12px', fontWeight: '600', color: '#475569', display: 'block', marginBottom: '6px' }}>Postal Code</label>
+            <p style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', margin: 0 }}>{userInfo.postalCode}</p>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ marginBottom: '24px' }}>
+        <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#1e293b', margin: '0 0 12px 0' }}>Price Breakdown</h3>
+        <PricingBreakdownCard pricingBreakdown={pricingBreakdown} />
+      </div>
+
+      <div style={{ marginBottom: '24px' }}>
+        <label style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b', display: 'block', marginBottom: '8px' }}>
+          <input
+            type="checkbox"
+            checked={termsAccepted}
+            onChange={(e) => setTermsAccepted(e.target.checked)}
+            style={{ marginRight: '8px' }}
+          />
+          I accept the <a href="#" style={{ color: '#2563eb', textDecoration: 'underline' }}>terms and conditions</a>
+        </label>
       </div>
     </>
   );
