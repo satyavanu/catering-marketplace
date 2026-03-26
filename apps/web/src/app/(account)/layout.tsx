@@ -1,6 +1,5 @@
 'use client';
 
-
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
@@ -23,7 +22,20 @@ import {
   Bars3Icon,
   XMarkIcon,
   GiftIcon,
+  ShieldCheckIcon,
+  BuildingOfficeIcon,
+  CheckCircleIcon,
+  ArrowPathIcon,
 } from '@heroicons/react/24/outline';
+
+interface MenuItem {
+  name: string;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  color: string;
+  path: string;
+}
+
+type UserRole = 'customer' | 'caterer' | 'admin';
 
 export default function AccountLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -32,6 +44,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [userRole, setUserRole] = useState<UserRole>('caterer');
 
   // Detect mobile on mount and resize
   useEffect(() => {
@@ -47,6 +60,14 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Set user role from session
+  useEffect(() => {
+    if (session?.user) {
+      const role = (session.user as any)?.role || 'customer';
+      setUserRole(role as UserRole);
+    }
+  }, [session]);
 
   // Redirect to signin if not authenticated
   if (status === 'loading') {
@@ -75,34 +96,56 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
     return null;
   }
 
-  const menu = [
-    { name: 'Dashboard', icon: HomeIcon, color: 'from-blue-500 to-cyan-500', path: '/account' },
-    { name: 'My Orders', icon: ClipboardDocumentListIcon, color: 'from-purple-500 to-pink-500', path: '/orders' },
-    { name: 'My Quotes', icon: DocumentCheckIcon, color: 'from-green-500 to-emerald-500', path: '/myquotes' },
-    { name: 'My Menu', icon: SparklesIcon, color: 'from-orange-500 to-yellow-500', path: '/listings' },
-    { name: 'Packages', icon: GiftIcon, color: 'from-rose-500 to-pink-500', path: '/packages' },
-    { name: 'Saved', icon: HeartIcon, color: 'from-red-500 to-orange-500', path: '/saved-caterers' },
-    { name: 'Messages', icon: ChatBubbleLeftRightIcon, color: 'from-yellow-500 to-amber-500', path: '/messages' },
-    { name: 'Reviews', icon: StarIcon, color: 'from-indigo-500 to-purple-500', path: '/reviews' },
-    { name: 'Payments', icon: CreditCardIcon, color: 'from-cyan-500 to-blue-500', path: '/payments' },
-    { name: 'Profile', icon: UserCircleIcon, color: 'from-pink-500 to-rose-500', path: '/profile' },
-  ];
+  // Menu configuration based on role
+  // Menu configuration based on role
+  const getMenuByRole = (): MenuItem[] => {
+    const baseMenu: { [key in UserRole]: MenuItem[] } = {
+      customer: [
+        { name: 'Dashboard', icon: HomeIcon, color: 'from-blue-500 to-cyan-500', path: '/customer/dashboard' },
+        { name: 'My Quotes', icon: DocumentCheckIcon, color: 'from-green-500 to-emerald-500', path: '/customer/quotes' },
+        { name: 'My Subscriptions', icon: SparklesIcon, color: 'from-orange-500 to-yellow-500', path: '/customer/subscriptions' },
+        { name: 'My Orders', icon: ClipboardDocumentListIcon, color: 'from-purple-500 to-pink-500', path: '/customer/orders' },
+        { name: 'Profile', icon: UserCircleIcon, color: 'from-pink-500 to-rose-500', path: '/profile' },
+      ],
+      caterer: [
+        { name: 'Dashboard', icon: HomeIcon, color: 'from-blue-500 to-cyan-500', path: '/account' },
+        { name: 'Requests', icon: DocumentCheckIcon, color: 'from-green-500 to-emerald-500', path: '/requests' },
+        { name: 'Orders', icon: ClipboardDocumentListIcon, color: 'from-purple-500 to-pink-500', path: '/orders' },
+        { name: 'Plans', icon: GiftIcon, color: 'from-rose-500 to-pink-500', path: '/plans' },
+        { name: 'Calendar', icon: CalendarDaysIcon, color: 'from-yellow-500 to-amber-500', path: '/calendar' },
+        { name: 'Profile', icon: UserCircleIcon, color: 'from-pink-500 to-rose-500', path: '/profile' },
+      ],
+      admin: [
+        { name: 'Dashboard', icon: HomeIcon, color: 'from-blue-500 to-cyan-500', path: '/admin' },
+        { name: 'Caterers', icon: BuildingOfficeIcon, color: 'from-orange-500 to-yellow-500', path: '/admin/caterers' },
+        { name: 'Bookings', icon: CalendarDaysIcon, color: 'from-purple-500 to-pink-500', path: '/admin/bookings' },
+        { name: 'Refunds', icon: ArrowPathIcon, color: 'from-red-500 to-orange-500', path: '/admin/refunds' },
+        { name: 'Payments', icon: CreditCardIcon, color: 'from-cyan-500 to-blue-500', path: '/admin/payments' },
+      ],
+    };
 
-  const breadcrumbs: { [key: string]: string[] } = {
-    Dashboard: ['Home'],
-    'My Orders': ['Home', 'Orders'],
-    'My Quotes': ['Home', 'Quotes'],
-    'Listings': ['Home', 'Listings'],
-    'Packages': ['Home', 'Packages'],
-    'Saved': ['Home', 'Saved'],
-    'Event Planner': ['Home', 'Events'],
-    Messages: ['Home', 'Messages'],
-    Reviews: ['Home', 'Reviews'],
-    Payments: ['Home', 'Payments'],
-    Profile: ['Home', 'Settings'],
+    return baseMenu[userRole];
   };
 
-  const handleMenuClick = (item: (typeof menu)[0]) => {
+  const menu = getMenuByRole();
+
+  // Breadcrumbs configuration
+  const breadcrumbs: { [key: string]: string[] } = {
+    Dashboard: ['Home'],
+    Events: ['Home', 'Events'],
+    Meals: ['Home', 'Meals'],
+    Profile: ['Home', 'Profile'],
+    Requests: ['Home', 'Requests'],
+    Orders: ['Home', 'Orders'],
+    Plans: ['Home', 'Plans'],
+    Calendar: ['Home', 'Calendar'],
+    Caterers: ['Home', 'Caterers'],
+    Bookings: ['Home', 'Bookings'],
+    Refunds: ['Home', 'Refunds'],
+    Payments: ['Home', 'Payments'],
+  };
+
+  const handleMenuClick = (item: MenuItem) => {
     setActiveMenu(item.name);
     router.push(item.path);
     setMobileMenuOpen(false); // Close mobile menu after navigation
@@ -110,6 +153,18 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
 
   const handleSignOut = async () => {
     await signOut({ callbackUrl: '/' });
+  };
+
+  // Get role badge
+  const getRoleBadge = () => {
+    const badges: { [key in UserRole]: { label: string; bg: string; color: string } } = {
+      customer: { label: '👤 Customer', bg: '#dbeafe', color: '#0c4a6e' },
+      caterer: { label: '👨‍🍳 Caterer', bg: '#fef3c7', color: '#92400e' },
+      admin: { label: '🔐 Admin', bg: '#fee2e2', color: '#991b1b' },
+    };
+
+    const badge = badges[userRole];
+    return badge;
   };
 
   return (
@@ -144,7 +199,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
           overflow: 'hidden',
           transition: isMobile ? 'width 0.3s ease, padding 0.3s ease' : 'all 0.3s ease',
           boxShadow: isMobile && mobileMenuOpen ? '0 20px 25px rgba(0, 0, 0, 0.15)' : '0 4px 6px rgba(0, 0, 0, 0.07)',
-          height: isMobile && mobileMenuOpen ? '100vh' : '740px',
+          height: isMobile && mobileMenuOpen ? '100vh' : '940px',
           zIndex: isMobile ? (mobileMenuOpen ? 40 : -1) : 40,
           display: 'flex',
           flexDirection: 'column',
@@ -204,7 +259,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
                   whiteSpace: 'nowrap',
                 }}
               >
-                Your Events
+                {userRole === 'customer' ? 'Your Events' : userRole === 'caterer' ? 'Your Services' : 'Management'}
               </p>
             </div>
           )}
@@ -272,6 +327,25 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
             </button>
           ) : null}
         </div>
+
+        {/* Role Badge */}
+        {(sidebarOpen || (isMobile && mobileMenuOpen)) && (
+          <div
+            style={{
+              padding: '8px 12px',
+              backgroundColor: getRoleBadge().bg,
+              borderRadius: '8px',
+              marginBottom: '16px',
+              fontSize: '12px',
+              fontWeight: '600',
+              color: getRoleBadge().color,
+              textAlign: 'center',
+              flexShrink: 0,
+            }}
+          >
+            {getRoleBadge().label}
+          </div>
+        )}
 
         {/* Navigation Menu - Scrollable */}
         <nav
