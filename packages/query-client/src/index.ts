@@ -10,6 +10,8 @@ export * from './queries/caterers';
 export * from './queries/venues';
 export * from './queries/decorations';
 export * from './queries/reviews';
+export * from './queries/categories';
+export * from './queries/menu-items';
 
 // Mutation Hooks
 export * from './mutations/newsletter';
