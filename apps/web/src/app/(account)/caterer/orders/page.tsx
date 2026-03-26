@@ -18,262 +18,225 @@ import {
   PhoneIcon,
   EnvelopeIcon,
   CalendarIcon,
+  CreditCardIcon,
 } from '@heroicons/react/24/outline';
 
-interface OrderItem {
-  id: number;
-  name: string;
-  quantity: number;
-  price: number;
-  addOns?: { name: string; price: number }[];
+type DeliveryStatus = 'PENDING' | 'PREPARING' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED';
+type PaymentStatus = 'PENDING' | 'PARTIAL' | 'PAID' | 'FAILED' | 'REFUNDED' | 'DUE';
+type OrderType = 'ONE_TIME' | 'BULK' | 'SUBSCRIPTION';
+
+interface OrderListItem {
+  id: string; // delivery_id
+  type: OrderType;
+  customer_name: string;
+  delivery_date: string;
+  delivery_slot?: 'BREAKFAST' | 'LUNCH' | 'DINNER';
+  delivery_status: DeliveryStatus;
+  payment_status: PaymentStatus;
+  amount?: number;
+  reference_id?: string; // order_id / quote_id / subscription_id
+  reference_label?: string; // "Order", "Quote", "Subscription"
+  // Additional fields for enhanced display
+  clientEmail?: string;
+  clientPhone?: string;
+  address?: string;
+  notes?: string;
+  items_count?: number;
+  review?: {
+    rating: number;
+    comment: string;
+  };
 }
 
-interface ClientReview {
-  id: number;
-  rating: number;
-  comment: string;
-  date: string;
-  clientName: string;
-  clientImage?: string;
-}
-
-interface Order {
-  id: number;
-  orderNumber: string;
-  clientName: string;
-  clientEmail: string;
-  clientPhone: string;
-  clientImage?: string;
-  eventDate: string;
-  eventTime: string;
-  deliveryAddress: string;
-  city: string;
-  zipCode: string;
-  guestCount: number;
-  status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'dispatched' | 'delivered' | 'cancelled';
-  items: OrderItem[];
-  subtotal: number;
-  tax: number;
-  deliveryFee: number;
-  discount: number;
-  total: number;
-  specialRequests: string;
-  createdDate: string;
-  updatedDate: string;
-  review?: ClientReview;
-  paymentStatus: 'pending' | 'completed' | 'failed';
-  paymentMethod: 'card' | 'upi' | 'cash';
-}
-
-const MOCK_ORDERS: Order[] = [
+const MOCK_ORDERS: OrderListItem[] = [
   {
-    id: 1,
-    orderNumber: 'ORD-2025-001',
-    clientName: 'Rajesh Kumar',
+    id: 'DEL-001',
+    type: 'ONE_TIME',
+    customer_name: 'Rajesh Kumar',
+    delivery_date: '2025-04-15',
+    delivery_slot: 'LUNCH',
+    delivery_status: 'PREPARING',
+    payment_status: 'PAID',
+    amount: 34310,
+    reference_id: 'ORD-2025-001',
+    reference_label: 'Order',
     clientEmail: 'rajesh@example.com',
     clientPhone: '+91-9876543210',
-    clientImage: '👨‍💼',
-    eventDate: '2025-04-15',
-    eventTime: '18:00',
-    deliveryAddress: '123 Park Avenue, Sector 5',
-    city: 'Delhi',
-    zipCode: '110001',
-    guestCount: 50,
-    status: 'preparing',
-    items: [
-      {
-        id: 1,
-        name: 'Paneer Tikka',
-        quantity: 50,
-        price: 250,
-        addOns: [{ name: 'Extra Mint', price: 20 }],
-      },
-      {
-        id: 2,
-        name: 'Butter Chicken',
-        quantity: 50,
-        price: 320,
-      },
-      {
-        id: 3,
-        name: 'Tandoori Naan',
-        quantity: 100,
-        price: 80,
-      },
-    ],
-    subtotal: 29500,
-    tax: 5310,
-    deliveryFee: 500,
-    discount: 1000,
-    total: 34310,
-    specialRequests: 'Please ensure no peanuts due to allergies. Need setup by 5:30 PM.',
-    createdDate: 'March 20, 2025',
-    updatedDate: 'March 21, 2025',
-    paymentStatus: 'completed',
-    paymentMethod: 'card',
+    address: '123 Park Avenue, Sector 5, Delhi',
+    notes: 'Please ensure no peanuts due to allergies. Need setup by 5:30 PM.',
+    items_count: 3,
   },
   {
-    id: 2,
-    orderNumber: 'ORD-2025-002',
-    clientName: 'Priya Sharma',
+    id: 'DEL-002',
+    type: 'SUBSCRIPTION',
+    customer_name: 'Priya Sharma',
+    delivery_date: '2025-04-10',
+    delivery_slot: 'BREAKFAST',
+    delivery_status: 'DELIVERED',
+    payment_status: 'PAID',
+    amount: 1274,
+    reference_id: 'SUB-2025-001',
+    reference_label: 'Subscription',
     clientEmail: 'priya@example.com',
     clientPhone: '+91-9876543211',
-    clientImage: '👩‍💼',
-    eventDate: '2025-04-10',
-    eventTime: '12:00',
-    deliveryAddress: '456 Garden Lane, Sector 12',
-    city: 'Bangalore',
-    zipCode: '560034',
-    guestCount: 100,
-    status: 'delivered',
-    items: [
-      {
-        id: 1,
-        name: 'Vegetable Biryani',
-        quantity: 50,
-        price: 280,
-      },
-      {
-        id: 2,
-        name: 'Raita',
-        quantity: 50,
-        price: 50,
-      },
-    ],
-    subtotal: 16500,
-    tax: 2970,
-    deliveryFee: 800,
-    discount: 500,
-    total: 19770,
-    specialRequests: 'Vegetarian only. Prefer afternoon delivery.',
-    createdDate: 'March 15, 2025',
-    updatedDate: 'March 18, 2025',
+    address: '456 Garden Lane, Sector 12, Bangalore',
+    items_count: 2,
     review: {
-      id: 1,
       rating: 5,
-      comment: 'Excellent service! Food was fresh and delivery was on time. Highly recommended!',
-      date: 'March 18, 2025',
-      clientName: 'Priya Sharma',
-      clientImage: '👩‍💼',
+      comment: 'Excellent service! Food was fresh and delivery was on time.',
     },
-    paymentStatus: 'completed',
-    paymentMethod: 'upi',
   },
   {
-    id: 3,
-    orderNumber: 'ORD-2025-003',
-    clientName: 'Amit Singh',
+    id: 'DEL-003',
+    type: 'BULK',
+    customer_name: 'Amit Singh',
+    delivery_date: '2025-04-20',
+    delivery_slot: 'DINNER',
+    delivery_status: 'PENDING',
+    payment_status: 'PENDING',
+    amount: 31575,
+    reference_id: 'ORD-2025-003',
+    reference_label: 'Order',
     clientEmail: 'amit@example.com',
     clientPhone: '+91-9876543212',
-    clientImage: '👨‍💼',
-    eventDate: '2025-04-20',
-    eventTime: '19:00',
-    deliveryAddress: '789 High Street, Sector 8',
-    city: 'Mumbai',
-    zipCode: '400001',
-    guestCount: 75,
-    status: 'confirmed',
-    items: [
-      {
-        id: 1,
-        name: 'Tandoori Chicken',
-        quantity: 75,
-        price: 350,
-      },
-    ],
-    subtotal: 26250,
-    tax: 4725,
-    deliveryFee: 600,
-    discount: 0,
-    total: 31575,
-    specialRequests: 'Extra spice please. Deliver to hotel entrance.',
-    createdDate: 'March 21, 2025',
-    updatedDate: 'March 21, 2025',
-    paymentStatus: 'completed',
-    paymentMethod: 'card',
+    address: '789 High Street, Sector 8, Mumbai',
+    notes: 'Extra spice please. Deliver to hotel entrance.',
+    items_count: 5,
   },
   {
-    id: 4,
-    orderNumber: 'ORD-2025-004',
-    clientName: 'Neha Gupta',
+    id: 'DEL-004',
+    type: 'SUBSCRIPTION',
+    customer_name: 'Neha Gupta',
+    delivery_date: '2025-04-22',
+    delivery_slot: 'LUNCH',
+    delivery_status: 'OUT_FOR_DELIVERY',
+    payment_status: 'DUE',
+    amount: 1180,
+    reference_id: 'SUB-2025-002',
+    reference_label: 'Subscription',
     clientEmail: 'neha@example.com',
     clientPhone: '+91-9876543213',
-    clientImage: '👩‍💼',
-    eventDate: '2025-04-22',
-    eventTime: '11:00',
-    deliveryAddress: '321 Park Lane, Sector 15',
-    city: 'Pune',
-    zipCode: '411001',
-    guestCount: 30,
-    status: 'pending',
-    items: [
-      {
-        id: 1,
-        name: 'Veg Pakora',
-        quantity: 30,
-        price: 120,
-      },
-      {
-        id: 2,
-        name: 'Samosa',
-        quantity: 60,
-        price: 50,
-      },
-    ],
-    subtotal: 6600,
-    tax: 1188,
-    deliveryFee: 300,
-    discount: 0,
-    total: 8088,
-    specialRequests: 'Fresh ingredients only.',
-    createdDate: 'March 22, 2025',
-    updatedDate: 'March 22, 2025',
-    paymentStatus: 'pending',
-    paymentMethod: 'cash',
+    address: '321 Park Lane, Sector 15, Pune',
+    items_count: 1,
+  },
+  {
+    id: 'DEL-005',
+    type: 'ONE_TIME',
+    customer_name: 'Vikram Patel',
+    delivery_date: '2025-03-28',
+    delivery_slot: 'BREAKFAST',
+    delivery_status: 'DELIVERED',
+    payment_status: 'PAID',
+    amount: 5640,
+    reference_id: 'ORD-2025-005',
+    reference_label: 'Order',
+    clientEmail: 'vikram@example.com',
+    clientPhone: '+91-9876543214',
+    address: '987 Main Road, Sector 20, Hyderabad',
+    items_count: 4,
+    review: {
+      rating: 4,
+      comment: 'Good quality food, on-time delivery.',
+    },
+  },
+  {
+    id: 'DEL-006',
+    type: 'BULK',
+    customer_name: 'Sarah Johnson',
+    delivery_date: '2025-04-25',
+    delivery_slot: 'LUNCH',
+    delivery_status: 'CANCELLED',
+    payment_status: 'REFUNDED',
+    amount: 15000,
+    reference_id: 'ORD-2025-006',
+    reference_label: 'Order',
+    clientEmail: 'sarah@example.com',
+    clientPhone: '+91-9876543215',
+    address: '555 Business Park, Sector 25, Gurgaon',
+    items_count: 10,
   },
 ];
 
 export default function CatererOrdersPage() {
   const router = useRouter();
-  const [orders, setOrders] = useState<Order[]>(MOCK_ORDERS);
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [orders, setOrders] = useState<OrderListItem[]>(MOCK_ORDERS);
+  const [selectedOrder, setSelectedOrder] = useState<OrderListItem | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterPayment, setFilterPayment] = useState<string>('all');
+  const [filterType, setFilterType] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showStatusModal, setShowStatusModal] = useState(false);
-  const [newStatus, setNewStatus] = useState<Order['status']>('pending');
+  const [newStatus, setNewStatus] = useState<DeliveryStatus>('PENDING');
 
-  const statusOptions: { value: Order['status']; label: string; icon: string; color: string }[] = [
-    { value: 'pending', label: 'Pending', icon: '⏳', color: '#f59e0b' },
-    { value: 'confirmed', label: 'Confirmed', icon: '✓', color: '#3b82f6' },
-    { value: 'preparing', label: 'Preparing', icon: '👨‍🍳', color: '#8b5cf6' },
-    { value: 'ready', label: 'Ready', icon: '✓', color: '#10b981' },
-    { value: 'dispatched', label: 'Dispatched', icon: '🚚', color: '#06b6d4' },
-    { value: 'delivered', label: 'Delivered', icon: '✓', color: '#059669' },
-    { value: 'cancelled', label: 'Cancelled', icon: '✗', color: '#ef4444' },
+  const deliveryStatusOptions = [
+    { value: 'PENDING' as const, label: 'Pending', icon: '⏳', color: '#f59e0b' },
+    { value: 'PREPARING' as const, label: 'Preparing', icon: '👨‍🍳', color: '#8b5cf6' },
+    { value: 'OUT_FOR_DELIVERY' as const, label: 'Out for Delivery', icon: '🚚', color: '#06b6d4' },
+    { value: 'DELIVERED' as const, label: 'Delivered', icon: '✓', color: '#059669' },
+    { value: 'CANCELLED' as const, label: 'Cancelled', icon: '✗', color: '#ef4444' },
+  ];
+
+  const paymentStatusOptions = [
+    { value: 'PENDING', label: 'Pending', color: '#f59e0b' },
+    { value: 'PARTIAL', label: 'Partial', color: '#8b5cf6' },
+    { value: 'PAID', label: 'Paid', color: '#059669' },
+    { value: 'FAILED', label: 'Failed', color: '#ef4444' },
+    { value: 'REFUNDED', label: 'Refunded', color: '#06b6d4' },
+    { value: 'DUE', label: 'Due', color: '#f97316' },
+  ];
+
+  const typeOptions = [
+    { value: 'ONE_TIME', label: '📦 One-Time Order', color: '#3b82f6' },
+    { value: 'BULK', label: '📋 Bulk Order', color: '#eab308' },
+    { value: 'SUBSCRIPTION', label: '🔄 Subscription', color: '#8b5cf6' },
+  ];
+
+  const slotOptions = [
+    { value: 'BREAKFAST', label: '🌅 Breakfast' },
+    { value: 'LUNCH', label: '🍽️ Lunch' },
+    { value: 'DINNER', label: '🌙 Dinner' },
   ];
 
   const filteredOrders = orders.filter((order) => {
-    const matchesStatus = filterStatus === 'all' || order.status === filterStatus;
+    const matchesStatus = filterStatus === 'all' || order.delivery_status === filterStatus;
+    const matchesPayment = filterPayment === 'all' || order.payment_status === filterPayment;
+    const matchesType = filterType === 'all' || order.type === filterType;
     const matchesSearch =
-      order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.clientEmail.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesStatus && matchesSearch;
+      order.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.clientEmail?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.reference_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.address?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesStatus && matchesPayment && matchesType && matchesSearch;
   });
 
-  const getStatusColor = (status: Order['status']) => {
-    const option = statusOptions.find((opt) => opt.value === status);
-    return option?.color || '#64748b';
+  const getDeliveryStatusColor = (status: DeliveryStatus) => {
+    return deliveryStatusOptions.find((opt) => opt.value === status)?.color || '#64748b';
   };
 
-  const getStatusLabel = (status: Order['status']) => {
-    const option = statusOptions.find((opt) => opt.value === status);
-    return option?.label || status;
+  const getDeliveryStatusLabel = (status: DeliveryStatus) => {
+    return deliveryStatusOptions.find((opt) => opt.value === status)?.label || status;
   };
 
-  const handleStatusUpdate = (order: Order) => {
+  const getPaymentStatusColor = (status: PaymentStatus) => {
+    return paymentStatusOptions.find((opt) => opt.value === status)?.color || '#64748b';
+  };
+
+  const getPaymentStatusLabel = (status: PaymentStatus) => {
+    return paymentStatusOptions.find((opt) => opt.value === status)?.label || status;
+  };
+
+  const getTypeLabel = (type: OrderType) => {
+    return typeOptions.find((opt) => opt.value === type)?.label || type;
+  };
+
+  const getSlotLabel = (slot?: string) => {
+    if (!slot) return 'General';
+    return slotOptions.find((opt) => opt.value === slot)?.label || slot;
+  };
+
+  const handleStatusUpdate = (order: OrderListItem) => {
     setSelectedOrder(order);
-    setNewStatus(order.status);
+    setNewStatus(order.delivery_status);
     setShowStatusModal(true);
   };
 
@@ -284,12 +247,7 @@ export default function CatererOrdersPage() {
           order.id === selectedOrder.id
             ? {
                 ...order,
-                status: newStatus,
-                updatedDate: new Date().toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                }),
+                delivery_status: newStatus,
               }
             : order
         )
@@ -299,18 +257,21 @@ export default function CatererOrdersPage() {
     }
   };
 
-  const handleViewDetails = (order: Order) => {
-    router.push(`/account/caterer/orders/${order.orderNumber}`);
+  const handleViewDetails = (order: OrderListItem) => {
+    router.push(`/caterer/orders/${order.id}`);
   };
 
   const stats = {
     total: orders.length,
-    pending: orders.filter((o) => o.status === 'pending').length,
-    preparing: orders.filter((o) => o.status === 'preparing').length,
-    delivered: orders.filter((o) => o.status === 'delivered').length,
+    pending: orders.filter((o) => o.delivery_status === 'PENDING').length,
+    preparing: orders.filter((o) => o.delivery_status === 'PREPARING').length,
+    delivered: orders.filter((o) => o.delivery_status === 'DELIVERED').length,
     revenue: orders
-      .filter((o) => o.status === 'delivered')
-      .reduce((sum, o) => sum + o.total, 0),
+      .filter((o) => o.delivery_status === 'DELIVERED' && o.payment_status === 'PAID')
+      .reduce((sum, o) => sum + (o.amount || 0), 0),
+    due: orders
+      .filter((o) => o.payment_status === 'DUE' || o.payment_status === 'PENDING')
+      .reduce((sum, o) => sum + (o.amount || 0), 0),
   };
 
   return (
@@ -318,8 +279,8 @@ export default function CatererOrdersPage() {
       {/* Header */}
       <div style={styles.header}>
         <div>
-          <h1 style={styles.title}>Orders</h1>
-          <p style={styles.subtitle}>Manage and track all your catering orders</p>
+          <h1 style={styles.title}>Orders & Deliveries</h1>
+          <p style={styles.subtitle}>Manage and track all your orders, quotes, and subscription deliveries</p>
         </div>
       </div>
 
@@ -360,6 +321,13 @@ export default function CatererOrdersPage() {
             <p style={styles.statValue}>₹{(stats.revenue / 1000).toFixed(1)}k</p>
           </div>
         </div>
+        <div style={styles.statCard}>
+          <div style={{ ...styles.statIcon, backgroundColor: '#fee2e2' }}>⚠️</div>
+          <div>
+            <p style={styles.statLabel}>Amount Due</p>
+            <p style={styles.statValue}>₹{(stats.due / 1000).toFixed(1)}k</p>
+          </div>
+        </div>
       </div>
 
       {/* Filters and Search */}
@@ -367,36 +335,100 @@ export default function CatererOrdersPage() {
         <div style={styles.searchBox}>
           <input
             type="text"
-            placeholder="Search by order number, client name, or email..."
+            placeholder="Search by customer name, email, order ID, or address..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={styles.searchInput}
           />
         </div>
 
-        <div style={styles.statusFilters}>
-          <button
-            onClick={() => setFilterStatus('all')}
-            style={{
-              ...styles.filterButton,
-              ...(filterStatus === 'all' ? styles.filterButtonActive : {}),
-            }}
-          >
-            All Orders
-          </button>
-          {statusOptions.map((option) => (
-            <button
-              key={option.value}
-              onClick={() => setFilterStatus(option.value)}
-              style={{
-                ...styles.filterButton,
-                ...(filterStatus === option.value ? styles.filterButtonActive : {}),
-                borderLeft: `4px solid ${option.color}`,
-              }}
-            >
-              {option.icon} {option.label}
-            </button>
-          ))}
+        <div style={styles.filtersWrapper}>
+          {/* Order Type Filter */}
+          <div style={styles.filterGroup}>
+            <label style={styles.filterLabel}>Order Type:</label>
+            <div style={styles.typeFilters}>
+              <button
+                onClick={() => setFilterType('all')}
+                style={{
+                  ...styles.filterButton,
+                  ...(filterType === 'all' ? styles.filterButtonActive : {}),
+                }}
+              >
+                All Types
+              </button>
+              {typeOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setFilterType(option.value)}
+                  style={{
+                    ...styles.filterButton,
+                    ...(filterType === option.value ? styles.filterButtonActive : {}),
+                    borderLeft: `4px solid ${option.color}`,
+                  }}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Delivery Status Filter */}
+          <div style={styles.filterGroup}>
+            <label style={styles.filterLabel}>Delivery Status:</label>
+            <div style={styles.statusFilters}>
+              <button
+                onClick={() => setFilterStatus('all')}
+                style={{
+                  ...styles.filterButton,
+                  ...(filterStatus === 'all' ? styles.filterButtonActive : {}),
+                }}
+              >
+                All
+              </button>
+              {deliveryStatusOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setFilterStatus(option.value)}
+                  style={{
+                    ...styles.filterButton,
+                    ...(filterStatus === option.value ? styles.filterButtonActive : {}),
+                    borderLeft: `4px solid ${option.color}`,
+                  }}
+                >
+                  {option.icon} {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Payment Status Filter */}
+          <div style={styles.filterGroup}>
+            <label style={styles.filterLabel}>Payment Status:</label>
+            <div style={styles.paymentFilters}>
+              <button
+                onClick={() => setFilterPayment('all')}
+                style={{
+                  ...styles.filterButton,
+                  ...(filterPayment === 'all' ? styles.filterButtonActive : {}),
+                }}
+              >
+                All
+              </button>
+              {paymentStatusOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setFilterPayment(option.value)}
+                  style={{
+                    ...styles.filterButton,
+                    ...(filterPayment === option.value ? styles.filterButtonActive : {}),
+                    borderLeft: `4px solid ${option.color}`,
+                  }}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -412,41 +444,107 @@ export default function CatererOrdersPage() {
               <div key={order.id} style={styles.orderRow}>
                 <div style={styles.orderLeft}>
                   <div style={styles.orderHeader}>
-                    <h3 style={styles.orderNumber}>{order.orderNumber}</h3>
+                    <div>
+                      <div style={styles.orderTitleRow}>
+                        <h3 style={styles.customerName}>{order.customer_name}</h3>
+                        <span style={styles.typeTag}>{getTypeLabel(order.type)}</span>
+                      </div>
+                      <p style={styles.referenceId}>
+                        {order.reference_label} ID: <strong>{order.reference_id}</strong>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={styles.statusRow}>
                     <span
                       style={{
                         ...styles.statusBadge,
-                        backgroundColor: getStatusColor(order.status),
+                        backgroundColor: getDeliveryStatusColor(order.delivery_status),
                       }}
                     >
-                      {getStatusLabel(order.status)}
+                      {getDeliveryStatusLabel(order.delivery_status)}
+                    </span>
+                    <span
+                      style={{
+                        ...styles.paymentBadge,
+                        backgroundColor: getPaymentStatusColor(order.payment_status),
+                      }}
+                    >
+                      💳 {getPaymentStatusLabel(order.payment_status)}
                     </span>
                   </div>
 
-                  <div style={styles.clientInfo}>
-                    <span style={styles.clientName}>{order.clientName}</span>
-                    <span style={styles.clientContact}>
-                      {order.clientEmail} • {order.clientPhone}
+                  <div style={styles.contactInfo}>
+                    <span style={styles.contactItem}>
+                      <EnvelopeIcon style={{ width: '14px', height: '14px', marginRight: '4px' }} />
+                      {order.clientEmail}
+                    </span>
+                    <span style={styles.contactItem}>
+                      <PhoneIcon style={{ width: '14px', height: '14px', marginRight: '4px' }} />
+                      {order.clientPhone}
                     </span>
                   </div>
 
                   <div style={styles.orderDetails}>
                     <span style={styles.detailItem}>
                       <CalendarIcon style={{ width: '14px', height: '14px', marginRight: '4px' }} />
-                      {order.eventDate} at {order.eventTime}
+                      {new Date(order.delivery_date).toLocaleDateString('en-IN')}
                     </span>
-                    <span style={styles.detailItem}>
-                      <MapPinIcon style={{ width: '14px', height: '14px', marginRight: '4px' }} />
-                      {order.city}
-                    </span>
-                    <span style={styles.detailItem}>👥 {order.guestCount} guests</span>
-                    <span style={styles.detailItem}>
-                      💰 ₹{order.total.toLocaleString('en-IN')}
-                    </span>
+                    {order.delivery_slot && (
+                      <span style={styles.detailItem}>
+                        <ClockIcon style={{ width: '14px', height: '14px', marginRight: '4px' }} />
+                        {getSlotLabel(order.delivery_slot)}
+                      </span>
+                    )}
+                    {order.items_count && (
+                      <span style={styles.detailItem}>
+                        📦 {order.items_count} item{order.items_count > 1 ? 's' : ''}
+                      </span>
+                    )}
                   </div>
+
+                  {order.address && (
+                    <div style={styles.addressBox}>
+                      <MapPinIcon style={{ width: '14px', height: '14px', marginRight: '6px' }} />
+                      {order.address}
+                    </div>
+                  )}
+
+                  {order.notes && (
+                    <div style={styles.notesBox}>
+                      <strong>📝 Notes:</strong> {order.notes}
+                    </div>
+                  )}
+
+                  {order.review && (
+                    <div style={styles.reviewBox}>
+                      <div style={styles.reviewRating}>
+                        {[...Array(5)].map((_, i) => (
+                          <StarIcon
+                            key={i}
+                            style={{
+                              width: '14px',
+                              height: '14px',
+                              color: i < order.review!.rating ? '#fbbf24' : '#d1d5db',
+                              fill: i < order.review!.rating ? '#fbbf24' : 'none',
+                            }}
+                          />
+                        ))}
+                        <span style={styles.ratingText}>({order.review.rating}/5)</span>
+                      </div>
+                      <p style={styles.reviewComment}>"{order.review.comment}"</p>
+                    </div>
+                  )}
                 </div>
 
                 <div style={styles.orderRight}>
+                  <div style={styles.amountBox}>
+                    <span style={styles.amountLabel}>Amount</span>
+                    <span style={styles.amountValue}>
+                      ₹{order.amount?.toLocaleString('en-IN') || '—'}
+                    </span>
+                  </div>
+
                   <div style={styles.orderActions}>
                     <button
                       onClick={() => handleStatusUpdate(order)}
@@ -469,33 +567,13 @@ export default function CatererOrdersPage() {
                       View Details
                     </button>
                   </div>
-
-                  {order.review && (
-                    <div style={styles.reviewPreview}>
-                      <div style={styles.reviewStars}>
-                        {[...Array(5)].map((_, i) => (
-                          <StarIcon
-                            key={i}
-                            style={{
-                              width: '14px',
-                              height: '14px',
-                              color: i < order.review!.rating ? '#fbbf24' : '#d1d5db',
-                              fill: i < order.review!.rating ? '#fbbf24' : 'none',
-                            }}
-                          />
-                        ))}
-                      </div>
-                      <p style={styles.reviewText}>"{order.review.comment}"</p>
-                      <span style={styles.reviewBy}>— {order.review.clientName}</span>
-                    </div>
-                  )}
                 </div>
               </div>
             ))}
           </div>
         ) : (
           <div style={styles.emptyState}>
-            <p>No orders found. Try adjusting your filters or search.</p>
+            <p>📭 No orders found. Try adjusting your filters or search.</p>
           </div>
         )}
       </div>
@@ -506,7 +584,7 @@ export default function CatererOrdersPage() {
           <div style={styles.modalOverlay} onClick={() => setShowStatusModal(false)} />
           <div style={styles.modalContent}>
             <div style={styles.modalHeader}>
-              <h2 style={styles.modalTitle}>Update Order Status</h2>
+              <h2 style={styles.modalTitle}>Update Delivery Status</h2>
               <button
                 onClick={() => setShowStatusModal(false)}
                 style={styles.closeButton}
@@ -517,23 +595,38 @@ export default function CatererOrdersPage() {
 
             <div style={styles.modalBody}>
               <div style={styles.formGroup}>
-                <label style={styles.label}>Order: {selectedOrder.orderNumber}</label>
-                <p style={styles.orderDetails}>
-                  {selectedOrder.clientName} • {selectedOrder.guestCount} guests
+                <label style={styles.label}>
+                  {selectedOrder.customer_name}
+                </label>
+                <p style={styles.orderInfo}>
+                  {selectedOrder.reference_label}: <strong>{selectedOrder.reference_id}</strong> • {new Date(selectedOrder.delivery_date).toLocaleDateString('en-IN')}
+                  {selectedOrder.delivery_slot && ` • ${getSlotLabel(selectedOrder.delivery_slot)}`}
                 </p>
               </div>
 
               <div style={styles.formGroup}>
-                <label style={styles.label}>Select New Status</label>
+                <label style={styles.label}>
+                  Current Status: <strong>{getDeliveryStatusLabel(selectedOrder.delivery_status)}</strong>
+                </label>
+                <p style={styles.orderInfo}>Select a new delivery status below</p>
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>New Delivery Status</label>
                 <div style={styles.statusGrid}>
-                  {statusOptions.map((option) => (
+                  {deliveryStatusOptions.map((option) => (
                     <button
                       key={option.value}
                       onClick={() => setNewStatus(option.value)}
                       style={{
                         ...styles.statusOption,
                         ...(newStatus === option.value
-                          ? { backgroundColor: option.color, color: 'white', borderColor: option.color }
+                          ? {
+                              backgroundColor: option.color,
+                              color: 'white',
+                              borderColor: option.color,
+                              borderWidth: '2px',
+                            }
                           : {}),
                       }}
                     >
@@ -565,6 +658,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: '24px',
     backgroundColor: '#ffffff',
     borderRadius: '12px',
+    minHeight: '100vh',
   },
   header: {
     marginBottom: '32px',
@@ -634,7 +728,35 @@ const styles: { [key: string]: React.CSSProperties } = {
     backgroundColor: '#f8fafc',
     boxSizing: 'border-box' as const,
   },
+  filtersWrapper: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '12px',
+  },
+  filterGroup: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    flexWrap: 'wrap' as const,
+  },
+  filterLabel: {
+    fontSize: '12px',
+    fontWeight: '600',
+    color: '#64748b',
+    whiteSpace: 'nowrap' as const,
+    minWidth: '100px',
+  },
+  typeFilters: {
+    display: 'flex',
+    gap: '8px',
+    flexWrap: 'wrap' as const,
+  },
   statusFilters: {
+    display: 'flex',
+    gap: '8px',
+    flexWrap: 'wrap' as const,
+  },
+  paymentFilters: {
     display: 'flex',
     gap: '8px',
     flexWrap: 'wrap' as const,
@@ -681,26 +803,50 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '10px',
     border: '1px solid #e2e8f0',
     transition: 'all 0.2s ease',
+    gap: '20px',
   },
   orderLeft: {
     flex: 1,
   },
   orderRight: {
-    marginLeft: '16px',
-    textAlign: 'right' as const,
-    minWidth: '250px',
+    minWidth: '220px',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '12px',
   },
   orderHeader: {
+    marginBottom: '8px',
+  },
+  orderTitleRow: {
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
-    marginBottom: '8px',
+    marginBottom: '4px',
   },
-  orderNumber: {
+  customerName: {
     fontSize: '16px',
     fontWeight: '700',
     color: '#1e293b',
     margin: 0,
+  },
+  typeTag: {
+    fontSize: '11px',
+    padding: '4px 8px',
+    backgroundColor: '#e0e7ff',
+    color: '#3730a3',
+    borderRadius: '4px',
+    fontWeight: '600',
+  },
+  referenceId: {
+    fontSize: '12px',
+    color: '#64748b',
+    margin: '4px 0 0 0',
+  },
+  statusRow: {
+    display: 'flex',
+    gap: '8px',
+    marginBottom: '12px',
+    flexWrap: 'wrap' as const,
   },
   statusBadge: {
     padding: '4px 10px',
@@ -709,20 +855,25 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: '700',
     color: 'white',
   },
-  clientInfo: {
+  paymentBadge: {
+    padding: '4px 10px',
+    borderRadius: '6px',
+    fontSize: '11px',
+    fontWeight: '700',
+    color: 'white',
+  },
+  contactInfo: {
     display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '2px',
-    marginBottom: '8px',
-  },
-  clientName: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#1e293b',
-  },
-  clientContact: {
+    gap: '16px',
     fontSize: '12px',
     color: '#64748b',
+    marginBottom: '8px',
+    flexWrap: 'wrap' as const,
+  },
+  contactItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
   },
   orderDetails: {
     display: 'flex',
@@ -730,16 +881,82 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexWrap: 'wrap' as const,
     fontSize: '12px',
     color: '#64748b',
+    marginBottom: '8px',
   },
   detailItem: {
     display: 'inline-flex',
     alignItems: 'center',
     gap: '4px',
   },
+  addressBox: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '6px',
+    padding: '8px 10px',
+    backgroundColor: '#f0fdf4',
+    borderRadius: '6px',
+    fontSize: '12px',
+    color: '#166534',
+    borderLeft: '3px solid #10b981',
+    marginBottom: '8px',
+  },
+  notesBox: {
+    padding: '8px 10px',
+    backgroundColor: '#fef3c7',
+    borderRadius: '6px',
+    fontSize: '12px',
+    color: '#92400e',
+    borderLeft: '3px solid #f59e0b',
+    marginBottom: '8px',
+  },
+  reviewBox: {
+    padding: '10px',
+    backgroundColor: '#fffbeb',
+    borderRadius: '6px',
+    borderLeft: '3px solid #fbbf24',
+  },
+  reviewRating: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    marginBottom: '4px',
+  },
+  ratingText: {
+    fontSize: '11px',
+    color: '#78350f',
+    fontWeight: '600',
+    marginLeft: '4px',
+  },
+  reviewComment: {
+    fontSize: '11px',
+    color: '#78350f',
+    fontStyle: 'italic',
+    margin: 0,
+  },
+  amountBox: {
+    padding: '12px',
+    backgroundColor: '#dbeafe',
+    borderRadius: '8px',
+    textAlign: 'center' as const,
+    borderLeft: '4px solid #0284c7',
+  },
+  amountLabel: {
+    fontSize: '11px',
+    color: '#0c4a6e',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    display: 'block',
+    marginBottom: '4px',
+  },
+  amountValue: {
+    fontSize: '18px',
+    fontWeight: '700',
+    color: '#0c4a6e',
+    display: 'block',
+  },
   orderActions: {
     display: 'flex',
     gap: '8px',
-    marginBottom: '12px',
     flexDirection: 'column' as const,
   },
   actionButton: {
@@ -764,30 +981,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     backgroundColor: '#f0fdf4',
     color: '#166534',
     borderColor: '#10b981',
-  },
-  reviewPreview: {
-    marginTop: '12px',
-    padding: '12px',
-    backgroundColor: '#fffbeb',
-    borderRadius: '8px',
-    borderLeft: '4px solid #fbbf24',
-  },
-  reviewStars: {
-    display: 'flex',
-    gap: '4px',
-    marginBottom: '8px',
-  },
-  reviewText: {
-    fontSize: '12px',
-    color: '#78350f',
-    fontStyle: 'italic',
-    margin: '4px 0',
-    lineHeight: '1.4',
-  },
-  reviewBy: {
-    fontSize: '11px',
-    color: '#92400e',
-    fontWeight: '600',
   },
   emptyState: {
     textAlign: 'center' as const,
@@ -818,7 +1011,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     position: 'relative' as const,
     backgroundColor: 'white',
     borderRadius: '12px',
-    maxWidth: '500px',
+    maxWidth: '600px',
     width: '100%',
     boxShadow: '0 20px 25px rgba(0, 0, 0, 0.15)',
   },
@@ -843,6 +1036,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '8px',
     color: '#6b7280',
     transition: 'all 0.2s ease',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modalBody: {
     padding: '24px',
@@ -859,6 +1055,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '14px',
     fontWeight: '600',
     color: '#1e293b',
+  },
+  orderInfo: {
+    fontSize: '12px',
+    color: '#64748b',
+    margin: 0,
   },
   statusGrid: {
     display: 'grid',

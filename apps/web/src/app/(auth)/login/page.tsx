@@ -1,18 +1,59 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { signIn } from 'next-auth/react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { signIn, useSession } from 'next-auth/react';
 import { EnvelopeIcon, LockClosedIcon } from '@heroicons/react/24/outline';
 
+
+/// <reference types="next-auth" />
+
+import 'next-auth';
+
+declare module 'next-auth' {
+  interface User {
+    role?: string;
+  }
+
+  interface Session {
+    user?: {
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+      role?: string | null;
+    };
+  }
+}
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { data: session } = useSession();
   const [email, setEmail] = useState('demo@example.com');
   const [password, setPassword] = useState('password');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (session?.user?.role && mounted) {
+      const role = session?.user?.role || 'customer';
+      const callbackUrl = searchParams?.get('callbackUrl');
+      
+      if (callbackUrl) {
+        router.push(callbackUrl);
+      } else {
+        router.push(`/${role}/dashboard`);
+      }
+    }
+  }, [session, mounted, router, searchParams]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,14 +65,14 @@ export default function LoginPage() {
         email,
         password,
         redirect: false,
-        callbackUrl: '/account',
       });
 
       if (result?.error) {
         setError('Invalid email or password');
         setLoading(false);
       } else if (result?.ok) {
-        router.push('/account');
+        // Redirect will be handled by the redirect callback in auth.config.ts
+        // which uses the role from the session
       }
     } catch (err) {
       setError('An error occurred. Please try again.');
@@ -42,7 +83,10 @@ export default function LoginPage() {
   const handleSocialLogin = async (provider: 'google' | 'github') => {
     setSocialLoading(provider);
     try {
-      await signIn(provider, { callbackUrl: '/account' });
+      await signIn(provider, {
+        redirect: true,
+        // The redirect callback will handle role-based routing
+      });
     } catch (err) {
       setError(`Failed to sign in with ${provider}`);
       setSocialLoading(null);
@@ -119,6 +163,23 @@ export default function LoginPage() {
     );
   };
 
+  if (!mounted) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        minHeight: '100vh',
+        backgroundColor: '#f3f4f6'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '48px', marginBottom: '1rem' }}>🍽️</div>
+          <p style={{ color: '#6b7280' }}>Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <style>{`
@@ -126,10 +187,19 @@ export default function LoginPage() {
           box-sizing: border-box;
         }
 
+        html, body {
+          margin: 0;
+          padding: 0;
+          height: 100%;
+          overflow-x: hidden;
+        }
+
         .login-container {
           display: grid;
           grid-template-columns: 1fr 1fr;
           min-height: 100vh;
+          margin: 0;
+          padding: 0;
         }
 
         .brand-section {
@@ -140,15 +210,17 @@ export default function LoginPage() {
           color: white;
           padding: clamp(2rem, 5vw, 4rem);
           background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+          min-height: 100vh;
         }
 
         .form-section {
           display: flex;
           justify-content: center;
           align-items: center;
-          padding: clamp(1rem, 5vw, 2rem);
+          padding: clamp(1.5rem, 5vw, 2rem);
           min-height: 100vh;
           overflow-y: auto;
+          background-color: #ffffff;
         }
 
         @media (max-width: 1024px) {
@@ -270,9 +342,10 @@ export default function LoginPage() {
               </h2>
               <p
                 style={{
-                  color: '#fff',
+                  color: '#6b7280',
                   fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
                   lineHeight: '1.5',
+                  margin: 0,
                 }}
               >
                 Sign in to your catering dashboard and manage your events
@@ -456,7 +529,7 @@ export default function LoginPage() {
                     alignItems: 'center',
                     gap: '0.5rem',
                     fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
-                    color: '#fff',
+                    color: '#1f2937',
                     cursor: 'pointer',
                     userSelect: 'none',
                   }}
@@ -547,7 +620,7 @@ export default function LoginPage() {
               <p
                 style={{
                   textAlign: 'center',
-                  color: '#fff',
+                  color: '#1f2937',
                   fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
                   marginBottom: '1rem',
                   fontWeight: '500',
@@ -646,7 +719,7 @@ export default function LoginPage() {
             <p
               style={{
                 textAlign: 'center',
-                color: '#fff',
+                color: '#1f2937',
                 fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
               }}
             >

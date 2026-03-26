@@ -116,7 +116,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
         { name: 'Profile', icon: UserCircleIcon, color: 'from-pink-500 to-rose-500', path: '/profile' },
       ],
       admin: [
-        { name: 'Dashboard', icon: HomeIcon, color: 'from-blue-500 to-cyan-500', path: '/admin' },
+        { name: 'Dashboard', icon: HomeIcon, color: 'from-blue-500 to-cyan-500', path: '/admin/dashboard' },
         { name: 'Caterers', icon: BuildingOfficeIcon, color: 'from-orange-500 to-yellow-500', path: '/admin/caterers' },
         { name: 'Bookings', icon: CalendarDaysIcon, color: 'from-purple-500 to-pink-500', path: '/admin/bookings' },
         { name: 'Refunds', icon: ArrowPathIcon, color: 'from-red-500 to-orange-500', path: '/admin/refunds' },

@@ -12,6 +12,9 @@ import {
   UserGroupIcon,
   CalendarIcon,
   SparklesIcon,
+  Bars3Icon,
+  SquaresPlusIcon,
+  StarIcon,
 } from '@heroicons/react/24/outline';
 
 interface MenuItem {
@@ -46,6 +49,43 @@ interface MenuCategory {
   description: string;
   itemCount: number;
   icon: string;
+}
+
+interface EventPackage {
+  id: number;
+  name: string;
+  description: string;
+  type: 'event';
+  pricing: 'per_person' | 'fixed';
+  price: number;
+  currency: string;
+  servings: string;
+  items: string[];
+  addOns: { id: number; name: string; price: number }[];
+  status: 'active' | 'inactive';
+  createdDate: string;
+  orders: number;
+  minGuests?: number;
+  maxGuests?: number;
+  duration?: string;
+}
+
+interface Subscription {
+  id: number;
+  name: string;
+  description: string;
+  type: 'subscription';
+  mealType: 'breakfast' | 'lunch' | 'dinner' | 'mixed';
+  duration: 'weekly' | 'monthly';
+  price: number;
+  currency: string;
+  mealsPerWeek: number;
+  daysPerWeek: number;
+  items: Record<string, string[]>;
+  addOns: { id: number; name: string; price: number }[];
+  status: 'active' | 'inactive';
+  createdDate: string;
+  subscribers: number;
 }
 
 const MOCK_CATEGORIES: MenuCategory[] = [
@@ -134,11 +174,12 @@ const MOCK_MENU_ITEMS: MenuItem[] = [
 
 export default function CatererPlansPage() {
   const [activeTab, setActiveTab] = useState<'menu' | 'event' | 'subscription'>('menu');
+  const [menuView, setMenuView] = useState<'grid' | 'list'>('grid');
   const [menuCategories, setMenuCategories] = useState<MenuCategory[]>(MOCK_CATEGORIES);
   const [menuItems, setMenuItems] = useState<MenuItem[]>(MOCK_MENU_ITEMS);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
-  const [packages, setPackages] = useState([
+  const [packages, setPackages] = useState<EventPackage[]>([
     {
       id: 1,
       name: 'Classic Vegetarian',
@@ -157,10 +198,32 @@ export default function CatererPlansPage() {
       status: 'active',
       createdDate: 'March 15, 2025',
       orders: 12,
+      minGuests: 20,
+      maxGuests: 200,
+    },
+    {
+      id: 2,
+      name: 'Premium Non-Veg',
+      description: 'Deluxe selection with premium meat items',
+      type: 'event',
+      pricing: 'per_person',
+      price: 450,
+      currency: '₹',
+      servings: '30-100',
+      items: ['Butter Chicken', 'Tandoori Chicken', 'Biryani', 'Naan', 'Dessert'],
+      addOns: [
+        { id: 1, name: 'Extra Chicken', price: 80 },
+        { id: 2, name: 'Seafood', price: 120 },
+      ],
+      status: 'active',
+      createdDate: 'March 10, 2025',
+      orders: 8,
+      minGuests: 30,
+      maxGuests: 300,
     },
   ]);
 
-  const [subscriptions, setSubscriptions] = useState([
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([
     {
       id: 101,
       name: 'Healthy Morning Bundle',
@@ -184,12 +247,38 @@ export default function CatererPlansPage() {
       createdDate: 'March 1, 2025',
       subscribers: 15,
     },
+    {
+      id: 102,
+      name: 'Office Lunch Plan',
+      description: 'Complete lunch solution for offices',
+      type: 'subscription',
+      mealType: 'lunch',
+      duration: 'monthly',
+      price: 7999,
+      currency: '₹',
+      mealsPerWeek: 5,
+      daysPerWeek: 5,
+      items: {
+        main: ['Butter Chicken', 'Dal Makhani', 'Paneer Tikka'],
+        sides: ['Rice', 'Naan', 'Salad', 'Raita'],
+      },
+      addOns: [
+        { id: 1, name: 'Extra Dessert', price: 300 },
+      ],
+      status: 'active',
+      createdDate: 'February 15, 2025',
+      subscribers: 8,
+    },
   ]);
 
   const [showMenuForm, setShowMenuForm] = useState(false);
   const [showCategoryForm, setShowCategoryForm] = useState(false);
+  const [showPackageForm, setShowPackageForm] = useState(false);
+  const [showSubscriptionForm, setShowSubscriptionForm] = useState(false);
   const [editingMenuId, setEditingMenuId] = useState<number | null>(null);
   const [editingCategoryId, setEditingCategoryId] = useState<number | null>(null);
+  const [editingPackageId, setEditingPackageId] = useState<number | null>(null);
+  const [editingSubscriptionId, setEditingSubscriptionId] = useState<number | null>(null);
 
   const [menuFormData, setMenuFormData] = useState({
     name: '',
@@ -214,6 +303,31 @@ export default function CatererPlansPage() {
     icon: '🥘',
   });
 
+  const [packageFormData, setPackageFormData] = useState({
+    name: '',
+    description: '',
+    pricing: 'per_person' as const,
+    price: '',
+    servings: '',
+    minGuests: '',
+    maxGuests: '',
+    duration: '',
+    items: [] as string[],
+    addOns: [] as { id: number; name: string; price: number }[],
+  });
+
+  const [subscriptionFormData, setSubscriptionFormData] = useState({
+    name: '',
+    description: '',
+    mealType: 'breakfast' as const,
+    duration: 'monthly' as const,
+    price: '',
+    mealsPerWeek: '',
+    daysPerWeek: '',
+    items: {} as Record<string, string[]>,
+    addOns: [] as { id: number; name: string; price: number }[],
+  });
+
   const [ingredientInput, setIngredientInput] = useState('');
 
   const dietaryOptions = [
@@ -227,6 +341,7 @@ export default function CatererPlansPage() {
       ? menuItems
       : menuItems.filter((item) => item.category === selectedCategory);
 
+  // Menu Management Functions
   const handleAddMenuCategory = () => {
     setEditingCategoryId(null);
     setCategoryFormData({ name: '', description: '', icon: '🥘' });
@@ -390,21 +505,183 @@ export default function CatererPlansPage() {
     }
   };
 
-  const handleAddIngredient = () => {
-    if (ingredientInput.trim()) {
-      setMenuFormData({
-        ...menuFormData,
-        optionalIngredients: [...menuFormData.optionalIngredients, ingredientInput.trim()],
-      });
-      setIngredientInput('');
+  // Event Package Functions
+  const handleAddPackage = () => {
+    setEditingPackageId(null);
+    setPackageFormData({
+      name: '',
+      description: '',
+      pricing: 'per_person',
+      price: '',
+      servings: '',
+      minGuests: '',
+      maxGuests: '',
+      duration: '',
+      items: [],
+      addOns: [],
+    });
+    setShowPackageForm(true);
+  };
+
+  const handleEditPackage = (pkg: EventPackage) => {
+    setEditingPackageId(pkg.id);
+    setPackageFormData({
+      name: pkg.name,
+      description: pkg.description,
+      pricing: pkg.pricing,
+      price: pkg.price.toString(),
+      servings: pkg.servings,
+      minGuests: pkg.minGuests?.toString() || '',
+      maxGuests: pkg.maxGuests?.toString() || '',
+      duration: pkg.duration || '',
+      items: [...pkg.items],
+      addOns: [...pkg.addOns],
+    });
+    setShowPackageForm(true);
+  };
+
+  const handleSavePackage = () => {
+    if (!packageFormData.name || !packageFormData.price) {
+      alert('Please fill required fields');
+      return;
+    }
+
+    if (editingPackageId) {
+      setPackages(
+        packages.map((pkg) =>
+          pkg.id === editingPackageId
+            ? {
+                ...pkg,
+                name: packageFormData.name,
+                description: packageFormData.description,
+                pricing: packageFormData.pricing,
+                price: parseInt(packageFormData.price),
+                servings: packageFormData.servings,
+                minGuests: packageFormData.minGuests ? parseInt(packageFormData.minGuests) : undefined,
+                maxGuests: packageFormData.maxGuests ? parseInt(packageFormData.maxGuests) : undefined,
+                duration: packageFormData.duration,
+                items: packageFormData.items,
+                addOns: packageFormData.addOns,
+              }
+            : pkg
+        )
+      );
+    } else {
+      const newPackage: EventPackage = {
+        id: Math.max(...packages.map((p) => p.id), 0) + 1,
+        name: packageFormData.name,
+        description: packageFormData.description,
+        type: 'event',
+        pricing: packageFormData.pricing,
+        price: parseInt(packageFormData.price),
+        currency: '₹',
+        servings: packageFormData.servings,
+        items: packageFormData.items,
+        addOns: packageFormData.addOns,
+        status: 'active',
+        createdDate: new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }),
+        orders: 0,
+        minGuests: packageFormData.minGuests ? parseInt(packageFormData.minGuests) : undefined,
+        maxGuests: packageFormData.maxGuests ? parseInt(packageFormData.maxGuests) : undefined,
+      };
+      setPackages([...packages, newPackage]);
+    }
+
+    setShowPackageForm(false);
+  };
+
+  const handleDeletePackage = (id: number) => {
+    if (window.confirm('Are you sure you want to delete this package?')) {
+      setPackages(packages.filter((pkg) => pkg.id !== id));
     }
   };
 
-  const handleRemoveIngredient = (index: number) => {
-    setMenuFormData({
-      ...menuFormData,
-      optionalIngredients: menuFormData.optionalIngredients.filter((_, i) => i !== index),
+  // Subscription Functions
+  const handleAddSubscription = () => {
+    setEditingSubscriptionId(null);
+    setSubscriptionFormData({
+      name: '',
+      description: '',
+      mealType: 'breakfast',
+      duration: 'monthly',
+      price: '',
+      mealsPerWeek: '',
+      daysPerWeek: '',
+      items: {},
+      addOns: [],
     });
+    setShowSubscriptionForm(true);
+  };
+
+  const handleEditSubscription = (sub: Subscription) => {
+    setEditingSubscriptionId(sub.id);
+    setSubscriptionFormData({
+      name: sub.name,
+      description: sub.description,
+      mealType: sub.mealType,
+      duration: sub.duration,
+      price: sub.price.toString(),
+      mealsPerWeek: sub.mealsPerWeek.toString(),
+      daysPerWeek: sub.daysPerWeek.toString(),
+      items: { ...sub.items },
+      addOns: [...sub.addOns],
+    });
+    setShowSubscriptionForm(true);
+  };
+
+  const handleSaveSubscription = () => {
+    if (!subscriptionFormData.name || !subscriptionFormData.price) {
+      alert('Please fill required fields');
+      return;
+    }
+
+    if (editingSubscriptionId) {
+      setSubscriptions(
+        subscriptions.map((sub) =>
+          sub.id === editingSubscriptionId
+            ? {
+                ...sub,
+                name: subscriptionFormData.name,
+                description: subscriptionFormData.description,
+                mealType: subscriptionFormData.mealType,
+                duration: subscriptionFormData.duration,
+                price: parseInt(subscriptionFormData.price),
+                mealsPerWeek: parseInt(subscriptionFormData.mealsPerWeek) || 0,
+                daysPerWeek: parseInt(subscriptionFormData.daysPerWeek) || 0,
+                items: subscriptionFormData.items,
+                addOns: subscriptionFormData.addOns,
+              }
+            : sub
+        )
+      );
+    } else {
+      const newSubscription: Subscription = {
+        id: Math.max(...subscriptions.map((s) => s.id), 0) + 1,
+        name: subscriptionFormData.name,
+        description: subscriptionFormData.description,
+        type: 'subscription',
+        mealType: subscriptionFormData.mealType,
+        duration: subscriptionFormData.duration,
+        price: parseInt(subscriptionFormData.price),
+        currency: '₹',
+        mealsPerWeek: parseInt(subscriptionFormData.mealsPerWeek) || 0,
+        daysPerWeek: parseInt(subscriptionFormData.daysPerWeek) || 0,
+        items: subscriptionFormData.items,
+        addOns: subscriptionFormData.addOns,
+        status: 'active',
+        createdDate: new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }),
+        subscribers: 0,
+      };
+      setSubscriptions([...subscriptions, newSubscription]);
+    }
+
+    setShowSubscriptionForm(false);
+  };
+
+  const handleDeleteSubscription = (id: number) => {
+    if (window.confirm('Are you sure you want to delete this subscription?')) {
+      setSubscriptions(subscriptions.filter((sub) => sub.id !== id));
+    }
   };
 
   const handleToggleDietary = (dietary: string) => {
@@ -541,155 +818,223 @@ export default function CatererPlansPage() {
             <div style={styles.menuItemsSection}>
               <div style={styles.sectionHeader}>
                 <h2 style={styles.sectionTitle}>
-                  {selectedCategory === 'all' ? 'All Menu Items' : selectedCategory}
+                  {selectedCategory === 'all' ? 'All Menu Items' : selectedCategory} ({filteredMenuItems.length})
                 </h2>
-                <button onClick={handleAddMenuItem} style={styles.buttonPrimary}>
-                  <PlusIcon style={{ width: '18px', height: '18px' }} />
-                  Add Item
-                </button>
+                <div style={styles.viewControls}>
+                  <button
+                    onClick={() => setMenuView('grid')}
+                    style={{
+                      ...styles.viewButton,
+                      ...(menuView === 'grid' ? styles.viewButtonActive : {}),
+                    }}
+                    title="Grid View"
+                  >
+                    <SquaresPlusIcon style={{ width: '18px', height: '18px' }} />
+                  </button>
+                  <button
+                    onClick={() => setMenuView('list')}
+                    style={{
+                      ...styles.viewButton,
+                      ...(menuView === 'list' ? styles.viewButtonActive : {}),
+                    }}
+                    title="List View"
+                  >
+                    <Bars3Icon style={{ width: '18px', height: '18px' }} />
+                  </button>
+                  <button onClick={handleAddMenuItem} style={styles.buttonPrimary}>
+                    <PlusIcon style={{ width: '18px', height: '18px' }} />
+                    Add Item
+                  </button>
+                </div>
               </div>
 
-              <div style={styles.menuItemsGrid}>
-                {filteredMenuItems.length > 0 ? (
-                  filteredMenuItems.map((item) => (
-                    <div key={item.id} style={styles.menuItemCard}>
-                      {/* Item Header */}
-                      <div style={styles.itemCardHeader}>
-                        <div>
-                          <h3 style={styles.itemName}>{item.name}</h3>
-                          <p style={styles.itemCategory}>{item.category}</p>
-                        </div>
-                        <span
-                          style={{
-                            ...styles.availabilityBadge,
-                            backgroundColor:
-                              item.availability === 'available'
-                                ? '#dcfce7'
-                                : item.availability === 'unavailable'
-                                  ? '#fee2e2'
-                                  : '#fef3c7',
-                            color:
-                              item.availability === 'available'
-                                ? '#166534'
-                                : item.availability === 'unavailable'
-                                  ? '#991b1b'
-                                  : '#92400e',
-                          }}
-                        >
-                          {item.availability}
-                        </span>
-                      </div>
-
-                      {/* Description */}
-                      <p style={styles.itemDescription}>{item.description}</p>
-
-                      {/* Price Section */}
-                      <div style={styles.priceSection}>
-                        <div style={styles.priceBox}>
-                          <span style={styles.originalPrice}>₹{item.price}</span>
-                          {item.offer > 0 && (
-                            <>
-                              <span style={styles.offerBadge}>{item.offer}% OFF</span>
-                              <span style={styles.finalPrice}>₹{item.finalPrice}</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Dietary & Standards */}
-                      <div style={styles.dietarySection}>
-                        {item.halal && <span style={styles.standardBadge}>🕌 Halal</span>}
-                        {item.vegan && <span style={styles.standardBadge}>🌱 Vegan</span>}
-                        {item.glutenFree && <span style={styles.standardBadge}>🌾 Gluten Free</span>}
-                        {item.dietary.map((d) => (
-                          <span key={d} style={styles.dietaryBadge}>
-                            {d === 'vegetarian' && '🥬'}
-                            {d === 'non-vegetarian' && '🍗'}
-                            {d === 'vegan' && '🥒'}
-                            {d}
+              {/* Grid View */}
+              {menuView === 'grid' && (
+                <div style={styles.menuItemsGrid}>
+                  {filteredMenuItems.length > 0 ? (
+                    filteredMenuItems.map((item) => (
+                      <div key={item.id} style={styles.menuItemCard}>
+                        {/* Item Header */}
+                        <div style={styles.itemCardHeader}>
+                          <div>
+                            <h3 style={styles.itemName}>{item.name}</h3>
+                            <p style={styles.itemCategory}>{item.category}</p>
+                          </div>
+                          <span
+                            style={{
+                              ...styles.availabilityBadge,
+                              backgroundColor:
+                                item.availability === 'available'
+                                  ? '#dcfce7'
+                                  : item.availability === 'unavailable'
+                                    ? '#fee2e2'
+                                    : '#fef3c7',
+                              color:
+                                item.availability === 'available'
+                                  ? '#166534'
+                                  : item.availability === 'unavailable'
+                                    ? '#991b1b'
+                                    : '#92400e',
+                            }}
+                          >
+                            {item.availability}
                           </span>
-                        ))}
-                      </div>
+                        </div>
 
-                      {/* Nutrition Info */}
-                      <div style={styles.nutritionGrid}>
-                        <div style={styles.nutritionItem}>
-                          <span style={styles.nutritionLabel}>Calories</span>
-                          <span style={styles.nutritionValue}>{item.nutrition.calories}</span>
-                        </div>
-                        <div style={styles.nutritionItem}>
-                          <span style={styles.nutritionLabel}>Protein</span>
-                          <span style={styles.nutritionValue}>{item.nutrition.protein}g</span>
-                        </div>
-                        <div style={styles.nutritionItem}>
-                          <span style={styles.nutritionLabel}>Carbs</span>
-                          <span style={styles.nutritionValue}>{item.nutrition.carbs}g</span>
-                        </div>
-                        <div style={styles.nutritionItem}>
-                          <span style={styles.nutritionLabel}>Fat</span>
-                          <span style={styles.nutritionValue}>{item.nutrition.fat}g</span>
-                        </div>
-                      </div>
+                        {/* Description */}
+                        <p style={styles.itemDescription}>{item.description}</p>
 
-                      {/* Prep Time & Servings */}
-                      <div style={styles.metaInfoRow}>
-                        <span style={styles.metaInfo}>⏱️ {item.prepTime} min</span>
-                        <span style={styles.metaInfo}>👥 {item.servings} servings</span>
-                      </div>
-
-                      {/* Optional Ingredients */}
-                      {item.optionalIngredients.length > 0 && (
-                        <div style={styles.ingredientsSection}>
-                          <p style={styles.ingredientsTitle}>Optional Add-ons:</p>
-                          <div style={styles.ingredientsList}>
-                            {item.optionalIngredients.map((ing, idx) => (
-                              <span key={idx} style={styles.ingredientBadge}>
-                                {ing}
-                              </span>
-                            ))}
+                        {/* Price Section */}
+                        <div style={styles.priceSection}>
+                          <div style={styles.priceBox}>
+                            <span style={styles.originalPrice}>₹{item.price}</span>
+                            {item.offer > 0 && (
+                              <>
+                                <span style={styles.offerBadge}>{item.offer}% OFF</span>
+                                <span style={styles.finalPrice}>₹{item.finalPrice}</span>
+                              </>
+                            )}
                           </div>
                         </div>
-                      )}
 
-                      {/* Item Actions */}
-                      <div style={styles.itemActions}>
-                        <button
-                          onClick={() => handleEditMenuItem(item)}
-                          style={styles.buttonItemEdit}
-                        >
-                          <PencilIcon style={{ width: '14px', height: '14px' }} />
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteMenuItem(item.id)}
-                          style={styles.buttonItemDelete}
-                        >
-                          <TrashIcon style={{ width: '14px', height: '14px' }} />
-                          Delete
-                        </button>
+                        {/* Dietary & Standards */}
+                        <div style={styles.dietarySection}>
+                          {item.halal && <span style={styles.standardBadge}>🕌 Halal</span>}
+                          {item.vegan && <span style={styles.standardBadge}>🌱 Vegan</span>}
+                          {item.glutenFree && <span style={styles.standardBadge}>🌾 Gluten Free</span>}
+                          {item.dietary.map((d) => (
+                            <span key={d} style={styles.dietaryBadge}>
+                              {d === 'vegetarian' && '🥬'}
+                              {d === 'non-vegetarian' && '🍗'}
+                              {d === 'vegan' && '🥒'}
+                              {d}
+                            </span>
+                          ))}
+                        </div>
+
+                        {/* Nutrition Info */}
+                        <div style={styles.nutritionGrid}>
+                          <div style={styles.nutritionItem}>
+                            <span style={styles.nutritionLabel}>Calories</span>
+                            <span style={styles.nutritionValue}>{item.nutrition.calories}</span>
+                          </div>
+                          <div style={styles.nutritionItem}>
+                            <span style={styles.nutritionLabel}>Protein</span>
+                            <span style={styles.nutritionValue}>{item.nutrition.protein}g</span>
+                          </div>
+                          <div style={styles.nutritionItem}>
+                            <span style={styles.nutritionLabel}>Carbs</span>
+                            <span style={styles.nutritionValue}>{item.nutrition.carbs}g</span>
+                          </div>
+                          <div style={styles.nutritionItem}>
+                            <span style={styles.nutritionLabel}>Fat</span>
+                            <span style={styles.nutritionValue}>{item.nutrition.fat}g</span>
+                          </div>
+                        </div>
+
+                        {/* Prep Time & Servings */}
+                        <div style={styles.metaInfoRow}>
+                          <span style={styles.metaInfo}>⏱️ {item.prepTime} min</span>
+                          <span style={styles.metaInfo}>👥 {item.servings} servings</span>
+                        </div>
+
+                        {/* Optional Ingredients */}
+                        {item.optionalIngredients.length > 0 && (
+                          <div style={styles.ingredientsSection}>
+                            <p style={styles.ingredientsTitle}>Optional Add-ons:</p>
+                            <div style={styles.ingredientsList}>
+                              {item.optionalIngredients.map((ing, idx) => (
+                                <span key={idx} style={styles.ingredientBadge}>
+                                  {ing}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Item Actions */}
+                        <div style={styles.itemActions}>
+                          <button onClick={() => handleEditMenuItem(item)} style={styles.buttonItemEdit}>
+                            <PencilIcon style={{ width: '14px', height: '14px' }} />
+                            Edit
+                          </button>
+                          <button onClick={() => handleDeleteMenuItem(item.id)} style={styles.buttonItemDelete}>
+                            <TrashIcon style={{ width: '14px', height: '14px' }} />
+                            Delete
+                          </button>
+                        </div>
                       </div>
+                    ))
+                  ) : (
+                    <div style={styles.emptyState}>
+                      <p>No items in this category</p>
                     </div>
-                  ))
-                ) : (
-                  <div style={styles.emptyState}>
-                    <p>No items in this category</p>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
+
+              {/* List View */}
+              {menuView === 'list' && (
+                <div style={styles.menuItemsList}>
+                  {filteredMenuItems.length > 0 ? (
+                    filteredMenuItems.map((item) => (
+                      <div key={item.id} style={styles.menuItemListRow}>
+                        <div style={styles.listRowLeft}>
+                          <h3 style={styles.itemName}>{item.name}</h3>
+                          <p style={styles.itemDescription}>{item.description}</p>
+                          <div style={styles.listRowTags}>
+                            {item.dietary.map((d) => (
+                              <span key={d} style={styles.dietaryBadge}>{d}</span>
+                            ))}
+                            {item.halal && <span style={styles.standardBadge}>🕌 Halal</span>}
+                            {item.vegan && <span style={styles.standardBadge}>🌱 Vegan</span>}
+                          </div>
+                        </div>
+                        <div style={styles.listRowMeta}>
+                          <span style={styles.metaInfo}>⏱️ {item.prepTime} min</span>
+                          <span style={styles.metaInfo}>👥 {item.servings} servings</span>
+                          <span
+                            style={{
+                              ...styles.availabilityBadge,
+                              backgroundColor: item.availability === 'available' ? '#dcfce7' : '#fee2e2',
+                              color: item.availability === 'available' ? '#166534' : '#991b1b',
+                            }}
+                          >
+                            {item.availability}
+                          </span>
+                        </div>
+                        <div style={styles.listRowPrice}>
+                          {item.offer > 0 && <span style={styles.offerBadge}>{item.offer}% OFF</span>}
+                          <span style={styles.finalPrice}>₹{item.finalPrice}</span>
+                        </div>
+                        <div style={styles.listRowActions}>
+                          <button onClick={() => handleEditMenuItem(item)} style={styles.buttonSmall}>
+                            <PencilIcon style={{ width: '14px', height: '14px' }} />
+                          </button>
+                          <button onClick={() => handleDeleteMenuItem(item.id)} style={styles.buttonSmallDanger}>
+                            <TrashIcon style={{ width: '14px', height: '14px' }} />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div style={styles.emptyState}>
+                      <p>No items in this category</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Menu Item Form Modal */}
+          {/* Menu Item Form Modal - keep existing code as before */}
           {showMenuForm && (
             <div style={styles.modal}>
               <div style={styles.modalOverlay} onClick={() => setShowMenuForm(false)} />
               <div style={styles.modalContent}>
                 <div style={styles.modalHeader}>
                   <h2 style={styles.modalTitle}>{editingMenuId ? 'Edit' : 'Add'} Menu Item</h2>
-                  <button
-                    onClick={() => setShowMenuForm(false)}
-                    style={styles.closeButton}
-                  >
+                  <button onClick={() => setShowMenuForm(false)} style={styles.closeButton}>
                     <XMarkIcon style={{ width: '24px', height: '24px' }} />
                   </button>
                 </div>
@@ -765,7 +1110,7 @@ export default function CatererPlansPage() {
                     </div>
 
                     <div style={styles.formGroup}>
-                      <label style={styles.label}>Offer (%) </label>
+                      <label style={styles.label}>Offer (%)</label>
                       <input
                         type="number"
                         placeholder="0"
@@ -936,42 +1281,6 @@ export default function CatererPlansPage() {
                     </div>
                   </div>
 
-                  {/* Optional Ingredients */}
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Optional Ingredients</label>
-                    <div style={styles.ingredientsContainer}>
-                      {menuFormData.optionalIngredients.map((ing, idx) => (
-                        <div key={idx} style={styles.ingredientTag}>
-                          <span>{ing}</span>
-                          <button
-                            onClick={() => handleRemoveIngredient(idx)}
-                            style={styles.removeIngrButton}
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                    <div style={styles.addIngredientRow}>
-                      <input
-                        type="text"
-                        placeholder="e.g., Extra Garlic"
-                        value={ingredientInput}
-                        onChange={(e) => setIngredientInput(e.target.value)}
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleAddIngredient();
-                          }
-                        }}
-                        style={{ ...styles.input, flex: 1 }}
-                      />
-                      <button onClick={handleAddIngredient} style={styles.addButton}>
-                        <PlusIcon style={{ width: '16px', height: '16px' }} />
-                      </button>
-                    </div>
-                  </div>
-
                   {/* Form Actions */}
                   <div style={styles.formActions}>
                     <button onClick={() => setShowMenuForm(false)} style={styles.buttonSecondary}>
@@ -985,27 +1294,152 @@ export default function CatererPlansPage() {
               </div>
             </div>
           )}
+        </>
+      )}
 
-          {/* Category Form Modal */}
-          {showCategoryForm && (
+      {/* EVENT PACKAGES TAB */}
+      {activeTab === 'event' && (
+        <>
+          {/* Event Packages Statistics */}
+          <div style={styles.statsGrid}>
+            <div style={styles.statCard}>
+              <div style={{ ...styles.statIcon, backgroundColor: '#eff6ff' }}>📦</div>
+              <div>
+                <p style={styles.statLabel}>Total Packages</p>
+                <p style={styles.statValue}>{packages.length}</p>
+              </div>
+            </div>
+            <div style={styles.statCard}>
+              <div style={{ ...styles.statIcon, backgroundColor: '#f0fdf4' }}>✅</div>
+              <div>
+                <p style={styles.statLabel}>Active</p>
+                <p style={styles.statValue}>{packages.filter((p) => p.status === 'active').length}</p>
+              </div>
+            </div>
+            <div style={styles.statCard}>
+              <div style={{ ...styles.statIcon, backgroundColor: '#fef3c7' }}>📊</div>
+              <div>
+                <p style={styles.statLabel}>Total Orders</p>
+                <p style={styles.statValue}>{packages.reduce((sum, p) => sum + p.orders, 0)}</p>
+              </div>
+            </div>
+            <div style={styles.statCard}>
+              <div style={{ ...styles.statIcon, backgroundColor: '#fee2e2' }}>💰</div>
+              <div>
+                <p style={styles.statLabel}>Avg Price</p>
+                <p style={styles.statValue}>
+                  ₹{packages.length > 0 ? Math.round(packages.reduce((sum, p) => sum + p.price, 0) / packages.length) : 0}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Event Packages List */}
+          <div style={styles.section}>
+            <div style={styles.sectionHeader}>
+              <h2 style={styles.sectionTitle}>Event Packages</h2>
+              <button onClick={handleAddPackage} style={styles.buttonPrimary}>
+                <PlusIcon style={{ width: '18px', height: '18px' }} />
+                Add Package
+              </button>
+            </div>
+
+            {packages.length > 0 ? (
+              <div style={styles.packagesList}>
+                {packages.map((pkg) => (
+                  <div key={pkg.id} style={styles.packageCard}>
+                    <div style={styles.packageHeader}>
+                      <div style={styles.packageInfo}>
+                        <h3 style={styles.packageName}>{pkg.name}</h3>
+                        <p style={styles.packageDescription}>{pkg.description}</p>
+                        <div style={styles.packageMeta}>
+                          <span style={styles.metaBadge}>👥 {pkg.servings}</span>
+                          <span style={styles.metaBadge}>📅 {pkg.createdDate}</span>
+                          <span style={styles.metaBadge}>📦 {pkg.orders} orders</span>
+                        </div>
+                      </div>
+                      <div style={styles.packageStatus}>
+                        <span
+                          style={{
+                            ...styles.statusBadge,
+                            backgroundColor: pkg.status === 'active' ? '#dcfce7' : '#fee2e2',
+                            color: pkg.status === 'active' ? '#166534' : '#991b1b',
+                          }}
+                        >
+                          {pkg.status}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div style={styles.packageContent}>
+                      <div style={styles.packageItems}>
+                        <h4 style={styles.contentTitle}>📝 Items Included:</h4>
+                        <div style={styles.itemsList}>
+                          {pkg.items.map((item, idx) => (
+                            <span key={idx} style={styles.itemTag}>{item}</span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {pkg.addOns && pkg.addOns.length > 0 && (
+                        <div style={styles.packageAddOns}>
+                          <h4 style={styles.contentTitle}>➕ Add-ons Available:</h4>
+                          <div style={styles.addOnsList}>
+                            {pkg.addOns.map((addon) => (
+                              <span key={addon.id} style={styles.addonTag}>
+                                {addon.name} <span style={styles.addonPrice}>(₹{addon.price})</span>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div style={styles.packagePricing}>
+                        <span style={styles.pricingLabel}>{pkg.pricing === 'per_person' ? 'Price per Person' : 'Fixed Price'}</span>
+                        <span style={styles.pricingValue}>₹{pkg.price}</span>
+                      </div>
+                    </div>
+
+                    <div style={styles.packageActions}>
+                      <button onClick={() => handleEditPackage(pkg)} style={styles.buttonItemEdit}>
+                        <PencilIcon style={{ width: '14px', height: '14px' }} />
+                        Edit
+                      </button>
+                      <button onClick={() => handleDeletePackage(pkg.id)} style={styles.buttonItemDelete}>
+                        <TrashIcon style={{ width: '14px', height: '14px' }} />
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={styles.emptyState}>
+                <p>No event packages created yet. Start by creating one!</p>
+              </div>
+            )}
+          </div>
+
+          {/* Event Package Form Modal */}
+          {showPackageForm && (
             <div style={styles.modal}>
-              <div style={styles.modalOverlay} onClick={() => setShowCategoryForm(false)} />
-              <div style={{ ...styles.modalContent, maxWidth: '500px' }}>
+              <div style={styles.modalOverlay} onClick={() => setShowPackageForm(false)} />
+              <div style={styles.modalContent}>
                 <div style={styles.modalHeader}>
-                  <h2 style={styles.modalTitle}>{editingCategoryId ? 'Edit' : 'Add'} Category</h2>
-                  <button onClick={() => setShowCategoryForm(false)} style={styles.closeButton}>
+                  <h2 style={styles.modalTitle}>{editingPackageId ? 'Edit' : 'Add'} Event Package</h2>
+                  <button onClick={() => setShowPackageForm(false)} style={styles.closeButton}>
                     <XMarkIcon style={{ width: '24px', height: '24px' }} />
                   </button>
                 </div>
 
                 <div style={styles.modalBody}>
                   <div style={styles.formGroup}>
-                    <label style={styles.label}>Category Name *</label>
+                    <label style={styles.label}>Package Name *</label>
                     <input
                       type="text"
-                      placeholder="e.g., Starters"
-                      value={categoryFormData.name}
-                      onChange={(e) => setCategoryFormData({ ...categoryFormData, name: e.target.value })}
+                      placeholder="e.g., Classic Vegetarian"
+                      value={packageFormData.name}
+                      onChange={(e) => setPackageFormData({ ...packageFormData, name: e.target.value })}
                       style={styles.input}
                     />
                   </div>
@@ -1013,31 +1447,71 @@ export default function CatererPlansPage() {
                   <div style={styles.formGroup}>
                     <label style={styles.label}>Description</label>
                     <textarea
-                      placeholder="Category description"
-                      value={categoryFormData.description}
-                      onChange={(e) => setCategoryFormData({ ...categoryFormData, description: e.target.value })}
-                      style={{ ...styles.input, minHeight: '60px', resize: 'vertical' }}
+                      placeholder="Package description"
+                      value={packageFormData.description}
+                      onChange={(e) => setPackageFormData({ ...packageFormData, description: e.target.value })}
+                      style={{ ...styles.input, minHeight: '80px', resize: 'vertical' }}
                     />
                   </div>
 
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Icon (Emoji)</label>
-                    <input
-                      type="text"
-                      placeholder="🥘"
-                      maxLength={2}
-                      value={categoryFormData.icon}
-                      onChange={(e) => setCategoryFormData({ ...categoryFormData, icon: e.target.value })}
-                      style={styles.input}
-                    />
+                  <div style={styles.formRow}>
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Pricing Type</label>
+                      <select
+                        value={packageFormData.pricing}
+                        onChange={(e) => setPackageFormData({ ...packageFormData, pricing: e.target.value as any })}
+                        style={styles.input}
+                      >
+                        <option value="per_person">Per Person</option>
+                        <option value="fixed">Fixed Price</option>
+                      </select>
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Price *</label>
+                      <div style={styles.priceInput}>
+                        <span style={styles.currencySymbol}>₹</span>
+                        <input
+                          type="number"
+                          placeholder="0"
+                          value={packageFormData.price}
+                          onChange={(e) => setPackageFormData({ ...packageFormData, price: e.target.value })}
+                          style={{ ...styles.input, marginLeft: 0, paddingLeft: '8px' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={styles.formRow}>
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Min Guests</label>
+                      <input
+                        type="number"
+                        placeholder="e.g., 20"
+                        value={packageFormData.minGuests}
+                        onChange={(e) => setPackageFormData({ ...packageFormData, minGuests: e.target.value })}
+                        style={styles.input}
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Max Guests</label>
+                      <input
+                        type="number"
+                        placeholder="e.g., 200"
+                        value={packageFormData.maxGuests}
+                        onChange={(e) => setPackageFormData({ ...packageFormData, maxGuests: e.target.value })}
+                        style={styles.input}
+                      />
+                    </div>
                   </div>
 
                   <div style={styles.formActions}>
-                    <button onClick={() => setShowCategoryForm(false)} style={styles.buttonSecondary}>
+                    <button onClick={() => setShowPackageForm(false)} style={styles.buttonSecondary}>
                       Cancel
                     </button>
-                    <button onClick={handleSaveCategory} style={styles.buttonPrimary}>
-                      {editingCategoryId ? 'Update' : 'Add'} Category
+                    <button onClick={handleSavePackage} style={styles.buttonPrimary}>
+                      {editingPackageId ? 'Update' : 'Add'} Package
                     </button>
                   </div>
                 </div>
@@ -1047,11 +1521,264 @@ export default function CatererPlansPage() {
         </>
       )}
 
-      {/* EVENT PACKAGES TAB - Keep existing code */}
-      {activeTab === 'event' && <div style={{ padding: '24px' }}>Event packages coming soon...</div>}
+      {/* SUBSCRIPTIONS TAB */}
+      {activeTab === 'subscription' && (
+        <>
+          {/* Subscriptions Statistics */}
+          <div style={styles.statsGrid}>
+            <div style={styles.statCard}>
+              <div style={{ ...styles.statIcon, backgroundColor: '#eff6ff' }}>📅</div>
+              <div>
+                <p style={styles.statLabel}>Total Plans</p>
+                <p style={styles.statValue}>{subscriptions.length}</p>
+              </div>
+            </div>
+            <div style={styles.statCard}>
+              <div style={{ ...styles.statIcon, backgroundColor: '#f0fdf4' }}>👥</div>
+              <div>
+                <p style={styles.statLabel}>Total Subscribers</p>
+                <p style={styles.statValue}>{subscriptions.reduce((sum, s) => sum + s.subscribers, 0)}</p>
+              </div>
+            </div>
+            <div style={styles.statCard}>
+              <div style={{ ...styles.statIcon, backgroundColor: '#fef3c7' }}>✅</div>
+              <div>
+                <p style={styles.statLabel}>Active Plans</p>
+                <p style={styles.statValue}>{subscriptions.filter((s) => s.status === 'active').length}</p>
+              </div>
+            </div>
+            <div style={styles.statCard}>
+              <div style={{ ...styles.statIcon, backgroundColor: '#dbeafe' }}>💰</div>
+              <div>
+                <p style={styles.statLabel}>Avg Monthly Price</p>
+                <p style={styles.statValue}>
+                  ₹{subscriptions.length > 0 ? Math.round(subscriptions.reduce((sum, s) => sum + s.price, 0) / subscriptions.length) : 0}
+                </p>
+              </div>
+            </div>
+          </div>
 
-      {/* SUBSCRIPTIONS TAB - Keep existing code */}
-      {activeTab === 'subscription' && <div style={{ padding: '24px' }}>Subscriptions coming soon...</div>}
+          {/* Subscriptions List */}
+          <div style={styles.section}>
+            <div style={styles.sectionHeader}>
+              <h2 style={styles.sectionTitle}>Subscription Plans</h2>
+              <button onClick={handleAddSubscription} style={styles.buttonPrimary}>
+                <PlusIcon style={{ width: '18px', height: '18px' }} />
+                Add Plan
+              </button>
+            </div>
+
+            {subscriptions.length > 0 ? (
+              <div style={styles.subscriptionsList}>
+                {subscriptions.map((sub) => (
+                  <div key={sub.id} style={styles.subscriptionCard}>
+                    <div style={styles.subscriptionHeader}>
+                      <div style={styles.subscriptionInfo}>
+                        <h3 style={styles.subscriptionName}>{sub.name}</h3>
+                        <p style={styles.subscriptionDescription}>{sub.description}</p>
+                        <div style={styles.subscriptionMeta}>
+                          <span style={styles.metaBadge}>
+                            {sub.mealType === 'breakfast' && '🌅'}
+                            {sub.mealType === 'lunch' && '🍽️'}
+                            {sub.mealType === 'dinner' && '🌙'}
+                            {sub.mealType === 'mixed' && '🍴'}
+                            {sub.mealType}
+                          </span>
+                          <span style={styles.metaBadge}>📆 {sub.duration}</span>
+                          <span style={styles.metaBadge}>👥 {sub.subscribers} subscribers</span>
+                          <span style={styles.metaBadge}>📅 {sub.createdDate}</span>
+                        </div>
+                      </div>
+                      <div style={styles.subscriptionStatus}>
+                        <span
+                          style={{
+                            ...styles.statusBadge,
+                            backgroundColor: sub.status === 'active' ? '#dcfce7' : '#fee2e2',
+                            color: sub.status === 'active' ? '#166534' : '#991b1b',
+                          }}
+                        >
+                          {sub.status}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div style={styles.subscriptionContent}>
+                      <div style={styles.subscriptionDetails}>
+                        <h4 style={styles.contentTitle}>📅 Meals & Days:</h4>
+                        <p style={styles.detailText}>
+                          {sub.mealsPerWeek} meals per week • {sub.daysPerWeek} days per week
+                        </p>
+                      </div>
+
+                      {Object.entries(sub.items).length > 0 && (
+                        <div style={styles.subscriptionItems}>
+                          <h4 style={styles.contentTitle}>🍽️ Meal Items:</h4>
+                          {Object.entries(sub.items).map(([category, items]) => (
+                            <div key={category} style={styles.itemCategory}>
+                              <p style={styles.itemCategoryTitle}>{category.charAt(0).toUpperCase() + category.slice(1)}:</p>
+                              <div style={styles.itemsList}>
+                                {items.map((item, idx) => (
+                                  <span key={idx} style={styles.itemTag}>{item}</span>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {sub.addOns && sub.addOns.length > 0 && (
+                        <div style={styles.subscriptionAddOns}>
+                          <h4 style={styles.contentTitle}>➕ Add-ons:</h4>
+                          <div style={styles.addOnsList}>
+                            {sub.addOns.map((addon) => (
+                              <span key={addon.id} style={styles.addonTag}>
+                                {addon.name} <span style={styles.addonPrice}>(₹{addon.price})</span>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div style={styles.subscriptionPricing}>
+                        <span style={styles.pricingLabel}>Monthly Price</span>
+                        <span style={styles.pricingValue}>₹{sub.price}</span>
+                      </div>
+                    </div>
+
+                    <div style={styles.subscriptionActions}>
+                      <button onClick={() => handleEditSubscription(sub)} style={styles.buttonItemEdit}>
+                        <PencilIcon style={{ width: '14px', height: '14px' }} />
+                        Edit
+                      </button>
+                      <button onClick={() => handleDeleteSubscription(sub.id)} style={styles.buttonItemDelete}>
+                        <TrashIcon style={{ width: '14px', height: '14px' }} />
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={styles.emptyState}>
+                <p>No subscription plans created yet. Start by creating one!</p>
+              </div>
+            )}
+          </div>
+
+          {/* Subscription Form Modal */}
+          {showSubscriptionForm && (
+            <div style={styles.modal}>
+              <div style={styles.modalOverlay} onClick={() => setShowSubscriptionForm(false)} />
+              <div style={styles.modalContent}>
+                <div style={styles.modalHeader}>
+                  <h2 style={styles.modalTitle}>{editingSubscriptionId ? 'Edit' : 'Add'} Subscription Plan</h2>
+                  <button onClick={() => setShowSubscriptionForm(false)} style={styles.closeButton}>
+                    <XMarkIcon style={{ width: '24px', height: '24px' }} />
+                  </button>
+                </div>
+
+                <div style={styles.modalBody}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Plan Name *</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., Healthy Morning Bundle"
+                      value={subscriptionFormData.name}
+                      onChange={(e) => setSubscriptionFormData({ ...subscriptionFormData, name: e.target.value })}
+                      style={styles.input}
+                    />
+                  </div>
+
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Description</label>
+                    <textarea
+                      placeholder="Plan description"
+                      value={subscriptionFormData.description}
+                      onChange={(e) => setSubscriptionFormData({ ...subscriptionFormData, description: e.target.value })}
+                      style={{ ...styles.input, minHeight: '80px', resize: 'vertical' }}
+                    />
+                  </div>
+
+                  <div style={styles.formRow}>
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Meal Type</label>
+                      <select
+                        value={subscriptionFormData.mealType}
+                        onChange={(e) => setSubscriptionFormData({ ...subscriptionFormData, mealType: e.target.value as any })}
+                        style={styles.input}
+                      >
+                        <option value="breakfast">🌅 Breakfast</option>
+                        <option value="lunch">🍽️ Lunch</option>
+                        <option value="dinner">🌙 Dinner</option>
+                        <option value="mixed">🍴 Mixed</option>
+                      </select>
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Duration</label>
+                      <select
+                        value={subscriptionFormData.duration}
+                        onChange={(e) => setSubscriptionFormData({ ...subscriptionFormData, duration: e.target.value as any })}
+                        style={styles.input}
+                      >
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={styles.formRow}>
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Price *</label>
+                      <div style={styles.priceInput}>
+                        <span style={styles.currencySymbol}>₹</span>
+                        <input
+                          type="number"
+                          placeholder="0"
+                          value={subscriptionFormData.price}
+                          onChange={(e) => setSubscriptionFormData({ ...subscriptionFormData, price: e.target.value })}
+                          style={{ ...styles.input, marginLeft: 0, paddingLeft: '8px' }}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Meals/Week</label>
+                      <input
+                        type="number"
+                        placeholder="5"
+                        value={subscriptionFormData.mealsPerWeek}
+                        onChange={(e) => setSubscriptionFormData({ ...subscriptionFormData, mealsPerWeek: e.target.value })}
+                        style={styles.input}
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Days/Week</label>
+                      <input
+                        type="number"
+                        placeholder="5"
+                        value={subscriptionFormData.daysPerWeek}
+                        onChange={(e) => setSubscriptionFormData({ ...subscriptionFormData, daysPerWeek: e.target.value })}
+                        style={styles.input}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={styles.formActions}>
+                    <button onClick={() => setShowSubscriptionForm(false)} style={styles.buttonSecondary}>
+                      Cancel
+                    </button>
+                    <button onClick={handleSaveSubscription} style={styles.buttonPrimary}>
+                      {editingSubscriptionId ? 'Update' : 'Add'} Plan
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -1145,6 +1872,27 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: '#1e293b',
     margin: '4px 0 0 0',
   },
+  viewControls: {
+    display: 'flex',
+    gap: '8px',
+    alignItems: 'center',
+  },
+  viewButton: {
+    padding: '8px 12px',
+    borderRadius: '6px',
+    border: '1px solid #e2e8f0',
+    backgroundColor: 'white',
+    color: '#64748b',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    display: 'flex',
+    alignItems: 'center',
+  },
+  viewButtonActive: {
+    backgroundColor: '#2563eb',
+    color: 'white',
+    borderColor: '#2563eb',
+  },
   menuManagement: {
     display: 'grid',
     gridTemplateColumns: '1fr',
@@ -1215,6 +1963,46 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
     gap: '16px',
+  },
+  menuItemsList: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '12px',
+  },
+  menuItemListRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '16px',
+    backgroundColor: 'white',
+    borderRadius: '10px',
+    border: '1px solid #e2e8f0',
+    gap: '16px',
+  },
+  listRowLeft: {
+    flex: 1,
+  },
+  listRowMeta: {
+    display: 'flex',
+    gap: '12px',
+    alignItems: 'center',
+    minWidth: '200px',
+  },
+  listRowTags: {
+    display: 'flex',
+    gap: '4px',
+    flexWrap: 'wrap' as const,
+    marginTop: '8px',
+  },
+  listRowPrice: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'flex-end',
+    gap: '4px',
+  },
+  listRowActions: {
+    display: 'flex',
+    gap: '8px',
   },
   menuItemCard: {
     backgroundColor: 'white',
@@ -1404,6 +2192,258 @@ const styles: { [key: string]: React.CSSProperties } = {
     gap: '4px',
     transition: 'all 0.2s ease',
   },
+  buttonSmall: {
+    padding: '8px 12px',
+    borderRadius: '8px',
+    border: '1px solid #2563eb',
+    backgroundColor: '#2563eb',
+    color: 'white',
+    cursor: 'pointer',
+    fontWeight: '600',
+    fontSize: '13px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    transition: 'all 0.2s ease',
+  },
+  buttonSmallDanger: {
+    padding: '8px 12px',
+    borderRadius: '8px',
+    border: '1px solid #dc2626',
+    backgroundColor: 'white',
+    color: '#dc2626',
+    cursor: 'pointer',
+    fontWeight: '600',
+    fontSize: '13px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    transition: 'all 0.2s ease',
+  },
+  section: {
+    backgroundColor: '#f8fafc',
+    borderRadius: '12px',
+    border: '1px solid #e2e8f0',
+    padding: '24px',
+  },
+  packagesList: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
+    gap: '16px',
+  },
+  packageCard: {
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    border: '1px solid #e2e8f0',
+    overflow: 'hidden',
+    transition: 'all 0.2s ease',
+    display: 'flex',
+    flexDirection: 'column',
+    padding: '16px',
+  },
+  packageHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: '12px',
+    paddingBottom: '12px',
+    borderBottom: '1px solid #e2e8f0',
+  },
+  packageInfo: {
+    flex: 1,
+  },
+  packageName: {
+    fontSize: '16px',
+    fontWeight: '700',
+    color: '#1e293b',
+    margin: 0,
+    marginBottom: '4px',
+  },
+  packageDescription: {
+    fontSize: '13px',
+    color: '#64748b',
+    margin: '0 0 8px 0',
+  },
+  packageMeta: {
+    display: 'flex',
+    gap: '8px',
+    flexWrap: 'wrap' as const,
+  },
+  metaBadge: {
+    padding: '3px 8px',
+    backgroundColor: '#eff6ff',
+    color: '#0c4a6e',
+    borderRadius: '4px',
+    fontSize: '11px',
+    fontWeight: '600',
+  },
+  packageStatus: {
+    marginLeft: '16px',
+  },
+  statusBadge: {
+    padding: '4px 10px',
+    borderRadius: '6px',
+    fontSize: '11px',
+    fontWeight: '700',
+    textTransform: 'capitalize',
+  },
+  packageContent: {
+    flex: 1,
+    marginBottom: '16px',
+  },
+  contentTitle: {
+    fontSize: '13px',
+    fontWeight: '700',
+    color: '#1e293b',
+    margin: '0 0 8px 0',
+  },
+  packageItems: {
+    marginBottom: '12px',
+  },
+  itemsList: {
+    display: 'flex',
+    gap: '4px',
+    flexWrap: 'wrap' as const,
+  },
+  itemTag: {
+    padding: '3px 8px',
+    backgroundColor: '#dbeafe',
+    color: '#0c4a6e',
+    borderRadius: '4px',
+    fontSize: '11px',
+    fontWeight: '600',
+  },
+  packageAddOns: {
+    marginBottom: '12px',
+  },
+  addOnsList: {
+    display: 'flex',
+    gap: '4px',
+    flexWrap: 'wrap' as const,
+  },
+  addonTag: {
+    padding: '3px 8px',
+    backgroundColor: '#e9d5ff',
+    color: '#6b21a8',
+    borderRadius: '4px',
+    fontSize: '11px',
+    fontWeight: '600',
+  },
+  addonPrice: {
+    fontSize: '10px',
+    opacity: 0.8,
+  },
+  packagePricing: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '12px',
+    backgroundColor: '#f0fdf4',
+    borderRadius: '8px',
+    marginBottom: '12px',
+  },
+  pricingLabel: {
+    fontSize: '12px',
+    color: '#166534',
+    fontWeight: '600',
+  },
+  pricingValue: {
+    fontSize: '18px',
+    fontWeight: '700',
+    color: '#166534',
+  },
+  packageActions: {
+    display: 'flex',
+    gap: '8px',
+    marginTop: 'auto',
+  },
+  subscriptionsList: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(450px, 1fr))',
+    gap: '16px',
+  },
+  subscriptionCard: {
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    border: '1px solid #e2e8f0',
+    overflow: 'hidden',
+    transition: 'all 0.2s ease',
+    display: 'flex',
+    flexDirection: 'column',
+    padding: '16px',
+  },
+  subscriptionHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: '12px',
+    paddingBottom: '12px',
+    borderBottom: '1px solid #e2e8f0',
+  },
+  subscriptionInfo: {
+    flex: 1,
+  },
+  subscriptionName: {
+    fontSize: '16px',
+    fontWeight: '700',
+    color: '#1e293b',
+    margin: 0,
+    marginBottom: '4px',
+  },
+  subscriptionDescription: {
+    fontSize: '13px',
+    color: '#64748b',
+    margin: '0 0 8px 0',
+  },
+  subscriptionMeta: {
+    display: 'flex',
+    gap: '8px',
+    flexWrap: 'wrap' as const,
+  },
+  subscriptionStatus: {
+    marginLeft: '16px',
+  },
+  subscriptionContent: {
+    flex: 1,
+    marginBottom: '16px',
+  },
+  subscriptionDetails: {
+    marginBottom: '12px',
+  },
+  detailText: {
+    fontSize: '12px',
+    color: '#64748b',
+    margin: 0,
+  },
+  subscriptionItems: {
+    marginBottom: '12px',
+  },
+  itemCategory: {
+    marginBottom: '8px',
+  },
+  itemCategoryTitle: {
+    fontSize: '12px',
+    fontWeight: '700',
+    color: '#1e293b',
+    margin: '0 0 4px 0',
+  },
+  subscriptionAddOns: {
+    marginBottom: '12px',
+  },
+  subscriptionPricing: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '12px',
+    backgroundColor: '#fef3c7',
+    borderRadius: '8px',
+    marginBottom: '12px',
+  },
+  subscriptionActions: {
+    display: 'flex',
+    gap: '8px',
+    marginTop: 'auto',
+  },
   emptyState: {
     gridColumn: '1 / -1',
     textAlign: 'center' as const,
@@ -1537,49 +2577,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
     gap: '12px',
   },
-  ingredientsContainer: {
-    display: 'flex',
-    flexWrap: 'wrap' as const,
-    gap: '8px',
-    marginBottom: '12px',
-  },
-  ingredientTag: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    padding: '6px 12px',
-    backgroundColor: '#dbeafe',
-    borderRadius: '6px',
-    fontSize: '13px',
-    color: '#0c4a6e',
-  },
-  removeIngrButton: {
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    color: '#0c4a6e',
-    fontSize: '16px',
-    padding: 0,
-  },
-  addIngredientRow: {
-    display: 'flex',
-    gap: '8px',
-  },
-  addButton: {
-    padding: '10px 12px',
-    borderRadius: '8px',
-    border: '1px solid #2563eb',
-    backgroundColor: '#2563eb',
-    color: 'white',
-    cursor: 'pointer',
-    fontWeight: '600',
-    fontSize: '14px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '6px',
-    transition: 'all 0.2s ease',
-  },
   formActions: {
     display: 'flex',
     gap: '12px',
@@ -1608,20 +2605,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: 'pointer',
     fontWeight: '600',
     fontSize: '14px',
-    transition: 'all 0.2s ease',
-  },
-  buttonSmall: {
-    padding: '8px 12px',
-    borderRadius: '8px',
-    border: '1px solid #2563eb',
-    backgroundColor: '#2563eb',
-    color: 'white',
-    cursor: 'pointer',
-    fontWeight: '600',
-    fontSize: '13px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
     transition: 'all 0.2s ease',
   },
 };
