@@ -219,14 +219,6 @@ export default function CatererDashboard() {
             Welcome back! Here's what's happening with your business today.
           </p>
         </div>
-        <div style={styles.headerActions}>
-          <button style={styles.headerButton}>
-            <Bell size={20} />
-          </button>
-          <button style={styles.headerButton}>
-            <Settings size={20} />
-          </button>
-        </div>
       </div>
 
       {/* Quick Stats */}
