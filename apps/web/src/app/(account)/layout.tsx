@@ -64,7 +64,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
   // Set user role from session
   useEffect(() => {
     if (session?.user) {
-      const role = (session.user as any)?.role || 'customer';
+      const role = (session.user as any)?.role || 'caterer';
       setUserRole(role as UserRole);
     }
   }, [session]);
@@ -108,11 +108,11 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
         { name: 'Profile', icon: UserCircleIcon, color: 'from-pink-500 to-rose-500', path: '/profile' },
       ],
       caterer: [
-        { name: 'Dashboard', icon: HomeIcon, color: 'from-blue-500 to-cyan-500', path: '/account' },
-        { name: 'Requests', icon: DocumentCheckIcon, color: 'from-green-500 to-emerald-500', path: '/requests' },
-        { name: 'Orders', icon: ClipboardDocumentListIcon, color: 'from-purple-500 to-pink-500', path: '/orders' },
-        { name: 'Plans', icon: GiftIcon, color: 'from-rose-500 to-pink-500', path: '/plans' },
-        { name: 'Calendar', icon: CalendarDaysIcon, color: 'from-yellow-500 to-amber-500', path: '/calendar' },
+        { name: 'Dashboard', icon: HomeIcon, color: 'from-blue-500 to-cyan-500', path: '/caterer/dashboard' },
+        { name: 'Requests', icon: DocumentCheckIcon, color: 'from-green-500 to-emerald-500', path: '/caterer/requests' },
+        { name: 'Orders', icon: ClipboardDocumentListIcon, color: 'from-purple-500 to-pink-500', path: '/caterer/orders' },
+        { name: 'Plans', icon: GiftIcon, color: 'from-rose-500 to-pink-500', path: '/caterer/plans' },
+        { name: 'Calendar', icon: CalendarDaysIcon, color: 'from-yellow-500 to-amber-500', path: '/caterer/calendar' },
         { name: 'Profile', icon: UserCircleIcon, color: 'from-pink-500 to-rose-500', path: '/profile' },
       ],
       admin: [
