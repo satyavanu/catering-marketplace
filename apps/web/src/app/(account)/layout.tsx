@@ -199,7 +199,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
           overflow: 'hidden',
           transition: isMobile ? 'width 0.3s ease, padding 0.3s ease' : 'all 0.3s ease',
           boxShadow: isMobile && mobileMenuOpen ? '0 20px 25px rgba(0, 0, 0, 0.15)' : '0 4px 6px rgba(0, 0, 0, 0.07)',
-          height: isMobile && mobileMenuOpen ? '100vh' : '940px',
+          height: isMobile && mobileMenuOpen ? '100vh' : '640px',
           zIndex: isMobile ? (mobileMenuOpen ? 40 : -1) : 40,
           display: 'flex',
           flexDirection: 'column',
@@ -327,25 +327,6 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
             </button>
           ) : null}
         </div>
-
-        {/* Role Badge */}
-        {(sidebarOpen || (isMobile && mobileMenuOpen)) && (
-          <div
-            style={{
-              padding: '8px 12px',
-              backgroundColor: getRoleBadge().bg,
-              borderRadius: '8px',
-              marginBottom: '16px',
-              fontSize: '12px',
-              fontWeight: '600',
-              color: getRoleBadge().color,
-              textAlign: 'center',
-              flexShrink: 0,
-            }}
-          >
-            {getRoleBadge().label}
-          </div>
-        )}
 
         {/* Navigation Menu - Scrollable */}
         <nav

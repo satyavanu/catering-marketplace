@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useSession } from 'next-auth/react';
+
 import {
   User,
   Bell,
@@ -38,6 +40,7 @@ import {
 export default function ProfilePage() {
   const [activeSection, setActiveSection] = useState('account');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const { data: session } = useSession();
   const [addresses, setAddresses] = useState([
     { id: 1, street: '123 Main Street', city: 'New York', state: 'NY', country: 'United States', zip: '10001', isDefault: true },
     { id: 2, street: '456 Oak Avenue', city: 'Boston', state: 'MA', country: 'United States', zip: '02101', isDefault: false },
@@ -86,7 +89,12 @@ export default function ProfilePage() {
     { id: 3, device: 'Chrome on Windows', location: 'Boston, MA', lastActive: '1 day ago', current: false },
   ]);
 
-  const [isPartner, setIsPartner] = useState(true);
+  // Get user role from session
+  const userRole = session?.user?.role || 'customer';
+  const isAdmin = userRole === 'admin';
+  const isCaterer = userRole === 'caterer';
+  const isPartner = isCaterer || isAdmin;
+  const isCustomer = userRole === 'customer';
   const [showMembershipModal, setShowMembershipModal] = useState(false);
 
   const [partnerData, setPartnerData] = useState({
@@ -203,17 +211,19 @@ export default function ProfilePage() {
       current: partnerData.membershipType === 'Premium',
     },
   ]);
-
   const sections = [
     { id: 'account', label: 'Account', icon: User },
     ...(isPartner ? [
       { id: 'membership', label: 'Membership', icon: Zap },
       { id: 'verification', label: 'Business Verification', icon: FileText },
+    { id: 'privacy', label: 'Privacy', icon: Shield },
     ] : []),
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'preferences', label: 'Preferences', icon: Settings },
-    { id: 'privacy', label: 'Privacy', icon: Shield },
-    { id: 'addresses', label: 'Addresses', icon: MapPin },
+    ...(isCustomer ? [
+      { id: 'addresses', label: 'Addresses', icon: MapPin },
+    ] : []),
+
     { id: 'logins', label: 'Logins', icon: Smartphone },
   ];
 
@@ -274,7 +284,7 @@ export default function ProfilePage() {
     );
   };
 
-  const handleEditAddress = (address) => {
+  const handleEditAddress = (address: any) => {
     setFormData({
       ...formData,
       streetAddress: address.street,
@@ -287,11 +297,11 @@ export default function ProfilePage() {
     setShowAddressForm(true);
   };
 
-  const handleLogoutDevice = (id) => {
+  const handleLogoutDevice = (id: any) => {
     setLogins(logins.filter((login) => login.id !== id));
   };
 
-  const handleUpgradeMembership = (planId) => {
+  const handleUpgradeMembership = (planId: any) => {
     const planName = membershipPlans.find((p) => p.id === planId)?.name;
     alert(`Upgrading to ${planName} plan. Processing payment...`);
     setPartnerData({ ...partnerData, membershipType: planName });
@@ -362,14 +372,14 @@ export default function ProfilePage() {
           <InputField
             label="Full Name"
             value={formData.fullName}
-            onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+            onChange={(e: any) => setFormData({ ...formData, fullName: e.target.value })}
             placeholder="Enter your full name"
           />
           <InputField
             label="Email Address"
             type="email"
             value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            onChange={(e: any) => setFormData({ ...formData, email: e.target.value })}
             placeholder="you@example.com"
             disabled
           />
@@ -378,7 +388,7 @@ export default function ProfilePage() {
             label="Phone Number"
             type="tel"
             value={formData.phone}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+            onChange={(e: any) => setFormData({ ...formData, phone: e.target.value })}
             placeholder="+1 (555) 000-0000"
           />
           <button style={styles.buttonPrimary}>Save Changes</button>
@@ -448,19 +458,19 @@ export default function ProfilePage() {
             label="Email Notifications"
             description="Receive important updates via email"
             checked={notifications.emailNotif}
-            onChange={(e) => setNotifications({ ...notifications, emailNotif: e.target.checked })}
+            onChange={(e: any) => setNotifications({ ...notifications, emailNotif: e.target.checked })}
           />
           <ToggleSwitch
             label="SMS Notifications"
             description="Receive text message alerts"
             checked={notifications.smsNotif}
-            onChange={(e) => setNotifications({ ...notifications, smsNotif: e.target.checked })}
+            onChange={(e: any) => setNotifications({ ...notifications, smsNotif: e.target.checked })}
           />
           <ToggleSwitch
             label="Push Notifications"
             description="Receive in-app notifications"
             checked={notifications.pushNotif}
-            onChange={(e) => setNotifications({ ...notifications, pushNotif: e.target.checked })}
+            onChange={(e: any) => setNotifications({ ...notifications, pushNotif: e.target.checked })}
           />
         </div>
       </div>
@@ -474,19 +484,19 @@ export default function ProfilePage() {
             label="Order Updates"
             description="Get notified about your orders"
             checked={notifications.orderUpdates}
-            onChange={(e) => setNotifications({ ...notifications, orderUpdates: e.target.checked })}
+            onChange={(e: any) => setNotifications({ ...notifications, orderUpdates: e.target.checked })}
           />
           <ToggleSwitch
             label="Promotional Emails"
             description="Receive special offers and deals"
             checked={notifications.promoEmails}
-            onChange={(e) => setNotifications({ ...notifications, promoEmails: e.target.checked })}
+            onChange={(e: any) => setNotifications({ ...notifications, promoEmails: e.target.checked })}
           />
           <ToggleSwitch
             label="Weekly Digest"
             description="Get a weekly summary of activities"
             checked={notifications.weeklyDigest}
-            onChange={(e) => setNotifications({ ...notifications, weeklyDigest: e.target.checked })}
+            onChange={(e: any) => setNotifications({ ...notifications, weeklyDigest: e.target.checked })}
           />
         </div>
       </div>
@@ -516,7 +526,7 @@ export default function ProfilePage() {
             <label style={styles.formLabel}>Language</label>
             <select
               value={preferences.language}
-              onChange={(e) => setPreferences({ ...preferences, language: e.target.value })}
+              onChange={(e: any) => setPreferences({ ...preferences, language: e.target.value })}
               style={styles.input}
             >
               <option>English</option>
@@ -532,7 +542,7 @@ export default function ProfilePage() {
             <label style={styles.formLabel}>Timezone</label>
             <select
               value={preferences.timezone}
-              onChange={(e) => setPreferences({ ...preferences, timezone: e.target.value })}
+              onChange={(e: any) => setPreferences({ ...preferences, timezone: e.target.value })}
               style={styles.input}
             >
               <option value="PST">Pacific Standard Time (PST)</option>
@@ -595,7 +605,7 @@ export default function ProfilePage() {
             <label style={styles.formLabel}>Who can see your profile</label>
             <select
               value={privacy.profileVisibility}
-              onChange={(e) => setPrivacy({ ...privacy, profileVisibility: e.target.value })}
+              onChange={(e: any) => setPrivacy({ ...privacy, profileVisibility: e.target.value })}
               style={styles.input}
             >
               <option value="private">Private (Only you)</option>
@@ -615,19 +625,19 @@ export default function ProfilePage() {
             label="Show Email Address"
             description="Allow others to see your email"
             checked={privacy.showEmail}
-            onChange={(e) => setPrivacy({ ...privacy, showEmail: e.target.checked })}
+            onChange={(e: any) => setPrivacy({ ...privacy, showEmail: e.target.checked })}
           />
           <ToggleSwitch
             label="Show Phone Number"
             description="Allow others to see your phone number"
             checked={privacy.showPhone}
-            onChange={(e) => setPrivacy({ ...privacy, showPhone: e.target.checked })}
+            onChange={(e: any) => setPrivacy({ ...privacy, showPhone: e.target.checked })}
           />
           <ToggleSwitch
             label="Allow Direct Messages"
             description="Let others send you messages"
             checked={privacy.allowMessages}
-            onChange={(e) => setPrivacy({ ...privacy, allowMessages: e.target.checked })}
+            onChange={(e: any) => setPrivacy({ ...privacy, allowMessages: e.target.checked })}
           />
         </div>
       </div>
@@ -691,20 +701,20 @@ export default function ProfilePage() {
             <InputField
               label="Street Address"
               value={formData.streetAddress}
-              onChange={(e) => setFormData({ ...formData, streetAddress: e.target.value })}
+              onChange={(e: any) => setFormData({ ...formData, streetAddress: e.target.value })}
               placeholder="123 Main Street"
             />
             <div style={styles.formRow}>
               <InputField
                 label="City"
                 value={formData.city}
-                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                onChange={(e: any) => setFormData({ ...formData, city: e.target.value })}
                 placeholder="New York"
               />
               <InputField
                 label="State/Province"
                 value={formData.state}
-                onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                onChange={(e: any) => setFormData({ ...formData, state: e.target.value })}
                 placeholder="NY"
               />
             </div>
@@ -713,7 +723,7 @@ export default function ProfilePage() {
                 <label style={styles.formLabel}>Country</label>
                 <select
                   value={formData.country}
-                  onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                  onChange={(e: any) => setFormData({ ...formData, country: e.target.value })}
                   style={styles.input}
                 >
                   <option value="United States">United States</option>
@@ -736,7 +746,7 @@ export default function ProfilePage() {
               <InputField
                 label="Zip/Postal Code"
                 value={formData.zipCode}
-                onChange={(e) => setFormData({ ...formData, zipCode: e.target.value })}
+                onChange={(e: any) => setFormData({ ...formData, zipCode: e.target.value })}
                 placeholder="10001"
               />
             </div>
@@ -1135,7 +1145,7 @@ export default function ProfilePage() {
                 <input
                   type="checkbox"
                   checked={partnerData.autoRenewal}
-                  onChange={(e) => setPartnerData({ ...partnerData, autoRenewal: e.target.checked })}
+                  onChange={(e: any) => setPartnerData({ ...partnerData, autoRenewal: e.target.checked })}
                   style={{ display: 'none' }}
                 />
                 <div style={{ ...styles.switchTrack, backgroundColor: partnerData.autoRenewal ? '#2563eb' : '#d1d5db' }}>
