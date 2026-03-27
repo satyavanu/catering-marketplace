@@ -152,3 +152,94 @@ export interface Transaction {
 
   created_at: string;
 }
+
+
+export const DELIVERY_STATE_MATRIX = {
+  PENDING: ["PREPARING", "CANCELLED"],
+  PREPARING: ["OUT_FOR_DELIVERY", "CANCELLED"],
+  OUT_FOR_DELIVERY: ["DELIVERED"],
+  DELIVERED: [],
+  CANCELLED: [],
+} as const;
+
+export const DELIVERY_RULES = {
+  PENDING: {
+    can_cancel: true,
+    refund: "FULL",
+    description: "Order placed, not started",
+  },
+  PREPARING: {
+    can_cancel: true,
+    refund: "PARTIAL_OR_NONE",
+    description: "Food preparation started",
+  },
+  OUT_FOR_DELIVERY: {
+    can_cancel: false,
+    refund: "NONE",
+    description: "Delivery in progress",
+  },
+  DELIVERED: {
+    can_cancel: false,
+    refund: "NONE",
+    description: "Completed successfully",
+  },
+  CANCELLED: {
+    can_cancel: false,
+    refund: "N/A",
+    description: "Already cancelled",
+  },
+} as const;
+
+export const PAYMENT_CANCELLATION_MATRIX = [
+  {
+    delivery_status: "PENDING",
+    payment_status: "PAID",
+    action: "CANCEL",
+    refund: "FULL",
+  },
+  {
+    delivery_status: "PREPARING",
+    payment_status: "PAID",
+    action: "CANCEL",
+    refund: "PARTIAL_OR_NONE",
+  },
+  {
+    delivery_status: "OUT_FOR_DELIVERY",
+    payment_status: "PAID",
+    action: "BLOCK",
+    refund: "NONE",
+  },
+  {
+    delivery_status: "DELIVERED",
+    payment_status: "PAID",
+    action: "BLOCK",
+    refund: "NONE",
+  },
+];
+
+
+export const MUTATIONS = {
+  UPDATE_DELIVERY_STATUS: "updateDeliveryStatus",
+  CANCEL_DELIVERY: "cancelDelivery",
+  CANCEL_ORDER: "cancelOrder",
+  UPDATE_PAYMENT: "updatePaymentStatus",
+};
+
+
+export const SYSTEM_RULES = {
+  DELIVERY_IS_SOURCE_OF_TRUTH: true,
+
+  ORDER_IS_DERIVED: true,
+
+  CANCEL_NOT_ALLOWED_IF_DELIVERED: true,
+
+  REFUND_REQUIRED_IF_PAID_AND_CANCELLED: true,
+
+  NO_ORDER_FOR_SUBSCRIPTION: true,
+};
+
+
+
+
+
+
