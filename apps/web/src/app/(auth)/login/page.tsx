@@ -6,11 +6,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn, useSession } from 'next-auth/react';
 import { EnvelopeIcon, PhoneIcon } from '@heroicons/react/24/outline';
 
-
-/// <reference types="next-auth" />
-
-import 'next-auth';
-
 declare module 'next-auth' {
   interface User {
     role?: string;
@@ -25,12 +20,29 @@ declare module 'next-auth' {
     };
   }
 }
+
+// Country codes list
+const COUNTRY_CODES = [
+  { code: '+1', country: 'United States' },
+  { code: '+44', country: 'United Kingdom' },
+  { code: '+91', country: 'India' },
+  { code: '+86', country: 'China' },
+  { code: '+81', country: 'Japan' },
+  { code: '+33', country: 'France' },
+  { code: '+49', country: 'Germany' },
+  { code: '+39', country: 'Italy' },
+  { code: '+34', country: 'Spain' },
+  { code: '+61', country: 'Australia' },
+];
+
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session } = useSession();
+  
   const [email, setEmail] = useState('demo@example.com');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [countryCode, setCountryCode] = useState('+91');
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -59,6 +71,25 @@ export default function LoginPage() {
       }
     }
   }, [session, mounted, router, searchParams]);
+
+  // Validate phone number based on country code
+  const isValidPhoneNumber = (code: string, phone: string): boolean => {
+    const phoneRegex: { [key: string]: RegExp } = {
+      '+1': /^\d{10}$/, // US: 10 digits
+      '+44': /^\d{10,11}$/, // UK: 10-11 digits
+      '+91': /^\d{10}$/, // India: 10 digits
+      '+86': /^\d{11}$/, // China: 11 digits
+      '+81': /^\d{10}$/, // Japan: 10 digits
+      '+33': /^\d{9}$/, // France: 9 digits
+      '+49': /^\d{10,11}$/, // Germany: 10-11 digits
+      '+39': /^\d{10}$/, // Italy: 10 digits
+      '+34': /^\d{9}$/, // Spain: 9 digits
+      '+61': /^\d{9}$/, // Australia: 9 digits
+    };
+
+    const regex = phoneRegex[code] || /^\d{10,}$/;
+    return regex.test(phone.replace(/\D/g, ''));
+  };
 
   const handleSendEmailOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,27 +157,31 @@ export default function LoginPage() {
     }
   };
 
-  const handleSendOtp = async (e: React.FormEvent) => {
+  const handleSendPhoneOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setOtpLoading(true);
 
-    // Validate phone number (basic validation)
-    if (!phoneNumber || phoneNumber.length < 10) {
-      setError('Please enter a valid phone number');
+    if (!phoneNumber || phoneNumber.length === 0) {
+      setError('Please enter your phone number');
+      setOtpLoading(false);
+      return;
+    }
+
+    if (!isValidPhoneNumber(countryCode, phoneNumber)) {
+      setError(`Invalid phone number for ${countryCode}`);
       setOtpLoading(false);
       return;
     }
 
     try {
       // TODO: Replace with actual OTP API call
-      // const response = await fetch('/api/auth/send-otp', {
+      // const response = await fetch('/api/auth/send-otp-phone', {
       //   method: 'POST',
       //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ phoneNumber }),
+      //   body: JSON.stringify({ phone: `${countryCode}${phoneNumber}` }),
       // });
 
-      // For demo purposes
       setOtpSent(true);
       setError('');
       // Demo: OTP would be "123456"
@@ -157,7 +192,7 @@ export default function LoginPage() {
     }
   };
 
-  const handleVerifyOtp = async (e: React.FormEvent) => {
+  const handleVerifyPhoneOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
@@ -170,15 +205,14 @@ export default function LoginPage() {
 
     try {
       // TODO: Replace with actual OTP verification API call
-      // const response = await fetch('/api/auth/verify-otp', {
+      // const response = await fetch('/api/auth/verify-otp-phone', {
       //   method: 'POST',
       //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ phoneNumber, otp }),
+      //   body: JSON.stringify({ phone: `${countryCode}${phoneNumber}`, otp }),
       // });
 
-      // For demo purposes - simulate successful verification
       const result = await signIn('credentials', {
-        phone: phoneNumber,
+        phone: `${countryCode}${phoneNumber}`,
         otp: otp,
         redirect: false,
       });
@@ -357,7 +391,6 @@ export default function LoginPage() {
       `}</style>
 
       <div className="login-container">
-        {/* Form Section */}
         <div className="form-section">
           <div
             style={{
@@ -366,6 +399,7 @@ export default function LoginPage() {
               borderRadius: '1rem',
               padding: '2.5rem 2rem',
               boxShadow: '0 20px 25px rgba(0, 0, 0, 0.1)',
+              backgroundColor: 'white',
             }}
           >
             {/* Header */}
@@ -382,13 +416,13 @@ export default function LoginPage() {
               </h2>
               <p
                 style={{
-                  color: '#fff',
+                  color: '#6b7280',
                   fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
                   lineHeight: '1.5',
                   margin: 0,
                 }}
               >
-                Sign in to your catering dashboard and manage your events
+Sign in to manage your catering orders and events
               </p>
             </div>
 
@@ -419,7 +453,7 @@ export default function LoginPage() {
                   borderRadius: '0.375rem',
                   border: 'none',
                   backgroundColor: loginMode === 'email' ? 'white' : 'transparent',
-                  color: loginMode === 'email' ? '#667eea' : 'blue',
+                  color: loginMode === 'email' ? '#667eea' : '#6b7280',
                   fontWeight: '600',
                   fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
                   cursor: 'pointer',
@@ -445,7 +479,7 @@ export default function LoginPage() {
                   borderRadius: '0.375rem',
                   border: 'none',
                   backgroundColor: loginMode === 'phone' ? 'white' : 'transparent',
-                  color: loginMode === 'phone' ? '#667eea' : '#000',
+                  color: loginMode === 'phone' ? '#667eea' : '#6b7280',
                   fontWeight: '600',
                   fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
                   cursor: 'pointer',
@@ -530,7 +564,7 @@ export default function LoginPage() {
                           margin: '0.5rem 0 0 0',
                         }}
                       >
-                        A temporary password will be sent to your email
+                       We'll send you a verification code to your email
                       </p>
                     </div>
 
@@ -585,7 +619,7 @@ export default function LoginPage() {
                         e.currentTarget.style.boxShadow = 'none';
                       }}
                     >
-                      {loading ? 'Sending OTP...' : 'Send OTP to Email'}
+                      {loading ? 'Sending OTP...' : 'Continue'}
                     </button>
                   </>
                 ) : (
@@ -754,12 +788,12 @@ export default function LoginPage() {
             {/* Phone Login Form */}
             {loginMode === 'phone' && (
               <form
-                onSubmit={otpSent ? handleVerifyOtp : handleSendOtp}
+                onSubmit={otpSent ? handleVerifyPhoneOtp : handleSendPhoneOtp}
                 style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}
               >
                 {!otpSent ? (
                   <>
-                    {/* Phone Number */}
+                    {/* Phone Number with Country Code */}
                     <div>
                       <label
                         style={{
@@ -774,43 +808,68 @@ export default function LoginPage() {
                       </label>
                       <div
                         style={{
-                          display: 'flex',
-                          alignItems: 'center',
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 2fr',
                           gap: '0.75rem',
-                          padding: '0.75rem 1rem',
-                          border: '1px solid #d1d5db',
-                          borderRadius: '0.5rem',
-                          backgroundColor: '#f9fafb',
-                          transition: 'all 0.3s ease',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderColor = '#667eea';
-                          e.currentTarget.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderColor = '#d1d5db';
-                          e.currentTarget.style.boxShadow = 'none';
                         }}
                       >
-                        <span style={{ color: '#667eea', fontWeight: '600', flexShrink: 0 }}>
-                          +91
-                        </span>
+                        {/* Country Code Dropdown */}
+                        <select
+                          value={countryCode}
+                          onChange={(e) => setCountryCode(e.target.value)}
+                          style={{
+                            padding: '0.75rem 1rem',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '0.5rem',
+                            fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
+                            color: '#1f2937',
+                            boxSizing: 'border-box',
+                            cursor: 'pointer',
+                            backgroundColor: '#f9fafb',
+                            transition: 'all 0.3s ease',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.borderColor = '#667eea';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = '#d1d5db';
+                          }}
+                        >
+                          {COUNTRY_CODES.map((cc) => (
+                            <option key={cc.code} value={cc.code}>
+                              {cc.code}
+                            </option>
+                          ))}
+                        </select>
+
+                        {/* Phone Input */}
                         <input
                           type="tel"
                           value={phoneNumber}
                           onChange={(e) => {
-                            const value = e.target.value.replace(/[^\d]/g, '').slice(0, 10);
+                            const value = e.target.value.replace(/[^\d]/g, '');
                             setPhoneNumber(value);
                           }}
-                          placeholder="10-digit phone number"
+                          placeholder="10 digits"
                           disabled={otpLoading || loading}
                           style={{
-                            flex: 1,
-                            border: 'none',
-                            outline: 'none',
+                            width: '100%',
+                            padding: '0.75rem 1rem',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '0.5rem',
                             fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
                             color: '#1f2937',
-                            backgroundColor: 'transparent',
+                            boxSizing: 'border-box',
+                            backgroundColor: '#f9fafb',
+                            transition: 'all 0.3s ease',
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!otpLoading && !loading) {
+                              e.currentTarget.style.borderColor = '#667eea';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = '#d1d5db';
                           }}
                         />
                       </div>
@@ -821,7 +880,7 @@ export default function LoginPage() {
                           margin: '0.5rem 0 0 0',
                         }}
                       >
-                        We'll send you an OTP to verify your number
+                        Enter phone number without country code
                       </p>
                     </div>
 
@@ -848,15 +907,15 @@ export default function LoginPage() {
                     {/* Send OTP Button */}
                     <button
                       type="submit"
-                      disabled={otpLoading || loading || phoneNumber.length !== 10}
+                      disabled={otpLoading || loading || !phoneNumber || !isValidPhoneNumber(countryCode, phoneNumber)}
                       style={{
                         padding: 'clamp(0.625rem, 2vw, 0.75rem) 1rem',
-                        backgroundColor: phoneNumber.length === 10 ? '#667eea' : '#d1d5db',
+                        backgroundColor: phoneNumber && isValidPhoneNumber(countryCode, phoneNumber) ? '#667eea' : '#d1d5db',
                         color: 'white',
                         border: 'none',
                         borderRadius: '0.5rem',
                         fontWeight: '600',
-                        cursor: otpLoading || loading || phoneNumber.length !== 10 ? 'not-allowed' : 'pointer',
+                        cursor: otpLoading || loading || !phoneNumber || !isValidPhoneNumber(countryCode, phoneNumber) ? 'not-allowed' : 'pointer',
                         fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
                         opacity: otpLoading || loading ? 0.7 : 1,
                         transition: 'all 0.3s ease',
@@ -864,19 +923,19 @@ export default function LoginPage() {
                         width: '100%',
                       }}
                       onMouseEnter={(e) => {
-                        if (!otpLoading && !loading && phoneNumber.length === 10) {
+                        if (!otpLoading && !loading && phoneNumber && isValidPhoneNumber(countryCode, phoneNumber)) {
                           e.currentTarget.style.backgroundColor = '#764ba2';
                           e.currentTarget.style.transform = 'translateY(-2px)';
                           e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
                         }
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = phoneNumber.length === 10 ? '#667eea' : '#d1d5db';
+                        e.currentTarget.style.backgroundColor = phoneNumber && isValidPhoneNumber(countryCode, phoneNumber) ? '#667eea' : '#d1d5db';
                         e.currentTarget.style.transform = 'translateY(0)';
                         e.currentTarget.style.boxShadow = 'none';
                       }}
                     >
-                      {otpLoading ? 'Sending OTP...' : 'Send OTP'}
+                      {otpLoading ? 'Sending OTP...' : 'Send OTP to Phone'}
                     </button>
                   </>
                 ) : (
@@ -946,7 +1005,7 @@ export default function LoginPage() {
                           textAlign: 'center',
                         }}
                       >
-                        OTP sent to +91{phoneNumber}
+                        OTP sent to {countryCode}{phoneNumber}
                       </p>
                     </div>
 
@@ -1056,11 +1115,11 @@ export default function LoginPage() {
               <span
                 style={{
                   fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
-                  color: '#fff',
+                  color: '#6b7280',
                   fontWeight: '500',
                 }}
               >
-                or
+                or continue with
               </span>
               <div style={{ flex: 1, height: '1px', backgroundColor: '#e5e7eb' }} />
             </div>
@@ -1107,11 +1166,10 @@ export default function LoginPage() {
                         fill="currentColor"
                         fontSize="10"
                       >
-                        G
                       </text>
                     </svg>
                   )}
-                  label="Google"
+                  label="Continue with Google"
                   bgColor="#4285f4"
                   bgHoverColor="#357ae8"
                   borderColor="#4285f4"
@@ -1127,20 +1185,7 @@ export default function LoginPage() {
                 fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
               }}
             >
-              Don't have an account?{' '}
-              <Link
-                href="/signup"
-                style={{
-                  color: '#667eea',
-                  textDecoration: 'none',
-                  fontWeight: '600',
-                  transition: 'color 0.3s ease',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = '#764ba2')}
-                onMouseLeave={(e) => (e.currentTarget.style.color = '#667eea')}
-              >
-                Sign up here
-              </Link>
+              New here? Just enter your email to get started
             </p>
           </div>
         </div>
