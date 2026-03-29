@@ -22,10 +22,7 @@ const Header = () => {
   const navLinks = [
     { label: 'Explore', href: '/' },
     { label: 'Catering', href: '/catering' },
-   { label: 'Venues', href: '/venues' },
     { label: 'Meals', href: '/meals' },
-    { label: 'Decorations', href: '/decorations' },
-    { label: 'Experiences', href: '/experiences' },
   ];
 
   const NavLink = ({ href, label }: { href: string; label: string }) => (
@@ -130,7 +127,10 @@ const Header = () => {
         }}
       >
         <img
-          src={session?.user?.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${session?.user?.name}`}
+          src={
+            session?.user?.image ||
+            `https://api.dicebear.com/7.x/avataaars/svg?seed=${session?.user?.name}`
+          }
           alt={session?.user?.name || 'User'}
           style={{
             width: '32px',
@@ -183,7 +183,10 @@ const Header = () => {
             }}
           >
             <img
-              src={session?.user?.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${session?.user?.name}`}
+              src={
+                session?.user?.image ||
+                `https://api.dicebear.com/7.x/avataaars/svg?seed=${session?.user?.name}`
+              }
               alt={session?.user?.name || 'User'}
               style={{
                 width: '36px',
@@ -253,7 +256,9 @@ const Header = () => {
                 e.currentTarget.style.color = '#475569';
               }}
             >
-              <UserCircleIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} />
+              <UserCircleIcon
+                style={{ width: '16px', height: '16px', flexShrink: 0 }}
+              />
               Dashboard
             </Link>
 
@@ -280,7 +285,9 @@ const Header = () => {
                 e.currentTarget.style.color = '#475569';
               }}
             >
-              <Cog6ToothIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} />
+              <Cog6ToothIcon
+                style={{ width: '16px', height: '16px', flexShrink: 0 }}
+              />
               Settings
             </Link>
 
@@ -307,7 +314,9 @@ const Header = () => {
                 e.currentTarget.style.color = '#475569';
               }}
             >
-              <HeartIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} />
+              <HeartIcon
+                style={{ width: '16px', height: '16px', flexShrink: 0 }}
+              />
               Saved Caterers
             </Link>
           </nav>
@@ -343,7 +352,9 @@ const Header = () => {
               e.currentTarget.style.backgroundColor = 'transparent';
             }}
           >
-            <ArrowRightOnRectangleIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} />
+            <ArrowRightOnRectangleIcon
+              style={{ width: '16px', height: '16px', flexShrink: 0 }}
+            />
             Sign Out
           </button>
         </div>
@@ -425,11 +436,7 @@ const Header = () => {
             ))}
           </nav>
 
-          {/* Desktop Search Bar */}
-          
-          <div className="desktop-search">
-            <SearchBar isMobile={false} />
-          </div> 
+        
 
           {/* Right Actions - Desktop Only */}
           <div className="desktop-actions">
@@ -527,7 +534,6 @@ const Header = () => {
 
           {/* Mobile Header - Logo + Search + Hamburger */}
           <div className="mobile-header">
-            <SearchBar isMobile={true} />
 
             {status === 'authenticated' && (
               <button
@@ -552,7 +558,10 @@ const Header = () => {
                 }}
               >
                 <img
-                  src={session?.user?.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${session?.user?.name}`}
+                  src={
+                    session?.user?.image ||
+                    `https://api.dicebear.com/7.x/avataaars/svg?seed=${session?.user?.name}`
+                  }
                   alt={session?.user?.name || 'User'}
                   style={{
                     width: '28px',
@@ -768,12 +777,14 @@ const Header = () => {
         {/* Profile Dropdown for Mobile */}
         {isProfileMenuOpen && status === 'authenticated' && (
           <div
-            style={{
-              display: 'none',
-              '@media (max-width: 1023px)': {
-                display: 'block',
-              },
-            } as any}
+            style={
+              {
+                display: 'none',
+                '@media (max-width: 1023px)': {
+                  display: 'block',
+                },
+              } as any
+            }
             className="mobile-profile-menu"
           >
             <div

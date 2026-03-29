@@ -7,8 +7,12 @@ import { ChevronDownIcon } from '@heroicons/react/24/outline';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
-  const [expandedSection, setExpandedSection] = useState<string | null>('countries');
-  const [expandedMobileSection, setExpandedMobileSection] = useState<string | null>(null);
+  const [expandedSection, setExpandedSection] = useState<string | null>(
+    'countries'
+  );
+  const [expandedMobileSection, setExpandedMobileSection] = useState<
+    string | null
+  >(null);
   const [email, setEmail] = useState('');
   const { mutate: subscribe, isPending } = useSubscribeNewsletter();
 
@@ -35,18 +39,67 @@ const Footer = () => {
     { name: 'Argentina', emoji: '🇦🇷' },
   ];
 
-  const cuisines = ['French', 'Italian', 'Indian', 'Japanese', 'Spanish', 'Thai', 'Mediterranean', 'American BBQ', 'Asian Fusion', 'German', 'British', 'Middle Eastern'];
-  const eventTypes = ['Wedding', 'Corporate', 'Birthday', 'Private Dinner', 'Party', 'Gala'];
-  const venues = ['Banquet Halls', 'Garden Venues', 'Beach Resorts', 'Luxury Hotels', 'Rooftop Venues', 'Country Clubs', 'Historic Sites', 'Modern Lofts'];
-  const decorations = ['Floral Arrangements', 'Table Settings', 'Lighting & Ambiance', 'Balloon Decor', 'Backdrop Design', 'Centerpieces', 'Themed Decor', 'Premium Linens'];
-  const experiences = ['Wine Tasting', 'Chef Dinner', 'Cooking Class', 'Tasting Menu', 'Farm to Table', 'Michelin Star', 'Molecular Gastronomy', 'Food Pairing'];
+  const cuisines = [
+    'French',
+    'Italian',
+    'Indian',
+    'Japanese',
+    'Spanish',
+    'Thai',
+    'Mediterranean',
+    'American BBQ',
+    'Asian Fusion',
+    'German',
+    'British',
+    'Middle Eastern',
+  ];
+  const eventTypes = [
+    'Wedding',
+    'Corporate',
+    'Birthday',
+    'Private Dinner',
+    'Party',
+    'Gala',
+  ];
+  const venues = [
+    'Banquet Halls',
+    'Garden Venues',
+    'Beach Resorts',
+    'Luxury Hotels',
+    'Rooftop Venues',
+    'Country Clubs',
+    'Historic Sites',
+    'Modern Lofts',
+  ];
+  const decorations = [
+    'Floral Arrangements',
+    'Table Settings',
+    'Lighting & Ambiance',
+    'Balloon Decor',
+    'Backdrop Design',
+    'Centerpieces',
+    'Themed Decor',
+    'Premium Linens',
+  ];
+  const experiences = [
+    'Wine Tasting',
+    'Chef Dinner',
+    'Cooking Class',
+    'Tasting Menu',
+    'Farm to Table',
+    'Michelin Star',
+    'Molecular Gastronomy',
+    'Food Pairing',
+  ];
 
   const toggleSection = (section: string) => {
     setExpandedSection(expandedSection === section ? null : section);
   };
 
   const toggleMobileSection = (section: string) => {
-    setExpandedMobileSection(expandedMobileSection === section ? null : section);
+    setExpandedMobileSection(
+      expandedMobileSection === section ? null : section
+    );
   };
 
   const handleSubscribe = (e: React.FormEvent) => {
@@ -117,7 +170,10 @@ const Footer = () => {
             width: '20px',
             height: '20px',
             transition: 'transform 0.3s ease',
-            transform: expandedMobileSection === sectionId ? 'rotate(180deg)' : 'rotate(0)',
+            transform:
+              expandedMobileSection === sectionId
+                ? 'rotate(180deg)'
+                : 'rotate(0)',
           }}
         />
       </button>
@@ -156,10 +212,11 @@ const Footer = () => {
             borderRadius: '12px',
             background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
             border: '1px solid #334155',
+            overflow: 'hidden',
           }}
         >
           {/* Download Apps */}
-          <div>
+          <div style={{ minWidth: 0, overflow: 'hidden' }}>
             <h3
               style={{
                 fontSize: '1.25rem',
@@ -181,10 +238,18 @@ const Footer = () => {
                 lineHeight: '1.6',
               }}
             >
-              Book your perfect catering experience on the go. Available on iOS and Android with exclusive mobile-only deals!
+              Book your perfect catering experience on the go. Available on iOS
+              and Android with exclusive mobile-only deals!
             </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'flex-start' }}>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1rem',
+                alignItems: 'flex-start',
+              }}
+            >
               <a
                 href="https://apps.apple.com/app/id1234567890"
                 target="_blank"
@@ -208,7 +273,7 @@ const Footer = () => {
                   alt="Download on the App Store"
                   src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg"
                   height="60"
-                  style={{ display: 'block' }}
+                  style={{ display: 'block', maxWidth: '100%', height: 'auto' }}
                 />
               </a>
 
@@ -235,14 +300,14 @@ const Footer = () => {
                   alt="Get it on Google Play"
                   src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png"
                   height="60"
-                  style={{ display: 'block' }}
+                  style={{ display: 'block', maxWidth: '100%', height: 'auto' }}
                 />
               </a>
             </div>
           </div>
 
           {/* Newsletter Signup */}
-          <div>
+          <div style={{ minWidth: 0, overflow: 'hidden' }}>
             <h3
               style={{
                 fontSize: '1.25rem',
@@ -251,7 +316,7 @@ const Footer = () => {
                 color: '#f97316',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.5rem',
+                gap: '0.1rem',
               }}
             >
               ✉️ Newsletter
@@ -264,10 +329,19 @@ const Footer = () => {
                 lineHeight: '1.6',
               }}
             >
-              Get exclusive deals, new experiences, and catering tips delivered to your inbox weekly!
+              Get exclusive deals, new experiences, and catering tips delivered
+              to your inbox weekly!
             </p>
 
-            <form onSubmit={handleSubscribe} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <form
+              onSubmit={handleSubscribe}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.75rem',
+                width: '100%',
+              }}
+            >
               <input
                 type="email"
                 value={email}
@@ -283,6 +357,9 @@ const Footer = () => {
                   fontSize: '0.875rem',
                   outline: 'none',
                   transition: 'all 0.3s ease',
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  minWidth: 0,
                 }}
                 onFocus={(e) => {
                   e.currentTarget.style.borderColor = '#f97316';
@@ -303,11 +380,17 @@ const Footer = () => {
                   border: 'none',
                   borderRadius: '8px',
                   fontWeight: '700',
-                  cursor: 'pointer',
+                  cursor: isPending ? 'not-allowed' : 'pointer',
                   transition: 'all 0.3s ease',
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  opacity: isPending ? 0.7 : 1,
+                  minWidth: 0,
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#ea580c';
+                  if (!isPending) {
+                    e.currentTarget.style.backgroundColor = '#ea580c';
+                  }
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = '#f97316';
@@ -316,31 +399,53 @@ const Footer = () => {
                 {isPending ? 'Subscribing...' : 'Subscribe'}
               </button>
             </form>
-            <p style={{ color: '#64748b', fontSize: '0.75rem', margin: '0.75rem 0 0 0' }}>
+            <p
+              style={{
+                color: '#64748b',
+                fontSize: '0.75rem',
+                margin: '0.75rem 0 0 0',
+              }}
+            >
               ✓ We respect your privacy. Unsubscribe at any time.
             </p>
           </div>
         </div>
-
         {/* Desktop: Main Footer Content */}
         <div
-          style={{
-            display: 'none',
-            '@media (min-width: 1024px)': {
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: '2rem',
-              marginBottom: '3rem',
-            },
-          } as any}
+          style={
+            {
+              display: 'none',
+              '@media (min-width: 1024px)': {
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '2rem',
+                marginBottom: '3rem',
+              },
+            } as any
+          }
         >
           {/* Brand Section */}
           <div>
-            <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1rem', color: '#f97316' }}>
+            <h3
+              style={{
+                fontSize: '1.5rem',
+                fontWeight: 'bold',
+                marginBottom: '1rem',
+                color: '#f97316',
+              }}
+            >
               🍽️ CaterHub
             </h3>
-            <p style={{ color: '#cbd5e1', marginBottom: '1rem', lineHeight: '1.6', fontSize: '0.875rem' }}>
-              Connecting event organizers with exceptional catering services worldwide.
+            <p
+              style={{
+                color: '#cbd5e1',
+                marginBottom: '1rem',
+                lineHeight: '1.6',
+                fontSize: '0.875rem',
+              }}
+            >
+              Connecting event organizers with exceptional catering services
+              worldwide.
             </p>
             <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
               {[
@@ -383,11 +488,40 @@ const Footer = () => {
 
           {/* Quick Links */}
           <div>
-            <h4 style={{ fontWeight: 'bold', marginBottom: '1rem', color: 'white', fontSize: '1rem' }}>Quick Links</h4>
-            <ul style={{ listStyle: 'none', padding: 0, color: '#cbd5e1', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {['Home', 'Browse Caterers', 'Find Venues', 'How It Works', 'About Us', 'Blog', 'Contact'].map((item) => (
+            <h4
+              style={{
+                fontWeight: 'bold',
+                marginBottom: '1rem',
+                color: 'white',
+                fontSize: '1rem',
+              }}
+            >
+              Quick Links
+            </h4>
+            <ul
+              style={{
+                listStyle: 'none',
+                padding: 0,
+                color: '#cbd5e1',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.75rem',
+              }}
+            >
+              {[
+                'Home',
+                'Browse Caterers',
+                'Find Venues',
+                'How It Works',
+                'About Us',
+                'Blog',
+                'Contact',
+              ].map((item) => (
                 <li key={item}>
-                  <FooterLink href={`/${item.toLowerCase().replace(/ /g, '-')}`} label={item} />
+                  <FooterLink
+                    href={`/${item.toLowerCase().replace(/ /g, '-')}`}
+                    label={item}
+                  />
                 </li>
               ))}
             </ul>
@@ -395,11 +529,32 @@ const Footer = () => {
 
           {/* Browse By Cuisine */}
           <div>
-            <h4 style={{ fontWeight: 'bold', marginBottom: '1rem', color: 'white', fontSize: '1rem' }}>🍽️ By Cuisine</h4>
-            <ul style={{ listStyle: 'none', padding: 0, color: '#cbd5e1', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <h4
+              style={{
+                fontWeight: 'bold',
+                marginBottom: '1rem',
+                color: 'white',
+                fontSize: '1rem',
+              }}
+            >
+              🍽️ By Cuisine
+            </h4>
+            <ul
+              style={{
+                listStyle: 'none',
+                padding: 0,
+                color: '#cbd5e1',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.75rem',
+              }}
+            >
               {cuisines.slice(0, 6).map((cuisine) => (
                 <li key={cuisine}>
-                  <FooterLink href={`/catering/by-cuisine/${encodeURIComponent(cuisine.toLowerCase().replace(/\s+/g, '-'))}`} label={cuisine} />
+                  <FooterLink
+                    href={`/catering/by-cuisine/${encodeURIComponent(cuisine.toLowerCase().replace(/\s+/g, '-'))}`}
+                    label={cuisine}
+                  />
                 </li>
               ))}
             </ul>
@@ -407,11 +562,32 @@ const Footer = () => {
 
           {/* Browse By Event Type */}
           <div>
-            <h4 style={{ fontWeight: 'bold', marginBottom: '1rem', color: 'white', fontSize: '1rem' }}>🎉 By Event Type</h4>
-            <ul style={{ listStyle: 'none', padding: 0, color: '#cbd5e1', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <h4
+              style={{
+                fontWeight: 'bold',
+                marginBottom: '1rem',
+                color: 'white',
+                fontSize: '1rem',
+              }}
+            >
+              🎉 By Event Type
+            </h4>
+            <ul
+              style={{
+                listStyle: 'none',
+                padding: 0,
+                color: '#cbd5e1',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.75rem',
+              }}
+            >
               {eventTypes.map((eventType) => (
                 <li key={eventType}>
-                  <FooterLink href={`/catering/by-event/${encodeURIComponent(eventType.toLowerCase().replace(/\s+/g, '-'))}`} label={eventType} />
+                  <FooterLink
+                    href={`/catering/by-event/${encodeURIComponent(eventType.toLowerCase().replace(/\s+/g, '-'))}`}
+                    label={eventType}
+                  />
                 </li>
               ))}
             </ul>
@@ -419,11 +595,32 @@ const Footer = () => {
 
           {/* Browse By Venues */}
           <div>
-            <h4 style={{ fontWeight: 'bold', marginBottom: '1rem', color: 'white', fontSize: '1rem' }}>🏛️ Venues</h4>
-            <ul style={{ listStyle: 'none', padding: 0, color: '#cbd5e1', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <h4
+              style={{
+                fontWeight: 'bold',
+                marginBottom: '1rem',
+                color: 'white',
+                fontSize: '1rem',
+              }}
+            >
+              🏛️ Venues
+            </h4>
+            <ul
+              style={{
+                listStyle: 'none',
+                padding: 0,
+                color: '#cbd5e1',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.75rem',
+              }}
+            >
               {venues.slice(0, 6).map((venue) => (
                 <li key={venue}>
-                  <FooterLink href={`/venues/by-type/${encodeURIComponent(venue.toLowerCase().replace(/\s+/g, '-'))}`} label={venue} />
+                  <FooterLink
+                    href={`/venues/by-type/${encodeURIComponent(venue.toLowerCase().replace(/\s+/g, '-'))}`}
+                    label={venue}
+                  />
                 </li>
               ))}
             </ul>
@@ -431,11 +628,37 @@ const Footer = () => {
 
           {/* Legal & Support */}
           <div>
-            <h4 style={{ fontWeight: 'bold', marginBottom: '1rem', color: 'white', fontSize: '1rem' }}>📋 Support</h4>
-            <ul style={{ listStyle: 'none', padding: 0, color: '#cbd5e1', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {['Help Center', 'Terms of Use', 'Privacy Policy', 'Contact Support'].map((item) => (
+            <h4
+              style={{
+                fontWeight: 'bold',
+                marginBottom: '1rem',
+                color: 'white',
+                fontSize: '1rem',
+              }}
+            >
+              📋 Support
+            </h4>
+            <ul
+              style={{
+                listStyle: 'none',
+                padding: 0,
+                color: '#cbd5e1',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.75rem',
+              }}
+            >
+              {[
+                'Help Center',
+                'Terms of Use',
+                'Privacy Policy',
+                'Contact Support',
+              ].map((item) => (
                 <li key={item}>
-                  <FooterLink href={`/${item.toLowerCase().replace(/ /g, '-')}`} label={item} />
+                  <FooterLink
+                    href={`/${item.toLowerCase().replace(/ /g, '-')}`}
+                    label={item}
+                  />
                 </li>
               ))}
             </ul>
@@ -444,15 +667,17 @@ const Footer = () => {
 
         {/* Desktop: Browse By Country */}
         <div
-          style={{
-            marginBottom: '2rem',
-            borderTop: '1px solid #334155',
-            paddingTop: '2rem',
-            display: 'none',
-            '@media (min-width: 1024px)': {
-              display: 'block',
-            },
-          } as any}
+          style={
+            {
+              marginBottom: '2rem',
+              borderTop: '1px solid #334155',
+              paddingTop: '2rem',
+              display: 'none',
+              '@media (min-width: 1024px)': {
+                display: 'block',
+              },
+            } as any
+          }
         >
           <h4
             style={{
@@ -470,7 +695,17 @@ const Footer = () => {
             onClick={() => toggleSection('countries')}
           >
             <span>🌍 Browse By Country ({countries.length})</span>
-            <span style={{ fontSize: '1rem', color: '#f97316', transition: 'transform 0.3s ease', transform: expandedSection === 'countries' ? 'rotate(180deg)' : 'rotate(0)' }}>
+            <span
+              style={{
+                fontSize: '1rem',
+                color: '#f97316',
+                transition: 'transform 0.3s ease',
+                transform:
+                  expandedSection === 'countries'
+                    ? 'rotate(180deg)'
+                    : 'rotate(0)',
+              }}
+            >
               ▼
             </span>
           </h4>
@@ -524,19 +759,35 @@ const Footer = () => {
 
         {/* Mobile: Collapsible Sections */}
         <div
-          style={{
-            display: 'block',
-            '@media (min-width: 1024px)': {
-              display: 'none',
-            },
-            borderTop: '1px solid #334155',
-            paddingTop: '2rem',
-            marginBottom: '2rem',
-          } as any}
+          style={
+            {
+              display: 'block',
+              '@media (min-width: 1024px)': {
+                display: 'none',
+              },
+              borderTop: '1px solid #334155',
+              paddingTop: '2rem',
+              marginBottom: '2rem',
+            } as any
+          }
         >
-          <MobileCollapsibleSection title="Quick Links" icon="🔗" sectionId="quick-links">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {['Home', 'Browse Caterers', 'Find Venues', 'How It Works', 'About Us', 'Blog', 'Contact'].map((item) => (
+          <MobileCollapsibleSection
+            title="Quick Links"
+            icon="🔗"
+            sectionId="quick-links"
+          >
+            <div
+              style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
+            >
+              {[
+                'Home',
+                'Browse Caterers',
+                'Find Venues',
+                'How It Works',
+                'About Us',
+                'Blog',
+                'Contact',
+              ].map((item) => (
                 <Link
                   key={item}
                   href={`/${item.toLowerCase().replace(/ /g, '-')}`}
@@ -548,8 +799,12 @@ const Footer = () => {
                     padding: '8px 0',
                     borderBottom: '1px solid #334155',
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = '#f97316')}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = '#cbd5e1')}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.color = '#f97316')
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.color = '#cbd5e1')
+                  }
                 >
                   {item}
                 </Link>
@@ -557,8 +812,14 @@ const Footer = () => {
             </div>
           </MobileCollapsibleSection>
 
-          <MobileCollapsibleSection title="By Cuisine" icon="🍽️" sectionId="cuisine">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <MobileCollapsibleSection
+            title="By Cuisine"
+            icon="🍽️"
+            sectionId="cuisine"
+          >
+            <div
+              style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
+            >
               {cuisines.map((cuisine) => (
                 <Link
                   key={cuisine}
@@ -571,8 +832,12 @@ const Footer = () => {
                     padding: '8px 0',
                     borderBottom: '1px solid #334155',
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = '#f97316')}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = '#cbd5e1')}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.color = '#f97316')
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.color = '#cbd5e1')
+                  }
                 >
                   {cuisine}
                 </Link>
@@ -580,8 +845,14 @@ const Footer = () => {
             </div>
           </MobileCollapsibleSection>
 
-          <MobileCollapsibleSection title="By Event Type" icon="🎉" sectionId="event-type">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <MobileCollapsibleSection
+            title="By Event Type"
+            icon="🎉"
+            sectionId="event-type"
+          >
+            <div
+              style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
+            >
               {eventTypes.map((eventType) => (
                 <Link
                   key={eventType}
@@ -594,8 +865,12 @@ const Footer = () => {
                     padding: '8px 0',
                     borderBottom: '1px solid #334155',
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = '#f97316')}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = '#cbd5e1')}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.color = '#f97316')
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.color = '#cbd5e1')
+                  }
                 >
                   {eventType}
                 </Link>
@@ -603,7 +878,11 @@ const Footer = () => {
             </div>
           </MobileCollapsibleSection>
 
-          <MobileCollapsibleSection title="By Country" icon="🌍" sectionId="country">
+          <MobileCollapsibleSection
+            title="By Country"
+            icon="🌍"
+            sectionId="country"
+          >
             <div
               style={{
                 display: 'grid',
@@ -644,9 +923,21 @@ const Footer = () => {
             </div>
           </MobileCollapsibleSection>
 
-          <MobileCollapsibleSection title="Support & Legal" icon="📋" sectionId="support">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {['Help Center', 'Terms of Use', 'Privacy Policy', 'Contact Support', 'Become a Partner'].map((item) => (
+          <MobileCollapsibleSection
+            title="Support & Legal"
+            icon="📋"
+            sectionId="support"
+          >
+            <div
+              style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
+            >
+              {[
+                'Help Center',
+                'Terms of Use',
+                'Privacy Policy',
+                'Contact Support',
+                'Become a Partner',
+              ].map((item) => (
                 <Link
                   key={item}
                   href={`/${item.toLowerCase().replace(/ /g, '-')}`}
@@ -658,8 +949,12 @@ const Footer = () => {
                     padding: '8px 0',
                     borderBottom: '1px solid #334155',
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = '#f97316')}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = '#cbd5e1')}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.color = '#f97316')
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.color = '#cbd5e1')
+                  }
                 >
                   {item}
                 </Link>
@@ -680,12 +975,39 @@ const Footer = () => {
           }}
         >
           {[
-            { icon: '📧', label: 'Email Support', contact: 'info@caterhub.com', subtext: 'Response time: 2 hours', href: 'mailto:info@caterhub.com' },
-            { icon: '📱', label: 'Phone Support', contact: '+1 (234) 567-890', subtext: 'Available 24/7', href: 'tel:+1234567890' },
-            { icon: '💬', label: 'Live Chat', contact: 'Start Chat', subtext: '🟢 Agents online', href: '#' },
+            {
+              icon: '📧',
+              label: 'Email Support',
+              contact: 'info@caterhub.com',
+              subtext: 'Response time: 2 hours',
+              href: 'mailto:info@caterhub.com',
+            },
+            {
+              icon: '📱',
+              label: 'Phone Support',
+              contact: '+1 (234) 567-890',
+              subtext: 'Available 24/7',
+              href: 'tel:+1234567890',
+            },
+            {
+              icon: '💬',
+              label: 'Live Chat',
+              contact: 'Start Chat',
+              subtext: '🟢 Agents online',
+              href: '#',
+            },
           ].map((item) => (
             <div key={item.label}>
-              <p style={{ color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.75rem', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.05em' }}>
+              <p
+                style={{
+                  color: '#94a3b8',
+                  fontSize: '0.75rem',
+                  marginBottom: '0.75rem',
+                  textTransform: 'uppercase',
+                  fontWeight: '700',
+                  letterSpacing: '0.05em',
+                }}
+              >
                 {item.icon} {item.label}
               </p>
               <a
@@ -703,7 +1025,13 @@ const Footer = () => {
               >
                 {item.contact}
               </a>
-              <p style={{ color: '#64748b', fontSize: '0.75rem', margin: '0.5rem 0 0 0' }}>
+              <p
+                style={{
+                  color: '#64748b',
+                  fontSize: '0.75rem',
+                  margin: '0.5rem 0 0 0',
+                }}
+              >
                 {item.subtext}
               </p>
             </div>
@@ -722,12 +1050,35 @@ const Footer = () => {
             gap: '2rem',
           }}
         >
-          <p style={{ color: '#64748b', fontSize: '0.875rem', margin: 0, flex: 1, minWidth: '200px' }}>
+          <p
+            style={{
+              color: '#64748b',
+              fontSize: '0.875rem',
+              margin: 0,
+              flex: 1,
+              minWidth: '200px',
+            }}
+          >
             © {currentYear} CaterHub. All rights reserved.
           </p>
 
-          <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <span style={{ color: '#94a3b8', fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+          <div
+            style={{
+              display: 'flex',
+              gap: '1.5rem',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+            }}
+          >
+            <span
+              style={{
+                color: '#94a3b8',
+                fontSize: '0.75rem',
+                fontWeight: '700',
+                textTransform: 'uppercase',
+                whiteSpace: 'nowrap',
+              }}
+            >
               Trust Badges:
             </span>
             <div style={{ display: 'flex', gap: '1rem' }}>
@@ -736,7 +1087,11 @@ const Footer = () => {
                 { emoji: '✓', title: 'Privacy Certified' },
                 { emoji: '⭐', title: '4.9/5 Trusted' },
               ].map((badge) => (
-                <span key={badge.title} title={badge.title} style={{ fontSize: '1.25rem', cursor: 'help' }}>
+                <span
+                  key={badge.title}
+                  title={badge.title}
+                  style={{ fontSize: '1.25rem', cursor: 'help' }}
+                >
                   {badge.emoji}
                 </span>
               ))}

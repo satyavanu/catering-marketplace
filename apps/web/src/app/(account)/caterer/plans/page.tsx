@@ -15,7 +15,16 @@ import {
   Bars3Icon,
   SquaresPlusIcon,
   StarIcon,
+  PhotoIcon,
 } from '@heroicons/react/24/outline';
+
+// Image Upload Configuration
+const IMAGE_UPLOAD_CONFIG = {
+  maxFileSize: 5 * 1024 * 1024, // 5MB
+  allowedFormats: ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'],
+  allowedExtensions: ['.jpg', '.jpeg', '.png', '.webp'],
+  maxFiles: 5,
+};
 
 interface MenuItem {
   id: number;
@@ -38,6 +47,7 @@ interface MenuItem {
   };
   optionalIngredients: string[];
   availability: 'available' | 'unavailable' | 'out-of-stock';
+  images?: string[];
   image?: string;
   prepTime: number;
   servings: number;
@@ -113,6 +123,7 @@ const MOCK_MENU_ITEMS: MenuItem[] = [
     nutrition: { calories: 180, protein: 22, carbs: 5, fat: 8, fiber: 1 },
     optionalIngredients: ['Extra Mint', 'Lemon'],
     availability: 'available',
+    images: [],
     prepTime: 15,
     servings: 2,
   },
@@ -131,6 +142,7 @@ const MOCK_MENU_ITEMS: MenuItem[] = [
     nutrition: { calories: 280, protein: 32, carbs: 8, fat: 14, fiber: 0 },
     optionalIngredients: ['Extra Cream', 'Green Peas'],
     availability: 'available',
+    images: [],
     prepTime: 20,
     servings: 2,
   },
@@ -149,6 +161,7 @@ const MOCK_MENU_ITEMS: MenuItem[] = [
     nutrition: { calories: 250, protein: 8, carbs: 45, fat: 3, fiber: 2 },
     optionalIngredients: ['Garlic', 'Butter', 'Cheese'],
     availability: 'available',
+    images: [],
     prepTime: 5,
     servings: 1,
   },
@@ -167,6 +180,7 @@ const MOCK_MENU_ITEMS: MenuItem[] = [
     nutrition: { calories: 450, protein: 28, carbs: 52, fat: 16, fiber: 3 },
     optionalIngredients: ['Extra Meat', 'Boiled Eggs'],
     availability: 'available',
+    images: [],
     prepTime: 25,
     servings: 2,
   },
@@ -295,6 +309,7 @@ export default function CatererPlansPage() {
     availability: 'available' as const,
     prepTime: '',
     servings: '',
+    images: [] as string[],
   });
 
   const [categoryFormData, setCategoryFormData] = useState({
@@ -329,6 +344,7 @@ export default function CatererPlansPage() {
   });
 
   const [ingredientInput, setIngredientInput] = useState('');
+  const [uploadErrors, setUploadErrors] = useState<string[]>([]);
 
   const dietaryOptions = [
     { value: 'vegetarian', label: '🌱 Vegetarian' },
@@ -340,6 +356,65 @@ export default function CatererPlansPage() {
     selectedCategory === 'all'
       ? menuItems
       : menuItems.filter((item) => item.category === selectedCategory);
+
+  // Image Upload Functions
+  const validateImageFile = (file: File): string | null => {
+    if (file.size > IMAGE_UPLOAD_CONFIG.maxFileSize) {
+      return `File size exceeds ${IMAGE_UPLOAD_CONFIG.maxFileSize / (1024 * 1024)}MB limit. File: ${file.name}`;
+    }
+
+    if (!IMAGE_UPLOAD_CONFIG.allowedFormats.includes(file.type)) {
+      return `Invalid file format. Allowed formats: ${IMAGE_UPLOAD_CONFIG.allowedExtensions.join(', ')}. File: ${file.name}`;
+    }
+
+    return null;
+  };
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+
+    const errors: string[] = [];
+    let filesProcessed = 0;
+
+    const totalImages = menuFormData.images.length + files.length;
+    if (totalImages > IMAGE_UPLOAD_CONFIG.maxFiles) {
+      errors.push(
+        `Maximum ${IMAGE_UPLOAD_CONFIG.maxFiles} images allowed. You're trying to upload ${totalImages} total.`
+      );
+    }
+
+    Array.from(files).forEach((file) => {
+      const validationError = validateImageFile(file);
+      if (validationError) {
+        errors.push(validationError);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (e.target?.result && typeof e.target.result === 'string') {
+          setMenuFormData((prev) => ({
+            ...prev,
+            images: [...prev.images, e.target.result as string],
+          }));
+        }
+        filesProcessed++;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    setUploadErrors(errors);
+    event.target.value = '';
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setMenuFormData((prev) => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index),
+    }));
+    setUploadErrors([]);
+  };
 
   // Menu Management Functions
   const handleAddMenuCategory = () => {
@@ -398,7 +473,9 @@ export default function CatererPlansPage() {
       availability: 'available',
       prepTime: '',
       servings: '',
+      images: [],
     });
+    setUploadErrors([]);
     setShowMenuForm(true);
   };
 
@@ -425,7 +502,9 @@ export default function CatererPlansPage() {
       availability: item.availability,
       prepTime: item.prepTime.toString(),
       servings: item.servings.toString(),
+      images: item.images || [],
     });
+    setUploadErrors([]);
     setShowMenuForm(true);
   };
 
@@ -464,6 +543,7 @@ export default function CatererPlansPage() {
                 availability: menuFormData.availability,
                 prepTime: parseInt(menuFormData.prepTime) || 0,
                 servings: parseInt(menuFormData.servings) || 1,
+                images: menuFormData.images,
               }
             : item
         )
@@ -492,11 +572,13 @@ export default function CatererPlansPage() {
         availability: menuFormData.availability,
         prepTime: parseInt(menuFormData.prepTime) || 0,
         servings: parseInt(menuFormData.servings) || 1,
+        images: menuFormData.images,
       };
       setMenuItems([...menuItems, newMenuItem]);
     }
 
     setShowMenuForm(false);
+    setUploadErrors([]);
   };
 
   const handleDeleteMenuItem = (id: number) => {
@@ -579,7 +661,11 @@ export default function CatererPlansPage() {
         items: packageFormData.items,
         addOns: packageFormData.addOns,
         status: 'active',
-        createdDate: new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }),
+        createdDate: new Date().toLocaleDateString('en-IN', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        }),
         orders: 0,
         minGuests: packageFormData.minGuests ? parseInt(packageFormData.minGuests) : undefined,
         maxGuests: packageFormData.maxGuests ? parseInt(packageFormData.maxGuests) : undefined,
@@ -669,7 +755,11 @@ export default function CatererPlansPage() {
         items: subscriptionFormData.items,
         addOns: subscriptionFormData.addOns,
         status: 'active',
-        createdDate: new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }),
+        createdDate: new Date().toLocaleDateString('en-IN', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        }),
         subscribers: 0,
       };
       setSubscriptions([...subscriptions, newSubscription]);
@@ -759,7 +849,9 @@ export default function CatererPlansPage() {
               <div style={{ ...styles.statIcon, backgroundColor: '#fef3c7' }}>✅</div>
               <div>
                 <p style={styles.statLabel}>Available</p>
-                <p style={styles.statValue}>{menuItems.filter((i) => i.availability === 'available').length}</p>
+                <p style={styles.statValue}>
+                  {menuItems.filter((i) => i.availability === 'available').length}
+                </p>
               </div>
             </div>
             <div style={styles.statCard}>
@@ -767,7 +859,10 @@ export default function CatererPlansPage() {
               <div>
                 <p style={styles.statLabel}>Avg Price</p>
                 <p style={styles.statValue}>
-                  ₹{menuItems.length > 0 ? Math.round(menuItems.reduce((sum, i) => sum + i.price, 0) / menuItems.length) : 0}
+                  ₹
+                  {menuItems.length > 0
+                    ? Math.round(menuItems.reduce((sum, i) => sum + i.price, 0) / menuItems.length)
+                    : 0}
                 </p>
               </div>
             </div>
@@ -818,7 +913,8 @@ export default function CatererPlansPage() {
             <div style={styles.menuItemsSection}>
               <div style={styles.sectionHeader}>
                 <h2 style={styles.sectionTitle}>
-                  {selectedCategory === 'all' ? 'All Menu Items' : selectedCategory} ({filteredMenuItems.length})
+                  {selectedCategory === 'all' ? 'All Menu Items' : selectedCategory} (
+                  {filteredMenuItems.length})
                 </h2>
                 <div style={styles.viewControls}>
                   <button
@@ -854,6 +950,16 @@ export default function CatererPlansPage() {
                   {filteredMenuItems.length > 0 ? (
                     filteredMenuItems.map((item) => (
                       <div key={item.id} style={styles.menuItemCard}>
+                        {/* Image Display */}
+                        {item.images && item.images.length > 0 && (
+                          <div style={styles.itemImageContainer}>
+                            <img src={item.images[0]} alt={item.name} style={styles.itemImage} />
+                            {item.images.length > 1 && (
+                              <div style={styles.imageCount}>{item.images.length} photos</div>
+                            )}
+                          </div>
+                        )}
+
                         {/* Item Header */}
                         <div style={styles.itemCardHeader}>
                           <div>
@@ -984,7 +1090,9 @@ export default function CatererPlansPage() {
                           <p style={styles.itemDescription}>{item.description}</p>
                           <div style={styles.listRowTags}>
                             {item.dietary.map((d) => (
-                              <span key={d} style={styles.dietaryBadge}>{d}</span>
+                              <span key={d} style={styles.dietaryBadge}>
+                                {d}
+                              </span>
                             ))}
                             {item.halal && <span style={styles.standardBadge}>🕌 Halal</span>}
                             {item.vegan && <span style={styles.standardBadge}>🌱 Vegan</span>}
@@ -996,7 +1104,8 @@ export default function CatererPlansPage() {
                           <span
                             style={{
                               ...styles.availabilityBadge,
-                              backgroundColor: item.availability === 'available' ? '#dcfce7' : '#fee2e2',
+                              backgroundColor:
+                                item.availability === 'available' ? '#dcfce7' : '#fee2e2',
                               color: item.availability === 'available' ? '#166534' : '#991b1b',
                             }}
                           >
@@ -1011,7 +1120,10 @@ export default function CatererPlansPage() {
                           <button onClick={() => handleEditMenuItem(item)} style={styles.buttonSmall}>
                             <PencilIcon style={{ width: '14px', height: '14px' }} />
                           </button>
-                          <button onClick={() => handleDeleteMenuItem(item.id)} style={styles.buttonSmallDanger}>
+                          <button
+                            onClick={() => handleDeleteMenuItem(item.id)}
+                            style={styles.buttonSmallDanger}
+                          >
                             <TrashIcon style={{ width: '14px', height: '14px' }} />
                           </button>
                         </div>
@@ -1027,7 +1139,7 @@ export default function CatererPlansPage() {
             </div>
           </div>
 
-          {/* Menu Item Form Modal - keep existing code as before */}
+          {/* Menu Item Form Modal */}
           {showMenuForm && (
             <div style={styles.modal}>
               <div style={styles.modalOverlay} onClick={() => setShowMenuForm(false)} />
@@ -1040,6 +1152,62 @@ export default function CatererPlansPage() {
                 </div>
 
                 <div style={styles.modalBody}>
+                  {/* Image Upload Section */}
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Item Images</label>
+                    <div style={styles.imageUploadContainer}>
+                      <input
+                        type="file"
+                        multiple
+                        accept={IMAGE_UPLOAD_CONFIG.allowedExtensions.join(',')}
+                        onChange={handleImageUpload}
+                        style={styles.fileInput}
+                        id="image-upload"
+                      />
+                      <label htmlFor="image-upload" style={styles.uploadLabel}>
+                        <PhotoIcon style={{ width: '32px', height: '32px' }} />
+                        <span style={styles.uploadText}>Click to upload or drag and drop</span>
+                        <small style={styles.uploadHint}>
+                          {`PNG, JPG, JPEG, WEBP up to ${IMAGE_UPLOAD_CONFIG.maxFileSize / (1024 * 1024)}MB (Max ${IMAGE_UPLOAD_CONFIG.maxFiles} files)`}
+                        </small>
+                      </label>
+                    </div>
+
+                    {/* Upload Errors */}
+                    {uploadErrors.length > 0 && (
+                      <div style={styles.errorContainer}>
+                        {uploadErrors.map((error, idx) => (
+                          <div key={idx} style={styles.errorMessage}>
+                            ⚠️ {error}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Image Preview Gallery */}
+                    {menuFormData.images.length > 0 && (
+                      <div style={styles.imageGallery}>
+                        <h4 style={styles.galleryTitle}>
+                          Uploaded Images ({menuFormData.images.length}/{IMAGE_UPLOAD_CONFIG.maxFiles})
+                        </h4>
+                        <div style={styles.imageGrid}>
+                          {menuFormData.images.map((image, idx) => (
+                            <div key={idx} style={styles.imageCard}>
+                              <img src={image} alt={`Preview ${idx + 1}`} style={styles.imagePreview} />
+                              <button
+                                onClick={() => handleRemoveImage(idx)}
+                                style={styles.removeImageButton}
+                                title="Remove image"
+                              >
+                                <TrashIcon style={{ width: '14px', height: '14px' }} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Basic Info */}
                   <div style={styles.formGroup}>
                     <label style={styles.label}>Item Name *</label>
@@ -1073,7 +1241,9 @@ export default function CatererPlansPage() {
                       <label style={styles.label}>Availability</label>
                       <select
                         value={menuFormData.availability}
-                        onChange={(e) => setMenuFormData({ ...menuFormData, availability: e.target.value as any })}
+                        onChange={(e) =>
+                          setMenuFormData({ ...menuFormData, availability: e.target.value as any })
+                        }
                         style={styles.input}
                       >
                         <option value="available">Available</option>
@@ -1088,7 +1258,9 @@ export default function CatererPlansPage() {
                     <textarea
                       placeholder="Item description"
                       value={menuFormData.description}
-                      onChange={(e) => setMenuFormData({ ...menuFormData, description: e.target.value })}
+                      onChange={(e) =>
+                        setMenuFormData({ ...menuFormData, description: e.target.value })
+                      }
                       style={{ ...styles.input, minHeight: '80px', resize: 'vertical' }}
                     />
                   </div>
@@ -1167,7 +1339,9 @@ export default function CatererPlansPage() {
                         <input
                           type="checkbox"
                           checked={menuFormData.glutenFree}
-                          onChange={(e) => setMenuFormData({ ...menuFormData, glutenFree: e.target.checked })}
+                          onChange={(e) =>
+                            setMenuFormData({ ...menuFormData, glutenFree: e.target.checked })
+                          }
                           style={styles.checkbox}
                         />
                         🌾 Gluten Free
@@ -1294,6 +1468,67 @@ export default function CatererPlansPage() {
               </div>
             </div>
           )}
+
+          {/* Category Form Modal */}
+          {showCategoryForm && (
+            <div style={styles.modal}>
+              <div style={styles.modalOverlay} onClick={() => setShowCategoryForm(false)} />
+              <div style={styles.modalContent}>
+                <div style={styles.modalHeader}>
+                  <h2 style={styles.modalTitle}>{editingCategoryId ? 'Edit' : 'Add'} Category</h2>
+                  <button onClick={() => setShowCategoryForm(false)} style={styles.closeButton}>
+                    <XMarkIcon style={{ width: '24px', height: '24px' }} />
+                  </button>
+                </div>
+
+                <div style={styles.modalBody}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Category Name *</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., Starters"
+                      value={categoryFormData.name}
+                      onChange={(e) => setCategoryFormData({ ...categoryFormData, name: e.target.value })}
+                      style={styles.input}
+                    />
+                  </div>
+
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Description</label>
+                    <input
+                      type="text"
+                      placeholder="Category description"
+                      value={categoryFormData.description}
+                      onChange={(e) =>
+                        setCategoryFormData({ ...categoryFormData, description: e.target.value })
+                      }
+                      style={styles.input}
+                    />
+                  </div>
+
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Icon Emoji</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., 🥘"
+                      value={categoryFormData.icon}
+                      onChange={(e) => setCategoryFormData({ ...categoryFormData, icon: e.target.value })}
+                      style={styles.input}
+                    />
+                  </div>
+
+                  <div style={styles.formActions}>
+                    <button onClick={() => setShowCategoryForm(false)} style={styles.buttonSecondary}>
+                      Cancel
+                    </button>
+                    <button onClick={handleSaveCategory} style={styles.buttonPrimary}>
+                      {editingCategoryId ? 'Update' : 'Add'} Category
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
 
@@ -1328,7 +1563,10 @@ export default function CatererPlansPage() {
               <div>
                 <p style={styles.statLabel}>Avg Price</p>
                 <p style={styles.statValue}>
-                  ₹{packages.length > 0 ? Math.round(packages.reduce((sum, p) => sum + p.price, 0) / packages.length) : 0}
+                  ₹
+                  {packages.length > 0
+                    ? Math.round(packages.reduce((sum, p) => sum + p.price, 0) / packages.length)
+                    : 0}
                 </p>
               </div>
             </div>
@@ -1376,7 +1614,9 @@ export default function CatererPlansPage() {
                         <h4 style={styles.contentTitle}>📝 Items Included:</h4>
                         <div style={styles.itemsList}>
                           {pkg.items.map((item, idx) => (
-                            <span key={idx} style={styles.itemTag}>{item}</span>
+                            <span key={idx} style={styles.itemTag}>
+                              {item}
+                            </span>
                           ))}
                         </div>
                       </div>
@@ -1395,7 +1635,9 @@ export default function CatererPlansPage() {
                       )}
 
                       <div style={styles.packagePricing}>
-                        <span style={styles.pricingLabel}>{pkg.pricing === 'per_person' ? 'Price per Person' : 'Fixed Price'}</span>
+                        <span style={styles.pricingLabel}>
+                          {pkg.pricing === 'per_person' ? 'Price per Person' : 'Fixed Price'}
+                        </span>
                         <span style={styles.pricingValue}>₹{pkg.price}</span>
                       </div>
                     </div>
@@ -1449,7 +1691,9 @@ export default function CatererPlansPage() {
                     <textarea
                       placeholder="Package description"
                       value={packageFormData.description}
-                      onChange={(e) => setPackageFormData({ ...packageFormData, description: e.target.value })}
+                      onChange={(e) =>
+                        setPackageFormData({ ...packageFormData, description: e.target.value })
+                      }
                       style={{ ...styles.input, minHeight: '80px', resize: 'vertical' }}
                     />
                   </div>
@@ -1459,7 +1703,9 @@ export default function CatererPlansPage() {
                       <label style={styles.label}>Pricing Type</label>
                       <select
                         value={packageFormData.pricing}
-                        onChange={(e) => setPackageFormData({ ...packageFormData, pricing: e.target.value as any })}
+                        onChange={(e) =>
+                          setPackageFormData({ ...packageFormData, pricing: e.target.value as any })
+                        }
                         style={styles.input}
                       >
                         <option value="per_person">Per Person</option>
@@ -1475,7 +1721,9 @@ export default function CatererPlansPage() {
                           type="number"
                           placeholder="0"
                           value={packageFormData.price}
-                          onChange={(e) => setPackageFormData({ ...packageFormData, price: e.target.value })}
+                          onChange={(e) =>
+                            setPackageFormData({ ...packageFormData, price: e.target.value })
+                          }
                           style={{ ...styles.input, marginLeft: 0, paddingLeft: '8px' }}
                         />
                       </div>
@@ -1489,7 +1737,9 @@ export default function CatererPlansPage() {
                         type="number"
                         placeholder="e.g., 20"
                         value={packageFormData.minGuests}
-                        onChange={(e) => setPackageFormData({ ...packageFormData, minGuests: e.target.value })}
+                        onChange={(e) =>
+                          setPackageFormData({ ...packageFormData, minGuests: e.target.value })
+                        }
                         style={styles.input}
                       />
                     </div>
@@ -1500,7 +1750,9 @@ export default function CatererPlansPage() {
                         type="number"
                         placeholder="e.g., 200"
                         value={packageFormData.maxGuests}
-                        onChange={(e) => setPackageFormData({ ...packageFormData, maxGuests: e.target.value })}
+                        onChange={(e) =>
+                          setPackageFormData({ ...packageFormData, maxGuests: e.target.value })
+                        }
                         style={styles.input}
                       />
                     </div>
@@ -1537,14 +1789,18 @@ export default function CatererPlansPage() {
               <div style={{ ...styles.statIcon, backgroundColor: '#f0fdf4' }}>👥</div>
               <div>
                 <p style={styles.statLabel}>Total Subscribers</p>
-                <p style={styles.statValue}>{subscriptions.reduce((sum, s) => sum + s.subscribers, 0)}</p>
+                <p style={styles.statValue}>
+                  {subscriptions.reduce((sum, s) => sum + s.subscribers, 0)}
+                </p>
               </div>
             </div>
             <div style={styles.statCard}>
               <div style={{ ...styles.statIcon, backgroundColor: '#fef3c7' }}>✅</div>
               <div>
                 <p style={styles.statLabel}>Active Plans</p>
-                <p style={styles.statValue}>{subscriptions.filter((s) => s.status === 'active').length}</p>
+                <p style={styles.statValue}>
+                  {subscriptions.filter((s) => s.status === 'active').length}
+                </p>
               </div>
             </div>
             <div style={styles.statCard}>
@@ -1552,7 +1808,12 @@ export default function CatererPlansPage() {
               <div>
                 <p style={styles.statLabel}>Avg Monthly Price</p>
                 <p style={styles.statValue}>
-                  ₹{subscriptions.length > 0 ? Math.round(subscriptions.reduce((sum, s) => sum + s.price, 0) / subscriptions.length) : 0}
+                  ₹
+                  {subscriptions.length > 0
+                    ? Math.round(
+                        subscriptions.reduce((sum, s) => sum + s.price, 0) / subscriptions.length
+                      )
+                    : 0}
                 </p>
               </div>
             </div>
@@ -1615,10 +1876,14 @@ export default function CatererPlansPage() {
                           <h4 style={styles.contentTitle}>🍽️ Meal Items:</h4>
                           {Object.entries(sub.items).map(([category, items]) => (
                             <div key={category} style={styles.itemCategory}>
-                              <p style={styles.itemCategoryTitle}>{category.charAt(0).toUpperCase() + category.slice(1)}:</p>
+                              <p style={styles.itemCategoryTitle}>
+                                {category.charAt(0).toUpperCase() + category.slice(1)}:
+                              </p>
                               <div style={styles.itemsList}>
                                 {items.map((item, idx) => (
-                                  <span key={idx} style={styles.itemTag}>{item}</span>
+                                  <span key={idx} style={styles.itemTag}>
+                                    {item}
+                                  </span>
                                 ))}
                               </div>
                             </div>
@@ -1671,7 +1936,9 @@ export default function CatererPlansPage() {
               <div style={styles.modalOverlay} onClick={() => setShowSubscriptionForm(false)} />
               <div style={styles.modalContent}>
                 <div style={styles.modalHeader}>
-                  <h2 style={styles.modalTitle}>{editingSubscriptionId ? 'Edit' : 'Add'} Subscription Plan</h2>
+                  <h2 style={styles.modalTitle}>
+                    {editingSubscriptionId ? 'Edit' : 'Add'} Subscription Plan
+                  </h2>
                   <button onClick={() => setShowSubscriptionForm(false)} style={styles.closeButton}>
                     <XMarkIcon style={{ width: '24px', height: '24px' }} />
                   </button>
@@ -1684,7 +1951,9 @@ export default function CatererPlansPage() {
                       type="text"
                       placeholder="e.g., Healthy Morning Bundle"
                       value={subscriptionFormData.name}
-                      onChange={(e) => setSubscriptionFormData({ ...subscriptionFormData, name: e.target.value })}
+                      onChange={(e) =>
+                        setSubscriptionFormData({ ...subscriptionFormData, name: e.target.value })
+                      }
                       style={styles.input}
                     />
                   </div>
@@ -1694,7 +1963,12 @@ export default function CatererPlansPage() {
                     <textarea
                       placeholder="Plan description"
                       value={subscriptionFormData.description}
-                      onChange={(e) => setSubscriptionFormData({ ...subscriptionFormData, description: e.target.value })}
+                      onChange={(e) =>
+                        setSubscriptionFormData({
+                          ...subscriptionFormData,
+                          description: e.target.value,
+                        })
+                      }
                       style={{ ...styles.input, minHeight: '80px', resize: 'vertical' }}
                     />
                   </div>
@@ -1704,7 +1978,12 @@ export default function CatererPlansPage() {
                       <label style={styles.label}>Meal Type</label>
                       <select
                         value={subscriptionFormData.mealType}
-                        onChange={(e) => setSubscriptionFormData({ ...subscriptionFormData, mealType: e.target.value as any })}
+                        onChange={(e) =>
+                          setSubscriptionFormData({
+                            ...subscriptionFormData,
+                            mealType: e.target.value as any,
+                          })
+                        }
                         style={styles.input}
                       >
                         <option value="breakfast">🌅 Breakfast</option>
@@ -1718,7 +1997,12 @@ export default function CatererPlansPage() {
                       <label style={styles.label}>Duration</label>
                       <select
                         value={subscriptionFormData.duration}
-                        onChange={(e) => setSubscriptionFormData({ ...subscriptionFormData, duration: e.target.value as any })}
+                        onChange={(e) =>
+                          setSubscriptionFormData({
+                            ...subscriptionFormData,
+                            duration: e.target.value as any,
+                          })
+                        }
                         style={styles.input}
                       >
                         <option value="weekly">Weekly</option>
@@ -1736,7 +2020,9 @@ export default function CatererPlansPage() {
                           type="number"
                           placeholder="0"
                           value={subscriptionFormData.price}
-                          onChange={(e) => setSubscriptionFormData({ ...subscriptionFormData, price: e.target.value })}
+                          onChange={(e) =>
+                            setSubscriptionFormData({ ...subscriptionFormData, price: e.target.value })
+                          }
                           style={{ ...styles.input, marginLeft: 0, paddingLeft: '8px' }}
                         />
                       </div>
@@ -1748,7 +2034,12 @@ export default function CatererPlansPage() {
                         type="number"
                         placeholder="5"
                         value={subscriptionFormData.mealsPerWeek}
-                        onChange={(e) => setSubscriptionFormData({ ...subscriptionFormData, mealsPerWeek: e.target.value })}
+                        onChange={(e) =>
+                          setSubscriptionFormData({
+                            ...subscriptionFormData,
+                            mealsPerWeek: e.target.value,
+                          })
+                        }
                         style={styles.input}
                       />
                     </div>
@@ -1759,7 +2050,12 @@ export default function CatererPlansPage() {
                         type="number"
                         placeholder="5"
                         value={subscriptionFormData.daysPerWeek}
-                        onChange={(e) => setSubscriptionFormData({ ...subscriptionFormData, daysPerWeek: e.target.value })}
+                        onChange={(e) =>
+                          setSubscriptionFormData({
+                            ...subscriptionFormData,
+                            daysPerWeek: e.target.value,
+                          })
+                        }
                         style={styles.input}
                       />
                     </div>
@@ -2012,7 +2308,31 @@ const styles: { [key: string]: React.CSSProperties } = {
     transition: 'all 0.2s ease',
     display: 'flex',
     flexDirection: 'column',
-    padding: '16px',
+    padding: '0px',
+  },
+  itemImageContainer: {
+    position: 'relative' as const,
+    width: '100%',
+    height: '200px',
+    backgroundColor: '#f8fafc',
+    overflow: 'hidden',
+  },
+  itemImage: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover' as const,
+    display: 'block',
+  },
+  imageCount: {
+    position: 'absolute' as const,
+    bottom: '8px',
+    right: '8px',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    color: 'white',
+    padding: '4px 8px',
+    borderRadius: '4px',
+    fontSize: '12px',
+    fontWeight: '600',
   },
   itemCardHeader: {
     display: 'flex',
@@ -2021,6 +2341,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     marginBottom: '12px',
     paddingBottom: '12px',
     borderBottom: '1px solid #e2e8f0',
+    padding: '16px 16px 12px 16px',
   },
   itemName: {
     fontSize: '16px',
@@ -2046,9 +2367,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: '#64748b',
     margin: '0 0 12px 0',
     lineHeight: '1.4',
+    padding: '0 16px',
   },
   priceSection: {
     marginBottom: '12px',
+    padding: '0 16px',
   },
   priceBox: {
     display: 'flex',
@@ -2078,6 +2401,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     gap: '4px',
     flexWrap: 'wrap' as const,
     marginBottom: '12px',
+    padding: '0 16px',
   },
   standardBadge: {
     padding: '3px 8px',
@@ -2100,9 +2424,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     gridTemplateColumns: 'repeat(4, 1fr)',
     gap: '8px',
     marginBottom: '12px',
-    padding: '12px',
+    padding: '12px 16px',
     backgroundColor: '#f8fafc',
     borderRadius: '8px',
+    margin: '0 16px 12px 16px',
   },
   nutritionItem: {
     textAlign: 'center' as const,
@@ -2124,6 +2449,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     gap: '12px',
     marginBottom: '12px',
+    padding: '0 16px',
   },
   metaInfo: {
     fontSize: '12px',
@@ -2132,9 +2458,10 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   ingredientsSection: {
     marginBottom: '12px',
-    padding: '12px',
+    padding: '12px 16px',
     backgroundColor: '#fef3c7',
     borderRadius: '8px',
+    margin: '0 16px 12px 16px',
   },
   ingredientsTitle: {
     fontSize: '11px',
@@ -2159,6 +2486,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     gap: '8px',
     marginTop: 'auto',
+    padding: '16px',
+    borderTop: '1px solid #e2e8f0',
   },
   buttonItemEdit: {
     flex: 1,
@@ -2606,5 +2935,93 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: '600',
     fontSize: '14px',
     transition: 'all 0.2s ease',
+  },
+  imageUploadContainer: {
+    borderRadius: '8px',
+    border: '2px dashed #cbd5e1',
+    padding: '24px',
+    textAlign: 'center' as const,
+    backgroundColor: '#f8fafc',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+  },
+  fileInput: {
+    display: 'none',
+  },
+  uploadLabel: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    gap: '8px',
+    cursor: 'pointer',
+    color: '#64748b',
+  },
+  uploadText: {
+    fontSize: '14px',
+    fontWeight: '600',
+  },
+  uploadHint: {
+    fontSize: '12px',
+    color: '#94a3b8',
+    marginTop: '4px',
+    display: 'block',
+  },
+  errorContainer: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '8px',
+    marginTop: '12px',
+  },
+  errorMessage: {
+    padding: '10px 12px',
+    backgroundColor: '#fee2e2',
+    color: '#991b1b',
+    borderRadius: '6px',
+    fontSize: '13px',
+    border: '1px solid #fecaca',
+  },
+  imageGallery: {
+    marginTop: '16px',
+  },
+  galleryTitle: {
+    fontSize: '13px',
+    fontWeight: '700',
+    color: '#1e293b',
+    margin: '0 0 12px 0',
+  },
+  imageGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+    gap: '12px',
+  },
+  imageCard: {
+    position: 'relative' as const,
+    borderRadius: '8px',
+    overflow: 'hidden',
+    border: '1px solid #e2e8f0',
+    backgroundColor: '#f8fafc',
+  },
+  imagePreview: {
+    width: '100%',
+    height: '120px',
+    objectFit: 'cover' as const,
+    display: 'block',
+  },
+  removeImageButton: {
+    position: 'absolute' as const,
+    top: '4px',
+    right: '4px',
+    width: '28px',
+    height: '28px',
+    borderRadius: '6px',
+    backgroundColor: '#dc2626',
+    color: 'white',
+    border: 'none',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    opacity: 0,
+    transition: 'opacity 0.2s ease',
   },
 };

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn, useSession } from 'next-auth/react';
-import { EnvelopeIcon, LockClosedIcon } from '@heroicons/react/24/outline';
+import { EnvelopeIcon, PhoneIcon } from '@heroicons/react/24/outline';
 
 
 /// <reference types="next-auth" />
@@ -30,11 +30,16 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const { data: session } = useSession();
   const [email, setEmail] = useState('demo@example.com');
-  const [password, setPassword] = useState('password');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [loginMode, setLoginMode] = useState<'email' | 'phone'>('email');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [emailOtpSent, setEmailOtpSent] = useState(false);
 
   // Prevent hydration mismatch
   useEffect(() => {
@@ -55,27 +60,137 @@ export default function LoginPage() {
     }
   }, [session, mounted, router, searchParams]);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSendEmailOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
+    if (!email || email.length === 0) {
+      setError('Please enter your email address');
+      setLoading(false);
+      return;
+    }
+
     try {
+      // TODO: Replace with actual OTP API call
+      // const response = await fetch('/api/auth/send-otp-email', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ email }),
+      // });
+
+      setEmailOtpSent(true);
+      setError('');
+      // Demo: OTP would be "123456"
+    } catch (err) {
+      setError('Failed to send OTP. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyEmailOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    if (!otp || otp.length !== 6) {
+      setError('Please enter a valid 6-digit OTP');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // TODO: Replace with actual OTP verification API call
+      // const response = await fetch('/api/auth/verify-otp-email', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ email, otp }),
+      // });
+
       const result = await signIn('credentials', {
-        email,
-        password,
+        email: email,
+        otp: otp,
         redirect: false,
       });
 
       if (result?.error) {
-        setError('Invalid email or password');
+        setError('Invalid OTP. Please try again.');
         setLoading(false);
       } else if (result?.ok) {
-        // Redirect will be handled by the redirect callback in auth.config.ts
-        // which uses the role from the session
+        // Redirect will be handled by the redirect callback
       }
     } catch (err) {
-      setError('An error occurred. Please try again.');
+      setError('Failed to verify OTP. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  const handleSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setOtpLoading(true);
+
+    // Validate phone number (basic validation)
+    if (!phoneNumber || phoneNumber.length < 10) {
+      setError('Please enter a valid phone number');
+      setOtpLoading(false);
+      return;
+    }
+
+    try {
+      // TODO: Replace with actual OTP API call
+      // const response = await fetch('/api/auth/send-otp', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ phoneNumber }),
+      // });
+
+      // For demo purposes
+      setOtpSent(true);
+      setError('');
+      // Demo: OTP would be "123456"
+    } catch (err) {
+      setError('Failed to send OTP. Please try again.');
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    if (!otp || otp.length !== 6) {
+      setError('Please enter a valid 6-digit OTP');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // TODO: Replace with actual OTP verification API call
+      // const response = await fetch('/api/auth/verify-otp', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ phoneNumber, otp }),
+      // });
+
+      // For demo purposes - simulate successful verification
+      const result = await signIn('credentials', {
+        phone: phoneNumber,
+        otp: otp,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError('Invalid OTP. Please try again.');
+        setLoading(false);
+      } else if (result?.ok) {
+        // Redirect will be handled by the redirect callback
+      }
+    } catch (err) {
+      setError('Failed to verify OTP. Please try again.');
       setLoading(false);
     }
   };
@@ -170,11 +285,10 @@ export default function LoginPage() {
         justifyContent: 'center', 
         alignItems: 'center', 
         minHeight: '100vh',
-        backgroundColor: '#f3f4f6'
       }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: '48px', marginBottom: '1rem' }}>🍽️</div>
-          <p style={{ color: '#6b7280' }}>Loading...</p>
+          <p style={{ color: '#fff' }}>Loading...</p>
         </div>
       </div>
     );
@@ -195,22 +309,14 @@ export default function LoginPage() {
         }
 
         .login-container {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
+          display: flex;
           min-height: 100vh;
           margin: 0;
-          padding: 0;
-        }
-
-        .brand-section {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
+          width: 100%;
           justify-content: center;
-          color: white;
-          padding: clamp(2rem, 5vw, 4rem);
+          align-items: center;
+          padding: 0;
           background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
-          min-height: 100vh;
         }
 
         .form-section {
@@ -218,23 +324,16 @@ export default function LoginPage() {
           justify-content: center;
           align-items: center;
           padding: clamp(1.5rem, 5vw, 2rem);
-          min-height: 100vh;
-          overflow-y: auto;
-          background-color: #ffffff;
+          width: 100%;
+          max-width: 500px;
         }
 
         @media (max-width: 1024px) {
           .login-container {
-            grid-template-columns: 1fr;
             min-height: auto;
           }
 
-          .brand-section {
-            display: none;
-          }
-
           .form-section {
-            min-height: 100vh;
             padding: clamp(1.5rem, 4vw, 2rem);
           }
         }
@@ -242,7 +341,6 @@ export default function LoginPage() {
         @media (max-width: 768px) {
           .form-section {
             padding: clamp(1rem, 3vw, 1.5rem);
-            min-height: auto;
             align-items: flex-start;
             padding-top: clamp(2rem, 8vw, 3rem);
             padding-bottom: clamp(2rem, 8vw, 3rem);
@@ -259,73 +357,15 @@ export default function LoginPage() {
       `}</style>
 
       <div className="login-container">
-        {/* Left Side - Brand Section (Desktop) */}
-        <div className="brand-section">
-          <div style={{ textAlign: 'center', maxWidth: '400px' }}>
-            <div
-              style={{
-                fontSize: 'clamp(2.5rem, 8vw, 4rem)',
-                marginBottom: '1.5rem',
-                display: 'flex',
-                justifyContent: 'center',
-              }}
-            >
-              🍽️
-            </div>
-            <h1
-              style={{
-                fontSize: 'clamp(1.875rem, 5vw, 2.5rem)',
-                fontWeight: 'bold',
-                marginBottom: '1rem',
-                lineHeight: '1.2',
-              }}
-            >
-              CaterHub
-            </h1>
-            <p
-              style={{
-                fontSize: 'clamp(0.875rem, 2vw, 1.125rem)',
-                marginBottom: '2rem',
-                opacity: 0.9,
-                lineHeight: '1.6',
-              }}
-            >
-              Connect with exceptional catering services and create unforgettable culinary experiences.
-            </p>
-
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: '1.5rem',
-                marginTop: '2rem',
-              }}
-            >
-              {[
-                { emoji: '⭐', text: '4.9/5 Avg Rating' },
-                { emoji: '👨‍🍳', text: '1000+ Caterers' },
-                { emoji: '🎉', text: '50K+ Events' },
-                { emoji: '🌍', text: '50+ Countries' },
-              ].map((stat) => (
-                <div key={stat.text} style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', marginBottom: '0.5rem' }}>
-                    {stat.emoji}
-                  </div>
-                  <p style={{ fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)', opacity: 0.9 }}>
-                    {stat.text}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Side - Form */}
+        {/* Form Section */}
         <div className="form-section">
           <div
             style={{
               width: '100%',
-              maxWidth: '400px',
+              maxWidth: '440px',
+              borderRadius: '1rem',
+              padding: '2.5rem 2rem',
+              boxShadow: '0 20px 25px rgba(0, 0, 0, 0.1)',
             }}
           >
             {/* Header */}
@@ -342,7 +382,7 @@ export default function LoginPage() {
               </h2>
               <p
                 style={{
-                  color: '#6b7280',
+                  color: '#fff',
                   fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
                   lineHeight: '1.5',
                   margin: 0,
@@ -352,245 +392,655 @@ export default function LoginPage() {
               </p>
             </div>
 
-            {/* Email & Password Form */}
-            <form
-              onSubmit={handleLogin}
-              style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}
+            {/* Login Mode Tabs */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '0.5rem',
+                marginBottom: '2rem',
+                backgroundColor: '#f3f4f6',
+                padding: '0.25rem',
+                borderRadius: '0.5rem',
+              }}
             >
-              {/* Email */}
-              <div>
-                <label
-                  style={{
-                    display: 'block',
-                    fontWeight: '600',
-                    color: '#1f2937',
-                    marginBottom: '0.5rem',
-                    fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
-                  }}
-                >
-                  Email Address
-                </label>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    padding: '0.75rem 1rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '0.5rem',
-                    backgroundColor: 'white',
-                    transition: 'all 0.3s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = '#667eea';
-                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = '#d1d5db';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                >
-                  <EnvelopeIcon
-                    style={{
-                      width: '18px',
-                      height: '18px',
-                      color: '#9ca3af',
-                      flexShrink: 0,
-                    }}
-                  />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    disabled={loading || socialLoading !== null}
-                    style={{
-                      flex: 1,
-                      border: 'none',
-                      outline: 'none',
-                      fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
-                      color: '#1f2937',
-                      backgroundColor: 'transparent',
-                    }}
-                  />
-                </div>
-                <p
-                  style={{
-                    fontSize: '0.75rem',
-                    color: '#9ca3af',
-                    margin: '0.5rem 0 0 0',
-                  }}
-                >
-                  Demo: demo@example.com
-                </p>
-              </div>
-
-              {/* Password */}
-              <div>
-                <label
-                  style={{
-                    display: 'block',
-                    fontWeight: '600',
-                    color: '#1f2937',
-                    marginBottom: '0.5rem',
-                    fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
-                  }}
-                >
-                  Password
-                </label>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    padding: '0.75rem 1rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '0.5rem',
-                    backgroundColor: 'white',
-                    transition: 'all 0.3s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = '#667eea';
-                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = '#d1d5db';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                >
-                  <LockClosedIcon
-                    style={{
-                      width: '18px',
-                      height: '18px',
-                      color: '#9ca3af',
-                      flexShrink: 0,
-                    }}
-                  />
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    disabled={loading || socialLoading !== null}
-                    style={{
-                      flex: 1,
-                      border: 'none',
-                      outline: 'none',
-                      fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
-                      color: '#1f2937',
-                      backgroundColor: 'transparent',
-                    }}
-                  />
-                </div>
-                <p
-                  style={{
-                    fontSize: '0.75rem',
-                    color: '#9ca3af',
-                    margin: '0.5rem 0 0 0',
-                  }}
-                >
-                  Demo: password
-                </p>
-              </div>
-
-              {/* Error Message */}
-              {error && (
-                <div
-                  style={{
-                    padding: '0.75rem 1rem',
-                    backgroundColor: '#fee2e2',
-                    borderRadius: '0.5rem',
-                    color: '#991b1b',
-                    fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
-                    border: '1px solid #fecaca',
-                    display: 'flex',
-                    gap: '0.5rem',
-                    alignItems: 'center',
-                  }}
-                >
-                  <span style={{ flexShrink: 0 }}>⚠️</span>
-                  {error}
-                </div>
-              )}
-
-              {/* Remember & Forgot */}
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '1rem',
-                }}
-              >
-                <label
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
-                    color: '#1f2937',
-                    cursor: 'pointer',
-                    userSelect: 'none',
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    style={{ cursor: 'pointer', accentColor: '#667eea' }}
-                    disabled={loading || socialLoading !== null}
-                  />
-                  Remember me
-                </label>
-                <Link
-                  href="/forgot-password"
-                  style={{
-                    color: '#667eea',
-                    textDecoration: 'none',
-                    fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
-                    fontWeight: '600',
-                    transition: 'color 0.3s ease',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = '#764ba2')}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = '#667eea')}
-                >
-                  Forgot password?
-                </Link>
-              </div>
-
-              {/* Submit Button */}
               <button
-                type="submit"
-                disabled={loading || socialLoading !== null}
+                type="button"
+                onClick={() => {
+                  setLoginMode('email');
+                  setOtpSent(false);
+                  setEmailOtpSent(false);
+                  setError('');
+                  setOtp('');
+                  setPhoneNumber('');
+                }}
                 style={{
-                  padding: 'clamp(0.625rem, 2vw, 0.75rem) 1rem',
-                  backgroundColor: '#667eea',
-                  color: 'white',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '0.375rem',
                   border: 'none',
-                  borderRadius: '0.5rem',
+                  backgroundColor: loginMode === 'email' ? 'white' : 'transparent',
+                  color: loginMode === 'email' ? '#667eea' : 'blue',
                   fontWeight: '600',
-                  cursor: loading || socialLoading ? 'not-allowed' : 'pointer',
-                  fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
-                  opacity: loading || socialLoading ? 0.7 : 1,
+                  fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
+                  cursor: 'pointer',
                   transition: 'all 0.3s ease',
-                  minHeight: '2.75rem',
-                  width: '100%',
-                }}
-                onMouseEnter={(e) => {
-                  if (!loading && !socialLoading) {
-                    e.currentTarget.style.backgroundColor = '#764ba2';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#667eea';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = 'none';
+                  boxShadow: loginMode === 'email' ? '0 1px 3px rgba(0, 0, 0, 0.1)' : 'none',
                 }}
               >
-                {loading ? 'Signing in...' : 'Sign In with Email'}
+                <EnvelopeIcon style={{ width: '16px', height: '16px', marginRight: '0.5rem', display: 'inline' }} />
+                Email
               </button>
-            </form>
+              <button
+                type="button"
+                onClick={() => {
+                  setLoginMode('phone');
+                  setOtpSent(false);
+                  setEmailOtpSent(false);
+                  setError('');
+                  setEmail('demo@example.com');
+                  setOtp('');
+                }}
+                style={{
+                  padding: '0.75rem 1rem',
+                  borderRadius: '0.375rem',
+                  border: 'none',
+                  backgroundColor: loginMode === 'phone' ? 'white' : 'transparent',
+                  color: loginMode === 'phone' ? '#667eea' : '#000',
+                  fontWeight: '600',
+                  fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  boxShadow: loginMode === 'phone' ? '0 1px 3px rgba(0, 0, 0, 0.1)' : 'none',
+                }}
+              >
+                <PhoneIcon style={{ width: '16px', height: '16px', marginRight: '0.5rem', display: 'inline' }} />
+                Phone
+              </button>
+            </div>
+
+            {/* Email Login Form */}
+            {loginMode === 'email' && (
+              <form
+                onSubmit={emailOtpSent ? handleVerifyEmailOtp : handleSendEmailOtp}
+                style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}
+              >
+                {!emailOtpSent ? (
+                  <>
+                    {/* Email */}
+                    <div>
+                      <label
+                        style={{
+                          display: 'block',
+                          fontWeight: '600',
+                          color: '#1f2937',
+                          marginBottom: '0.5rem',
+                          fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
+                        }}
+                      >
+                        Email Address
+                      </label>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.75rem',
+                          padding: '0.75rem 1rem',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '0.5rem',
+                          backgroundColor: '#f9fafb',
+                          transition: 'all 0.3s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = '#667eea';
+                          e.currentTarget.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = '#d1d5db';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      >
+                        <EnvelopeIcon
+                          style={{
+                            width: '18px',
+                            height: '18px',
+                            color: '#667eea',
+                            flexShrink: 0,
+                          }}
+                        />
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="you@example.com"
+                          disabled={loading || socialLoading !== null}
+                          style={{
+                            flex: 1,
+                            border: 'none',
+                            outline: 'none',
+                            fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
+                            color: '#1f2937',
+                            backgroundColor: 'transparent',
+                          }}
+                        />
+                      </div>
+                      <p
+                        style={{
+                          fontSize: '0.75rem',
+                          color: '#9ca3af',
+                          margin: '0.5rem 0 0 0',
+                        }}
+                      >
+                        A temporary password will be sent to your email
+                      </p>
+                    </div>
+
+                    {/* Error Message */}
+                    {error && (
+                      <div
+                        style={{
+                          padding: '0.75rem 1rem',
+                          backgroundColor: '#fee2e2',
+                          borderRadius: '0.5rem',
+                          color: '#991b1b',
+                          fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
+                          border: '1px solid #fecaca',
+                          display: 'flex',
+                          gap: '0.5rem',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <span style={{ flexShrink: 0 }}>⚠️</span>
+                        {error}
+                      </div>
+                    )}
+
+                    {/* Send OTP Button */}
+                    <button
+                      type="submit"
+                      disabled={loading || socialLoading !== null || !email}
+                      style={{
+                        padding: 'clamp(0.625rem, 2vw, 0.75rem) 1rem',
+                        backgroundColor: email ? '#667eea' : '#d1d5db',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '0.5rem',
+                        fontWeight: '600',
+                        cursor: loading || socialLoading || !email ? 'not-allowed' : 'pointer',
+                        fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
+                        opacity: loading || socialLoading ? 0.7 : 1,
+                        transition: 'all 0.3s ease',
+                        minHeight: '2.75rem',
+                        width: '100%',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!loading && !socialLoading && email) {
+                          e.currentTarget.style.backgroundColor = '#764ba2';
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = email ? '#667eea' : '#d1d5db';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = 'none';
+                      }}
+                    >
+                      {loading ? 'Sending OTP...' : 'Send OTP to Email'}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {/* OTP Input */}
+                    <div>
+                      <label
+                        style={{
+                          display: 'block',
+                          fontWeight: '600',
+                          color: '#1f2937',
+                          marginBottom: '0.5rem',
+                          fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
+                        }}
+                      >
+                        Enter OTP
+                      </label>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.75rem',
+                          padding: '0.75rem 1rem',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '0.5rem',
+                          backgroundColor: '#f9fafb',
+                          transition: 'all 0.3s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = '#667eea';
+                          e.currentTarget.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = '#d1d5db';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      >
+                        <input
+                          type="text"
+                          value={otp}
+                          onChange={(e) => {
+                            const value = e.target.value.replace(/[^\d]/g, '').slice(0, 6);
+                            setOtp(value);
+                          }}
+                          placeholder="000000"
+                          disabled={loading}
+                          style={{
+                            flex: 1,
+                            border: 'none',
+                            outline: 'none',
+                            fontSize: '2rem',
+                            fontWeight: '600',
+                            letterSpacing: '0.5rem',
+                            textAlign: 'center',
+                            color: '#1f2937',
+                            backgroundColor: 'transparent',
+                          }}
+                          maxLength={6}
+                        />
+                      </div>
+                      <p
+                        style={{
+                          fontSize: '0.75rem',
+                          color: '#9ca3af',
+                          margin: '0.5rem 0 0 0',
+                          textAlign: 'center',
+                        }}
+                      >
+                        OTP sent to {email}
+                      </p>
+                    </div>
+
+                    {/* Error Message */}
+                    {error && (
+                      <div
+                        style={{
+                          padding: '0.75rem 1rem',
+                          backgroundColor: '#fee2e2',
+                          borderRadius: '0.5rem',
+                          color: '#991b1b',
+                          fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
+                          border: '1px solid #fecaca',
+                          display: 'flex',
+                          gap: '0.5rem',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <span style={{ flexShrink: 0 }}>⚠️</span>
+                        {error}
+                      </div>
+                    )}
+
+                    {/* Verify OTP Button */}
+                    <button
+                      type="submit"
+                      disabled={loading || otp.length !== 6}
+                      style={{
+                        padding: 'clamp(0.625rem, 2vw, 0.75rem) 1rem',
+                        backgroundColor: otp.length === 6 ? '#667eea' : '#d1d5db',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '0.5rem',
+                        fontWeight: '600',
+                        cursor: loading || otp.length !== 6 ? 'not-allowed' : 'pointer',
+                        fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
+                        opacity: loading ? 0.7 : 1,
+                        transition: 'all 0.3s ease',
+                        minHeight: '2.75rem',
+                        width: '100%',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!loading && otp.length === 6) {
+                          e.currentTarget.style.backgroundColor = '#764ba2';
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = otp.length === 6 ? '#667eea' : '#d1d5db';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = 'none';
+                      }}
+                    >
+                      {loading ? 'Verifying...' : 'Verify OTP'}
+                    </button>
+
+                    {/* Edit Email Button */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEmailOtpSent(false);
+                        setOtp('');
+                        setError('');
+                      }}
+                      disabled={loading}
+                      style={{
+                        padding: '0.75rem',
+                        backgroundColor: 'transparent',
+                        color: '#667eea',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '0.5rem',
+                        fontWeight: '600',
+                        cursor: loading ? 'not-allowed' : 'pointer',
+                        fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
+                        transition: 'all 0.3s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!loading) {
+                          e.currentTarget.style.borderColor = '#667eea';
+                          e.currentTarget.style.backgroundColor = '#f0f4ff';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = '#d1d5db';
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }}
+                    >
+                      Edit Email
+                    </button>
+                  </>
+                )}
+              </form>
+            )}
+
+            {/* Phone Login Form */}
+            {loginMode === 'phone' && (
+              <form
+                onSubmit={otpSent ? handleVerifyOtp : handleSendOtp}
+                style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}
+              >
+                {!otpSent ? (
+                  <>
+                    {/* Phone Number */}
+                    <div>
+                      <label
+                        style={{
+                          display: 'block',
+                          fontWeight: '600',
+                          color: '#1f2937',
+                          marginBottom: '0.5rem',
+                          fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
+                        }}
+                      >
+                        Phone Number
+                      </label>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.75rem',
+                          padding: '0.75rem 1rem',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '0.5rem',
+                          backgroundColor: '#f9fafb',
+                          transition: 'all 0.3s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = '#667eea';
+                          e.currentTarget.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = '#d1d5db';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      >
+                        <span style={{ color: '#667eea', fontWeight: '600', flexShrink: 0 }}>
+                          +91
+                        </span>
+                        <input
+                          type="tel"
+                          value={phoneNumber}
+                          onChange={(e) => {
+                            const value = e.target.value.replace(/[^\d]/g, '').slice(0, 10);
+                            setPhoneNumber(value);
+                          }}
+                          placeholder="10-digit phone number"
+                          disabled={otpLoading || loading}
+                          style={{
+                            flex: 1,
+                            border: 'none',
+                            outline: 'none',
+                            fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
+                            color: '#1f2937',
+                            backgroundColor: 'transparent',
+                          }}
+                        />
+                      </div>
+                      <p
+                        style={{
+                          fontSize: '0.75rem',
+                          color: '#9ca3af',
+                          margin: '0.5rem 0 0 0',
+                        }}
+                      >
+                        We'll send you an OTP to verify your number
+                      </p>
+                    </div>
+
+                    {/* Error Message */}
+                    {error && (
+                      <div
+                        style={{
+                          padding: '0.75rem 1rem',
+                          backgroundColor: '#fee2e2',
+                          borderRadius: '0.5rem',
+                          color: '#991b1b',
+                          fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
+                          border: '1px solid #fecaca',
+                          display: 'flex',
+                          gap: '0.5rem',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <span style={{ flexShrink: 0 }}>⚠️</span>
+                        {error}
+                      </div>
+                    )}
+
+                    {/* Send OTP Button */}
+                    <button
+                      type="submit"
+                      disabled={otpLoading || loading || phoneNumber.length !== 10}
+                      style={{
+                        padding: 'clamp(0.625rem, 2vw, 0.75rem) 1rem',
+                        backgroundColor: phoneNumber.length === 10 ? '#667eea' : '#d1d5db',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '0.5rem',
+                        fontWeight: '600',
+                        cursor: otpLoading || loading || phoneNumber.length !== 10 ? 'not-allowed' : 'pointer',
+                        fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
+                        opacity: otpLoading || loading ? 0.7 : 1,
+                        transition: 'all 0.3s ease',
+                        minHeight: '2.75rem',
+                        width: '100%',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!otpLoading && !loading && phoneNumber.length === 10) {
+                          e.currentTarget.style.backgroundColor = '#764ba2';
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = phoneNumber.length === 10 ? '#667eea' : '#d1d5db';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = 'none';
+                      }}
+                    >
+                      {otpLoading ? 'Sending OTP...' : 'Send OTP'}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {/* OTP Input */}
+                    <div>
+                      <label
+                        style={{
+                          display: 'block',
+                          fontWeight: '600',
+                          color: '#1f2937',
+                          marginBottom: '0.5rem',
+                          fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
+                        }}
+                      >
+                        Enter OTP
+                      </label>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.75rem',
+                          padding: '0.75rem 1rem',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '0.5rem',
+                          backgroundColor: '#f9fafb',
+                          transition: 'all 0.3s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = '#667eea';
+                          e.currentTarget.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = '#d1d5db';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      >
+                        <input
+                          type="text"
+                          value={otp}
+                          onChange={(e) => {
+                            const value = e.target.value.replace(/[^\d]/g, '').slice(0, 6);
+                            setOtp(value);
+                          }}
+                          placeholder="000000"
+                          disabled={loading}
+                          style={{
+                            flex: 1,
+                            border: 'none',
+                            outline: 'none',
+                            fontSize: '2rem',
+                            fontWeight: '600',
+                            letterSpacing: '0.5rem',
+                            textAlign: 'center',
+                            color: '#1f2937',
+                            backgroundColor: 'transparent',
+                          }}
+                          maxLength={6}
+                        />
+                      </div>
+                      <p
+                        style={{
+                          fontSize: '0.75rem',
+                          color: '#9ca3af',
+                          margin: '0.5rem 0 0 0',
+                          textAlign: 'center',
+                        }}
+                      >
+                        OTP sent to +91{phoneNumber}
+                      </p>
+                    </div>
+
+                    {/* Error Message */}
+                    {error && (
+                      <div
+                        style={{
+                          padding: '0.75rem 1rem',
+                          backgroundColor: '#fee2e2',
+                          borderRadius: '0.5rem',
+                          color: '#991b1b',
+                          fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
+                          border: '1px solid #fecaca',
+                          display: 'flex',
+                          gap: '0.5rem',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <span style={{ flexShrink: 0 }}>⚠️</span>
+                        {error}
+                      </div>
+                    )}
+
+                    {/* Verify OTP Button */}
+                    <button
+                      type="submit"
+                      disabled={loading || otp.length !== 6}
+                      style={{
+                        padding: 'clamp(0.625rem, 2vw, 0.75rem) 1rem',
+                        backgroundColor: otp.length === 6 ? '#667eea' : '#d1d5db',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '0.5rem',
+                        fontWeight: '600',
+                        cursor: loading || otp.length !== 6 ? 'not-allowed' : 'pointer',
+                        fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
+                        opacity: loading ? 0.7 : 1,
+                        transition: 'all 0.3s ease',
+                        minHeight: '2.75rem',
+                        width: '100%',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!loading && otp.length === 6) {
+                          e.currentTarget.style.backgroundColor = '#764ba2';
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = otp.length === 6 ? '#667eea' : '#d1d5db';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = 'none';
+                      }}
+                    >
+                      {loading ? 'Verifying...' : 'Verify OTP'}
+                    </button>
+
+                    {/* Edit Phone Button */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOtpSent(false);
+                        setOtp('');
+                        setError('');
+                      }}
+                      disabled={loading}
+                      style={{
+                        padding: '0.75rem',
+                        backgroundColor: 'transparent',
+                        color: '#667eea',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '0.5rem',
+                        fontWeight: '600',
+                        cursor: loading ? 'not-allowed' : 'pointer',
+                        fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
+                        transition: 'all 0.3s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!loading) {
+                          e.currentTarget.style.borderColor = '#667eea';
+                          e.currentTarget.style.backgroundColor = '#f0f4ff';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = '#d1d5db';
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }}
+                    >
+                      Edit Phone Number
+                    </button>
+                  </>
+                )}
+              </form>
+            )}
 
             {/* Divider */}
             <div
@@ -606,7 +1056,7 @@ export default function LoginPage() {
               <span
                 style={{
                   fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
-                  color: '#9ca3af',
+                  color: '#fff',
                   fontWeight: '500',
                 }}
               >
@@ -666,53 +1116,7 @@ export default function LoginPage() {
                   bgHoverColor="#357ae8"
                   borderColor="#4285f4"
                 />
-                <SocialLoginButton
-                  provider="github"
-                  icon={({ style }) => (
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="currentColor"
-                      style={style}
-                    >
-                      <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v 3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
-                    </svg>
-                  )}
-                  label="GitHub"
-                  bgColor="#333333"
-                  bgHoverColor="#1a1a1a"
-                  borderColor="#333333"
-                />
-                <SocialLoginButton
-                  provider="apple"
-                  icon={({ style }) => (
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="currentColor"
-                      style={style}
-                    >
-                      <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.3-.93 3.58-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.48-2.54 3.09l-.42.02zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
-                    </svg>
-                  )}
-                  label="Apple"
-                  bgColor="#000000"
-                  bgHoverColor="#333333"
-                  borderColor="#000000"
-                />
               </div>
-              <p
-                style={{
-                  fontSize: '0.75rem',
-                  color: '#9ca3af',
-                  textAlign: 'center',
-                  marginTop: '0.75rem',
-                }}
-              >
-                Apple login coming soon
-              </p>
             </div>
 
             {/* Sign Up Link */}

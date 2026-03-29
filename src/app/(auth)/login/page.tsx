@@ -39,39 +39,6 @@ export default function LoginPage() {
 
   return (
     <div style={{ display: 'flex', flex: 1 }}>
-      {/* Left Side - Branding */}
-      <div
-        style={{
-          flex: 1,
-          backgroundColor: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
-          backgroundImage: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
-          color: 'white',
-          padding: '2rem',
-        }}
-      >
-        <h1 style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '1rem', textAlign: 'center' }}>
-          🍽️ CaterHub
-        </h1>
-        <p style={{ fontSize: '1.25rem', marginBottom: '2rem', textAlign: 'center', opacity: 0.9 }}>
-          Catering Business Management Dashboard
-        </p>
-        <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>📊</div>
-        <p style={{ fontSize: '1rem', opacity: 0.9, textAlign: 'center', maxWidth: '400px' }}>
-          Manage your catering business, orders, menu, and customers all in one place.
-        </p>
-        
-        {/* Demo Credentials */}
-        <div style={{ marginTop: '3rem', backgroundColor: 'rgba(255,255,255,0.1)', padding: '1.5rem', borderRadius: '0.75rem', maxWidth: '400px', backdropFilter: 'blur(10px)' }}>
-          <p style={{ fontSize: '0.875rem', marginBottom: '0.75rem', fontWeight: '600' }}>📝 Demo Credentials:</p>
-          <p style={{ fontSize: '0.75rem', margin: '0.25rem 0', opacity: 0.9 }}>Email: <code style={{ backgroundColor: 'rgba(0,0,0,0.2)', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }}>chef@example.com</code></p>
-          <p style={{ fontSize: '0.75rem', margin: '0.25rem 0', opacity: 0.9 }}>Password: <code style={{ backgroundColor: 'rgba(0,0,0,0.2)', padding: '0.25rem 0.5rem', borderRadius: '0.25rem' }}>password123</code></p>
-        </div>
-      </div>
-
       {/* Right Side - Form */}
       <div
         style={{
