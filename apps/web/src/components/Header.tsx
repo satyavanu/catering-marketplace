@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
 import {
@@ -11,12 +11,14 @@ import {
   ArrowRightOnRectangleIcon,
   Cog6ToothIcon,
   HeartIcon,
+  CheckBadgeIcon,
 } from '@heroicons/react/24/outline';
 
 const Header = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
   const { data: session, status } = useSession();
 
   const navLinks = [
@@ -24,6 +26,23 @@ const Header = () => {
     { label: 'Catering', href: '/catering' },
     { label: 'Meals', href: '/meals' },
   ];
+
+  // Close profile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+
+    if (isProfileMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isProfileMenuOpen]);
 
   const NavLink = ({ href, label }: { href: string; label: string }) => (
     <Link
@@ -100,10 +119,16 @@ const Header = () => {
     </div>
   );
 
-  const ProfileDropdown = () => (
+  const ProfileDropdown = ({ isMobile = false }) => (
     <div
+      ref={profileMenuRef}
       style={{
         position: 'relative',
+      }}
+      onMouseLeave={() => {
+        if (!isMobile) {
+          setIsProfileMenuOpen(false);
+        }
       }}
     >
       <button
@@ -120,10 +145,14 @@ const Header = () => {
           transition: 'all 0.2s ease',
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = '#f1f5f9';
+          if (!isMobile) {
+            e.currentTarget.style.backgroundColor = '#f1f5f9';
+          }
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = 'transparent';
+          if (!isMobile) {
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }
         }}
       >
         <img
@@ -133,25 +162,27 @@ const Header = () => {
           }
           alt={session?.user?.name || 'User'}
           style={{
-            width: '32px',
-            height: '32px',
+            width: isMobile ? '28px' : '32px',
+            height: isMobile ? '28px' : '32px',
             borderRadius: '50%',
             border: '2px solid #e2e8f0',
           }}
         />
-        <span
-          style={{
-            fontSize: '13px',
-            fontWeight: '600',
-            color: '#1e293b',
-            maxWidth: '100px',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {session?.user?.name?.split(' ')[0]}
-        </span>
+        {!isMobile && (
+          <span
+            style={{
+              fontSize: '13px',
+              fontWeight: '600',
+              color: '#1e293b',
+              maxWidth: '100px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {session?.user?.name?.split(' ')[0]}
+          </span>
+        )}
       </button>
 
       {/* Dropdown Menu */}
@@ -166,11 +197,10 @@ const Header = () => {
             borderRadius: '8px',
             border: '1px solid #e2e8f0',
             boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
-            minWidth: '200px',
+            minWidth: '220px',
             zIndex: 1000,
             animation: 'slideDown 0.2s ease-out',
           }}
-          onMouseLeave={() => setIsProfileMenuOpen(false)}
         >
           {/* User Info */}
           <div
@@ -196,19 +226,32 @@ const Header = () => {
               }}
             />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p
-                style={{
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  color: '#1e293b',
-                  margin: 0,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {session?.user?.name}
-              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <p
+                  style={{
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    color: '#1e293b',
+                    margin: 0,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {session?.user?.name}
+                </p>
+                {session?.user?.isOnboardingCompleted && (
+                  <CheckBadgeIcon
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      color: '#3b82f6',
+                      flexShrink: 0,
+                    }}
+                    title="Verified"
+                  />
+                )}
+              </div>
               <p
                 style={{
                   fontSize: '12px',
@@ -221,6 +264,19 @@ const Header = () => {
               >
                 {session?.user?.email}
               </p>
+              {session?.user?.role && (
+                <p
+                  style={{
+                    fontSize: '11px',
+                    color: '#667eea',
+                    margin: '2px 0 0 0',
+                    fontWeight: '500',
+                    textTransform: 'capitalize',
+                  }}
+                >
+                  {session.user.role}
+                </p>
+              )}
             </div>
           </div>
 
@@ -233,7 +289,7 @@ const Header = () => {
             }}
           >
             <Link
-              href="/account"
+              href={session?.user?.role === 'caterer' ? '/caterer/dashboard' : '/customer/dashboard'}
               onClick={() => setIsProfileMenuOpen(false)}
               style={{
                 display: 'flex',
@@ -291,34 +347,36 @@ const Header = () => {
               Settings
             </Link>
 
-            <Link
-              href="/saved-caterers"
-              onClick={() => setIsProfileMenuOpen(false)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                padding: '10px 16px',
-                color: '#475569',
-                textDecoration: 'none',
-                fontSize: '13px',
-                fontWeight: '500',
-                transition: 'all 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#f8fafc';
-                e.currentTarget.style.color = '#667eea';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.color = '#475569';
-              }}
-            >
-              <HeartIcon
-                style={{ width: '16px', height: '16px', flexShrink: 0 }}
-              />
-              Saved Caterers
-            </Link>
+            {session?.user?.role === 'customer' && (
+              <Link
+                href="/saved-caterers"
+                onClick={() => setIsProfileMenuOpen(false)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '10px 16px',
+                  color: '#475569',
+                  textDecoration: 'none',
+                  fontSize: '13px',
+                  fontWeight: '500',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f8fafc';
+                  e.currentTarget.style.color = '#667eea';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.color = '#475569';
+                }}
+              >
+                <HeartIcon
+                  style={{ width: '16px', height: '16px', flexShrink: 0 }}
+                />
+                Saved Caterers
+              </Link>
+            )}
           </nav>
 
           {/* Divider */}
@@ -373,6 +431,144 @@ const Header = () => {
         zIndex: 50,
       }}
     >
+      <style>{`
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.5;
+          }
+        }
+
+        .desktop-logo {
+          display: none;
+        }
+
+        .mobile-logo {
+          display: none;
+        }
+
+        .desktop-nav {
+          display: none;
+        }
+
+        .desktop-actions {
+          display: none;
+        }
+
+        .mobile-header {
+          display: none;
+        }
+
+        .mobile-menu {
+          display: none;
+        }
+
+        /* Desktop - iPad and above (1024px+) */
+        @media (min-width: 1024px) {
+          .desktop-logo {
+            display: flex !important;
+          }
+
+          .mobile-logo {
+            display: none !important;
+          }
+
+          .desktop-nav {
+            display: flex !important;
+            align-items: center;
+            gap: 32px;
+            flex: 1;
+          }
+
+          .desktop-search {
+            display: flex !important;
+          }
+
+          .desktop-actions {
+            display: flex !important;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+          }
+
+          .mobile-header {
+            display: none !important;
+          }
+
+          .mobile-menu {
+            display: none !important;
+          }
+        }
+
+        /* Tablet/Mobile - Below iPad resolution (< 1024px) */
+        @media (max-width: 1023px) {
+          .desktop-logo {
+            display: none !important;
+          }
+
+          .mobile-logo {
+            display: flex !important;
+          }
+
+          .desktop-nav {
+            display: none !important;
+          }
+
+          .desktop-search {
+            display: none !important;
+          }
+
+          .desktop-actions {
+            display: none !important;
+          }
+
+          .mobile-header {
+            display: flex !important;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            justify-content: space-between;
+          }
+
+          .mobile-menu {
+            display: block !important;
+            border-top: 1px solid #e2e8f0;
+            background-color: #f8fafc;
+            padding: 0 0 16px 0;
+            animation: slideDown 0.3s ease-out;
+            max-height: 80vh;
+            overflow-y: auto;
+          }
+        }
+
+        /* Extra small screens - iPad mini and below (< 768px) */
+        @media (max-width: 767px) {
+          .mobile-header {
+            gap: 6px;
+          }
+        }
+
+        /* Very small phones (< 380px) */
+        @media (max-width: 379px) {
+          .mobile-logo span {
+            display: none;
+          }
+        }
+      `}</style>
+
       <div
         style={{
           maxWidth: '1400px',
@@ -380,7 +576,7 @@ const Header = () => {
           padding: '0 16px',
         }}
       >
-        {/* Desktop Header */}
+        {/* Main Header Container */}
         <div
           style={{
             display: 'flex',
@@ -390,9 +586,10 @@ const Header = () => {
             gap: '16px',
           }}
         >
-          {/* Logo */}
+          {/* Desktop Logo */}
           <Link
             href="/"
+            className="desktop-logo"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -435,8 +632,6 @@ const Header = () => {
               <NavLink key={link.href} href={link.href} label={link.label} />
             ))}
           </nav>
-
-        
 
           {/* Right Actions - Desktop Only */}
           <div className="desktop-actions">
@@ -532,47 +727,9 @@ const Header = () => {
             )}
           </div>
 
-          {/* Mobile Header - Logo + Search + Hamburger */}
+          {/* Mobile Header - Hamburger First, Then Logo, Avatar on Right */}
           <div className="mobile-header">
-
-            {status === 'authenticated' && (
-              <button
-                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: '6px',
-                  borderRadius: '6px',
-                  minWidth: '40px',
-                  height: '40px',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#f1f5f9';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }}
-              >
-                <img
-                  src={
-                    session?.user?.image ||
-                    `https://api.dicebear.com/7.x/avataaars/svg?seed=${session?.user?.name}`
-                  }
-                  alt={session?.user?.name || 'User'}
-                  style={{
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '50%',
-                    border: '2px solid #e2e8f0',
-                  }}
-                />
-              </button>
-            )}
-
+            {/* Hamburger Menu Button */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               style={{
@@ -588,6 +745,7 @@ const Header = () => {
                 justifyContent: 'center',
                 minWidth: '40px',
                 height: '40px',
+                flexShrink: 0,
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.backgroundColor = '#f1f5f9';
@@ -602,18 +760,108 @@ const Header = () => {
                 <Bars3Icon style={{ width: '24px', height: '24px' }} />
               )}
             </button>
+
+            {/* Mobile Logo */}
+            <Link
+              href="/"
+              className="mobile-logo"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                textDecoration: 'none',
+                flex: 1,
+              }}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <div
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                }}
+              >
+                🍽️
+              </div>
+              <span
+                style={{
+                  fontSize: '16px',
+                  fontWeight: '700',
+                  color: '#1e293b',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                CaterHub
+              </span>
+            </Link>
+
+            {/* Avatar on Right - Always visible when authenticated */}
+            {status === 'authenticated' && (
+              <ProfileDropdown isMobile={true} />
+            )}
+
+            {/* Unauthenticated User - Show Login Button */}
+            {status !== 'authenticated' && status !== 'loading' && (
+              <Link
+                href="/login"
+                style={{
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  color: 'white',
+                  textDecoration: 'none',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  backgroundColor: '#667eea',
+                  transition: 'all 0.2s ease',
+                  display: 'inline-block',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#764ba2';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#667eea';
+                }}
+              >
+                Login
+              </Link>
+            )}
+
+            {status === 'loading' && (
+              <div
+                style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '50%',
+                  backgroundColor: '#f1f5f9',
+                  animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                  flexShrink: 0,
+                }}
+              />
+            )}
           </div>
         </div>
 
         {/* Mobile Menu - Navigation + Actions */}
         {isMobileMenuOpen && (
           <div className="mobile-menu">
+         
+
             {/* Navigation Links */}
             <nav
               style={{
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '0',
+                paddingTop: '12px',
               }}
             >
               {navLinks.map((link) => (
@@ -660,7 +908,7 @@ const Header = () => {
               {status === 'authenticated' ? (
                 <>
                   <Link
-                    href="/account"
+                    href={session?.user?.role === 'caterer' ? '/caterer/dashboard' : '/customer/dashboard'}
                     onClick={() => setIsMobileMenuOpen(false)}
                     style={{
                       fontSize: '13px',
@@ -684,6 +932,33 @@ const Header = () => {
                     }}
                   >
                     Dashboard
+                  </Link>
+
+                  <Link
+                    href="/become-caterer"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    style={{
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      color: '#667eea',
+                      textDecoration: 'none',
+                      padding: '10px 16px',
+                      borderRadius: '6px',
+                      border: '1px solid #667eea',
+                      backgroundColor: 'transparent',
+                      transition: 'all 0.2s ease',
+                      display: 'block',
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#f0f4ff';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    Become a Partner
                   </Link>
 
                   <button
@@ -773,136 +1048,7 @@ const Header = () => {
             </div>
           </div>
         )}
-
-        {/* Profile Dropdown for Mobile */}
-        {isProfileMenuOpen && status === 'authenticated' && (
-          <div
-            style={
-              {
-                display: 'none',
-                '@media (max-width: 1023px)': {
-                  display: 'block',
-                },
-              } as any
-            }
-            className="mobile-profile-menu"
-          >
-            <div
-              style={{
-                borderTop: '1px solid #e2e8f0',
-                backgroundColor: '#f8fafc',
-                padding: '12px 16px',
-              }}
-            >
-              <ProfileDropdown />
-            </div>
-          </div>
-        )}
       </div>
-
-      <style>{`
-        @keyframes slideDown {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @keyframes pulse {
-          0%, 100% {
-            opacity: 1;
-          }
-          50% {
-            opacity: 0.5;
-          }
-        }
-
-        /* Desktop - iPad and above (1024px+) */
-        @media (min-width: 1024px) {
-          .desktop-nav {
-            display: flex;
-            align-items: center;
-            gap: 32px;
-            flex: 1;
-          }
-
-          .desktop-search {
-            display: flex;
-          }
-
-          .desktop-actions {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            flex-shrink: 0;
-          }
-
-          .mobile-header {
-            display: none;
-          }
-
-          .mobile-menu {
-            display: none;
-          }
-
-          .mobile-profile-menu {
-            display: none;
-          }
-        }
-
-        /* Tablet/Mobile - Below iPad resolution (< 1024px) */
-        @media (max-width: 1023px) {
-          .desktop-nav {
-            display: none;
-          }
-
-          .desktop-search {
-            display: none;
-          }
-
-          .desktop-actions {
-            display: none;
-          }
-
-          .mobile-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            flex: 1;
-          }
-
-          .mobile-menu {
-            display: block;
-            border-top: 1px solid #e2e8f0;
-            background-color: #f8fafc;
-            padding: 16px 0;
-            animation: slideDown 0.3s ease-out;
-          }
-
-          .mobile-profile-menu {
-            display: block;
-            animation: slideDown 0.3s ease-out;
-          }
-        }
-
-        /* Extra small screens - iPad mini and below (< 768px) */
-        @media (max-width: 767px) {
-          header div {
-            padding: 0 12px;
-          }
-        }
-
-        /* Small phones (< 640px) */
-        @media (max-width: 639px) {
-          header span {
-            display: none;
-          }
-        }
-      `}</style>
     </header>
   );
 };

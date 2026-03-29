@@ -364,8 +364,8 @@ async function handleOAuthUser(profile: any): Promise<any> {
 export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
-      clientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '412439209622-go7u3c969hig47eovfcsaeiofvtvudvj.apps.googleusercontent.com',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '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',
+      clientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
       allowDangerousEmailAccountLinking: true,
       profile: async (profile) => {
         return {

@@ -3,29 +3,125 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { ChefHat, Users, Mail, Phone, ArrowRight, Check } from 'lucide-react';
+import {
+  ChefHat,
+  Users,
+  Mail,
+  Phone,
+  ArrowRight,
+  Check,
+  MapPin,
+  FileText,
+  DollarSign,
+  Shield,
+  CreditCard,
+  Clock,
+  AlertCircle,
+  Utensils,
+} from 'lucide-react';
 
 type UserRole = 'customer' | 'caterer';
-type OnboardingStep = 'role-select' | 'verify-phone' | 'profile' | 'complete';
+type OnboardingStep =
+  | 'role-select'
+  | 'verify-phone'
+  | 'profile'
+  | 'address'
+  | 'business-details'
+  | 'kyc-compliance'
+  | 'payment-setup'
+  | 'operations-availability'
+  | 'cancellation-policies'
+  | 'service-details'
+  | 'complete';
+
+type ServiceRadius = 'city-wide' | 'specific-radius';
+type EventType =
+  | 'wedding'
+  | 'corporate'
+  | 'birthday'
+  | 'anniversary'
+  | 'engagement'
+  | 'other';
+type ServiceType =
+  | 'full-service'
+  | 'buffet'
+  | 'plated'
+  | 'cocktail'
+  | 'dessert';
 
 export default function RoleSelectionPage() {
   const router = useRouter();
   const { data: session, status, update: updateSession } = useSession();
-  const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
+  const [selectedRole, setSelectedRole] = useState<UserRole>('customer');
   const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [onboardingStep, setOnboardingStep] = useState<OnboardingStep>('role-select');
+  const [onboardingStep, setOnboardingStep] =
+    useState<OnboardingStep>('role-select');
   const [phone, setPhone] = useState('');
   const [countryCode, setCountryCode] = useState('+91');
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [error, setError] = useState('');
   const [isRedirecting, setIsRedirecting] = useState(false);
-  
+
   // Profile fields
   const [fullName, setFullName] = useState(session?.user?.name || '');
   const [businessName, setBusinessName] = useState('');
   const [businessDescription, setBusinessDescription] = useState('');
+
+  // Address fields
+  const [street, setStreet] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [zipCode, setZipCode] = useState('');
+  const [country, setCountry] = useState('India');
+
+  // Business Details
+  const [cuisineType, setCuisineType] = useState('');
+  const [yearsOfExperience, setYearsOfExperience] = useState('');
+  const [teamSize, setTeamSize] = useState('');
+
+  // KYC & Compliance
+  const [panNumber, setPanNumber] = useState('');
+  const [panFile, setPanFile] = useState<File | null>(null);
+  const [aadharNumber, setAadharNumber] = useState('');
+  const [aadharFront, setAadharFront] = useState<File | null>(null);
+  const [aadharBack, setAadharBack] = useState<File | null>(null);
+  const [fssaiNumber, setFssaiNumber] = useState('');
+  const [fssaiFile, setFssaiFile] = useState<File | null>(null);
+  const [gstNumber, setGstNumber] = useState('');
+  const [gstFile, setGstFile] = useState<File | null>(null);
+
+  // Payment Setup
+  const [accountNumber, setAccountNumber] = useState('');
+  const [ifscCode, setIfscCode] = useState('');
+  const [upiId, setUpiId] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [accountHolderName, setAccountHolderName] = useState('');
+
+  // Operations Availability
+  const [kitchenType, setKitchenType] = useState('');
+  const [operatingDays, setOperatingDays] = useState<string[]>([]);
+  const [operatingHoursStart, setOperatingHoursStart] = useState('09:00');
+  const [operatingHoursEnd, setOperatingHoursEnd] = useState('22:00');
+
+  // Cancellation Policies
+  const [cancellationPolicySummary, setCancellationPolicySummary] =
+    useState('');
+  const [advanceNoticeRequired, setAdvanceNoticeRequired] = useState('7');
+
+  // Service Details
+  const [selectedEventTypes, setSelectedEventTypes] = useState<EventType[]>([]);
+  const [selectedServiceTypes, setSelectedServiceTypes] = useState<
+    ServiceType[]
+  >([]);
+  const [minGuests, setMinGuests] = useState('');
+  const [maxGuests, setMaxGuests] = useState('');
+  const [priceRangeMin, setPriceRangeMin] = useState('');
+  const [priceRangeMax, setPriceRangeMax] = useState('');
+  const [serviceRadius, setServiceRadius] =
+    useState<ServiceRadius>('city-wide');
+  const [serviceRadius_km, setServiceRadius_km] = useState('');
 
   // Track if initial redirect check has been done
   const initialRedirectChecked = useRef(false);
@@ -41,6 +137,113 @@ export default function RoleSelectionPage() {
     { code: '+39', country: 'Italy' },
   ];
 
+  const CUISINE_TYPES = [
+    'Indian',
+    'Chinese',
+    'Italian',
+    'Continental',
+    'North Indian',
+    'South Indian',
+    'Mughlai',
+    'Asian Fusion',
+    'Multi-Cuisine',
+    'Other',
+  ];
+
+  const KITCHEN_TYPES = [
+    'Commercial Kitchen',
+    'Home Kitchen',
+    'Cloud Kitchen',
+    'Central Commissary',
+    'Rented Space',
+  ];
+
+  const DAYS_OF_WEEK = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
+  ];
+
+  const EVENT_TYPES: { value: EventType; label: string }[] = [
+    { value: 'wedding', label: 'Wedding' },
+    { value: 'corporate', label: 'Corporate Events' },
+    { value: 'birthday', label: 'Birthday Party' },
+    { value: 'anniversary', label: 'Anniversary' },
+    { value: 'engagement', label: 'Engagement' },
+    { value: 'other', label: 'Other Events' },
+  ];
+
+  const SERVICE_TYPES: { value: ServiceType; label: string }[] = [
+    { value: 'full-service', label: 'Full Service (Setup & Service)' },
+    { value: 'buffet', label: 'Buffet Service' },
+    { value: 'plated', label: 'Plated Dinner' },
+    { value: 'cocktail', label: 'Cocktail Service' },
+    { value: 'dessert', label: 'Dessert & Bakery' },
+  ];
+
+  const getStepNumber = (): string => {
+    if (selectedRole === 'customer') {
+      const customerSteps: OnboardingStep[] = [
+        'role-select',
+        'verify-phone',
+        'profile',
+        'complete',
+      ];
+      return `${customerSteps.indexOf(onboardingStep) + 1} of ${customerSteps.length}`;
+    } else {
+      const catererSteps: OnboardingStep[] = [
+        'role-select',
+        'verify-phone',
+        'profile',
+        'address',
+        'business-details',
+        'kyc-compliance',
+        'payment-setup',
+        'operations-availability',
+        'cancellation-policies',
+        'service-details',
+        'complete',
+      ];
+      return `${catererSteps.indexOf(onboardingStep) + 1} of ${catererSteps.length}`;
+    }
+  };
+
+  const getProgressPercentage = (): number => {
+    if (selectedRole === 'customer') {
+      const customerSteps: OnboardingStep[] = [
+        'role-select',
+        'verify-phone',
+        'profile',
+        'complete',
+      ];
+      return (
+        ((customerSteps.indexOf(onboardingStep) + 1) / customerSteps.length) *
+        100
+      );
+    } else {
+      const catererSteps: OnboardingStep[] = [
+        'role-select',
+        'verify-phone',
+        'profile',
+        'address',
+        'business-details',
+        'kyc-compliance',
+        'payment-setup',
+        'operations-availability',
+        'cancellation-policies',
+        'service-details',
+        'complete',
+      ];
+      return (
+        ((catererSteps.indexOf(onboardingStep) + 1) / catererSteps.length) * 100
+      );
+    }
+  };
+
   // Initial mount
   useEffect(() => {
     setMounted(true);
@@ -53,9 +256,8 @@ export default function RoleSelectionPage() {
     }
   }, [status, mounted, router]);
 
-  // Redirect if onboarding already completed - ONLY on initial mount
+  // Redirect if onboarding already completed
   useEffect(() => {
-    // Only check once on initial mount
     if (initialRedirectChecked.current) {
       return;
     }
@@ -64,10 +266,8 @@ export default function RoleSelectionPage() {
       return;
     }
 
-    // Mark that we've done the initial check
     initialRedirectChecked.current = true;
 
-    // If user already has a role and onboarding is completed, redirect to dashboard
     if (
       session.user.role &&
       session.user.isOnboardingCompleted &&
@@ -84,14 +284,6 @@ export default function RoleSelectionPage() {
   const handleRoleSelect = (role: UserRole) => {
     setSelectedRole(role);
     setFullName(session?.user?.name || '');
-
-    // If user logged in via social and hasn't verified phone, show phone verification
-    if (session?.user && !session.user.phone) {
-      setOnboardingStep('verify-phone');
-    } else {
-      // Phone already verified, proceed to profile
-      setOnboardingStep('profile');
-    }
   };
 
   const handleSendPhoneOtp = async (e: React.FormEvent) => {
@@ -106,13 +298,6 @@ export default function RoleSelectionPage() {
     }
 
     try {
-      // TODO: Replace with actual OTP API call
-      // const response = await fetch('/api/auth/send-otp-phone', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ phone: `${countryCode}${phone}` }),
-      // });
-
       setOtpSent(true);
       setError('');
     } catch (err) {
@@ -134,14 +319,6 @@ export default function RoleSelectionPage() {
     }
 
     try {
-      // TODO: Replace with actual OTP verification API call
-      // const response = await fetch('/api/auth/verify-otp-phone', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ phone: `${countryCode}${phone}`, otp }),
-      // });
-
-      // After phone verification, proceed to profile
       setOnboardingStep('profile');
       setOtp('');
       setOtpSent(false);
@@ -170,22 +347,189 @@ export default function RoleSelectionPage() {
     }
 
     try {
-      // TODO: Replace with actual profile update API call
-      // const response = await fetch('/api/auth/complete-profile', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({
-      //     fullName,
-      //     businessName: selectedRole === 'caterer' ? businessName : null,
-      //     businessDescription: selectedRole === 'caterer' ? businessDescription : null,
-      //     phone: `${countryCode}${phone}`,
-      //     role: selectedRole,
-      //   }),
-      // });
-
-      setOnboardingStep('complete');
+      if (selectedRole === 'caterer') {
+        setOnboardingStep('address');
+      } else {
+        setOnboardingStep('complete');
+      }
     } catch (err) {
       setError('Failed to save profile. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAddressSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+
+    if (!street.trim() || !city.trim() || !state.trim() || !zipCode.trim()) {
+      setError('All address fields are required');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setOnboardingStep('business-details');
+    } catch (err) {
+      setError('Failed to save address. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBusinessDetailsSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+
+    if (!cuisineType || !yearsOfExperience || !teamSize) {
+      setError('All fields are required');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setOnboardingStep('kyc-compliance');
+    } catch (err) {
+      setError('Failed to save business details. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKycComplianceSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+
+    if (!panNumber.trim()) {
+      setError('PAN number is required');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!panFile) {
+      setError('PAN certificate document is required');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!/^[A-Z0-9]{10}$/.test(panNumber.toUpperCase())) {
+      setError('Please enter a valid 10-character PAN number');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setOnboardingStep('payment-setup');
+    } catch (err) {
+      setError('Failed to save KYC details. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePaymentSetupSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+
+    if (!accountNumber.trim() || !ifscCode.trim() || !upiId.trim()) {
+      setError('Account number, IFSC code, and UPI ID are required');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!bankName.trim() || !accountHolderName.trim()) {
+      setError('Bank name and account holder name are required');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setOnboardingStep('operations-availability');
+    } catch (err) {
+      setError('Failed to save payment details. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleOperationsAvailabilitySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+
+    if (!kitchenType) {
+      setError('Please select a kitchen type');
+      setIsLoading(false);
+      return;
+    }
+
+    if (operatingDays.length === 0) {
+      setError('Please select at least one operating day');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setOnboardingStep('cancellation-policies');
+    } catch (err) {
+      setError('Failed to save operations details. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCancellationPoliciesSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+
+    if (!cancellationPolicySummary.trim() || !advanceNoticeRequired) {
+      setError('Please provide cancellation policy details');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setOnboardingStep('service-details');
+    } catch (err) {
+      setError('Failed to save cancellation policies. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleServiceDetailsSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+
+    if (selectedEventTypes.length === 0 || selectedServiceTypes.length === 0) {
+      setError('Please select at least one event type and service type');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!minGuests || !maxGuests || !priceRangeMin || !priceRangeMax) {
+      setError('Please fill in all guest and price range fields');
+      setIsLoading(false);
+      return;
+    }
+
+    if (serviceRadius === 'specific-radius' && !serviceRadius_km) {
+      setError('Please enter service radius in kilometers');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setOnboardingStep('complete');
+    } catch (err) {
+      setError('Failed to save service details. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -201,20 +545,6 @@ export default function RoleSelectionPage() {
     }
 
     try {
-      // TODO: Replace with actual API call to mark onboarding as complete
-      // const response = await fetch('/api/auth/complete-onboarding', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({
-      //     role: selectedRole,
-      //     fullName,
-      //     businessName: selectedRole === 'caterer' ? businessName : null,
-      //     businessDescription: selectedRole === 'caterer' ? businessDescription : null,
-      //     phone: `${countryCode}${phone}`,
-      //   }),
-      // });
-
-      // Update session with new role and onboarding status
       await updateSession({
         ...session,
         user: {
@@ -229,7 +559,6 @@ export default function RoleSelectionPage() {
         },
       });
 
-      // Redirect to dashboard based on selected role
       setIsRedirecting(true);
       router.push(`/${selectedRole}/dashboard`);
     } catch (err) {
@@ -258,7 +587,6 @@ export default function RoleSelectionPage() {
     return null;
   }
 
-  // Redirect if already onboarded
   if (isRedirecting) {
     return (
       <div style={styles.loadingContainer}>
@@ -285,24 +613,25 @@ export default function RoleSelectionPage() {
           }
         `}</style>
         <div style={styles.content}>
-          {/* Progress Bar */}
           <div style={styles.progressContainer}>
-            <div style={{ ...styles.progressBar, width: '25%' }} />
+            <div
+              style={{
+                ...styles.progressBar,
+                width: `${getProgressPercentage()}%`,
+              }}
+            />
           </div>
 
-          {/* Step Indicator */}
           <div style={styles.stepIndicator}>
-            <span style={styles.stepNumber}>Step 1 of 4</span>
+            <span style={styles.stepNumber}>{getStepNumber()}</span>
             <span style={styles.stepDot}>●</span>
           </div>
 
-          {/* Header */}
           <div style={styles.header}>
             <h1 style={styles.title}>Welcome to CaterHub! 👋</h1>
             <p style={styles.subtitle}>Choose how you want to use CaterHub</p>
           </div>
 
-          {/* User Info Display */}
           <div style={styles.userInfoBox}>
             <h3 style={styles.userInfoTitle}>Your Account</h3>
             <div style={styles.userInfoGrid}>
@@ -328,29 +657,29 @@ export default function RoleSelectionPage() {
                 <Users size={18} color="#f59e0b" />
                 <div>
                   <p style={styles.userInfoLabel}>Name</p>
-                  <p style={styles.userInfoValue}>{session.user.name || 'Not set'}</p>
+                  <p style={styles.userInfoValue}>
+                    {session.user.name || 'Not set'}
+                  </p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Role Selection Cards */}
           <div style={styles.rolesContainer}>
-            {/* Customer Card */}
             <div
               onClick={() => handleRoleSelect('customer')}
               style={{
                 ...styles.roleCard,
-                borderColor: selectedRole === 'customer' ? '#667eea' : '#e5e7eb',
-                backgroundColor: selectedRole === 'customer' ? '#f0f4ff' : 'white',
-                cursor: 'pointer',
-                transform: selectedRole === 'customer' ? 'scale(1.02)' : 'scale(1)',
-                transition: 'all 0.3s ease',
+                borderColor:
+                  selectedRole === 'customer' ? '#667eea' : '#e5e7eb',
+                backgroundColor:
+                  selectedRole === 'customer' ? '#f0f4ff' : 'white',
               }}
               onMouseEnter={(e) => {
                 if (selectedRole !== 'customer') {
                   e.currentTarget.style.borderColor = '#d1d5db';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+                  e.currentTarget.style.boxShadow =
+                    '0 4px 12px rgba(0,0,0,0.1)';
                 }
               }}
               onMouseLeave={(e) => {
@@ -384,21 +713,19 @@ export default function RoleSelectionPage() {
               )}
             </div>
 
-            {/* Caterer Card */}
             <div
               onClick={() => handleRoleSelect('caterer')}
               style={{
                 ...styles.roleCard,
                 borderColor: selectedRole === 'caterer' ? '#f97316' : '#e5e7eb',
-                backgroundColor: selectedRole === 'caterer' ? '#fff7ed' : 'white',
-                cursor: 'pointer',
-                transform: selectedRole === 'caterer' ? 'scale(1.02)' : 'scale(1)',
-                transition: 'all 0.3s ease',
+                backgroundColor:
+                  selectedRole === 'caterer' ? '#fff7ed' : 'white',
               }}
               onMouseEnter={(e) => {
                 if (selectedRole !== 'caterer') {
                   e.currentTarget.style.borderColor = '#d1d5db';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+                  e.currentTarget.style.boxShadow =
+                    '0 4px 12px rgba(0,0,0,0.1)';
                 }
               }}
               onMouseLeave={(e) => {
@@ -417,7 +744,8 @@ export default function RoleSelectionPage() {
               </div>
               <h3 style={styles.roleTitle}>Become a Caterer</h3>
               <p style={styles.roleDescription}>
-                List your catering business and reach customers across the platform
+                List your catering business and reach customers across the
+                platform
               </p>
               <ul style={styles.roleFeatures}>
                 <li>✓ Create business profile</li>
@@ -433,35 +761,33 @@ export default function RoleSelectionPage() {
             </div>
           </div>
 
-          {/* CTA Button */}
-          {selectedRole && (
-            <button
-              onClick={() => {
-                if (session?.user && !session.user.phone) {
-                  setOnboardingStep('verify-phone');
-                } else {
-                  setOnboardingStep('profile');
-                }
-              }}
-              style={styles.ctaButton}
-              disabled={isLoading}
-              onMouseEnter={(e) => {
-                if (!isLoading) {
-                  e.currentTarget.style.backgroundColor = '#ea580c';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 8px 16px rgba(249, 115, 22, 0.3)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#f97316';
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            >
-              {isLoading ? 'Setting up...' : 'Continue'}
-              <ArrowRight size={20} />
-            </button>
-          )}
+          <button
+            onClick={() => {
+              if (session?.user && !session.user.phone) {
+                setOnboardingStep('verify-phone');
+              } else {
+                setOnboardingStep('profile');
+              }
+            }}
+            style={styles.ctaButton}
+            disabled={isLoading}
+            onMouseEnter={(e) => {
+              if (!isLoading) {
+                e.currentTarget.style.backgroundColor = '#ea580c';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow =
+                  '0 8px 16px rgba(249, 115, 22, 0.3)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#f97316';
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
+          >
+            {isLoading ? 'Setting up...' : 'Continue'}
+            <ArrowRight size={20} />
+          </button>
         </div>
       </div>
     );
@@ -478,18 +804,20 @@ export default function RoleSelectionPage() {
           }
         `}</style>
         <div style={styles.content}>
-          {/* Progress Bar */}
           <div style={styles.progressContainer}>
-            <div style={{ ...styles.progressBar, width: '50%' }} />
+            <div
+              style={{
+                ...styles.progressBar,
+                width: `${getProgressPercentage()}%`,
+              }}
+            />
           </div>
 
-          {/* Step Indicator */}
           <div style={styles.stepIndicator}>
-            <span style={styles.stepNumber}>Step 2 of 4</span>
+            <span style={styles.stepNumber}>{getStepNumber()}</span>
             <span style={styles.stepDot}>●</span>
           </div>
 
-          {/* Header */}
           <div style={styles.header}>
             <h1 style={styles.title}>Verify Your Phone</h1>
             <p style={styles.subtitle}>
@@ -499,7 +827,6 @@ export default function RoleSelectionPage() {
             </p>
           </div>
 
-          {/* User Info Display */}
           <div style={styles.userInfoBox}>
             <div style={styles.userInfoItem}>
               <Mail size={18} color="#667eea" />
@@ -510,13 +837,14 @@ export default function RoleSelectionPage() {
             </div>
           </div>
 
-          {/* Phone Verification Form */}
           <div style={styles.verificationForm}>
             {!otpSent ? (
               <form onSubmit={handleSendPhoneOtp}>
                 <div style={styles.formGroup}>
                   <label style={styles.label}>
-                    {selectedRole === 'caterer' ? 'Business Phone Number' : 'Phone Number'}
+                    {selectedRole === 'caterer'
+                      ? 'Business Phone Number'
+                      : 'Phone Number'}
                   </label>
                   <div style={styles.phoneInputGroup}>
                     <select
@@ -534,14 +862,18 @@ export default function RoleSelectionPage() {
                     <input
                       type="tel"
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value.replace(/[^\d]/g, ''))}
+                      onChange={(e) =>
+                        setPhone(e.target.value.replace(/[^\d]/g, ''))
+                      }
                       placeholder="10 digits"
                       style={styles.input}
                       maxLength={15}
                       disabled={isLoading}
                     />
                   </div>
-                  <p style={styles.helpText}>Enter phone number without country code</p>
+                  <p style={styles.helpText}>
+                    Enter phone number without country code
+                  </p>
                 </div>
 
                 {error && <div style={styles.errorMessage}>{error}</div>}
@@ -595,7 +927,9 @@ export default function RoleSelectionPage() {
                     type="text"
                     value={otp}
                     onChange={(e) => {
-                      const value = e.target.value.replace(/[^\d]/g, '').slice(0, 6);
+                      const value = e.target.value
+                        .replace(/[^\d]/g, '')
+                        .slice(0, 6);
                       setOtp(value);
                     }}
                     placeholder="000000"
@@ -619,7 +953,8 @@ export default function RoleSelectionPage() {
                   style={{
                     ...styles.submitButton,
                     opacity: isLoading || otp.length !== 6 ? 0.6 : 1,
-                    cursor: isLoading || otp.length !== 6 ? 'not-allowed' : 'pointer',
+                    cursor:
+                      isLoading || otp.length !== 6 ? 'not-allowed' : 'pointer',
                   }}
                   onMouseEnter={(e) => {
                     if (!isLoading && otp.length === 6) {
@@ -674,21 +1009,25 @@ export default function RoleSelectionPage() {
           }
         `}</style>
         <div style={styles.content}>
-          {/* Progress Bar */}
           <div style={styles.progressContainer}>
-            <div style={{ ...styles.progressBar, width: '75%' }} />
+            <div
+              style={{
+                ...styles.progressBar,
+                width: `${getProgressPercentage()}%`,
+              }}
+            />
           </div>
 
-          {/* Step Indicator */}
           <div style={styles.stepIndicator}>
-            <span style={styles.stepNumber}>Step 3 of 4</span>
+            <span style={styles.stepNumber}>{getStepNumber()}</span>
             <span style={styles.stepDot}>●</span>
           </div>
 
-          {/* Header */}
           <div style={styles.header}>
             <h1 style={styles.title}>
-              {selectedRole === 'caterer' ? 'Business Information' : 'Complete Your Profile'}
+              {selectedRole === 'caterer'
+                ? 'Business Information'
+                : 'Complete Your Profile'}
             </h1>
             <p style={styles.subtitle}>
               {selectedRole === 'caterer'
@@ -697,9 +1036,7 @@ export default function RoleSelectionPage() {
             </p>
           </div>
 
-          {/* Profile Form */}
           <form onSubmit={handleProfileSubmit} style={styles.profileForm}>
-            {/* Full Name */}
             <div style={styles.formGroup}>
               <label style={styles.label}>Full Name *</label>
               <input
@@ -713,7 +1050,6 @@ export default function RoleSelectionPage() {
               />
             </div>
 
-            {/* Business Info (Caterer Only) */}
             {selectedRole === 'caterer' && (
               <>
                 <div style={styles.formGroup}>
@@ -734,12 +1070,18 @@ export default function RoleSelectionPage() {
                   <textarea
                     value={businessDescription}
                     onChange={(e) => setBusinessDescription(e.target.value)}
-                    placeholder="Brief description of your catering services (cuisine type, specialties, etc.)"
-                    style={{ ...styles.input, minHeight: '120px', resize: 'vertical' }}
+                    placeholder="Brief description of your catering services"
+                    style={{
+                      ...styles.input,
+                      minHeight: '100px',
+                      resize: 'vertical',
+                    }}
                     disabled={isLoading}
                     rows={4}
                   />
-                  <p style={styles.helpText}>Share what makes your business special</p>
+                  <p style={styles.helpText}>
+                    Share what makes your business special
+                  </p>
                 </div>
               </>
             )}
@@ -748,21 +1090,27 @@ export default function RoleSelectionPage() {
 
             <button
               type="submit"
-              disabled={isLoading || !fullName.trim() || (selectedRole === 'caterer' && !businessName.trim())}
+              disabled={
+                isLoading ||
+                !fullName.trim() ||
+                (selectedRole === 'caterer' && !businessName.trim())
+              }
               style={{
                 ...styles.submitButton,
-                opacity: isLoading || !fullName.trim() || (selectedRole === 'caterer' && !businessName.trim()) ? 0.6 : 1,
-                cursor: isLoading || !fullName.trim() || (selectedRole === 'caterer' && !businessName.trim()) ? 'not-allowed' : 'pointer',
+                opacity:
+                  isLoading ||
+                  !fullName.trim() ||
+                  (selectedRole === 'caterer' && !businessName.trim())
+                    ? 0.6
+                    : 1,
               }}
               onMouseEnter={(e) => {
-                if (!isLoading && fullName.trim() && !(selectedRole === 'caterer' && !businessName.trim())) {
+                if (!isLoading && fullName.trim()) {
                   e.currentTarget.style.backgroundColor = '#ea580c';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
                 }
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = '#f97316';
-                e.currentTarget.style.transform = 'translateY(0)';
               }}
             >
               {isLoading ? 'Saving...' : 'Continue'}
@@ -790,7 +1138,1225 @@ export default function RoleSelectionPage() {
     );
   }
 
-  // Step 4: Complete
+  // Step 4: Address (Caterer Only)
+  if (onboardingStep === 'address') {
+    return (
+      <div style={styles.container}>
+        <style>{`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+        <div style={styles.content}>
+          <div style={styles.progressContainer}>
+            <div
+              style={{
+                ...styles.progressBar,
+                width: `${getProgressPercentage()}%`,
+              }}
+            />
+          </div>
+
+          <div style={styles.stepIndicator}>
+            <span style={styles.stepNumber}>{getStepNumber()}</span>
+            <span style={styles.stepDot}>●</span>
+          </div>
+
+          <div style={styles.header}>
+            <h1 style={styles.title}>Business Address</h1>
+            <p style={styles.subtitle}>
+              Where is your catering kitchen located?
+            </p>
+          </div>
+
+          <form onSubmit={handleAddressSubmit} style={styles.profileForm}>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Street Address *</label>
+              <input
+                type="text"
+                value={street}
+                onChange={(e) => setStreet(e.target.value)}
+                placeholder="Street address"
+                style={styles.input}
+                disabled={isLoading}
+                required
+              />
+            </div>
+
+            <div style={styles.formRow}>
+              <div style={{ ...styles.formGroup, flex: 1 }}>
+                <label style={styles.label}>City *</label>
+                <input
+                  type="text"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  placeholder="City"
+                  style={styles.input}
+                  disabled={isLoading}
+                  required
+                />
+              </div>
+
+              <div style={{ ...styles.formGroup, flex: 1 }}>
+                <label style={styles.label}>State *</label>
+                <input
+                  type="text"
+                  value={state}
+                  onChange={(e) => setState(e.target.value)}
+                  placeholder="State"
+                  style={styles.input}
+                  disabled={isLoading}
+                  required
+                />
+              </div>
+            </div>
+
+            <div style={styles.formRow}>
+              <div style={{ ...styles.formGroup, flex: 1 }}>
+                <label style={styles.label}>Zip Code *</label>
+                <input
+                  type="text"
+                  value={zipCode}
+                  onChange={(e) => setZipCode(e.target.value)}
+                  placeholder="Zip code"
+                  style={styles.input}
+                  disabled={isLoading}
+                  required
+                />
+              </div>
+
+              <div style={{ ...styles.formGroup, flex: 1 }}>
+                <label style={styles.label}>Country *</label>
+                <input
+                  type="text"
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  placeholder="Country"
+                  style={styles.input}
+                  disabled={isLoading}
+                  required
+                />
+              </div>
+            </div>
+
+            {error && <div style={styles.errorMessage}>{error}</div>}
+
+            <button
+              type="submit"
+              disabled={
+                isLoading ||
+                !street.trim() ||
+                !city.trim() ||
+                !state.trim() ||
+                !zipCode.trim()
+              }
+              style={{
+                ...styles.submitButton,
+                opacity: isLoading || !street.trim() ? 0.6 : 1,
+              }}
+              onMouseEnter={(e) => {
+                if (!isLoading) {
+                  e.currentTarget.style.backgroundColor = '#ea580c';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#f97316';
+              }}
+            >
+              {isLoading ? 'Saving...' : 'Continue'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setOnboardingStep('profile')}
+              disabled={isLoading}
+              style={styles.backButton}
+            >
+              Back
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 5: Business Details (Caterer Only)
+  if (onboardingStep === 'business-details') {
+    return (
+      <div style={styles.container}>
+        <style>{`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+        <div style={styles.content}>
+          <div style={styles.progressContainer}>
+            <div
+              style={{
+                ...styles.progressBar,
+                width: `${getProgressPercentage()}%`,
+              }}
+            />
+          </div>
+
+          <div style={styles.stepIndicator}>
+            <span style={styles.stepNumber}>{getStepNumber()}</span>
+            <span style={styles.stepDot}>●</span>
+          </div>
+
+          <div style={styles.header}>
+            <h1 style={styles.title}>Business Details</h1>
+            <p style={styles.subtitle}>
+              Tell us more about your catering services
+            </p>
+          </div>
+
+          <form
+            onSubmit={handleBusinessDetailsSubmit}
+            style={styles.profileForm}
+          >
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Cuisine Type *</label>
+              <select
+                value={cuisineType}
+                onChange={(e) => setCuisineType(e.target.value)}
+                style={styles.input}
+                disabled={isLoading}
+                required
+              >
+                <option value="">Select cuisine type</option>
+                {CUISINE_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Years of Experience *</label>
+              <input
+                type="number"
+                value={yearsOfExperience}
+                onChange={(e) => setYearsOfExperience(e.target.value)}
+                placeholder="Years of experience"
+                style={styles.input}
+                disabled={isLoading}
+                min="0"
+                required
+              />
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Team Size *</label>
+              <input
+                type="number"
+                value={teamSize}
+                onChange={(e) => setTeamSize(e.target.value)}
+                placeholder="Number of team members"
+                style={styles.input}
+                disabled={isLoading}
+                min="1"
+                required
+              />
+            </div>
+
+            {error && <div style={styles.errorMessage}>{error}</div>}
+
+            <button
+              type="submit"
+              disabled={
+                isLoading || !cuisineType || !yearsOfExperience || !teamSize
+              }
+              style={{
+                ...styles.submitButton,
+                opacity: isLoading || !cuisineType ? 0.6 : 1,
+              }}
+              onMouseEnter={(e) => {
+                if (!isLoading) {
+                  e.currentTarget.style.backgroundColor = '#ea580c';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#f97316';
+              }}
+            >
+              {isLoading ? 'Saving...' : 'Continue'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setOnboardingStep('address')}
+              disabled={isLoading}
+              style={styles.backButton}
+            >
+              Back
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 6: KYC & Compliance (Caterer Only)
+  if (onboardingStep === 'kyc-compliance') {
+    return (
+      <div style={styles.container}>
+        <style>{`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+        <div style={styles.content}>
+          <div style={styles.progressContainer}>
+            <div
+              style={{
+                ...styles.progressBar,
+                width: `${getProgressPercentage()}%`,
+              }}
+            />
+          </div>
+
+          <div style={styles.stepIndicator}>
+            <span style={styles.stepNumber}>{getStepNumber()}</span>
+            <span style={styles.stepDot}>●</span>
+          </div>
+
+          <div style={styles.header}>
+            <h1 style={styles.title}>
+              <Shield
+                size={32}
+                style={{ marginRight: '0.5rem', display: 'inline' }}
+              />
+              KYC & Compliance
+            </h1>
+            <p style={styles.subtitle}>
+              Verify your business credentials for trust and compliance
+            </p>
+          </div>
+
+          <form onSubmit={handleKycComplianceSubmit} style={styles.profileForm}>
+            {/* PAN Card - Required */}
+            <div style={styles.complianceSection}>
+              <h3 style={styles.sectionTitle}>
+                <span style={styles.requiredBadge}>Required</span>
+                PAN Number
+              </h3>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>PAN Number (10 characters) *</label>
+                <input
+                  type="text"
+                  value={panNumber}
+                  onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
+                  placeholder="e.g., AAAAA1234B"
+                  style={styles.input}
+                  disabled={isLoading}
+                  maxLength={10}
+                  required
+                />
+                <p style={styles.helpText}>
+                  Enter your 10-character PAN number (e.g., AAAAA1234B)
+                </p>
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Upload PAN Certificate *</label>
+                <div style={styles.fileInputWrapper}>
+                  <input
+                    type="file"
+                    onChange={(e) => setPanFile(e.target.files?.[0] || null)}
+                    style={styles.fileInput}
+                    disabled={isLoading}
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    required
+                  />
+                  <p style={styles.helpText}>PDF, JPG, or PNG (Max 5MB)</p>
+                </div>
+                {panFile && <p style={styles.fileName}>✓ {panFile.name}</p>}
+              </div>
+            </div>
+
+            {/* Aadhar Card - Optional */}
+            <div style={styles.complianceSection}>
+              <h3 style={styles.sectionTitle}>
+                <span style={styles.optionalBadge}>Optional</span>
+                Aadhar Card
+              </h3>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Aadhar Number (12 digits)</label>
+                <input
+                  type="text"
+                  value={aadharNumber}
+                  onChange={(e) =>
+                    setAadharNumber(e.target.value.replace(/[^\d]/g, ''))
+                  }
+                  placeholder="e.g., 1234 5678 9012"
+                  style={styles.input}
+                  disabled={isLoading}
+                  maxLength={12}
+                />
+                <p style={styles.helpText}>
+                  Enter your 12-digit Aadhar number (digits only)
+                </p>
+              </div>
+
+              {aadharNumber && (
+                <>
+                  <div style={styles.formRow}>
+                    <div style={{ ...styles.formGroup, flex: 1 }}>
+                      <label style={styles.label}>Aadhar Front</label>
+                      <div style={styles.fileInputWrapper}>
+                        <input
+                          type="file"
+                          onChange={(e) =>
+                            setAadharFront(e.target.files?.[0] || null)
+                          }
+                          style={styles.fileInput}
+                          disabled={isLoading}
+                          accept=".pdf,.jpg,.jpeg,.png"
+                        />
+                        <p style={styles.helpText}>Front side (Max 5MB)</p>
+                      </div>
+                      {aadharFront && (
+                        <p style={styles.fileName}>✓ {aadharFront.name}</p>
+                      )}
+                    </div>
+
+                    <div style={{ ...styles.formGroup, flex: 1 }}>
+                      <label style={styles.label}>Aadhar Back</label>
+                      <div style={styles.fileInputWrapper}>
+                        <input
+                          type="file"
+                          onChange={(e) =>
+                            setAadharBack(e.target.files?.[0] || null)
+                          }
+                          style={styles.fileInput}
+                          disabled={isLoading}
+                          accept=".pdf,.jpg,.jpeg,.png"
+                        />
+                        <p style={styles.helpText}>Back side (Max 5MB)</p>
+                      </div>
+                      {aadharBack && (
+                        <p style={styles.fileName}>✓ {aadharBack.name}</p>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* FSSAI License - Optional */}
+            <div style={styles.complianceSection}>
+              <h3 style={styles.sectionTitle}>
+                <span style={styles.optionalBadge}>Optional</span>
+                FSSAI License
+              </h3>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>FSSAI License Number</label>
+                <input
+                  type="text"
+                  value={fssaiNumber}
+                  onChange={(e) => setFssaiNumber(e.target.value.toUpperCase())}
+                  placeholder="e.g., 10213022000001"
+                  style={styles.input}
+                  disabled={isLoading}
+                />
+                <p style={styles.helpText}>
+                  Your FSSAI license number (if applicable)
+                </p>
+              </div>
+
+              {fssaiNumber && (
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Upload FSSAI Certificate</label>
+                  <div style={styles.fileInputWrapper}>
+                    <input
+                      type="file"
+                      onChange={(e) =>
+                        setFssaiFile(e.target.files?.[0] || null)
+                      }
+                      style={styles.fileInput}
+                      disabled={isLoading}
+                      accept=".pdf,.jpg,.jpeg,.png"
+                    />
+                    <p style={styles.helpText}>PDF, JPG, or PNG (Max 5MB)</p>
+                  </div>
+                  {fssaiFile && (
+                    <p style={styles.fileName}>✓ {fssaiFile.name}</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* GST - Optional */}
+            <div style={styles.complianceSection}>
+              <h3 style={styles.sectionTitle}>
+                <span style={styles.optionalBadge}>Optional</span>
+                GST Details
+              </h3>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>GST Number (15 digits)</label>
+                <input
+                  type="text"
+                  value={gstNumber}
+                  onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
+                  placeholder="e.g., 18AABCU9603R1Z5"
+                  style={styles.input}
+                  disabled={isLoading}
+                  maxLength={15}
+                />
+                <p style={styles.helpText}>
+                  Enter your 15-digit GST number (if applicable)
+                </p>
+              </div>
+
+              {gstNumber && (
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Upload GST Certificate</label>
+                  <div style={styles.fileInputWrapper}>
+                    <input
+                      type="file"
+                      onChange={(e) => setGstFile(e.target.files?.[0] || null)}
+                      style={styles.fileInput}
+                      disabled={isLoading}
+                      accept=".pdf,.jpg,.jpeg,.png"
+                    />
+                    <p style={styles.helpText}>PDF, JPG, or PNG (Max 5MB)</p>
+                  </div>
+                  {gstFile && <p style={styles.fileName}>✓ {gstFile.name}</p>}
+                </div>
+              )}
+            </div>
+
+            {error && <div style={styles.errorMessage}>{error}</div>}
+
+            <button
+              type="submit"
+              disabled={isLoading || !panNumber.trim() || !panFile}
+              style={{
+                ...styles.submitButton,
+                opacity: isLoading || !panNumber.trim() || !panFile ? 0.6 : 1,
+              }}
+              onMouseEnter={(e) => {
+                if (!isLoading && panNumber.trim() && panFile) {
+                  e.currentTarget.style.backgroundColor = '#ea580c';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#f97316';
+              }}
+            >
+              {isLoading ? 'Verifying...' : 'Continue'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setOnboardingStep('business-details')}
+              disabled={isLoading}
+              style={styles.backButton}
+            >
+              Back
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 7: Payment Setup
+  if (onboardingStep === 'payment-setup') {
+    return (
+      <div style={styles.container}>
+        <style>{`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+        <div style={styles.content}>
+          <div style={styles.progressContainer}>
+            <div
+              style={{
+                ...styles.progressBar,
+                width: `${getProgressPercentage()}%`,
+              }}
+            />
+          </div>
+
+          <div style={styles.stepIndicator}>
+            <span style={styles.stepNumber}>{getStepNumber()}</span>
+            <span style={styles.stepDot}>●</span>
+          </div>
+
+          <div style={styles.header}>
+            <h1 style={styles.title}>
+              <CreditCard
+                size={32}
+                style={{ marginRight: '0.5rem', display: 'inline' }}
+              />
+              Payment Setup
+            </h1>
+            <p style={styles.subtitle}>
+              Add your bank details for easy payments
+            </p>
+          </div>
+
+          <form onSubmit={handlePaymentSetupSubmit} style={styles.profileForm}>
+            <div style={styles.infoBox}>
+              <AlertCircle
+                size={20}
+                color="#0284c7"
+                style={{ marginRight: '0.75rem' }}
+              />
+              <p style={{ margin: 0, fontSize: '0.875rem', color: '#0c4a6e' }}>
+                Your payment details are secured and encrypted
+              </p>
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Bank Name *</label>
+              <input
+                type="text"
+                value={bankName}
+                onChange={(e) => setBankName(e.target.value)}
+                placeholder="e.g., State Bank of India"
+                style={styles.input}
+                disabled={isLoading}
+                required
+              />
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Account Holder Name *</label>
+              <input
+                type="text"
+                value={accountHolderName}
+                onChange={(e) => setAccountHolderName(e.target.value)}
+                placeholder="Name as per bank account"
+                style={styles.input}
+                disabled={isLoading}
+                required
+              />
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Account Number *</label>
+              <input
+                type="text"
+                value={accountNumber}
+                onChange={(e) =>
+                  setAccountNumber(e.target.value.replace(/[^\d]/g, ''))
+                }
+                placeholder="Your account number"
+                style={styles.input}
+                disabled={isLoading}
+                required
+              />
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>IFSC Code *</label>
+              <input
+                type="text"
+                value={ifscCode}
+                onChange={(e) => setIfscCode(e.target.value.toUpperCase())}
+                placeholder="e.g., SBIN0001234"
+                style={styles.input}
+                disabled={isLoading}
+                maxLength={11}
+                required
+              />
+              <p style={styles.helpText}>11-character IFSC code</p>
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>UPI ID *</label>
+              <input
+                type="text"
+                value={upiId}
+                onChange={(e) => setUpiId(e.target.value)}
+                placeholder="e.g., yourname@upi"
+                style={styles.input}
+                disabled={isLoading}
+                required
+              />
+              <p style={styles.helpText}>For receiving quick payments</p>
+            </div>
+
+            {error && <div style={styles.errorMessage}>{error}</div>}
+
+            <button
+              type="submit"
+              disabled={
+                isLoading ||
+                !accountNumber.trim() ||
+                !ifscCode.trim() ||
+                !upiId.trim()
+              }
+              style={{
+                ...styles.submitButton,
+                opacity: isLoading || !accountNumber.trim() ? 0.6 : 1,
+              }}
+              onMouseEnter={(e) => {
+                if (!isLoading && accountNumber.trim()) {
+                  e.currentTarget.style.backgroundColor = '#ea580c';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#f97316';
+              }}
+            >
+              {isLoading ? 'Saving...' : 'Continue'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setOnboardingStep('kyc-compliance')}
+              disabled={isLoading}
+              style={styles.backButton}
+            >
+              Back
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 8: Operations Availability
+  if (onboardingStep === 'operations-availability') {
+    return (
+      <div style={styles.container}>
+        <style>{`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+        <div style={styles.content}>
+          <div style={styles.progressContainer}>
+            <div
+              style={{
+                ...styles.progressBar,
+                width: `${getProgressPercentage()}%`,
+              }}
+            />
+          </div>
+
+          <div style={styles.stepIndicator}>
+            <span style={styles.stepNumber}>{getStepNumber()}</span>
+            <span style={styles.stepDot}>●</span>
+          </div>
+
+          <div style={styles.header}>
+            <h1 style={styles.title}>
+              <Clock
+                size={32}
+                style={{ marginRight: '0.5rem', display: 'inline' }}
+              />
+              Operations Availability
+            </h1>
+            <p style={styles.subtitle}>
+              Set your kitchen type and operating hours
+            </p>
+          </div>
+
+          <form
+            onSubmit={handleOperationsAvailabilitySubmit}
+            style={styles.profileForm}
+          >
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Kitchen Type *</label>
+              <select
+                value={kitchenType}
+                onChange={(e) => setKitchenType(e.target.value)}
+                style={styles.input}
+                disabled={isLoading}
+                required
+              >
+                <option value="">Select kitchen type</option>
+                {KITCHEN_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Operating Days *</label>
+              <div style={styles.checkboxGroup}>
+                {DAYS_OF_WEEK.map((day) => (
+                  <label key={day} style={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={operatingDays.includes(day)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setOperatingDays([...operatingDays, day]);
+                        } else {
+                          setOperatingDays(
+                            operatingDays.filter((d) => d !== day)
+                          );
+                        }
+                      }}
+                      style={styles.checkbox}
+                      disabled={isLoading}
+                    />
+                    {day}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div style={styles.formRow}>
+              <div style={{ ...styles.formGroup, flex: 1 }}>
+                <label style={styles.label}>Operating Hours Start *</label>
+                <input
+                  type="time"
+                  value={operatingHoursStart}
+                  onChange={(e) => setOperatingHoursStart(e.target.value)}
+                  style={styles.input}
+                  disabled={isLoading}
+                  required
+                />
+              </div>
+
+              <div style={{ ...styles.formGroup, flex: 1 }}>
+                <label style={styles.label}>Operating Hours End *</label>
+                <input
+                  type="time"
+                  value={operatingHoursEnd}
+                  onChange={(e) => setOperatingHoursEnd(e.target.value)}
+                  style={styles.input}
+                  disabled={isLoading}
+                  required
+                />
+              </div>
+            </div>
+
+            {error && <div style={styles.errorMessage}>{error}</div>}
+
+            <button
+              type="submit"
+              disabled={isLoading || !kitchenType || operatingDays.length === 0}
+              style={{
+                ...styles.submitButton,
+                opacity: isLoading || !kitchenType ? 0.6 : 1,
+              }}
+              onMouseEnter={(e) => {
+                if (!isLoading && kitchenType) {
+                  e.currentTarget.style.backgroundColor = '#ea580c';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#f97316';
+              }}
+            >
+              {isLoading ? 'Saving...' : 'Continue'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setOnboardingStep('payment-setup')}
+              disabled={isLoading}
+              style={styles.backButton}
+            >
+              Back
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 9: Cancellation Policies
+  if (onboardingStep === 'cancellation-policies') {
+    return (
+      <div style={styles.container}>
+        <style>{`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+        <div style={styles.content}>
+          <div style={styles.progressContainer}>
+            <div
+              style={{
+                ...styles.progressBar,
+                width: `${getProgressPercentage()}%`,
+              }}
+            />
+          </div>
+
+          <div style={styles.stepIndicator}>
+            <span style={styles.stepNumber}>{getStepNumber()}</span>
+            <span style={styles.stepDot}>●</span>
+          </div>
+
+          <div style={styles.header}>
+            <h1 style={styles.title}>
+              <AlertCircle
+                size={32}
+                style={{ marginRight: '0.5rem', display: 'inline' }}
+              />
+              Cancellation Policies
+            </h1>
+            <p style={styles.subtitle}>
+              Define your cancellation and refund policies
+            </p>
+          </div>
+
+          <form
+            onSubmit={handleCancellationPoliciesSubmit}
+            style={styles.profileForm}
+          >
+            <div style={styles.infoBox}>
+              <AlertCircle
+                size={20}
+                color="#dc2626"
+                style={{ marginRight: '0.75rem' }}
+              />
+              <p style={{ margin: 0, fontSize: '0.875rem', color: '#7f1d1d' }}>
+                Clear policies build trust with your customers
+              </p>
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Cancellation Policy Summary *</label>
+              <textarea
+                value={cancellationPolicySummary}
+                onChange={(e) => setCancellationPolicySummary(e.target.value)}
+                placeholder="Describe your cancellation and refund policies (e.g., 100% refund if cancelled 30 days before event, 50% refund if cancelled 15 days before, no refund if cancelled less than 15 days before)"
+                style={{
+                  ...styles.input,
+                  minHeight: '120px',
+                  resize: 'vertical',
+                }}
+                disabled={isLoading}
+                rows={5}
+                required
+              />
+              <p style={styles.helpText}>
+                Be clear about refund amounts and timelines
+              </p>
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>
+                Advance Notice Required (Days) *
+              </label>
+              <input
+                type="number"
+                value={advanceNoticeRequired}
+                onChange={(e) => setAdvanceNoticeRequired(e.target.value)}
+                placeholder="Minimum days notice required for cancellation"
+                style={styles.input}
+                disabled={isLoading}
+                min="1"
+                required
+              />
+              <p style={styles.helpText}>
+                Minimum notice period for cancellations
+              </p>
+            </div>
+
+            {error && <div style={styles.errorMessage}>{error}</div>}
+
+            <button
+              type="submit"
+              disabled={isLoading || !cancellationPolicySummary.trim()}
+              style={{
+                ...styles.submitButton,
+                opacity:
+                  isLoading || !cancellationPolicySummary.trim() ? 0.6 : 1,
+              }}
+              onMouseEnter={(e) => {
+                if (!isLoading && cancellationPolicySummary.trim()) {
+                  e.currentTarget.style.backgroundColor = '#ea580c';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#f97316';
+              }}
+            >
+              {isLoading ? 'Saving...' : 'Continue'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setOnboardingStep('operations-availability')}
+              disabled={isLoading}
+              style={styles.backButton}
+            >
+              Back
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 10: Service Details
+  if (onboardingStep === 'service-details') {
+    return (
+      <div style={styles.container}>
+        <style>{`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+        <div style={styles.content}>
+          <div style={styles.progressContainer}>
+            <div
+              style={{
+                ...styles.progressBar,
+                width: `${getProgressPercentage()}%`,
+              }}
+            />
+          </div>
+
+          <div style={styles.stepIndicator}>
+            <span style={styles.stepNumber}>{getStepNumber()}</span>
+            <span style={styles.stepDot}>●</span>
+          </div>
+
+          <div style={styles.header}>
+            <h1 style={styles.title}>
+              <Utensils
+                size={32}
+                style={{ marginRight: '0.5rem', display: 'inline' }}
+              />
+              Service Details
+            </h1>
+            <p style={styles.subtitle}>
+              Describe your catering services and pricing
+            </p>
+          </div>
+
+          <form
+            onSubmit={handleServiceDetailsSubmit}
+            style={styles.profileForm}
+          >
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Event Types You Can Cater *</label>
+              <div style={styles.checkboxGroup}>
+                {EVENT_TYPES.map((event) => (
+                  <label key={event.value} style={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={selectedEventTypes.includes(event.value)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedEventTypes([
+                            ...selectedEventTypes,
+                            event.value,
+                          ]);
+                        } else {
+                          setSelectedEventTypes(
+                            selectedEventTypes.filter(
+                              (et) => et !== event.value
+                            )
+                          );
+                        }
+                      }}
+                      style={styles.checkbox}
+                      disabled={isLoading}
+                    />
+                    {event.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Service Types Offered *</label>
+              <div style={styles.checkboxGroup}>
+                {SERVICE_TYPES.map((service) => (
+                  <label key={service.value} style={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={selectedServiceTypes.includes(service.value)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedServiceTypes([
+                            ...selectedServiceTypes,
+                            service.value,
+                          ]);
+                        } else {
+                          setSelectedServiceTypes(
+                            selectedServiceTypes.filter(
+                              (st) => st !== service.value
+                            )
+                          );
+                        }
+                      }}
+                      style={styles.checkbox}
+                      disabled={isLoading}
+                    />
+                    {service.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div style={styles.formRow}>
+              <div style={{ ...styles.formGroup, flex: 1 }}>
+                <label style={styles.label}>Minimum Guests *</label>
+                <input
+                  type="number"
+                  value={minGuests}
+                  onChange={(e) => setMinGuests(e.target.value)}
+                  placeholder="Minimum guests"
+                  style={styles.input}
+                  disabled={isLoading}
+                  min="1"
+                  required
+                />
+              </div>
+
+              <div style={{ ...styles.formGroup, flex: 1 }}>
+                <label style={styles.label}>Maximum Guests *</label>
+                <input
+                  type="number"
+                  value={maxGuests}
+                  onChange={(e) => setMaxGuests(e.target.value)}
+                  placeholder="Maximum guests"
+                  style={styles.input}
+                  disabled={isLoading}
+                  min="1"
+                  required
+                />
+              </div>
+            </div>
+
+            <div style={styles.formRow}>
+              <div style={{ ...styles.formGroup, flex: 1 }}>
+                <label style={styles.label}>
+                  Price Range - Min (₹/person) *
+                </label>
+                <input
+                  type="number"
+                  value={priceRangeMin}
+                  onChange={(e) => setPriceRangeMin(e.target.value)}
+                  placeholder="Minimum price per person"
+                  style={styles.input}
+                  disabled={isLoading}
+                  min="0"
+                  required
+                />
+              </div>
+
+              <div style={{ ...styles.formGroup, flex: 1 }}>
+                <label style={styles.label}>
+                  Price Range - Max (₹/person) *
+                </label>
+                <input
+                  type="number"
+                  value={priceRangeMax}
+                  onChange={(e) => setPriceRangeMax(e.target.value)}
+                  placeholder="Maximum price per person"
+                  style={styles.input}
+                  disabled={isLoading}
+                  min="0"
+                  required
+                />
+              </div>
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Service Radius *</label>
+              <div style={styles.radioGroup}>
+                <label style={styles.radioLabel}>
+                  <input
+                    type="radio"
+                    value="city-wide"
+                    checked={serviceRadius === 'city-wide'}
+                    onChange={(e) =>
+                      setServiceRadius(e.target.value as ServiceRadius)
+                    }
+                    disabled={isLoading}
+                    style={styles.radioInput}
+                  />
+                  City-wide Service
+                </label>
+                <label style={styles.radioLabel}>
+                  <input
+                    type="radio"
+                    value="specific-radius"
+                    checked={serviceRadius === 'specific-radius'}
+                    onChange={(e) =>
+                      setServiceRadius(e.target.value as ServiceRadius)
+                    }
+                    disabled={isLoading}
+                    style={styles.radioInput}
+                  />
+                  Specific Radius
+                </label>
+              </div>
+            </div>
+
+            {serviceRadius === 'specific-radius' && (
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Service Radius (km) *</label>
+                <input
+                  type="number"
+                  value={serviceRadius_km}
+                  onChange={(e) => setServiceRadius_km(e.target.value)}
+                  placeholder="e.g., 15"
+                  style={styles.input}
+                  disabled={isLoading}
+                  min="1"
+                  required
+                />
+              </div>
+            )}
+
+            {error && <div style={styles.errorMessage}>{error}</div>}
+
+            <button
+              type="submit"
+              disabled={
+                isLoading ||
+                selectedEventTypes.length === 0 ||
+                selectedServiceTypes.length === 0
+              }
+              style={{
+                ...styles.submitButton,
+                opacity: isLoading || selectedEventTypes.length === 0 ? 0.6 : 1,
+              }}
+              onMouseEnter={(e) => {
+                if (!isLoading && selectedEventTypes.length > 0) {
+                  e.currentTarget.style.backgroundColor = '#ea580c';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#f97316';
+              }}
+            >
+              {isLoading ? 'Saving...' : 'Continue'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setOnboardingStep('cancellation-policies')}
+              disabled={isLoading}
+              style={styles.backButton}
+            >
+              Back
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 11: Complete
   if (onboardingStep === 'complete') {
     return (
       <div style={styles.container}>
@@ -801,28 +2367,24 @@ export default function RoleSelectionPage() {
           }
         `}</style>
         <div style={styles.content}>
-          {/* Progress Bar */}
           <div style={styles.progressContainer}>
             <div style={{ ...styles.progressBar, width: '100%' }} />
           </div>
 
-          {/* Step Indicator */}
           <div style={styles.stepIndicator}>
-            <span style={styles.stepNumber}>Step 4 of 4</span>
+            <span style={styles.stepNumber}>{getStepNumber()}</span>
             <span style={styles.stepDot}>●</span>
           </div>
 
-          {/* Success Content */}
           <div style={styles.completeContainer}>
             <div style={styles.successIcon}>✓</div>
             <h1 style={styles.title}>All Set! 🎉</h1>
             <p style={styles.subtitle}>
               {selectedRole === 'caterer'
-                ? "Your catering business profile is ready. Let's get you started!"
+                ? "Your complete catering business profile is ready. Let's get you started!"
                 : 'Welcome to CaterHub! Ready to explore amazing catering options?'}
             </p>
 
-            {/* Summary */}
             <div style={styles.summaryBox}>
               <div style={styles.summaryItem}>
                 <span style={styles.summaryLabel}>Name</span>
@@ -830,10 +2392,50 @@ export default function RoleSelectionPage() {
               </div>
 
               {selectedRole === 'caterer' && (
-                <div style={styles.summaryItem}>
-                  <span style={styles.summaryLabel}>Business</span>
-                  <span style={styles.summaryValue}>{businessName}</span>
-                </div>
+                <>
+                  <div style={styles.summaryItem}>
+                    <span style={styles.summaryLabel}>Business</span>
+                    <span style={styles.summaryValue}>{businessName}</span>
+                  </div>
+
+                  <div style={styles.summaryItem}>
+                    <span style={styles.summaryLabel}>Cuisine</span>
+                    <span style={styles.summaryValue}>{cuisineType}</span>
+                  </div>
+
+                  <div style={styles.summaryItem}>
+                    <span style={styles.summaryLabel}>Kitchen Type</span>
+                    <span style={styles.summaryValue}>{kitchenType}</span>
+                  </div>
+
+                  <div style={styles.summaryItem}>
+                    <span style={styles.summaryLabel}>Guest Range</span>
+                    <span style={styles.summaryValue}>
+                      {minGuests} - {maxGuests} guests
+                    </span>
+                  </div>
+
+                  <div style={styles.summaryItem}>
+                    <span style={styles.summaryLabel}>Price Range</span>
+                    <span style={styles.summaryValue}>
+                      ₹{priceRangeMin} - ₹{priceRangeMax}/person
+                    </span>
+                  </div>
+
+                  <div style={styles.summaryItem}>
+                    <span style={styles.summaryLabel}>Service Radius</span>
+                    <span style={styles.summaryValue}>
+                      {serviceRadius === 'city-wide'
+                        ? 'City-wide'
+                        : `${serviceRadius_km} km`}
+                    </span>
+                  </div>
+
+                  <div style={styles.summaryItem}>
+                    <span style={styles.summaryLabel}>UPI ID</span>
+                    <span style={styles.summaryValue}>{upiId}</span>
+                  </div>
+                </>
               )}
 
               <div style={styles.summaryItem}>
@@ -844,8 +2446,7 @@ export default function RoleSelectionPage() {
               <div style={styles.summaryItem}>
                 <span style={styles.summaryLabel}>Phone</span>
                 <span style={styles.summaryValue}>
-                  {countryCode}
-                  {phone}
+                  {countryCode} {phone}
                 </span>
               </div>
 
@@ -859,8 +2460,7 @@ export default function RoleSelectionPage() {
                       selectedRole === 'caterer' ? '#fff7ed' : '#f0f4ff',
                     padding: '0.5rem 1rem',
                     borderRadius: '0.5rem',
-                    color:
-                      selectedRole === 'caterer' ? '#f97316' : '#667eea',
+                    color: selectedRole === 'caterer' ? '#f97316' : '#667eea',
                     fontWeight: 'bold',
                     display: 'inline-block',
                   }}
@@ -879,13 +2479,13 @@ export default function RoleSelectionPage() {
                 ...styles.ctaButton,
                 marginTop: '2rem',
                 opacity: isLoading ? 0.7 : 1,
-                cursor: isLoading ? 'not-allowed' : 'pointer',
               }}
               onMouseEnter={(e) => {
                 if (!isLoading) {
                   e.currentTarget.style.backgroundColor = '#ea580c';
                   e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 8px 16px rgba(249, 115, 22, 0.3)';
+                  e.currentTarget.style.boxShadow =
+                    '0 8px 16px rgba(249, 115, 22, 0.3)';
                 }
               }}
               onMouseLeave={(e) => {
@@ -894,7 +2494,9 @@ export default function RoleSelectionPage() {
                 e.currentTarget.style.boxShadow = 'none';
               }}
             >
-              {isLoading ? 'Completing setup...' : `Go to ${selectedRole === 'caterer' ? 'Caterer' : 'Customer'} Dashboard`}
+              {isLoading
+                ? 'Completing setup...'
+                : `Go to ${selectedRole === 'caterer' ? 'Caterer' : 'Customer'} Dashboard`}
               <ArrowRight size={20} />
             </button>
           </div>
@@ -910,12 +2512,14 @@ export default function RoleSelectionPage() {
 const styles = {
   container: {
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+    background:
+      'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
     padding: '1rem',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontFamily:
+      '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
   } as React.CSSProperties,
   content: {
     width: '100%',
@@ -962,7 +2566,8 @@ const styles = {
     flexDirection: 'column' as const,
     justifyContent: 'center',
     alignItems: 'center',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+    background:
+      'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
   } as React.CSSProperties,
   loadingSpinner: {
     width: '48px',
@@ -988,6 +2593,9 @@ const styles = {
     color: '#111827',
     margin: 0,
     marginBottom: '0.5rem',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   } as React.CSSProperties,
   subtitle: {
     fontSize: 'clamp(0.875rem, 2vw, 1rem)',
@@ -1012,7 +2620,7 @@ const styles = {
   } as React.CSSProperties,
   userInfoGrid: {
     display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
+    gridTemplateColumns: '1fr',
     gap: '1rem',
   } as React.CSSProperties,
   userInfoItem: {
@@ -1047,6 +2655,7 @@ const styles = {
     backgroundColor: 'white',
     transition: 'all 0.3s ease',
     position: 'relative' as const,
+    cursor: 'pointer',
   } as React.CSSProperties,
   roleIconContainer: {
     display: 'flex',
@@ -1110,6 +2719,12 @@ const styles = {
   formGroup: {
     marginBottom: '1.5rem',
   } as React.CSSProperties,
+  formRow: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '1rem',
+    alignItems: 'start',
+  } as React.CSSProperties,
   label: {
     display: 'block',
     fontSize: '0.875rem',
@@ -1142,6 +2757,57 @@ const styles = {
     cursor: 'pointer',
     fontFamily: 'inherit',
   } as React.CSSProperties,
+  complianceSection: {
+    backgroundColor: '#f9fafb',
+    border: '1px solid #e5e7eb',
+    borderRadius: '1rem',
+    padding: '1.5rem',
+    marginBottom: '2rem',
+  } as React.CSSProperties,
+  sectionTitle: {
+    fontSize: '1rem',
+    fontWeight: '600',
+    color: '#111827',
+    margin: '0 0 1rem 0',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+  } as React.CSSProperties,
+  requiredBadge: {
+    display: 'inline-block',
+    padding: '0.25rem 0.75rem',
+    backgroundColor: '#fee2e2',
+    color: '#991b1b',
+    borderRadius: '0.25rem',
+    fontSize: '0.75rem',
+    fontWeight: '600',
+  } as React.CSSProperties,
+  optionalBadge: {
+    display: 'inline-block',
+    padding: '0.25rem 0.75rem',
+    backgroundColor: '#dbeafe',
+    color: '#1e40af',
+    borderRadius: '0.25rem',
+    fontSize: '0.75rem',
+    fontWeight: '600',
+  } as React.CSSProperties,
+  fileInputWrapper: {
+    border: '2px dashed #d1d5db',
+    borderRadius: '0.5rem',
+    padding: '1.5rem',
+    textAlign: 'center' as const,
+    backgroundColor: '#fafafa',
+  } as React.CSSProperties,
+  fileInput: {
+    width: '100%',
+    cursor: 'pointer',
+  } as React.CSSProperties,
+  fileName: {
+    fontSize: '0.875rem',
+    color: '#10b981',
+    marginTop: '0.5rem',
+    fontWeight: '600',
+  } as React.CSSProperties,
   otpSentText: {
     fontSize: '0.75rem',
     color: '#6b7280',
@@ -1160,9 +2826,6 @@ const styles = {
     fontSize: '0.875rem',
     marginBottom: '1rem',
     border: '1px solid #fecaca',
-    display: 'flex',
-    gap: '0.5rem',
-    alignItems: 'center',
   } as React.CSSProperties,
   submitButton: {
     width: '100%',
@@ -1231,5 +2894,51 @@ const styles = {
     fontSize: '0.875rem',
     fontWeight: '600',
     color: '#111827',
+  } as React.CSSProperties,
+  infoBox: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '1rem',
+    padding: '1rem',
+    backgroundColor: '#eff6ff',
+    border: '1px solid #bfdbfe',
+    borderRadius: '0.5rem',
+    marginBottom: '1.5rem',
+  } as React.CSSProperties,
+  checkboxGroup: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+    gap: '0.75rem',
+  } as React.CSSProperties,
+  checkboxLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    fontSize: '0.875rem',
+    color: '#1f2937',
+    cursor: 'pointer',
+  } as React.CSSProperties,
+  checkbox: {
+    width: '18px',
+    height: '18px',
+    cursor: 'pointer',
+  } as React.CSSProperties,
+  radioGroup: {
+    display: 'flex',
+    gap: '1.5rem',
+    flexDirection: 'column' as const,
+  } as React.CSSProperties,
+  radioLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    fontSize: '0.875rem',
+    color: '#1f2937',
+    cursor: 'pointer',
+  } as React.CSSProperties,
+  radioInput: {
+    width: '18px',
+    height: '18px',
+    cursor: 'pointer',
   } as React.CSSProperties,
 };
