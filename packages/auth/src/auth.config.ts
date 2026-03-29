@@ -1,10 +1,14 @@
 import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
-import GithubProvider from 'next-auth/providers/github';
+import FacebookProvider from 'next-auth/providers/facebook';
+import AppleProvider from 'next-auth/providers/apple';
 import type { NextAuthOptions } from 'next-auth';
 
 // Role types
 export type UserRole = 'customer' | 'caterer' | 'admin' | 'moderator' | 'support' | 'partner';
+
+// User status type
+export type OnboardingStatus = 'pending' | 'in_progress' | 'completed';
 
 // Mock database of users with roles
 const mockUsers: Record<
@@ -12,32 +16,50 @@ const mockUsers: Record<
   {
     id: string;
     email: string;
+    phone?: string;
     name: string;
     image: string;
-    role: UserRole;
+    role?: UserRole; // Optional - null if onboarding not completed
     permissions?: string[];
     isVerified: boolean;
     status: 'active' | 'inactive' | 'suspended';
+    onboarding: {
+      status: OnboardingStatus;
+      completedAt?: Date;
+      selectedRole?: UserRole;
+    };
   }
 > = {
   'demo@example.com': {
     id: '1',
     email: 'demo@example.com',
+    phone: '+919876543210',
     name: 'John Doe',
     image: 'https://i.pravatar.cc/150?img=1',
     role: 'customer',
     isVerified: true,
     status: 'active',
+    onboarding: {
+      status: 'completed',
+      completedAt: new Date('2024-01-15'),
+      selectedRole: 'customer',
+    },
     permissions: ['read:events', 'create:orders', 'read:profile'],
   },
   'caterer@example.com': {
     id: '2',
     email: 'caterer@example.com',
+    phone: '+919876543211',
     name: 'Chef Maria',
     image: 'https://i.pravatar.cc/150?img=2',
     role: 'caterer',
     isVerified: true,
     status: 'active',
+    onboarding: {
+      status: 'completed',
+      completedAt: new Date('2024-01-10'),
+      selectedRole: 'caterer',
+    },
     permissions: [
       'create:menu',
       'update:menu',
@@ -51,11 +73,17 @@ const mockUsers: Record<
   'admin@example.com': {
     id: '3',
     email: 'admin@example.com',
+    phone: '+919876543212',
     name: 'Admin User',
     image: 'https://i.pravatar.cc/150?img=3',
     role: 'admin',
     isVerified: true,
     status: 'active',
+    onboarding: {
+      status: 'completed',
+      completedAt: new Date('2024-01-05'),
+      selectedRole: 'admin',
+    },
     permissions: [
       'read:all',
       'write:all',
@@ -69,11 +97,17 @@ const mockUsers: Record<
   'moderator@example.com': {
     id: '4',
     email: 'moderator@example.com',
+    phone: '+919876543213',
     name: 'Sarah Moderator',
     image: 'https://i.pravatar.cc/150?img=4',
     role: 'moderator',
     isVerified: true,
     status: 'active',
+    onboarding: {
+      status: 'completed',
+      completedAt: new Date('2024-01-12'),
+      selectedRole: 'moderator',
+    },
     permissions: [
       'read:orders',
       'moderate:reviews',
@@ -85,11 +119,17 @@ const mockUsers: Record<
   'support@example.com': {
     id: '5',
     email: 'support@example.com',
+    phone: '+919876543214',
     name: 'Support Team',
     image: 'https://i.pravatar.cc/150?img=5',
     role: 'support',
     isVerified: true,
     status: 'active',
+    onboarding: {
+      status: 'completed',
+      completedAt: new Date('2024-01-08'),
+      selectedRole: 'support',
+    },
     permissions: [
       'read:orders',
       'read:users',
@@ -101,11 +141,17 @@ const mockUsers: Record<
   'partner@example.com': {
     id: '6',
     email: 'partner@example.com',
+    phone: '+919876543215',
     name: 'Partner Corp',
     image: 'https://i.pravatar.cc/150?img=6',
     role: 'partner',
     isVerified: true,
     status: 'active',
+    onboarding: {
+      status: 'completed',
+      completedAt: new Date('2024-01-20'),
+      selectedRole: 'partner',
+    },
     permissions: [
       'read:events',
       'create:events',
@@ -113,6 +159,20 @@ const mockUsers: Record<
       'manage:partnership',
       'read:reports',
     ],
+  },
+  // New user who signed up via social but hasn't completed onboarding
+  'newuser@example.com': {
+    id: '7',
+    email: 'newuser@example.com',
+    name: 'New User',
+    image: 'https://i.pravatar.cc/150?img=7',
+    // NO ROLE - waiting for onboarding completion
+    isVerified: false,
+    status: 'active',
+    onboarding: {
+      status: 'pending',
+      selectedRole: undefined,
+    },
   },
 };
 
@@ -184,46 +244,270 @@ const rolePermissions: Record<UserRole, string[]> = {
   ],
 };
 
+// Helper function to find user by email or phone
+function findUserByIdentifier(identifier: string): any {
+  // Check by email first
+  if (mockUsers[identifier]) {
+    return mockUsers[identifier];
+  }
+
+  // Check by phone
+  const userByPhone = Object.values(mockUsers).find(
+    (user) => user.phone === identifier
+  );
+
+  return userByPhone || null;
+}
+
+// Helper function to fetch user data from backend by email or phone
+async function fetchUserByEmailOrPhone(identifier: string): Promise<any> {
+  try {
+    // TODO: Replace with actual backend API call
+    // const response = await fetch(`${process.env.BACKEND_URL}/api/auth/user`, {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({ identifier }), // email or phone
+    // });
+    // const userData = await response.json();
+    // return userData;
+
+    // For now, check mock database
+    const user = findUserByIdentifier(identifier);
+    if (user) {
+      return {
+        success: true,
+        user,
+      };
+    }
+
+    return { success: false, message: 'User not found' };
+  } catch (error) {
+    console.error('Error fetching user:', error);
+    return { success: false, message: 'Failed to fetch user' };
+  }
+}
+
+// Helper function to verify OTP with backend
+async function verifyOtpWithBackend(identifier: string, otp: string): Promise<any> {
+  try {
+    // TODO: Replace with actual backend API call
+    // const response = await fetch(`${process.env.BACKEND_URL}/api/auth/verify-otp`, {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({ identifier, otp }),
+    // });
+    // const result = await response.json();
+    // return result;
+
+    // For demo: accept OTP "123456"
+    if (otp === '123456') {
+      return { success: true, verified: true };
+    }
+
+    return { success: false, verified: false, message: 'Invalid OTP' };
+  } catch (error) {
+    console.error('Error verifying OTP:', error);
+    return { success: false, verified: false, message: 'OTP verification failed' };
+  }
+}
+
+// Helper function to handle OAuth user creation/update
+async function handleOAuthUser(profile: any): Promise<any> {
+  try {
+    // TODO: Replace with actual backend API call
+    // const response = await fetch(`${process.env.BACKEND_URL}/api/auth/oauth-user`, {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({
+    //     email: profile.email,
+    //     name: profile.name,
+    //     image: profile.image,
+    //     provider: profile.provider,
+    //   }),
+    // });
+    // const result = await response.json();
+    // return result;
+
+    // Check if user exists
+    const existingUser = findUserByIdentifier(profile.email);
+
+    if (existingUser) {
+      return {
+        success: true,
+        user: existingUser,
+      };
+    }
+
+    // Create new OAuth user with pending onboarding
+    return {
+      success: true,
+      user: {
+        id: profile.id || `oauth-${Date.now()}`,
+        email: profile.email,
+        name: profile.name || 'User',
+        image: profile.image || '',
+        // NO ROLE - user needs to complete onboarding
+        isVerified: false,
+        status: 'active',
+        onboarding: {
+          status: 'pending',
+          selectedRole: undefined,
+        },
+      },
+    };
+  } catch (error) {
+    console.error('Error handling OAuth user:', error);
+    return { success: false, message: 'Failed to process OAuth user' };
+  }
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+      clientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '412439209622-go7u3c969hig47eovfcsaeiofvtvudvj.apps.googleusercontent.com',
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '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',
       allowDangerousEmailAccountLinking: true,
+      profile: async (profile) => {
+        return {
+          id: profile.sub,
+          name: profile.name,
+          email: profile.email,
+          image: profile.picture,
+        };
+      },
     }),
-    GithubProvider({
-      clientId: process.env.GITHUB_ID || '',
-      clientSecret: process.env.GITHUB_SECRET || '',
+    FacebookProvider({
+      clientId: process.env.FACEBOOK_CLIENT_ID || '',
+      clientSecret: process.env.FACEBOOK_CLIENT_SECRET || '',
       allowDangerousEmailAccountLinking: true,
+      profile: async (profile) => {
+        return {
+          id: profile.id,
+          name: profile.name,
+          email: profile.email,
+          image: profile.picture?.data?.url,
+        };
+      },
+    }),
+    AppleProvider({
+      clientId: process.env.APPLE_CLIENT_ID || '',
+      clientSecret: process.env.APPLE_CLIENT_SECRET || '',
+      allowDangerousEmailAccountLinking: true,
+      profile: async (profile) => {
+        return {
+          id: profile.sub,
+          name: profile.name,
+          email: profile.email,
+          image: '',
+        };
+      },
     }),
     CredentialsProvider({
-      name: 'Credentials',
+      id: 'email-otp',
+      name: 'Email OTP',
       credentials: {
         email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' },
+        otp: { label: 'OTP', type: 'text' },
       },
       async authorize(credentials) {
-        // Check mock users database
-        const mockUser = mockUsers[credentials?.email || ''];
-
-        if (
-          mockUser &&
-          credentials?.password === 'password' &&
-          mockUser.status === 'active'
-        ) {
-          return {
-            id: mockUser.id,
-            email: mockUser.email,
-            name: mockUser.name,
-            image: mockUser.image,
-            role: mockUser.role,
-            permissions: mockUser.permissions,
-            isVerified: mockUser.isVerified,
-            status: mockUser.status,
-          };
+        if (!credentials?.email || !credentials?.otp) {
+          throw new Error('Email and OTP are required');
         }
 
-        return null;
+        try {
+          // Verify OTP with backend
+          const otpVerification = await verifyOtpWithBackend(
+            credentials.email,
+            credentials.otp
+          );
+
+          if (!otpVerification.success || !otpVerification.verified) {
+            throw new Error('Invalid OTP');
+          }
+
+          // Fetch user data from backend
+          const userResponse = await fetchUserByEmailOrPhone(credentials.email);
+
+          if (!userResponse.success) {
+            throw new Error('User not found');
+          }
+
+          const user = userResponse.user;
+
+          // Check user status
+          if (user.status !== 'active') {
+            throw new Error(`User account is ${user.status}`);
+          }
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            image: user.image,
+            role: user.role || null, // Can be null if onboarding not completed
+            permissions: user.permissions || [],
+            isVerified: user.isVerified,
+            status: user.status,
+            onboarding: user.onboarding,
+          };
+        } catch (error) {
+          console.error('Email OTP authorization error:', error);
+          throw error;
+        }
+      },
+    }),
+    CredentialsProvider({
+      id: 'phone-otp',
+      name: 'Phone OTP',
+      credentials: {
+        phone: { label: 'Phone', type: 'text' },
+        otp: { label: 'OTP', type: 'text' },
+      },
+      async authorize(credentials) {
+        if (!credentials?.phone || !credentials?.otp) {
+          throw new Error('Phone and OTP are required');
+        }
+
+        try {
+          // Verify OTP with backend
+          const otpVerification = await verifyOtpWithBackend(
+            credentials.phone,
+            credentials.otp
+          );
+
+          if (!otpVerification.success || !otpVerification.verified) {
+            throw new Error('Invalid OTP');
+          }
+
+          // Fetch user data from backend by phone
+          const userResponse = await fetchUserByEmailOrPhone(credentials.phone);
+
+          if (!userResponse.success) {
+            throw new Error('User not found');
+          }
+
+          const user = userResponse.user;
+
+          // Check user status
+          if (user.status !== 'active') {
+            throw new Error(`User account is ${user.status}`);
+          }
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            image: user.image,
+            role: user.role || null, // Can be null if onboarding not completed
+            permissions: user.permissions || [],
+            isVerified: user.isVerified,
+            status: user.status,
+            onboarding: user.onboarding,
+          };
+        } catch (error) {
+          console.error('Phone OTP authorization error:', error);
+          throw error;
+        }
       },
     }),
   ],
@@ -232,32 +516,64 @@ export const authOptions: NextAuthOptions = {
     error: '/auth/error',
   },
   callbacks: {
-    async jwt({ token, user, account }: any) {
+    async jwt({ token, user, account, profile }: any) {
       // Initial sign in
       if (user) {
         token.id = user.id;
-        token.role = user.role || 'customer';
-        token.permissions = user.permissions || rolePermissions[user.role || 'customer'];
-        token.isVerified = user.isVerified ?? true;
+        token.role = user.role || null; // Can be null if onboarding not completed
+        token.permissions = user.permissions || [];
+        token.isVerified = user.isVerified ?? false;
         token.status = user.status || 'active';
+        token.onboarding = user.onboarding || {
+          status: 'pending',
+          selectedRole: undefined,
+        };
       }
 
       // OAuth provider sign in
       if (account && account.provider !== 'credentials') {
-        const email = token.email || '';
-        const existingUser = mockUsers[email];
+        try {
+          // Handle OAuth user
+          const oauthResult = await handleOAuthUser({
+            id: profile?.sub || profile?.id,
+            email: token.email,
+            name: token.name,
+            image: token.picture || profile?.picture?.data?.url,
+            provider: account.provider,
+          });
 
-        if (!existingUser) {
-          // Default role for new OAuth users
-          token.role = 'customer';
-          token.permissions = rolePermissions.customer;
-          token.isVerified = true;
+          if (oauthResult.success) {
+            const oauthUser = oauthResult.user;
+            token.id = oauthUser.id;
+            token.role = oauthUser.role || null; // Can be null if onboarding not completed
+            token.permissions = oauthUser.permissions || [];
+            token.isVerified = oauthUser.isVerified;
+            token.status = oauthUser.status;
+            token.onboarding = oauthUser.onboarding;
+          } else {
+            // Set defaults on error
+            token.id = profile?.sub || profile?.id;
+            token.role = null;
+            token.permissions = [];
+            token.isVerified = false;
+            token.status = 'active';
+            token.onboarding = {
+              status: 'pending',
+              selectedRole: undefined,
+            };
+          }
+        } catch (error) {
+          console.error('Error handling OAuth user:', error);
+          // Set defaults on error
+          token.id = profile?.sub || profile?.id;
+          token.role = null;
+          token.permissions = [];
+          token.isVerified = false;
           token.status = 'active';
-        } else {
-          token.role = existingUser.role;
-          token.permissions = existingUser.permissions;
-          token.isVerified = existingUser.isVerified;
-          token.status = existingUser.status;
+          token.onboarding = {
+            status: 'pending',
+            selectedRole: undefined,
+          };
         }
       }
 
@@ -267,10 +583,11 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }: any) {
       if (session.user) {
         session.user.id = token.id;
-        session.user.role = token.role;
+        session.user.role = token.role; // Can be null
         session.user.permissions = token.permissions;
         session.user.isVerified = token.isVerified;
         session.user.status = token.status;
+        session.user.onboarding = token.onboarding;
 
         // Add role-based properties for convenience
         session.user.isAdmin = token.role === 'admin';
@@ -279,6 +596,10 @@ export const authOptions: NextAuthOptions = {
         session.user.isModerator = token.role === 'moderator';
         session.user.isSupport = token.role === 'support';
         session.user.isPartner = token.role === 'partner';
+
+        // Check if onboarding is completed
+        session.user.isOnboardingCompleted = token.onboarding?.status === 'completed';
+        session.user.isOnboardingPending = token.onboarding?.status === 'pending' || !token.role;
 
         // Helper function to check permissions
         session.user.hasPermission = (permission: string): boolean => {
@@ -300,6 +621,11 @@ export const authOptions: NextAuthOptions = {
     },
 
     async redirect({ url, baseUrl }: any) {
+      // Redirect pending onboarding users
+      if (url.includes('callbackUrl')) {
+        return url;
+      }
+
       // Allows relative callback URLs
       if (url.startsWith('/')) return `${baseUrl}${url}`;
       // Allows callback URLs on the same origin
