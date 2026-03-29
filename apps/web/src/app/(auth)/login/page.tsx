@@ -82,7 +82,7 @@ export default function LoginPage() {
       if (session.user.isOnboardingPending || !session.user.role) {
         // Redirect to role selection/onboarding
         console.log('Onboarding pending, redirecting to role-selection');
-        router.push('/role-selection');
+        router.push('/onboarding');
       } else if (session.user.isOnboardingCompleted && session.user.role) {
         // Redirect to dashboard based on role
         const role = session.user.role;
@@ -262,7 +262,7 @@ export default function LoginPage() {
     try {
       const result = await signIn(provider, {
         redirect: false, // Set to false to handle redirect manually
-        callbackUrl: '/role-selection', // Send to onboarding if not completed
+        callbackUrl: '/onboarding', // Send to onboarding if not completed
       });
 
       if (result?.error) {

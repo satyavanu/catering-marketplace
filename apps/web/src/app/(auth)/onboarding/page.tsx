@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { ChefHat, Users, Mail, Phone, ArrowRight, Check } from 'lucide-react';
@@ -10,7 +10,7 @@ type OnboardingStep = 'role-select' | 'verify-phone' | 'profile' | 'complete';
 
 export default function RoleSelectionPage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { data: session, status, update: updateSession } = useSession();
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -20,11 +20,15 @@ export default function RoleSelectionPage() {
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [error, setError] = useState('');
+  const [isRedirecting, setIsRedirecting] = useState(false);
   
   // Profile fields
   const [fullName, setFullName] = useState(session?.user?.name || '');
   const [businessName, setBusinessName] = useState('');
   const [businessDescription, setBusinessDescription] = useState('');
+
+  // Track if initial redirect check has been done
+  const initialRedirectChecked = useRef(false);
 
   const COUNTRY_CODES = [
     { code: '+1', country: 'United States' },
@@ -37,6 +41,7 @@ export default function RoleSelectionPage() {
     { code: '+39', country: 'Italy' },
   ];
 
+  // Initial mount
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -48,10 +53,38 @@ export default function RoleSelectionPage() {
     }
   }, [status, mounted, router]);
 
+  // Redirect if onboarding already completed - ONLY on initial mount
+  useEffect(() => {
+    // Only check once on initial mount
+    if (initialRedirectChecked.current) {
+      return;
+    }
+
+    if (status === 'loading' || !mounted || !session?.user) {
+      return;
+    }
+
+    // Mark that we've done the initial check
+    initialRedirectChecked.current = true;
+
+    // If user already has a role and onboarding is completed, redirect to dashboard
+    if (
+      session.user.role &&
+      session.user.isOnboardingCompleted &&
+      !isRedirecting
+    ) {
+      console.log(
+        `User already onboarded with role: ${session.user.role}, redirecting to dashboard`
+      );
+      setIsRedirecting(true);
+      router.push(`/${session.user.role}/dashboard`);
+    }
+  }, [session, status, mounted, isRedirecting, router]);
+
   const handleRoleSelect = (role: UserRole) => {
     setSelectedRole(role);
     setFullName(session?.user?.name || '');
-    
+
     // If user logged in via social and hasn't verified phone, show phone verification
     if (session?.user && !session.user.phone) {
       setOnboardingStep('verify-phone');
@@ -158,30 +191,65 @@ export default function RoleSelectionPage() {
     }
   };
 
-  const handleCompleteOnboarding = () => {
+  const handleCompleteOnboarding = async () => {
     setIsLoading(true);
-    
-    // Redirect based on role
-    if (selectedRole === 'caterer') {
-      router.push('/caterer/dashboard');
-    } else {
-      router.push('/customer/dashboard');
+
+    if (!selectedRole) {
+      setError('Please select a role');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      // TODO: Replace with actual API call to mark onboarding as complete
+      // const response = await fetch('/api/auth/complete-onboarding', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({
+      //     role: selectedRole,
+      //     fullName,
+      //     businessName: selectedRole === 'caterer' ? businessName : null,
+      //     businessDescription: selectedRole === 'caterer' ? businessDescription : null,
+      //     phone: `${countryCode}${phone}`,
+      //   }),
+      // });
+
+      // Update session with new role and onboarding status
+      await updateSession({
+        ...session,
+        user: {
+          ...session?.user,
+          role: selectedRole,
+          isOnboardingCompleted: true,
+          isOnboardingPending: false,
+          onboarding: {
+            status: 'completed',
+            selectedRole: selectedRole,
+          },
+        },
+      });
+
+      // Redirect to dashboard based on selected role
+      setIsRedirecting(true);
+      router.push(`/${selectedRole}/dashboard`);
+    } catch (err) {
+      console.error('Error completing onboarding:', err);
+      setError('Failed to complete onboarding. Please try again.');
+      setIsLoading(false);
     }
   };
-
-  const getProgressPercentage = () => {
-    const steps: OnboardingStep[] = ['role-select', 'verify-phone', 'profile', 'complete'];
-    const currentIndex = steps.indexOf(onboardingStep);
-    return ((currentIndex + 1) / steps.length) * 100;
-  };
-
-  const isPhoneVerified = session?.user?.phone || otpSent;
 
   if (!mounted || status === 'loading') {
     return (
       <div style={styles.loadingContainer}>
         <div style={styles.loadingSpinner} />
         <p style={styles.loadingText}>Loading...</p>
+        <style>{`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
       </div>
     );
   }
@@ -190,10 +258,32 @@ export default function RoleSelectionPage() {
     return null;
   }
 
+  // Redirect if already onboarded
+  if (isRedirecting) {
+    return (
+      <div style={styles.loadingContainer}>
+        <div style={styles.loadingSpinner} />
+        <p style={styles.loadingText}>Redirecting to dashboard...</p>
+        <style>{`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
   // Step 1: Role Selection
   if (onboardingStep === 'role-select') {
     return (
       <div style={styles.container}>
+        <style>{`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
         <div style={styles.content}>
           {/* Progress Bar */}
           <div style={styles.progressContainer}>
@@ -381,6 +471,12 @@ export default function RoleSelectionPage() {
   if (onboardingStep === 'verify-phone') {
     return (
       <div style={styles.container}>
+        <style>{`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
         <div style={styles.content}>
           {/* Progress Bar */}
           <div style={styles.progressContainer}>
@@ -396,7 +492,11 @@ export default function RoleSelectionPage() {
           {/* Header */}
           <div style={styles.header}>
             <h1 style={styles.title}>Verify Your Phone</h1>
-            <p style={styles.subtitle}>Complete your profile setup</p>
+            <p style={styles.subtitle}>
+              {selectedRole === 'caterer'
+                ? 'We need to verify your business phone number'
+                : 'Complete your profile setup'}
+            </p>
           </div>
 
           {/* User Info Display */}
@@ -415,7 +515,9 @@ export default function RoleSelectionPage() {
             {!otpSent ? (
               <form onSubmit={handleSendPhoneOtp}>
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Phone Number</label>
+                  <label style={styles.label}>
+                    {selectedRole === 'caterer' ? 'Business Phone Number' : 'Phone Number'}
+                  </label>
                   <div style={styles.phoneInputGroup}>
                     <select
                       value={countryCode}
@@ -439,6 +541,7 @@ export default function RoleSelectionPage() {
                       disabled={isLoading}
                     />
                   </div>
+                  <p style={styles.helpText}>Enter phone number without country code</p>
                 </div>
 
                 {error && <div style={styles.errorMessage}>{error}</div>}
@@ -451,6 +554,16 @@ export default function RoleSelectionPage() {
                     opacity: isLoading || !phone ? 0.6 : 1,
                     cursor: isLoading || !phone ? 'not-allowed' : 'pointer',
                   }}
+                  onMouseEnter={(e) => {
+                    if (!isLoading && phone) {
+                      e.currentTarget.style.backgroundColor = '#ea580c';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#f97316';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
                 >
                   {isLoading ? 'Sending OTP...' : 'Send OTP'}
                 </button>
@@ -459,6 +572,14 @@ export default function RoleSelectionPage() {
                   type="button"
                   onClick={() => setOnboardingStep('role-select')}
                   style={styles.backButton}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#f0f4ff';
+                    e.currentTarget.style.borderColor = '#667eea';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.borderColor = '#d1d5db';
+                  }}
                 >
                   Back
                 </button>
@@ -500,6 +621,16 @@ export default function RoleSelectionPage() {
                     opacity: isLoading || otp.length !== 6 ? 0.6 : 1,
                     cursor: isLoading || otp.length !== 6 ? 'not-allowed' : 'pointer',
                   }}
+                  onMouseEnter={(e) => {
+                    if (!isLoading && otp.length === 6) {
+                      e.currentTarget.style.backgroundColor = '#ea580c';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#f97316';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
                 >
                   {isLoading ? 'Verifying...' : 'Verify OTP'}
                 </button>
@@ -513,6 +644,14 @@ export default function RoleSelectionPage() {
                   }}
                   disabled={isLoading}
                   style={styles.backButton}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#f0f4ff';
+                    e.currentTarget.style.borderColor = '#667eea';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.borderColor = '#d1d5db';
+                  }}
                 >
                   Change Phone Number
                 </button>
@@ -528,6 +667,12 @@ export default function RoleSelectionPage() {
   if (onboardingStep === 'profile') {
     return (
       <div style={styles.container}>
+        <style>{`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
         <div style={styles.content}>
           {/* Progress Bar */}
           <div style={styles.progressContainer}>
@@ -589,7 +734,7 @@ export default function RoleSelectionPage() {
                   <textarea
                     value={businessDescription}
                     onChange={(e) => setBusinessDescription(e.target.value)}
-                    placeholder="Brief description of your catering services"
+                    placeholder="Brief description of your catering services (cuisine type, specialties, etc.)"
                     style={{ ...styles.input, minHeight: '120px', resize: 'vertical' }}
                     disabled={isLoading}
                     rows={4}
@@ -603,11 +748,21 @@ export default function RoleSelectionPage() {
 
             <button
               type="submit"
-              disabled={isLoading || !fullName.trim()}
+              disabled={isLoading || !fullName.trim() || (selectedRole === 'caterer' && !businessName.trim())}
               style={{
                 ...styles.submitButton,
-                opacity: isLoading || !fullName.trim() ? 0.6 : 1,
-                cursor: isLoading || !fullName.trim() ? 'not-allowed' : 'pointer',
+                opacity: isLoading || !fullName.trim() || (selectedRole === 'caterer' && !businessName.trim()) ? 0.6 : 1,
+                cursor: isLoading || !fullName.trim() || (selectedRole === 'caterer' && !businessName.trim()) ? 'not-allowed' : 'pointer',
+              }}
+              onMouseEnter={(e) => {
+                if (!isLoading && fullName.trim() && !(selectedRole === 'caterer' && !businessName.trim())) {
+                  e.currentTarget.style.backgroundColor = '#ea580c';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#f97316';
+                e.currentTarget.style.transform = 'translateY(0)';
               }}
             >
               {isLoading ? 'Saving...' : 'Continue'}
@@ -618,6 +773,14 @@ export default function RoleSelectionPage() {
               onClick={() => setOnboardingStep('verify-phone')}
               disabled={isLoading}
               style={styles.backButton}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f0f4ff';
+                e.currentTarget.style.borderColor = '#667eea';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.borderColor = '#d1d5db';
+              }}
             >
               Back
             </button>
@@ -631,6 +794,12 @@ export default function RoleSelectionPage() {
   if (onboardingStep === 'complete') {
     return (
       <div style={styles.container}>
+        <style>{`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
         <div style={styles.content}>
           {/* Progress Bar */}
           <div style={styles.progressContainer}>
@@ -679,7 +848,29 @@ export default function RoleSelectionPage() {
                   {phone}
                 </span>
               </div>
+
+              <div style={styles.summaryItem}>
+                <span style={styles.summaryLabel}>Role</span>
+                <span
+                  style={{
+                    ...styles.summaryValue,
+                    textTransform: 'capitalize',
+                    backgroundColor:
+                      selectedRole === 'caterer' ? '#fff7ed' : '#f0f4ff',
+                    padding: '0.5rem 1rem',
+                    borderRadius: '0.5rem',
+                    color:
+                      selectedRole === 'caterer' ? '#f97316' : '#667eea',
+                    fontWeight: 'bold',
+                    display: 'inline-block',
+                  }}
+                >
+                  {selectedRole === 'caterer' ? 'Caterer' : 'Customer'}
+                </span>
+              </div>
             </div>
+
+            {error && <div style={styles.errorMessage}>{error}</div>}
 
             <button
               onClick={handleCompleteOnboarding}
@@ -687,6 +878,8 @@ export default function RoleSelectionPage() {
               style={{
                 ...styles.ctaButton,
                 marginTop: '2rem',
+                opacity: isLoading ? 0.7 : 1,
+                cursor: isLoading ? 'not-allowed' : 'pointer',
               }}
               onMouseEnter={(e) => {
                 if (!isLoading) {
@@ -701,7 +894,7 @@ export default function RoleSelectionPage() {
                 e.currentTarget.style.boxShadow = 'none';
               }}
             >
-              {isLoading ? 'Taking you there...' : `Go to ${selectedRole === 'caterer' ? 'Caterer' : 'Customer'} Dashboard`}
+              {isLoading ? 'Completing setup...' : `Go to ${selectedRole === 'caterer' ? 'Caterer' : 'Customer'} Dashboard`}
               <ArrowRight size={20} />
             </button>
           </div>
@@ -713,6 +906,7 @@ export default function RoleSelectionPage() {
   return null;
 }
 
+// Styles object
 const styles = {
   container: {
     minHeight: '100vh',
@@ -966,6 +1160,9 @@ const styles = {
     fontSize: '0.875rem',
     marginBottom: '1rem',
     border: '1px solid #fecaca',
+    display: 'flex',
+    gap: '0.5rem',
+    alignItems: 'center',
   } as React.CSSProperties,
   submitButton: {
     width: '100%',
@@ -999,12 +1196,11 @@ const styles = {
   successIcon: {
     fontSize: '4rem',
     marginBottom: '1rem',
-    display: 'inline-block',
+    display: 'inline-flex',
     width: '80px',
     height: '80px',
     backgroundColor: '#dcfce7',
     borderRadius: '50%',
-    display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     color: '#10b981',
