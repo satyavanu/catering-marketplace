@@ -24,7 +24,10 @@ const Header = () => {
   const navLinks = [
     { label: 'Explore', href: '/' },
     { label: 'Catering', href: '/catering' },
-    { label: 'Meals', href: '/meals' },
+    { label: 'Meal Plans', href: '/meals' },
+    { label: 'Packages', href: '/meals' },
+    { label: 'For Caterers', href: '/meals' },
+
   ];
 
   // Close profile menu when clicking outside
