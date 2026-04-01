@@ -27,13 +27,15 @@ const Header = () => {
     { label: 'Meal Plans', href: '/meals' },
     { label: 'Packages', href: '/meals' },
     { label: 'For Caterers', href: '/meals' },
-
   ];
 
   // Close profile menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+      if (
+        profileMenuRef.current &&
+        !profileMenuRef.current.contains(event.target as Node)
+      ) {
         setIsProfileMenuOpen(false);
       }
     };
@@ -128,11 +130,6 @@ const Header = () => {
       style={{
         position: 'relative',
       }}
-      onMouseLeave={() => {
-        if (!isMobile) {
-          setIsProfileMenuOpen(false);
-        }
-      }}
     >
       <button
         onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
@@ -203,6 +200,7 @@ const Header = () => {
             minWidth: '220px',
             zIndex: 1000,
             animation: 'slideDown 0.2s ease-out',
+            pointerEvents: 'auto',
           }}
         >
           {/* User Info */}
@@ -229,7 +227,9 @@ const Header = () => {
               }}
             />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
                 <p
                   style={{
                     fontSize: '13px',
@@ -292,7 +292,11 @@ const Header = () => {
             }}
           >
             <Link
-              href={session?.user?.role === 'caterer' ? '/caterer/dashboard' : '/customer/dashboard'}
+              href={
+                session?.user?.role === 'caterer'
+                  ? '/caterer/dashboard'
+                  : '/customer/dashboard'
+              }
               onClick={() => setIsProfileMenuOpen(false)}
               style={{
                 display: 'flex',
@@ -782,7 +786,8 @@ const Header = () => {
                   width: '32px',
                   height: '32px',
                   borderRadius: '8px',
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  background:
+                    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -806,9 +811,7 @@ const Header = () => {
             </Link>
 
             {/* Avatar on Right - Always visible when authenticated */}
-            {status === 'authenticated' && (
-              <ProfileDropdown isMobile={true} />
-            )}
+            {status === 'authenticated' && <ProfileDropdown isMobile={true} />}
 
             {/* Unauthenticated User - Show Login Button */}
             {status !== 'authenticated' && status !== 'loading' && (
@@ -856,8 +859,6 @@ const Header = () => {
         {/* Mobile Menu - Navigation + Actions */}
         {isMobileMenuOpen && (
           <div className="mobile-menu">
-         
-
             {/* Navigation Links */}
             <nav
               style={{
@@ -911,7 +912,11 @@ const Header = () => {
               {status === 'authenticated' ? (
                 <>
                   <Link
-                    href={session?.user?.role === 'caterer' ? '/caterer/dashboard' : '/customer/dashboard'}
+                    href={
+                      session?.user?.role === 'caterer'
+                        ? '/caterer/dashboard'
+                        : '/customer/dashboard'
+                    }
                     onClick={() => setIsMobileMenuOpen(false)}
                     style={{
                       fontSize: '13px',
