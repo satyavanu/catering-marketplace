@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn, useSession } from 'next-auth/react';
 import { EnvelopeIcon, PhoneIcon } from '@heroicons/react/24/outline';
+import { useSendOtp, useVerifyOtp } from '@catering-marketplace/query-client';
 
 declare module 'next-auth' {
   interface User {
@@ -57,14 +58,16 @@ export default function LoginPage() {
   const [countryCode, setCountryCode] = useState('+91');
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [loginMode, setLoginMode] = useState<'email' | 'phone'>('email');
   const [otpSent, setOtpSent] = useState(false);
-  const [otpLoading, setOtpLoading] = useState(false);
   const [emailOtpSent, setEmailOtpSent] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
+
+  // TanStack Query mutations
+  const sendOtpMutation = useSendOtp();
+  const verifyOtpMutation = useVerifyOtp();
 
   // Prevent hydration mismatch
   useEffect(() => {
@@ -73,22 +76,18 @@ export default function LoginPage() {
 
   // Redirect if already logged in with completed onboarding
   useEffect(() => {
-    if (isRedirecting) return; // Prevent multiple redirects
+    if (isRedirecting) return;
 
     if (status === 'authenticated' && session?.user && mounted) {
       setIsRedirecting(true);
 
-      // Check if onboarding is pending
       if (session.user.isOnboardingPending || !session.user.role) {
-        // Redirect to role selection/onboarding
         console.log('Onboarding pending, redirecting to role-selection');
         router.push('/onboarding');
       } else if (session.user.isOnboardingCompleted && session.user.role) {
-        // Redirect to dashboard based on role
         const role = session.user.role;
         const callbackUrl = searchParams?.get('callbackUrl');
 
-        // Prioritize callbackUrl if provided and it's not login page
         if (callbackUrl && !callbackUrl.includes('/login')) {
           router.push(callbackUrl);
         } else {
@@ -117,143 +116,102 @@ export default function LoginPage() {
     return regex.test(phone.replace(/\D/g, ''));
   };
 
-  const handleSendEmailOtp = async (e: React.FormEvent) => {
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
-    if (!email || email.length === 0) {
-      setError('Please enter your email address');
-      setLoading(false);
-      return;
+    if (loginMode === 'email') {
+      if (!email || email.length === 0) {
+        setError('Please enter your email address');
+        return;
+      }
+    } else {
+      if (!phoneNumber || phoneNumber.length === 0) {
+        setError('Please enter your phone number');
+        return;
+      }
+
+      if (!isValidPhoneNumber(countryCode, phoneNumber)) {
+        setError(`Invalid phone number for ${countryCode}`);
+        return;
+      }
     }
 
     try {
-      // TODO: Replace with actual OTP API call
-      // const response = await fetch('/api/auth/send-otp-email', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ email }),
-      // });
+      const payload = loginMode === 'email' 
+        ? { email }
+        : { phone: `${countryCode}${phoneNumber}` };
 
-      setEmailOtpSent(true);
+      const result = await sendOtpMutation.mutateAsync(payload);
+
+      if (!result.success) {
+        setError(result.error || 'Failed to send OTP. Please try again.');
+        return;
+      }
+
+      if (loginMode === 'email') {
+        setEmailOtpSent(true);
+      } else {
+        setOtpSent(true);
+      }
       setError('');
-      // Demo: OTP would be "123456"
+      setOtp('');
     } catch (err) {
       setError('Failed to send OTP. Please try again.');
-    } finally {
-      setLoading(false);
     }
   };
 
-  const handleVerifyEmailOtp = async (e: React.FormEvent) => {
+  const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
     if (!otp || otp.length !== 6) {
       setError('Please enter a valid 6-digit OTP');
-      setLoading(false);
       return;
     }
 
     try {
-      // TODO: Replace with actual OTP verification API call
-      // const response = await fetch('/api/auth/verify-otp-email', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ email, otp }),
-      // });
+      // Build payload based on login mode
+      const payload = loginMode === 'email' 
+        ? {
+            email,
+            phone: '',
+            otp,
+          }
+        : {
+            email: '',
+            phone: `${countryCode}${phoneNumber}`,
+            otp,
+          };
 
-      const result = await signIn('email-otp', {
-        email: email,
-        otp: otp,
-        redirect: false,
-      });
+      const result = await verifyOtpMutation.mutateAsync(payload);
 
-      if (result?.error) {
+      if (!result.success) {
         setError('Invalid OTP. Please try again.');
-        setLoading(false);
-      } else if (result?.ok) {
-        // Don't redirect here - let the useEffect handle it when session updates
-        setLoading(false);
+        return;
+      }
+
+      // Sign in based on login mode
+      const signInProvider = loginMode === 'email' ? 'email-otp' : 'phone-otp';
+      const signInCredentials = loginMode === 'email'
+        ? {
+            email,
+            otp,
+            redirect: false,
+          }
+        : {
+            phone: `${countryCode}${phoneNumber}`,
+            otp,
+            redirect: false,
+          };
+
+      const signInResult = await signIn(signInProvider, signInCredentials);
+
+      if (signInResult?.error) {
+        setError('Failed to sign in. Please try again.');
       }
     } catch (err) {
       setError('Failed to verify OTP. Please try again.');
-      setLoading(false);
-    }
-  };
-
-  const handleSendPhoneOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setOtpLoading(true);
-
-    if (!phoneNumber || phoneNumber.length === 0) {
-      setError('Please enter your phone number');
-      setOtpLoading(false);
-      return;
-    }
-
-    if (!isValidPhoneNumber(countryCode, phoneNumber)) {
-      setError(`Invalid phone number for ${countryCode}`);
-      setOtpLoading(false);
-      return;
-    }
-
-    try {
-      // TODO: Replace with actual OTP API call
-      // const response = await fetch('/api/auth/send-otp-phone', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ phone: `${countryCode}${phoneNumber}` }),
-      // });
-
-      setOtpSent(true);
-      setError('');
-      // Demo: OTP would be "123456"
-    } catch (err) {
-      setError('Failed to send OTP. Please try again.');
-    } finally {
-      setOtpLoading(false);
-    }
-  };
-
-  const handleVerifyPhoneOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    if (!otp || otp.length !== 6) {
-      setError('Please enter a valid 6-digit OTP');
-      setLoading(false);
-      return;
-    }
-
-    try {
-      // TODO: Replace with actual OTP verification API call
-      // const response = await fetch('/api/auth/verify-otp-phone', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ phone: `${countryCode}${phoneNumber}`, otp }),
-      // });
-
-      const result = await signIn('phone-otp', {
-        phone: `${countryCode}${phoneNumber}`,
-        otp: otp,
-        redirect: false,
-      });
-
-      if (result?.error) {
-        setError('Invalid OTP. Please try again.');
-        setLoading(false);
-      } else if (result?.ok) {
-        // Don't redirect here - let the useEffect handle it when session updates
-        setLoading(false);
-      }
-    } catch (err) {
-      setError('Failed to verify OTP. Please try again.');
-      setLoading(false);
     }
   };
 
@@ -261,16 +219,14 @@ export default function LoginPage() {
     setSocialLoading(provider);
     try {
       const result = await signIn(provider, {
-        redirect: false, // Set to false to handle redirect manually
-        callbackUrl: '/onboarding', // Send to onboarding if not completed
+        redirect: false,
+        callbackUrl: '/onboarding',
       });
 
       if (result?.error) {
         setError(`Failed to sign in with ${provider}`);
         setSocialLoading(null);
       } else if (result?.ok) {
-        // Session will update and useEffect will handle redirect
-        // If user is new (no onboarding), useEffect will redirect to /role-selection
         setSocialLoading(null);
       }
     } catch (err) {
@@ -367,6 +323,8 @@ export default function LoginPage() {
       </div>
     );
   }
+
+  const loading = sendOtpMutation.isPending || verifyOtpMutation.isPending;
 
   return (
     <>
@@ -557,9 +515,7 @@ export default function LoginPage() {
             {/* Email Login Form */}
             {loginMode === 'email' && (
               <form
-                onSubmit={
-                  emailOtpSent ? handleVerifyEmailOtp : handleSendEmailOtp
-                }
+                onSubmit={emailOtpSent ? handleVerifyOtp : handleSendOtp}
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
@@ -872,7 +828,7 @@ export default function LoginPage() {
             {/* Phone Login Form */}
             {loginMode === 'phone' && (
               <form
-                onSubmit={otpSent ? handleVerifyPhoneOtp : handleSendPhoneOtp}
+                onSubmit={otpSent ? handleVerifyOtp : handleSendOtp}
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
@@ -939,7 +895,7 @@ export default function LoginPage() {
                             setPhoneNumber(value);
                           }}
                           placeholder="10 digits"
-                          disabled={otpLoading || loading}
+                          disabled={loading}
                           style={{
                             width: '100%',
                             padding: '0.75rem 1rem',
@@ -952,7 +908,7 @@ export default function LoginPage() {
                             transition: 'all 0.3s ease',
                           }}
                           onMouseEnter={(e) => {
-                            if (!otpLoading && !loading) {
+                            if (!loading) {
                               e.currentTarget.style.borderColor = '#667eea';
                             }
                           }}
@@ -996,7 +952,6 @@ export default function LoginPage() {
                     <button
                       type="submit"
                       disabled={
-                        otpLoading ||
                         loading ||
                         !phoneNumber ||
                         !isValidPhoneNumber(countryCode, phoneNumber)
@@ -1013,21 +968,19 @@ export default function LoginPage() {
                         borderRadius: '0.5rem',
                         fontWeight: '600',
                         cursor:
-                          otpLoading ||
                           loading ||
                           !phoneNumber ||
                           !isValidPhoneNumber(countryCode, phoneNumber)
                             ? 'not-allowed'
                             : 'pointer',
                         fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
-                        opacity: otpLoading || loading ? 0.7 : 1,
+                        opacity: loading ? 0.7 : 1,
                         transition: 'all 0.3s ease',
                         minHeight: '2.75rem',
                         width: '100%',
                       }}
                       onMouseEnter={(e) => {
                         if (
-                          !otpLoading &&
                           !loading &&
                           phoneNumber &&
                           isValidPhoneNumber(countryCode, phoneNumber)
@@ -1048,7 +1001,7 @@ export default function LoginPage() {
                         e.currentTarget.style.boxShadow = 'none';
                       }}
                     >
-                      {otpLoading ? 'Sending OTP...' : 'Send OTP to Phone'}
+                      {loading ? 'Sending OTP...' : 'Send OTP to Phone'}
                     </button>
                   </>
                 ) : (
@@ -1253,7 +1206,6 @@ export default function LoginPage() {
 
             {/* Social Login Section */}
             <div style={{ marginBottom: '2rem' }}>
-              {/* Social Login Buttons */}
               <div
                 style={{
                   display: 'grid',

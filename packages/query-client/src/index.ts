@@ -12,6 +12,7 @@ export * from './queries/decorations';
 export * from './queries/reviews';
 export * from './queries/categories';
 export * from './queries/menu-items';
+export * from './api/auth';
 
 // Mutation Hooks
 export * from './mutations/newsletter';
