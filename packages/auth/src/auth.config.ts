@@ -3,6 +3,7 @@ import GoogleProvider from 'next-auth/providers/google';
 import FacebookProvider from 'next-auth/providers/facebook';
 import AppleProvider from 'next-auth/providers/apple';
 import type { NextAuthOptions } from 'next-auth';
+import { verifyOtpApi } from '../../query-client/src';
 
 // Role types
 export type UserRole = 'customer' | 'caterer' | 'admin' | 'moderator' | 'support' | 'partner';
@@ -19,7 +20,7 @@ const mockUsers: Record<
     phone?: string;
     name: string;
     image: string;
-    role?: UserRole; // Optional - null if onboarding not completed
+    role?: UserRole;
     permissions?: string[];
     isVerified: boolean;
     status: 'active' | 'inactive' | 'suspended';
@@ -160,13 +161,11 @@ const mockUsers: Record<
       'read:reports',
     ],
   },
-  // New user who signed up via social but hasn't completed onboarding
   'newuser@example.com': {
     id: '7',
     email: 'newuser@example.com',
     name: 'New User',
     image: 'https://i.pravatar.cc/150?img=7',
-    // NO ROLE - waiting for onboarding completion
     isVerified: false,
     status: 'active',
     onboarding: {
@@ -244,14 +243,14 @@ const rolePermissions: Record<UserRole, string[]> = {
   ],
 };
 
-// Helper function to find user by email or phone
+/**
+ * Helper function to find user by email or phone in mock database
+ */
 function findUserByIdentifier(identifier: string): any {
-  // Check by email first
   if (mockUsers[identifier]) {
     return mockUsers[identifier];
   }
 
-  // Check by phone
   const userByPhone = Object.values(mockUsers).find(
     (user) => user.phone === identifier
   );
@@ -259,19 +258,12 @@ function findUserByIdentifier(identifier: string): any {
   return userByPhone || null;
 }
 
-// Helper function to fetch user data from backend by email or phone
-async function fetchUserByEmailOrPhone(identifier: string): Promise<any> {
+/**
+ * Helper function to fetch user data from backend
+ */
+async function fetchUserByIdentifier(identifier: string): Promise<any> {
   try {
-    // TODO: Replace with actual backend API call
-    // const response = await fetch(`${process.env.BACKEND_URL}/api/auth/user`, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ identifier }), // email or phone
-    // });
-    // const userData = await response.json();
-    // return userData;
-
-    // For now, check mock database
+    // Try mock database first
     const user = findUserByIdentifier(identifier);
     if (user) {
       return {
@@ -287,48 +279,31 @@ async function fetchUserByEmailOrPhone(identifier: string): Promise<any> {
   }
 }
 
-// Helper function to verify OTP with backend
-async function verifyOtpWithBackend(identifier: string, otp: string): Promise<any> {
+/**
+ * Helper function to verify OTP with backend using verifyOtpApi
+ * Payload: { email?: string, phone?: string, otp: string }
+ */
+async function verifyOtpWithBackend(
+ credentials): Promise<any> {
   try {
-    // TODO: Replace with actual backend API call
-    // const response = await fetch(`${process.env.BACKEND_URL}/api/auth/verify-otp`, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ identifier, otp }),
-    // });
-    // const result = await response.json();
-    // return result;
-
-    // For demo: accept OTP "123456"
-    if (otp === '123456') {
-      return { success: true, verified: true };
+    if (!credentials.otp) {
+      return { success: false, verified: false, message: 'OTP is required' };
     }
 
-    return { success: false, verified: false, message: 'Invalid OTP' };
+    const result = await verifyOtpApi(credentials);
+
+    return result;
   } catch (error) {
-    console.error('Error verifying OTP:', error);
+    console.error('Error verifying OTP with backend:', error);
     return { success: false, verified: false, message: 'OTP verification failed' };
   }
 }
 
-// Helper function to handle OAuth user creation/update
+/**
+ * Helper function to handle OAuth user creation/update
+ */
 async function handleOAuthUser(profile: any): Promise<any> {
   try {
-    // TODO: Replace with actual backend API call
-    // const response = await fetch(`${process.env.BACKEND_URL}/api/auth/oauth-user`, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({
-    //     email: profile.email,
-    //     name: profile.name,
-    //     image: profile.image,
-    //     provider: profile.provider,
-    //   }),
-    // });
-    // const result = await response.json();
-    // return result;
-
-    // Check if user exists
     const existingUser = findUserByIdentifier(profile.email);
 
     if (existingUser) {
@@ -338,7 +313,6 @@ async function handleOAuthUser(profile: any): Promise<any> {
       };
     }
 
-    // Create new OAuth user with pending onboarding
     return {
       success: true,
       user: {
@@ -346,7 +320,6 @@ async function handleOAuthUser(profile: any): Promise<any> {
         email: profile.email,
         name: profile.name || 'User',
         image: profile.image || '',
-        // NO ROLE - user needs to complete onboarding
         isVerified: false,
         status: 'active',
         onboarding: {
@@ -360,11 +333,6 @@ async function handleOAuthUser(profile: any): Promise<any> {
     return { success: false, message: 'Failed to process OAuth user' };
   }
 }
-
-
-
-
-
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -413,47 +381,43 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: 'Email', type: 'email' },
         otp: { label: 'OTP', type: 'text' },
+        phone: { label: 'Phone', type: 'text' },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.otp) {
-          throw new Error('Email and OTP are required');
+
+        console.log('SATYA 1', credentials);
+        if (!credentials?.otp) {
+          throw new Error(' OTP is required');
         }
 
         try {
-          // Verify OTP with backend
+          // Verify OTP with backend API
           const otpVerification = await verifyOtpWithBackend(
-            credentials.email,
-            credentials.otp
+          credentials
           );
 
-          if (!otpVerification.success || !otpVerification.verified) {
-            throw new Error('Invalid OTP');
+          console.log("SATYa", otpVerification);
+
+          if (!otpVerification.success ) {
+            throw new Error(otpVerification.message || 'Invalid OTP');
           }
 
-          // Fetch user data from backend
-          const userResponse = await fetchUserByEmailOrPhone(credentials.email);
-
-          if (!userResponse.success) {
-            throw new Error('User not found');
-          }
-
-          const user = userResponse.user;
-
-          // Check user status
-          if (user.status !== 'active') {
-            throw new Error(`User account is ${user.status}`);
-          }
+       const  user = otpVerification?.data || {};
 
           return {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            image: user.image,
-            role: user.role || null, // Can be null if onboarding not completed
+            id: user.user_id,
+            email: credentials.email || '',
+            name: user.name || '',
+            image: user.image || '',
+            phone: credentials.phone || '',
+            role: user.role || null,
             permissions: user.permissions || [],
-            isVerified: user.isVerified,
-            status: user.status,
-            onboarding: user.onboarding,
+            isVerified: user.isVerified   || false,
+            status: user.status   || 'active',
+            onboarding: {
+              status:  user.onboarding?.status || 'pending',
+              selectedRole: undefined,
+            },
           };
         } catch (error) {
           console.error('Email OTP authorization error:', error);
@@ -474,26 +438,25 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          // Verify OTP with backend
+          // Verify OTP with backend API
           const otpVerification = await verifyOtpWithBackend(
-            credentials.phone,
-            credentials.otp
-          );
+          
+           credentials);
 
-          if (!otpVerification.success || !otpVerification.verified) {
-            throw new Error('Invalid OTP');
+          if (!otpVerification.success || !otpVerification.data?.verified) {
+            throw new Error(otpVerification.message || 'Invalid OTP');
           }
 
-          // Fetch user data from backend by phone
-          const userResponse = await fetchUserByEmailOrPhone(credentials.phone);
+          // Fetch user data from backend
+          const userResponse = await fetchUserByIdentifier(credentials.phone);
 
           if (!userResponse.success) {
-            throw new Error('User not found');
+            throw new Error(userResponse.message || 'User not found');
           }
 
           const user = userResponse.user;
 
-          // Check user status
+          // Check user account status
           if (user.status !== 'active') {
             throw new Error(`User account is ${user.status}`);
           }
@@ -503,11 +466,14 @@ export const authOptions: NextAuthOptions = {
             email: user.email,
             name: user.name,
             image: user.image,
-            role: user.role || null, // Can be null if onboarding not completed
+            role: user.role || null,
             permissions: user.permissions || [],
             isVerified: user.isVerified,
             status: user.status,
-            onboarding: user.onboarding,
+            onboarding: user.onboarding || {
+              status: 'pending',
+              selectedRole: undefined,
+            },
           };
         } catch (error) {
           console.error('Phone OTP authorization error:', error);
@@ -522,10 +488,13 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async jwt({ token, user, account, profile }: any) {
-      // Initial sign in
+      // Store user data from CredentialsProvider authorize() response
       if (user) {
         token.id = user.id;
-        token.role = user.role || null; // Can be null if onboarding not completed
+        token.email = user.email;
+        token.name = user.name;
+        token.image = user.image;
+        token.role = user.role || null;
         token.permissions = user.permissions || [];
         token.isVerified = user.isVerified ?? false;
         token.status = user.status || 'active';
@@ -535,10 +504,9 @@ export const authOptions: NextAuthOptions = {
         };
       }
 
-      // OAuth provider sign in
+      // Handle OAuth provider sign in
       if (account && account.provider !== 'credentials') {
         try {
-          // Handle OAuth user
           const oauthResult = await handleOAuthUser({
             id: profile?.sub || profile?.id,
             email: token.email,
@@ -550,13 +518,12 @@ export const authOptions: NextAuthOptions = {
           if (oauthResult.success) {
             const oauthUser = oauthResult.user;
             token.id = oauthUser.id;
-            token.role = oauthUser.role || null; // Can be null if onboarding not completed
+            token.role = oauthUser.role || null;
             token.permissions = oauthUser.permissions || [];
             token.isVerified = oauthUser.isVerified;
             token.status = oauthUser.status;
             token.onboarding = oauthUser.onboarding;
           } else {
-            // Set defaults on error
             token.id = profile?.sub || profile?.id;
             token.role = null;
             token.permissions = [];
@@ -569,7 +536,6 @@ export const authOptions: NextAuthOptions = {
           }
         } catch (error) {
           console.error('Error handling OAuth user:', error);
-          // Set defaults on error
           token.id = profile?.sub || profile?.id;
           token.role = null;
           token.permissions = [];
@@ -588,13 +554,13 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }: any) {
       if (session.user) {
         session.user.id = token.id;
-        session.user.role = token.role; // Can be null
+        session.user.role = token.role;
         session.user.permissions = token.permissions;
         session.user.isVerified = token.isVerified;
         session.user.status = token.status;
         session.user.onboarding = token.onboarding;
 
-        // Add role-based properties for convenience
+        // Role-based convenience flags
         session.user.isAdmin = token.role === 'admin';
         session.user.isCaterer = token.role === 'caterer';
         session.user.isCustomer = token.role === 'customer';
@@ -602,21 +568,19 @@ export const authOptions: NextAuthOptions = {
         session.user.isSupport = token.role === 'support';
         session.user.isPartner = token.role === 'partner';
 
-        // Check if onboarding is completed
+        // Onboarding status flags
         session.user.isOnboardingCompleted = token.onboarding?.status === 'completed';
         session.user.isOnboardingPending = token.onboarding?.status === 'pending' || !token.role;
 
-        // Helper function to check permissions
+        // Permission helper functions
         session.user.hasPermission = (permission: string): boolean => {
           return token.permissions?.includes(permission) ?? false;
         };
 
-        // Helper function to check multiple permissions (AND logic)
         session.user.hasAllPermissions = (permissions: string[]): boolean => {
           return permissions.every((p) => token.permissions?.includes(p));
         };
 
-        // Helper function to check multiple permissions (OR logic)
         session.user.hasAnyPermission = (permissions: string[]): boolean => {
           return permissions.some((p) => token.permissions?.includes(p));
         };
@@ -626,14 +590,11 @@ export const authOptions: NextAuthOptions = {
     },
 
     async redirect({ url, baseUrl }: any) {
-      // Redirect pending onboarding users
       if (url.includes('callbackUrl')) {
         return url;
       }
 
-      // Allows relative callback URLs
       if (url.startsWith('/')) return `${baseUrl}${url}`;
-      // Allows callback URLs on the same origin
       else if (new URL(url).origin === baseUrl) return url;
 
       return baseUrl;
@@ -642,8 +603,8 @@ export const authOptions: NextAuthOptions = {
 
   session: {
     strategy: 'jwt' as const,
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-    updateAge: 24 * 60 * 60, // 24 hours
+    maxAge: 30 * 24 * 60 * 60,
+    updateAge: 24 * 60 * 60,
   },
 
   secret: process.env.NEXTAUTH_SECRET,
