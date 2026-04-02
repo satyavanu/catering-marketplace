@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import { sendOtpApi, verifyOtpApi } from '@catering-marketplace/query-client';
 import {
   ChefHat,
   Users,
@@ -23,7 +24,7 @@ import {
 type UserRole = 'customer' | 'caterer';
 type OnboardingStep =
   | 'role-select'
-  | 'verify-phone'
+  | 'phone-verification'
   | 'profile'
   | 'address'
   | 'business-details'
@@ -49,7 +50,7 @@ type ServiceType =
   | 'cocktail'
   | 'dessert';
 
-export default function RoleSelectionPage() {
+export default function OnboardingPage() {
   const router = useRouter();
   const { data: session, status, update: updateSession } = useSession();
   const [selectedRole, setSelectedRole] = useState<UserRole>('customer');
@@ -57,10 +58,15 @@ export default function RoleSelectionPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [onboardingStep, setOnboardingStep] =
     useState<OnboardingStep>('role-select');
+
+  // Phone Verification
   const [phone, setPhone] = useState('');
   const [countryCode, setCountryCode] = useState('+91');
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
+  const [phoneVerified, setPhoneVerified] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
+  const [resendCount, setResendCount] = useState(0);
   const [error, setError] = useState('');
   const [isRedirecting, setIsRedirecting] = useState(false);
 
@@ -189,7 +195,7 @@ export default function RoleSelectionPage() {
     if (selectedRole === 'customer') {
       const customerSteps: OnboardingStep[] = [
         'role-select',
-        'verify-phone',
+        'phone-verification',
         'profile',
         'complete',
       ];
@@ -197,7 +203,7 @@ export default function RoleSelectionPage() {
     } else {
       const catererSteps: OnboardingStep[] = [
         'role-select',
-        'verify-phone',
+        'phone-verification',
         'profile',
         'address',
         'business-details',
@@ -216,7 +222,7 @@ export default function RoleSelectionPage() {
     if (selectedRole === 'customer') {
       const customerSteps: OnboardingStep[] = [
         'role-select',
-        'verify-phone',
+        'phone-verification',
         'profile',
         'complete',
       ];
@@ -227,7 +233,7 @@ export default function RoleSelectionPage() {
     } else {
       const catererSteps: OnboardingStep[] = [
         'role-select',
-        'verify-phone',
+        'phone-verification',
         'profile',
         'address',
         'business-details',
@@ -243,6 +249,21 @@ export default function RoleSelectionPage() {
       );
     }
   };
+
+  // Resend timer countdown
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+
+    if (resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer((prev) => prev - 1);
+      }, 1000);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [resendTimer]);
 
   // Initial mount
   useEffect(() => {
@@ -284,6 +305,14 @@ export default function RoleSelectionPage() {
   const handleRoleSelect = (role: UserRole) => {
     setSelectedRole(role);
     setFullName(session?.user?.name || '');
+    // Move to phone verification step
+    setOnboardingStep('phone-verification');
+    setError('');
+    setPhone('');
+    setOtp('');
+    setOtpSent(false);
+    setPhoneVerified(false);
+    setResendCount(0);
   };
 
   const handleSendPhoneOtp = async (e: React.FormEvent) => {
@@ -297,10 +326,31 @@ export default function RoleSelectionPage() {
       return;
     }
 
+    if (resendCount >= 3) {
+      setError('Maximum OTP requests reached. Please try again later.');
+      setIsLoading(false);
+      return;
+    }
+
     try {
+      const payload = {
+        phone: `${countryCode}${phone}`,
+      };
+
+      const result = await sendOtpApi(payload);
+
+      if (!result.success) {
+        setError(result.error || 'Failed to send OTP. Please try again.');
+        setIsLoading(false);
+        return;
+      }
+
       setOtpSent(true);
+      setResendCount(resendCount + 1);
+      setResendTimer(30);
       setError('');
     } catch (err) {
+      console.error('Error sending OTP:', err);
       setError('Failed to send OTP. Please try again.');
     } finally {
       setIsLoading(false);
@@ -319,10 +369,29 @@ export default function RoleSelectionPage() {
     }
 
     try {
-      setOnboardingStep('profile');
-      setOtp('');
+      const result = await verifyOtpApi({
+        phone: `${countryCode}${phone}`,
+        otp,
+      });
+
+      console.log("Satya", result)
+
+      if (!result.success || !(result?.data?.phone_verified)) {
+        setError(result.message || 'Invalid OTP. Please try again.');
+        setIsLoading(false);
+        return;
+      }
+
+      // Mark phone as verified
+      setPhoneVerified(true);
       setOtpSent(false);
+      setOtp('');
+      setError('');
+
+      // Move to profile step
+      setOnboardingStep('profile');
     } catch (err) {
+      console.error('Error verifying OTP:', err);
       setError('Failed to verify OTP. Please try again.');
     } finally {
       setIsLoading(false);
@@ -602,8 +671,8 @@ export default function RoleSelectionPage() {
     );
   }
 
-  // Step 1: Role Selection
-  if (onboardingStep === 'role-select') {
+  // Step 1: Role Selection with Phone Verification
+  if (onboardingStep === 'role-select' || onboardingStep === 'phone-verification') {
     return (
       <div style={styles.container}>
         <style>{`
@@ -627,378 +696,445 @@ export default function RoleSelectionPage() {
             <span style={styles.stepDot}>●</span>
           </div>
 
-          <div style={styles.header}>
-            <h1 style={styles.title}>Welcome to CaterHub! 👋</h1>
-            <p style={styles.subtitle}>Choose how you want to use CaterHub</p>
-          </div>
-
-          <div style={styles.userInfoBox}>
-            <h3 style={styles.userInfoTitle}>Your Account</h3>
-            <div style={styles.userInfoGrid}>
-              <div style={styles.userInfoItem}>
-                <Mail size={18} color="#667eea" />
-                <div>
-                  <p style={styles.userInfoLabel}>Email</p>
-                  <p style={styles.userInfoValue}>{session.user.email}</p>
-                </div>
+          {onboardingStep === 'role-select' ? (
+            <>
+              <div style={styles.header}>
+                <h1 style={styles.title}>Welcome to CaterHub! 👋</h1>
+                <p style={styles.subtitle}>
+                  Choose how you want to use CaterHub
+                </p>
               </div>
 
-              {session.user.phone && (
-                <div style={styles.userInfoItem}>
-                  <Phone size={18} color="#10b981" />
-                  <div>
-                    <p style={styles.userInfoLabel}>Phone</p>
-                    <p style={styles.userInfoValue}>{session.user.phone}</p>
+              <div style={styles.userInfoBox}>
+                <h3 style={styles.userInfoTitle}>Your Account</h3>
+                <div style={styles.userInfoGrid}>
+                  <div style={styles.userInfoItem}>
+                    <Mail size={18} color="#667eea" />
+                    <div>
+                      <p style={styles.userInfoLabel}>Email</p>
+                      <p style={styles.userInfoValue}>{session.user.email}</p>
+                    </div>
+                  </div>
+
+                  <div style={styles.userInfoItem}>
+                    <Users size={18} color="#f59e0b" />
+                    <div>
+                      <p style={styles.userInfoLabel}>Name</p>
+                      <p style={styles.userInfoValue}>
+                        {session.user.name || 'Not set'}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              )}
-
-              <div style={styles.userInfoItem}>
-                <Users size={18} color="#f59e0b" />
-                <div>
-                  <p style={styles.userInfoLabel}>Name</p>
-                  <p style={styles.userInfoValue}>
-                    {session.user.name || 'Not set'}
-                  </p>
-                </div>
               </div>
-            </div>
-          </div>
 
-          <div style={styles.rolesContainer}>
-            <div
-              onClick={() => handleRoleSelect('customer')}
-              style={{
-                ...styles.roleCard,
-                borderColor:
-                  selectedRole === 'customer' ? '#667eea' : '#e5e7eb',
-                backgroundColor:
-                  selectedRole === 'customer' ? '#f0f4ff' : 'white',
-              }}
-              onMouseEnter={(e) => {
-                if (selectedRole !== 'customer') {
-                  e.currentTarget.style.borderColor = '#d1d5db';
-                  e.currentTarget.style.boxShadow =
-                    '0 4px 12px rgba(0,0,0,0.1)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (selectedRole !== 'customer') {
-                  e.currentTarget.style.borderColor = '#e5e7eb';
-                  e.currentTarget.style.boxShadow = 'none';
-                }
-              }}
-            >
-              <div style={styles.roleIconContainer}>
-                <Users
-                  size={48}
-                  color={selectedRole === 'customer' ? '#667eea' : '#9ca3af'}
-                  strokeWidth={1.5}
-                />
-              </div>
-              <h3 style={styles.roleTitle}>Order Catering</h3>
-              <p style={styles.roleDescription}>
-                Browse and book catering services from top caterers in your area
-              </p>
-              <ul style={styles.roleFeatures}>
-                <li>✓ Browse catering menus</li>
-                <li>✓ Book events easily</li>
-                <li>✓ Track orders</li>
-                <li>✓ Leave reviews</li>
-              </ul>
-              {selectedRole === 'customer' && (
-                <div style={styles.selectedBadge}>
-                  <Check size={16} /> Selected
-                </div>
-              )}
-            </div>
-
-            <div
-              onClick={() => handleRoleSelect('caterer')}
-              style={{
-                ...styles.roleCard,
-                borderColor: selectedRole === 'caterer' ? '#f97316' : '#e5e7eb',
-                backgroundColor:
-                  selectedRole === 'caterer' ? '#fff7ed' : 'white',
-              }}
-              onMouseEnter={(e) => {
-                if (selectedRole !== 'caterer') {
-                  e.currentTarget.style.borderColor = '#d1d5db';
-                  e.currentTarget.style.boxShadow =
-                    '0 4px 12px rgba(0,0,0,0.1)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (selectedRole !== 'caterer') {
-                  e.currentTarget.style.borderColor = '#e5e7eb';
-                  e.currentTarget.style.boxShadow = 'none';
-                }
-              }}
-            >
-              <div style={styles.roleIconContainer}>
-                <ChefHat
-                  size={48}
-                  color={selectedRole === 'caterer' ? '#f97316' : '#9ca3af'}
-                  strokeWidth={1.5}
-                />
-              </div>
-              <h3 style={styles.roleTitle}>Become a Caterer</h3>
-              <p style={styles.roleDescription}>
-                List your catering business and reach customers across the
-                platform
-              </p>
-              <ul style={styles.roleFeatures}>
-                <li>✓ Create business profile</li>
-                <li>✓ Manage menus & pricing</li>
-                <li>✓ Receive bookings</li>
-                <li>✓ Grow your business</li>
-              </ul>
-              {selectedRole === 'caterer' && (
-                <div style={styles.selectedBadge}>
-                  <Check size={16} /> Selected
-                </div>
-              )}
-            </div>
-          </div>
-
-          <button
-            onClick={() => {
-              if (session?.user && !session.user.phone) {
-                setOnboardingStep('verify-phone');
-              } else {
-                setOnboardingStep('profile');
-              }
-            }}
-            style={styles.ctaButton}
-            disabled={isLoading}
-            onMouseEnter={(e) => {
-              if (!isLoading) {
-                e.currentTarget.style.backgroundColor = '#ea580c';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow =
-                  '0 8px 16px rgba(249, 115, 22, 0.3)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#f97316';
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = 'none';
-            }}
-          >
-            {isLoading ? 'Setting up...' : 'Continue'}
-            <ArrowRight size={20} />
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Step 2: Phone Verification
-  if (onboardingStep === 'verify-phone') {
-    return (
-      <div style={styles.container}>
-        <style>{`
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
-        <div style={styles.content}>
-          <div style={styles.progressContainer}>
-            <div
-              style={{
-                ...styles.progressBar,
-                width: `${getProgressPercentage()}%`,
-              }}
-            />
-          </div>
-
-          <div style={styles.stepIndicator}>
-            <span style={styles.stepNumber}>{getStepNumber()}</span>
-            <span style={styles.stepDot}>●</span>
-          </div>
-
-          <div style={styles.header}>
-            <h1 style={styles.title}>Verify Your Phone</h1>
-            <p style={styles.subtitle}>
-              {selectedRole === 'caterer'
-                ? 'We need to verify your business phone number'
-                : 'Complete your profile setup'}
-            </p>
-          </div>
-
-          <div style={styles.userInfoBox}>
-            <div style={styles.userInfoItem}>
-              <Mail size={18} color="#667eea" />
-              <div>
-                <p style={styles.userInfoLabel}>Email (Verified)</p>
-                <p style={styles.userInfoValue}>{session.user.email}</p>
-              </div>
-            </div>
-          </div>
-
-          <div style={styles.verificationForm}>
-            {!otpSent ? (
-              <form onSubmit={handleSendPhoneOtp}>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>
-                    {selectedRole === 'caterer'
-                      ? 'Business Phone Number'
-                      : 'Phone Number'}
-                  </label>
-                  <div style={styles.phoneInputGroup}>
-                    <select
-                      value={countryCode}
-                      onChange={(e) => setCountryCode(e.target.value)}
-                      style={styles.countryCodeSelect}
-                      disabled={isLoading}
-                    >
-                      {COUNTRY_CODES.map((cc) => (
-                        <option key={cc.code} value={cc.code}>
-                          {cc.code}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={(e) =>
-                        setPhone(e.target.value.replace(/[^\d]/g, ''))
-                      }
-                      placeholder="10 digits"
-                      style={styles.input}
-                      maxLength={15}
-                      disabled={isLoading}
+              <div style={styles.rolesContainer}>
+                <div
+                  onClick={() => handleRoleSelect('customer')}
+                  style={{
+                    ...styles.roleCard,
+                    borderColor: '#667eea',
+                    backgroundColor: '#f0f4ff',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.boxShadow =
+                      '0 8px 24px rgba(102, 126, 234, 0.2)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  <div style={styles.roleIconContainer}>
+                    <Users
+                      size={48}
+                      color="#667eea"
+                      strokeWidth={1.5}
                     />
                   </div>
-                  <p style={styles.helpText}>
-                    Enter phone number without country code
+                  <h3 style={styles.roleTitle}>Order Catering</h3>
+                  <p style={styles.roleDescription}>
+                    Browse and book catering services from top caterers in your area
                   </p>
+                  <ul style={styles.roleFeatures}>
+                    <li>✓ Browse catering menus</li>
+                    <li>✓ Book events easily</li>
+                    <li>✓ Track orders</li>
+                    <li>✓ Leave reviews</li>
+                  </ul>
                 </div>
 
-                {error && <div style={styles.errorMessage}>{error}</div>}
-
-                <button
-                  type="submit"
-                  disabled={isLoading || !phone}
+                <div
+                  onClick={() => handleRoleSelect('caterer')}
                   style={{
-                    ...styles.submitButton,
-                    opacity: isLoading || !phone ? 0.6 : 1,
-                    cursor: isLoading || !phone ? 'not-allowed' : 'pointer',
+                    ...styles.roleCard,
+                    borderColor: '#f97316',
+                    backgroundColor: '#fff7ed',
                   }}
                   onMouseEnter={(e) => {
-                    if (!isLoading && phone) {
-                      e.currentTarget.style.backgroundColor = '#ea580c';
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                    }
+                    e.currentTarget.style.boxShadow =
+                      '0 8px 24px rgba(249, 115, 22, 0.2)';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = '#f97316';
-                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
                   }}
                 >
-                  {isLoading ? 'Sending OTP...' : 'Send OTP'}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setOnboardingStep('role-select')}
-                  style={styles.backButton}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#f0f4ff';
-                    e.currentTarget.style.borderColor = '#667eea';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                    e.currentTarget.style.borderColor = '#d1d5db';
-                  }}
-                >
-                  Back
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleVerifyPhoneOtp}>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Enter OTP</label>
-                  <p style={styles.otpSentText}>
-                    We've sent a verification code to {countryCode} {phone}
+                  <div style={styles.roleIconContainer}>
+                    <ChefHat
+                      size={48}
+                      color="#f97316"
+                      strokeWidth={1.5}
+                    />
+                  </div>
+                  <h3 style={styles.roleTitle}>Become a Caterer</h3>
+                  <p style={styles.roleDescription}>
+                    List your catering business and reach customers across the
+                    platform
                   </p>
-                  <input
-                    type="text"
-                    value={otp}
-                    onChange={(e) => {
-                      const value = e.target.value
-                        .replace(/[^\d]/g, '')
-                        .slice(0, 6);
-                      setOtp(value);
-                    }}
-                    placeholder="000000"
-                    style={{
-                      ...styles.input,
-                      fontSize: '1.5rem',
-                      letterSpacing: '0.25rem',
-                      textAlign: 'center',
-                      fontWeight: 'bold',
-                    }}
-                    maxLength={6}
-                    disabled={isLoading}
-                  />
+                  <ul style={styles.roleFeatures}>
+                    <li>✓ Create business profile</li>
+                    <li>✓ Manage menus & pricing</li>
+                    <li>✓ Receive bookings</li>
+                    <li>✓ Grow your business</li>
+                  </ul>
                 </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={styles.header}>
+                <h1 style={styles.title}>Verify Your Phone</h1>
+                <p style={styles.subtitle}>
+                  {selectedRole === 'caterer'
+                    ? 'We need to verify your business phone number'
+                    : 'Complete your profile setup'}
+                </p>
+              </div>
 
-                {error && <div style={styles.errorMessage}>{error}</div>}
+              <div style={styles.userInfoBox}>
+                <div style={styles.userInfoItem}>
+                  <Mail size={18} color="#667eea" />
+                  <div>
+                    <p style={styles.userInfoLabel}>Email (Verified)</p>
+                    <p style={styles.userInfoValue}>{session.user.email}</p>
+                  </div>
+                </div>
+              </div>
 
-                <button
-                  type="submit"
-                  disabled={isLoading || otp.length !== 6}
-                  style={{
-                    ...styles.submitButton,
-                    opacity: isLoading || otp.length !== 6 ? 0.6 : 1,
-                    cursor:
-                      isLoading || otp.length !== 6 ? 'not-allowed' : 'pointer',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isLoading && otp.length === 6) {
-                      e.currentTarget.style.backgroundColor = '#ea580c';
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = '#f97316';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }}
-                >
-                  {isLoading ? 'Verifying...' : 'Verify OTP'}
-                </button>
+              <div style={styles.verificationForm}>
+                {!otpSent ? (
+                  <form onSubmit={handleSendPhoneOtp}>
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>
+                        {selectedRole === 'caterer'
+                          ? 'Business Phone Number'
+                          : 'Phone Number'}
+                      </label>
+                      <div style={styles.phoneInputGroup}>
+                        <select
+                          value={countryCode}
+                          onChange={(e) => setCountryCode(e.target.value)}
+                          style={styles.countryCodeSelect}
+                          disabled={isLoading}
+                        >
+                          {COUNTRY_CODES.map((cc) => (
+                            <option key={cc.code} value={cc.code}>
+                              {cc.code}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="tel"
+                          value={phone}
+                          onChange={(e) =>
+                            setPhone(e.target.value.replace(/[^\d]/g, ''))
+                          }
+                          placeholder="10 digits"
+                          style={styles.input}
+                          maxLength={15}
+                          disabled={isLoading}
+                        />
+                      </div>
+                      <p style={styles.helpText}>
+                        Enter phone number without country code
+                      </p>
+                    </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOtpSent(false);
-                    setOtp('');
-                    setError('');
-                  }}
-                  disabled={isLoading}
-                  style={styles.backButton}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#f0f4ff';
-                    e.currentTarget.style.borderColor = '#667eea';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                    e.currentTarget.style.borderColor = '#d1d5db';
-                  }}
-                >
-                  Change Phone Number
-                </button>
-              </form>
-            )}
-          </div>
+                    {error && <div style={styles.errorMessage}>{error}</div>}
+
+                    <button
+                      type="submit"
+                      disabled={isLoading || !phone}
+                      style={{
+                        ...styles.submitButton,
+                        opacity: isLoading || !phone ? 0.6 : 1,
+                        cursor: isLoading || !phone ? 'not-allowed' : 'pointer',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isLoading && phone) {
+                          e.currentTarget.style.backgroundColor = '#ea580c';
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = '#f97316';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                      }}
+                    >
+                      {isLoading ? 'Sending OTP...' : 'Send OTP'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setOnboardingStep('role-select')}
+                      style={styles.backButton}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#f0f4ff';
+                        e.currentTarget.style.borderColor = '#667eea';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.borderColor = '#d1d5db';
+                      }}
+                    >
+                      Back
+                    </button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleVerifyPhoneOtp}>
+                    {!phoneVerified && (
+                      <>
+                        <div style={styles.formGroup}>
+                          <label style={styles.label}>Enter OTP</label>
+                          <p style={styles.otpSentText}>
+                            We've sent a verification code to {countryCode} {phone}
+                          </p>
+                          <input
+                            type="text"
+                            value={otp}
+                            onChange={(e) => {
+                              const value = e.target.value
+                                .replace(/[^\d]/g, '')
+                                .slice(0, 6);
+                              setOtp(value);
+                            }}
+                            placeholder="000000"
+                            style={{
+                              ...styles.input,
+                              fontSize: '1.5rem',
+                              letterSpacing: '0.25rem',
+                              textAlign: 'center',
+                              fontWeight: 'bold',
+                            }}
+                            maxLength={6}
+                            disabled={isLoading}
+                          />
+                        </div>
+
+                        {error && (
+                          <div
+                            style={{
+                              ...styles.errorMessage,
+                              backgroundColor: error.includes('remaining')
+                                ? '#dbeafe'
+                                : '#fee2e2',
+                              color: error.includes('remaining')
+                                ? '#1e40af'
+                                : '#991b1b',
+                              border: `1px solid ${
+                                error.includes('remaining')
+                                  ? '#bfdbfe'
+                                  : '#fecaca'
+                              }`,
+                            }}
+                          >
+                            {error}
+                          </div>
+                        )}
+
+                        <button
+                          type="submit"
+                          disabled={isLoading || otp.length !== 6}
+                          style={{
+                            ...styles.submitButton,
+                            opacity: isLoading || otp.length !== 6 ? 0.6 : 1,
+                            cursor:
+                              isLoading || otp.length !== 6
+                                ? 'not-allowed'
+                                : 'pointer',
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isLoading && otp.length === 6) {
+                              e.currentTarget.style.backgroundColor = '#ea580c';
+                              e.currentTarget.style.transform = 'translateY(-2px)';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = '#f97316';
+                            e.currentTarget.style.transform = 'translateY(0)';
+                          }}
+                        >
+                          {isLoading ? 'Verifying...' : 'Verify OTP'}
+                        </button>
+
+                        {/* Resend Section */}
+                        <div
+                          style={{
+                            padding: '1rem',
+                            backgroundColor: '#f0fdf4',
+                            border: '1px solid #dcfce7',
+                            borderRadius: '0.5rem',
+                            textAlign: 'center',
+                            marginTop: '1rem',
+                          }}
+                        >
+                          {resendTimer > 0 ? (
+                            <p
+                              style={{
+                                color: '#15803d',
+                                fontSize: '0.875rem',
+                                margin: '0 0 0.75rem 0',
+                              }}
+                            >
+                              Resend OTP in{' '}
+                              <span style={{ fontWeight: '600' }}>
+                                {resendTimer}s
+                              </span>
+                            </p>
+                          ) : (
+                            <p
+                              style={{
+                                color: '#6b7280',
+                                fontSize: '0.875rem',
+                                margin: '0 0 0.75rem 0',
+                              }}
+                            >
+                              Didn't receive OTP?
+                            </p>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={handleSendPhoneOtp}
+                            disabled={
+                              resendTimer > 0 ||
+                              resendCount >= 3 ||
+                              isLoading
+                            }
+                            style={{
+                              padding: '0.5rem 1rem',
+                              backgroundColor:
+                                resendTimer > 0 || resendCount >= 3
+                                  ? '#d1d5db'
+                                  : '#10b981',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '0.375rem',
+                              fontWeight: '600',
+                              fontSize: '0.875rem',
+                              cursor:
+                                resendTimer > 0 || resendCount >= 3
+                                  ? 'not-allowed'
+                                  : 'pointer',
+                              transition: 'all 0.3s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              if (resendTimer === 0 && resendCount < 3) {
+                                e.currentTarget.style.backgroundColor = '#059669';
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                e.currentTarget.style.boxShadow =
+                                  '0 4px 12px rgba(16, 185, 129, 0.3)';
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor =
+                                resendTimer > 0 || resendCount >= 3
+                                  ? '#d1d5db'
+                                  : '#10b981';
+                              e.currentTarget.style.transform = 'translateY(0)';
+                              e.currentTarget.style.boxShadow = 'none';
+                            }}
+                          >
+                            {resendTimer > 0 ? `Resend (${resendTimer}s)` : 'Resend OTP'}
+                          </button>
+
+                          <p
+                            style={{
+                              fontSize: '0.7rem',
+                              color: '#9ca3af',
+                              margin: '0.75rem 0 0 0',
+                            }}
+                          >
+                            {resendCount}/3 attempts used
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOtpSent(false);
+                            setOtp('');
+                            setError('');
+                          }}
+                          disabled={isLoading}
+                          style={styles.backButton}
+                          onMouseEnter={(e) => {
+                            if (!isLoading) {
+                              e.currentTarget.style.backgroundColor = '#f0f4ff';
+                              e.currentTarget.style.borderColor = '#667eea';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'transparent';
+                            e.currentTarget.style.borderColor = '#d1d5db';
+                          }}
+                        >
+                          Change Phone Number
+                        </button>
+                      </>
+                    )}
+
+                    {phoneVerified && (
+                      <div style={styles.successVerificationBox}>
+                        <div style={styles.checkmarkIcon}>✓</div>
+                        <h3 style={styles.verificationTitle}>Phone Verified!</h3>
+                        <p style={styles.verificationText}>
+                          {countryCode} {phone}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setOnboardingStep('profile')}
+                          style={{
+                            ...styles.ctaButton,
+                            marginTop: '1.5rem',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#ea580c';
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow =
+                              '0 8px 16px rgba(249, 115, 22, 0.3)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = '#f97316';
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = 'none';
+                          }}
+                        >
+                          Continue to Profile
+                          <ArrowRight size={20} />
+                        </button>
+                      </div>
+                    )}
+                  </form>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
     );
   }
 
-  // Step 3: Profile Setup
+  // Step 2: Profile Setup
   if (onboardingStep === 'profile') {
     return (
       <div style={styles.container}>
@@ -1034,6 +1170,13 @@ export default function RoleSelectionPage() {
                 ? 'Tell us about your catering business'
                 : 'Help us personalize your experience'}
             </p>
+          </div>
+
+          <div style={styles.verificationBadge}>
+            <Check size={16} color="#10b981" />
+            <span style={{ color: '#10b981', fontWeight: '600' }}>
+              Phone Verified: {countryCode} {phone}
+            </span>
           </div>
 
           <form onSubmit={handleProfileSubmit} style={styles.profileForm}>
@@ -1118,7 +1261,7 @@ export default function RoleSelectionPage() {
 
             <button
               type="button"
-              onClick={() => setOnboardingStep('verify-phone')}
+              onClick={() => setOnboardingStep('phone-verification')}
               disabled={isLoading}
               style={styles.backButton}
               onMouseEnter={(e) => {
@@ -1138,7 +1281,7 @@ export default function RoleSelectionPage() {
     );
   }
 
-  // Step 4: Address (Caterer Only)
+  // Step 3: Address (Caterer Only)
   if (onboardingStep === 'address') {
     return (
       <div style={styles.container}>
@@ -1281,7 +1424,7 @@ export default function RoleSelectionPage() {
     );
   }
 
-  // Step 5: Business Details (Caterer Only)
+  // Step 4: Business Details (Caterer Only)
   if (onboardingStep === 'business-details') {
     return (
       <div style={styles.container}>
@@ -1400,7 +1543,7 @@ export default function RoleSelectionPage() {
     );
   }
 
-  // Step 6: KYC & Compliance (Caterer Only)
+  // Step 5: KYC & Compliance (Caterer Only)
   if (onboardingStep === 'kyc-compliance') {
     return (
       <div style={styles.container}>
@@ -1666,7 +1809,7 @@ export default function RoleSelectionPage() {
     );
   }
 
-  // Step 7: Payment Setup
+  // Step 6: Payment Setup
   if (onboardingStep === 'payment-setup') {
     return (
       <div style={styles.container}>
@@ -1826,7 +1969,7 @@ export default function RoleSelectionPage() {
     );
   }
 
-  // Step 8: Operations Availability
+  // Step 7: Operations Availability
   if (onboardingStep === 'operations-availability') {
     return (
       <div style={styles.container}>
@@ -1973,7 +2116,7 @@ export default function RoleSelectionPage() {
     );
   }
 
-  // Step 9: Cancellation Policies
+  // Step 8: Cancellation Policies
   if (onboardingStep === 'cancellation-policies') {
     return (
       <div style={styles.container}>
@@ -2101,7 +2244,7 @@ export default function RoleSelectionPage() {
     );
   }
 
-  // Step 10: Service Details
+  // Step 9: Service Details
   if (onboardingStep === 'service-details') {
     return (
       <div style={styles.container}>
@@ -2356,7 +2499,7 @@ export default function RoleSelectionPage() {
     );
   }
 
-  // Step 11: Complete
+  // Step 10: Complete
   if (onboardingStep === 'complete') {
     return (
       <div style={styles.container}>
@@ -2389,6 +2532,18 @@ export default function RoleSelectionPage() {
               <div style={styles.summaryItem}>
                 <span style={styles.summaryLabel}>Name</span>
                 <span style={styles.summaryValue}>{fullName}</span>
+              </div>
+
+              <div style={styles.summaryItem}>
+                <span style={styles.summaryLabel}>Email</span>
+                <span style={styles.summaryValue}>{session.user.email}</span>
+              </div>
+
+              <div style={styles.summaryItem}>
+                <span style={styles.summaryLabel}>Phone</span>
+                <span style={styles.summaryValue}>
+                  {countryCode} {phone}
+                </span>
               </div>
 
               {selectedRole === 'caterer' && (
@@ -2437,18 +2592,6 @@ export default function RoleSelectionPage() {
                   </div>
                 </>
               )}
-
-              <div style={styles.summaryItem}>
-                <span style={styles.summaryLabel}>Email</span>
-                <span style={styles.summaryValue}>{session.user.email}</span>
-              </div>
-
-              <div style={styles.summaryItem}>
-                <span style={styles.summaryLabel}>Phone</span>
-                <span style={styles.summaryValue}>
-                  {countryCode} {phone}
-                </span>
-              </div>
 
               <div style={styles.summaryItem}>
                 <span style={styles.summaryLabel}>Role</span>
@@ -2508,7 +2651,8 @@ export default function RoleSelectionPage() {
   return null;
 }
 
-// Styles object
+
+
 const styles = {
   container: {
     minHeight: '100vh',
