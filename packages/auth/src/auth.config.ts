@@ -414,33 +414,39 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         console.log('Email OTP Authorization:', credentials);
-    
+
         if (!credentials?.otp) {
           throw new Error('OTP is required');
         }
-    
+
         try {
           // Verify OTP with backend API
           const otpVerification = await verifyOtpWithBackend(credentials);
-    
-          console.log('OTP Verification Result:', otpVerification);
-    
+
+          console.log('OTP Verification full response:', otpVerification);
+
           if (!otpVerification.success) {
             throw new Error(
               otpVerification.message || 'Invalid OTP. Please try again.'
             );
           }
-    
-          // ✅ Access nested data object
-          const userData = otpVerification?.data || {};
-    
-          console.log("Email verify SATYA 1 response", userData);
-    
-          // If no role found, default to 'customer' and mark onboarding as completed
-          const userRole = userData.role || ('customer' as UserRole);
+
+          // ✅ FIX: otpVerification IS the wrapper with { success, data: {...} }
+          // So otpVerification.data contains the actual user data
+          const userData = otpVerification.data?.data || {};
+
+          console.log("Email verify SATYA 1 - userData extracted:", userData);
+          console.log("SATYA 1B - Tokens in userData:", {
+            access_token: userData.access_token ? 'SET' : 'EMPTY',
+            refresh_token: userData.refresh_token ? 'SET' : 'EMPTY',
+            expires_in: userData.expires_in,
+          });
+
+          // If no role found, default to 'customer'
+          const userRole = userData.role || 'customer' as UserRole;
           const onboardingStatus = 'completed';
-    
-          return {
+
+          const returnUser = {
             id: userData.user_id || `email-${Date.now()}`,
             email: credentials.email || '',
             name: userData.name || '',
@@ -457,11 +463,21 @@ export const authOptions: NextAuthOptions = {
               completedAt: new Date(),
             },
             isOnboardingCompleted: true,
-            // ✅ Access tokens from userData (nested data)
+            // ✅ Access tokens correctly from userData
             accessToken: userData.access_token || '',
             refreshToken: userData.refresh_token || '',
             tokenExpiresIn: userData.expires_in || 3600,
           };
+
+          console.log("SATYA 1C - Return object before sending:", {
+            id: returnUser.id,
+            email: returnUser.email,
+            accessToken: returnUser.accessToken ? 'SET' : 'EMPTY',
+            refreshToken: returnUser.refreshToken ? 'SET' : 'EMPTY',
+            tokenExpiresIn: returnUser.tokenExpiresIn,
+          });
+
+          return returnUser;
         } catch (error: any) {
           console.error('Email OTP authorization error:', error);
           throw new Error(
@@ -480,34 +496,34 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         console.log('Phone OTP Authorization:', credentials);
-    
+
         if (!credentials?.phone || !credentials?.otp) {
           throw new Error('Phone and OTP are required');
         }
-    
+
         try {
           // Verify OTP with backend API
           const otpVerification = await verifyOtpWithBackend(credentials);
-    
+
           console.log('OTP Verification Result:', otpVerification);
-    
+
           if (!otpVerification.success || !otpVerification.data?.verified) {
             throw new Error(
               otpVerification.message || 'Invalid OTP. Please try again.'
             );
           }
-    
+
           // ✅ Access nested data object
           const userData = otpVerification?.data || {};
-    
+
           // If no role found, default to 'customer' and mark onboarding as completed
           const userRole = userData.role || ('customer' as UserRole);
           const onboardingStatus = 'completed';
-    
+
           // Get permissions for the role
           const userPermissions =
             userData.permissions || rolePermissions[userRole] || [];
-    
+
           return {
             id: userData.user_id || `phone-${Date.now()}`,
             email: userData.email || '',
@@ -543,11 +559,11 @@ export const authOptions: NextAuthOptions = {
     signIn: '/login',
   },
   callbacks: {
- 
+
 
     async session({ session, token }: any) {
       console.log("SATYA 9 - Token:", token);
-      
+
       if (session.user) {
         session.user.id = token.id;
         session.user.email = token.email;
@@ -626,211 +642,251 @@ export const authOptions: NextAuthOptions = {
     },
 
 
-
-async jwt({ token, user, account, profile }: any) {
-  // Store user data from CredentialsProvider authorize() response
-  console.log("SATYA 8", token, user, account, profile);
-  
-  if (user) {
-    token.id = user.id;
-    token.email = user.email;
-    token.name = user.name;
-    token.image = user.image;
-    token.phone = user.phone;
-    token.role = user.role || ('customer' as UserRole);
-    token.permissions = user.permissions || [];
-    token.isVerified = user.isVerified ?? true;
-    token.status = user.status || 'active';
-    token.onboarding = user.onboarding || {
-      status: 'completed' as OnboardingStatus,
-      selectedRole: user.role || ('customer' as UserRole),
-      completedAt: new Date(),
-    };
-    // ✅ Use camelCase - accessToken not access_token
-    token.accessToken = user.accessToken || '';
-    token.refreshToken = user.refreshToken || '';
-    token.tokenExpiresIn = user.tokenExpiresIn || 3600;
-    token.tokenExpiresAt = Date.now() + (user.tokenExpiresIn || 3600) * 1000;
-    token.isOnboardingCompleted =
-      user.isOnboardingCompleted || token.onboarding?.status === 'completed';
-  }
-
-  // Token refresh logic
-  if (
-    token.tokenExpiresAt &&
-    Date.now() > (token.tokenExpiresAt as number)
-  ) {
-    try {
-      const response = await fetch(
-        `${process.env.BACKEND_URL}/api/auth/refresh`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            refreshToken: token.refreshToken,
-          }),
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        // ✅ Normalize snake_case from backend to camelCase
-        token.accessToken = data.access_token || data.accessToken || token.accessToken;
-        token.refreshToken = data.refresh_token || data.refreshToken || token.refreshToken;
-        token.tokenExpiresIn = data.expires_in || data.expiresIn || token.tokenExpiresIn;
-        token.tokenExpiresAt = Date.now() + (data.expires_in || data.expiresIn) * 1000;
-      } else {
-        token.error = "RefreshAccessTokenError";
-      }
-    } catch (error) {
-      console.error("Error refreshing token:", error);
-      token.error = "RefreshAccessTokenError";
-    }
-  }
-
-  // Handle OAuth provider sign in
-  if (account && account.provider !== 'credentials') {
-    try {
-      const oauthResult = await handleOAuthUser({
-        id: profile?.sub || profile?.id,
-        email: token.email,
-        name: token.name,
-        image: token.picture || profile?.picture?.data?.url,
-        provider: account.provider,
+    async jwt({ token, user, account, profile }: any) {
+      // Store user data from CredentialsProvider authorize() response
+      console.log("SATYA 8 - JWT Input:", {
+        userExists: !!user,
+        accountProvider: account?.provider,
+        tokenHasAccessToken: !!token.accessToken
       });
 
-      if (oauthResult.success) {
-        const oauthUser = oauthResult.user;
-        const defaultRole = oauthUser.role || ('customer' as UserRole);
+      if (user) {
+        console.log("SATYA 8A - User object received:", {
+          id: user.id,
+          email: user.email,
+          accessToken: user.accessToken ? 'SET' : 'EMPTY',
+          refreshToken: user.refreshToken ? 'SET' : 'EMPTY',
+          tokenExpiresIn: user.tokenExpiresIn,
+        });
 
-        token.id = oauthUser.id;
-        token.role = defaultRole;
-        token.permissions =
-          oauthUser.permissions ||
-          rolePermissions[defaultRole] ||
-          [];
-        token.isVerified = oauthUser.isVerified ?? false;
-        token.status = oauthUser.status;
-        token.onboarding = oauthUser.onboarding || {
+        token.id = user.id;
+        token.email = user.email;
+        token.name = user.name;
+        token.image = user.image;
+        token.phone = user.phone;
+        token.role = user.role || ('customer' as UserRole);
+        token.permissions = user.permissions || [];
+        token.isVerified = user.isVerified ?? true;
+        token.status = user.status || 'active';
+        token.onboarding = user.onboarding || {
           status: 'completed' as OnboardingStatus,
-          selectedRole: defaultRole,
+          selectedRole: user.role || ('customer' as UserRole),
           completedAt: new Date(),
         };
-        token.isOnboardingCompleted = true;
-        // ✅ Initialize tokens (will be set by Google provider below)
-        token.accessToken = token.accessToken || '';
-        token.refreshToken = token.refreshToken || '';
-        token.tokenExpiresIn = token.tokenExpiresIn || 3600;
-        token.tokenExpiresAt = token.tokenExpiresAt || Date.now() + 3600 * 1000;
 
-      } else {
-        const defaultRole = 'customer' as UserRole;
-        token.id = profile?.sub || profile?.id;
-        token.role = defaultRole;
-        token.permissions = rolePermissions[defaultRole] || [];
-        token.isVerified = false;
-        token.status = 'active';
-        token.accessToken = '';
-        token.refreshToken = '';
-        token.tokenExpiresIn = 0;
-        token.tokenExpiresAt = 0;
-        token.onboarding = {
-          status: 'completed' as OnboardingStatus,
-          selectedRole: defaultRole,
-          completedAt: new Date(),
-        };
-        token.isOnboardingCompleted = true;
+        // ✅ Store tokens from user object
+        token.accessToken = user.accessToken || '';
+        token.refreshToken = user.refreshToken || '';
+        token.tokenExpiresIn = user.tokenExpiresIn || 3600;
+        token.tokenExpiresAt = Date.now() + ((user.tokenExpiresIn || 3600) * 1000);
+        token.tokenType = user.tokenType || 'Bearer';
+
+        token.isOnboardingCompleted =
+          user.isOnboardingCompleted || token.onboarding?.status === 'completed';
+
+        console.log("SATYA 8B - Token after user assignment:", {
+          accessToken: token.accessToken ? 'SET' : 'EMPTY',
+          refreshToken: token.refreshToken ? 'SET' : 'EMPTY',
+          tokenExpiresIn: token.tokenExpiresIn,
+          tokenExpiresAt: token.tokenExpiresAt,
+        });
       }
-    } catch (error) {
-      console.error('Error handling OAuth user:', error);
-      const defaultRole = 'customer' as UserRole;
-      token.id = profile?.sub || profile?.id;
-      token.role = defaultRole;
-      token.permissions = rolePermissions[defaultRole] || [];
-      token.isVerified = false;
-      token.status = 'active';
-      token.accessToken = '';
-      token.refreshToken = '';
-      token.tokenExpiresIn = 0;
-      token.tokenExpiresAt = 0;
-      token.onboarding = {
-        status: 'completed' as OnboardingStatus,
-        selectedRole: defaultRole,
-        completedAt: new Date(),
-      };
-      token.isOnboardingCompleted = true;
-    }
-  }
 
-  // Google social login - overrides OAuth data above
-  if (account?.provider === "google") {
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/social-login`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+      // Token refresh logic
+      if (
+        token.tokenExpiresAt &&
+        Date.now() > (token.tokenExpiresAt as number)
+      ) {
+        console.log("SATYA 8C - Token expired, attempting refresh");
+
+        try {
+          const response = await fetch(
+            `${process.env.BACKEND_URL}/api/auth/refresh`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                refreshToken: token.refreshToken,
+              }),
+            }
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log("SATYA 8D - Refresh response:", data);
+
+            // ✅ Normalize snake_case from backend to camelCase
+            token.accessToken = data.access_token || data.accessToken || token.accessToken;
+            token.refreshToken = data.refresh_token || data.refreshToken || token.refreshToken;
+            token.tokenExpiresIn = data.expires_in || data.expiresIn || token.tokenExpiresIn;
+            token.tokenExpiresAt = Date.now() + ((data.expires_in || data.expiresIn || 3600) * 1000);
+          } else {
+            console.error("SATYA 8D - Refresh failed:", response.statusText);
+            token.error = "RefreshAccessTokenError";
+          }
+        } catch (error) {
+          console.error("SATYA 8D - Error refreshing token:", error);
+          token.error = "RefreshAccessTokenError";
+        }
+      }
+
+      // Handle OAuth provider sign in
+      if (account && account.provider !== 'credentials') {
+        console.log("SATYA 8E - OAuth login detected:", account.provider);
+
+        try {
+          const oauthResult = await handleOAuthUser({
+            id: profile?.sub || profile?.id,
             email: token.email,
             name: token.name,
-            image: token.picture,
-            provider: "google",
-            token: account.id_token,
-          }),
-        }
-      );
+            image: token.picture || profile?.picture?.data?.url,
+            provider: account.provider,
+          });
 
-      if (!res.ok) {
-        console.error("Social login failed:", res.statusText);
-        return token;
+          if (oauthResult.success) {
+            const oauthUser = oauthResult.user;
+            const defaultRole = oauthUser.role || ('customer' as UserRole);
+
+            token.id = oauthUser.id;
+            token.role = defaultRole;
+            token.permissions =
+              oauthUser.permissions ||
+              rolePermissions[defaultRole] ||
+              [];
+            token.isVerified = oauthUser.isVerified ?? false;
+            token.status = oauthUser.status;
+            token.onboarding = oauthUser.onboarding || {
+              status: 'completed' as OnboardingStatus,
+              selectedRole: defaultRole,
+              completedAt: new Date(),
+            };
+            token.isOnboardingCompleted = true;
+
+            // ✅ Initialize empty tokens (will be set by provider-specific code below)
+            token.accessToken = token.accessToken || '';
+            token.refreshToken = token.refreshToken || '';
+            token.tokenExpiresIn = token.tokenExpiresIn || 3600;
+            token.tokenExpiresAt = token.tokenExpiresAt || Date.now() + 3600 * 1000;
+          } else {
+            const defaultRole = 'customer' as UserRole;
+            token.id = profile?.sub || profile?.id;
+            token.role = defaultRole;
+            token.permissions = rolePermissions[defaultRole] || [];
+            token.isVerified = false;
+            token.status = 'active';
+            token.accessToken = '';
+            token.refreshToken = '';
+            token.tokenExpiresIn = 0;
+            token.tokenExpiresAt = 0;
+            token.onboarding = {
+              status: 'completed' as OnboardingStatus,
+              selectedRole: defaultRole,
+              completedAt: new Date(),
+            };
+            token.isOnboardingCompleted = true;
+          }
+        } catch (error) {
+          console.error('SATYA 8E - Error handling OAuth user:', error);
+          const defaultRole = 'customer' as UserRole;
+          token.id = profile?.sub || profile?.id;
+          token.role = defaultRole;
+          token.permissions = rolePermissions[defaultRole] || [];
+          token.isVerified = false;
+          token.status = 'active';
+          token.accessToken = '';
+          token.refreshToken = '';
+          token.tokenExpiresIn = 0;
+          token.tokenExpiresAt = 0;
+          token.onboarding = {
+            status: 'completed' as OnboardingStatus,
+            selectedRole: defaultRole,
+            completedAt: new Date(),
+          };
+          token.isOnboardingCompleted = true;
+        }
       }
 
-      const response = await res.json();
-      console.log("Google login response:", response);
+      // Google social login - overrides OAuth data above
+      if (account?.provider === "google") {
+        console.log("SATYA 8F - Google social login detected");
 
-      // ✅ Access nested data correctly
-      const data = response.data || response;
+        try {
+          const res = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/auth/social-login`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                email: token.email,
+                name: token.name,
+                image: token.picture,
+                provider: "google",
+                token: account.id_token,
+              }),
+            }
+          );
 
-      token.id = data.user_id || token.id;
-      token.role = data.role || 'customer';
-      token.status = data.status || 'active';
-      token.isVerified = data.email_verified ?? false;
-      token.permissions = rolePermissions[data.role || 'customer'] || [];
-      
-      token.onboarding = {
-        status: (data.onboarding_status || 'pending') as OnboardingStatus,
-        selectedRole: data.role || 'customer',
-        completedAt: data.onboarding_status === 'completed' ? new Date() : undefined,
-      };
-      token.isOnboardingCompleted = data.onboarding_status === 'completed';
-      token.isNewUser = data.is_new_user ?? false;
-      token.emailVerified = data.email_verified ?? false;
-      token.phoneVerified = data.phone_verified ?? false;
+          if (!res.ok) {
+            console.error("SATYA 8F - Social login failed:", res.statusText);
+            return token;
+          }
 
-      // ✅ Normalize snake_case to camelCase
-      token.accessToken = data.access_token || '';
-      token.refreshToken = data.refresh_token || '';
-      token.tokenType = data.token_type || 'Bearer';
-      token.tokenExpiresIn = data.expires_in || 900;
-      token.tokenExpiresAt = Date.now() + (data.expires_in || 900) * 1000;
+          const response = await res.json();
+          console.log("SATYA 8F - Google login response:", response);
 
-      console.log("Token after Google login:", {
-        accessToken: token.accessToken ? 'SET' : 'EMPTY',
-        refreshToken: token.refreshToken ? 'SET' : 'EMPTY',
+          // ✅ Access nested data correctly
+          const data = response.data || response;
+
+          token.id = data.user_id || token.id;
+          token.role = data.role || 'customer';
+          token.status = data.status || 'active';
+          token.isVerified = data.email_verified ?? false;
+          token.permissions = rolePermissions[data.role || 'customer'] || [];
+
+          token.onboarding = {
+            status: (data.onboarding_status || 'pending') as OnboardingStatus,
+            selectedRole: data.role || 'customer',
+            completedAt: data.onboarding_status === 'completed' ? new Date() : undefined,
+          };
+          token.isOnboardingCompleted = data.onboarding_status === 'completed';
+          token.isNewUser = data.is_new_user ?? false;
+          token.emailVerified = data.email_verified ?? false;
+          token.phoneVerified = data.phone_verified ?? false;
+
+          // ✅ Normalize snake_case to camelCase
+          token.accessToken = data.access_token || '';
+          token.refreshToken = data.refresh_token || '';
+          token.tokenType = data.token_type || 'Bearer';
+          token.tokenExpiresIn = data.expires_in || 900;
+          token.tokenExpiresAt = Date.now() + ((data.expires_in || 900) * 1000);
+
+          console.log("SATYA 8F - Token after Google login:", {
+            accessToken: token.accessToken ? 'SET' : 'EMPTY',
+            refreshToken: token.refreshToken ? 'SET' : 'EMPTY',
+            tokenExpiresIn: token.tokenExpiresIn,
+            tokenExpiresAt: token.tokenExpiresAt,
+          });
+        }
+        catch (error) {
+          console.error("SATYA 8F - Error during Google social login:", error);
+          token.error = "GoogleLoginError";
+        }
+      }
+
+      console.log("SATYA 8Z - Final token before return:", {
+        hasId: !!token.id,
+        hasEmail: !!token.email,
+        hasAccessToken: !!token.accessToken,
+        hasRefreshToken: !!token.refreshToken,
         tokenExpiresIn: token.tokenExpiresIn,
         tokenExpiresAt: token.tokenExpiresAt,
       });
-    }
-    catch (error) {
-      console.error("Error during Google social login:", error);
-      token.error = "GoogleLoginError";
-    }
-  }
 
-  return token;
-}
+      return token;
+    }
+
   },
 
   session: {
