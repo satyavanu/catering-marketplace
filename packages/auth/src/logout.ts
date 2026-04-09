@@ -5,11 +5,9 @@ export async function handleLogout() {
   try {
     const session = await getSession();
 
-    if (!session?.user?.accessToken) {
-      console.warn('No backend access token found in session');
-    } else {
+    if (session?.user?.accessToken) {
       const response = await logoutApi({
-        accessToken: session.user.accessToken, 
+        accessToken: session.user.accessToken,
       });
 
       if (response.success) {
