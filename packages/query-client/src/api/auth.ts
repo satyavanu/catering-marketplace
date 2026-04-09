@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@catering/shared';
 import { useMutation, useQuery } from '@tanstack/react-query';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
@@ -11,6 +12,10 @@ interface VerifyOtpPayload {
   email?: string;
   phone?: string;
   otp: string;
+}
+
+interface LogoutPayload {
+  accessToken: string;
 }
 
 interface ApiResponse<T = any> {
@@ -86,5 +91,25 @@ export function useVerifyOtp() {
   });
 }
 
+
+async function logoutApi(payload: LogoutPayload): Promise<ApiResponse> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${payload.accessToken}`,
+      },
+    });
+
+    return handleResponse(response);
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to logout',
+    };
+  }
+}
+
 // Export raw API functions for non-React usage
-export { sendOtpApi, verifyOtpApi };
+export { sendOtpApi, verifyOtpApi, logoutApi };

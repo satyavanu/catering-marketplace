@@ -2,7 +2,27 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
 import FacebookProvider from 'next-auth/providers/facebook';
 import AppleProvider from 'next-auth/providers/apple';
-import type { NextAuthOptions } from 'next-auth';
+import type { NextAuthOptions, User as NextAuthUser } from 'next-auth';
+
+declare module 'next-auth' {
+  interface User {
+    permissions?: string[];
+    refreshToken?: string;
+    accessToken?: string;
+    tokenExpiresIn?: number;
+    tokenExpiresAt?: number;
+    isOnboardingCompleted?: boolean;    
+  }
+
+  interface CustomUser extends NextAuthUser {
+    permissions?: string[];
+    refreshToken?: string;
+    accessToken?: string;
+    tokenExpiresIn?: number;
+    tokenExpiresAt?: number;
+    isOnboardingCompleted?: boolean;    
+  }
+}
 import { verifyOtpApi } from '../../query-client/src';
 
 // Role types
@@ -283,8 +303,7 @@ async function fetchUserByIdentifier(identifier: string): Promise<any> {
  * Helper function to verify OTP with backend using verifyOtpApi
  * Payload: { email?: string, phone?: string, otp: string }
  */
-async function verifyOtpWithBackend(
- credentials): Promise<any> {
+async function verifyOtpWithBackend(credentials): Promise<any> {
   try {
     if (!credentials.otp) {
       return { success: false, verified: false, message: 'OTP is required' };
@@ -295,7 +314,11 @@ async function verifyOtpWithBackend(
     return result;
   } catch (error) {
     console.error('Error verifying OTP with backend:', error);
-    return { success: false, verified: false, message: 'OTP verification failed' };
+    return {
+      success: false,
+      verified: false,
+      message: 'OTP verification failed',
+    };
   }
 }
 
@@ -337,7 +360,7 @@ async function handleOAuthUser(profile: any): Promise<any> {
 export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
-      clientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
+      clientId: process.env.GOOGLE_CLIENT_ID || '',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
       allowDangerousEmailAccountLinking: true,
       profile: async (profile) => {
@@ -384,44 +407,57 @@ export const authOptions: NextAuthOptions = {
         phone: { label: 'Phone', type: 'text' },
       },
       async authorize(credentials) {
+        console.log('Email OTP Authorization:', credentials);
 
-        console.log('SATYA 1', credentials);
         if (!credentials?.otp) {
-          throw new Error(' OTP is required');
+          throw new Error('OTP is required');
         }
 
         try {
           // Verify OTP with backend API
-          const otpVerification = await verifyOtpWithBackend(
-          credentials
-          );
+          const otpVerification = await verifyOtpWithBackend(credentials);
 
-          console.log("SATYa", otpVerification);
+          console.log('OTP Verification Result:', otpVerification);
 
-          if (!otpVerification.success ) {
-            throw new Error(otpVerification.message || 'Invalid OTP');
+          if (!otpVerification.success) {
+            throw new Error(
+              otpVerification.message || 'Invalid OTP. Please try again.'
+            );
           }
 
-       const  user = otpVerification?.data || {};
+          const user = otpVerification?.data || {};
+
+          // If no role found, default to 'customer' and mark onboarding as completed
+          const userRole = user.role || ('customer' as UserRole);
+          const onboardingStatus = 'completed';
 
           return {
-            id: user.user_id,
+            id: user.user_id || `email-${Date.now()}`,
             email: credentials.email || '',
             name: user.name || '',
             image: user.image || '',
             phone: credentials.phone || '',
-            role: user.role || null,
-            permissions: user.permissions || [],
-            isVerified: user.isVerified   || false,
-            status: user.status   || 'active',
+            role: userRole,
+            permissions:
+              user.permissions || rolePermissions[userRole] || [],
+            isVerified: user.isVerified || true,
+            status: user.status || 'active',
             onboarding: {
-              status:  user.onboarding?.status || 'pending',
-              selectedRole: undefined,
+              status: onboardingStatus as OnboardingStatus,
+              selectedRole: userRole,
+              completedAt: new Date(),
             },
+            isOnboardingCompleted: true,
+            accessToken: user.accessToken || '',
+            refreshToken: user.refreshToken || '',
+            tokenExpiresIn: user.tokenExpiresIn || 3600,
           };
-        } catch (error) {
+        } catch (error: any) {
           console.error('Email OTP authorization error:', error);
-          throw error;
+          throw new Error(
+            error?.message ||
+            'Failed to verify OTP. Please try again.'
+          );
         }
       },
     }),
@@ -433,58 +469,67 @@ export const authOptions: NextAuthOptions = {
         otp: { label: 'OTP', type: 'text' },
       },
       async authorize(credentials) {
+        console.log('Phone OTP Authorization:', credentials);
+
         if (!credentials?.phone || !credentials?.otp) {
           throw new Error('Phone and OTP are required');
         }
 
         try {
           // Verify OTP with backend API
-          const otpVerification = await verifyOtpWithBackend(
-          
-           credentials);
+          const otpVerification = await verifyOtpWithBackend(credentials);
+
+          console.log('OTP Verification Result:', otpVerification);
 
           if (!otpVerification.success || !otpVerification.data?.verified) {
-            throw new Error(otpVerification.message || 'Invalid OTP');
+            throw new Error(
+              otpVerification.message || 'Invalid OTP. Please try again.'
+            );
           }
 
-          // Fetch user data from backend
-          const userResponse = await fetchUserByIdentifier(credentials.phone);
+          const user = otpVerification?.data || {};
 
-          if (!userResponse.success) {
-            throw new Error(userResponse.message || 'User not found');
-          }
+          // If no role found, default to 'customer' and mark onboarding as completed
+          const userRole = user.role || ('customer' as UserRole);
+          const onboardingStatus = 'completed';
 
-          const user = userResponse.user;
-
-          // Check user account status
-          if (user.status !== 'active') {
-            throw new Error(`User account is ${user.status}`);
-          }
+          // Get permissions for the role
+          const userPermissions =
+            user.permissions || rolePermissions[userRole] || [];
 
           return {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            image: user.image,
-            role: user.role || null,
-            permissions: user.permissions || [],
-            isVerified: user.isVerified,
-            status: user.status,
-            onboarding: user.onboarding || {
-              status: 'pending',
-              selectedRole: undefined,
+            id: user.user_id || `phone-${Date.now()}`,
+            email: user.email || '',
+            name: user.name || 'User',
+            image: user.image || '',
+            phone: credentials.phone,
+            role: userRole,
+            permissions: userPermissions,
+            isVerified: user.isVerified || true,
+            status: user.status || 'active',
+            onboarding: {
+              status: onboardingStatus as OnboardingStatus,
+              selectedRole: userRole,
+              completedAt: new Date(),
             },
+            isOnboardingCompleted: true,
+            accessToken: user.accessToken || '',
+            refreshToken: user.refreshToken || '',
+            tokenExpiresIn: user.tokenExpiresIn || 3600
+
           };
-        } catch (error) {
+        } catch (error: any) {
           console.error('Phone OTP authorization error:', error);
-          throw error;
+          throw new Error(
+            error?.message ||
+            'Failed to verify OTP. Please try again.'
+          );
         }
       },
     }),
   ],
   pages: {
     signIn: '/login',
-    error: '/auth/error',
   },
   callbacks: {
     async jwt({ token, user, account, profile }: any) {
@@ -494,14 +539,22 @@ export const authOptions: NextAuthOptions = {
         token.email = user.email;
         token.name = user.name;
         token.image = user.image;
-        token.role = user.role || null;
+        token.phone = user.phone;
+        token.role = user.role || ('customer' as UserRole);
         token.permissions = user.permissions || [];
-        token.isVerified = user.isVerified ?? false;
+        token.isVerified = user.isVerified ?? true;
         token.status = user.status || 'active';
         token.onboarding = user.onboarding || {
-          status: 'pending',
-          selectedRole: undefined,
+          status: 'completed' as OnboardingStatus,
+          selectedRole: user.role || ('customer' as UserRole),
+          completedAt: new Date(),
         };
+        token.accessToken = user.accessToken || '';
+        token.refreshToken = user.refreshToken || '';
+        token.tokenExpiresIn = user.tokenExpiresIn || 3600;
+        token.tokenExpiresAt = Date.now() + (user.tokenExpiresIn || 3600) * 1000;
+        token.isOnboardingCompleted =
+          user.isOnboardingCompleted || token.onboarding?.status === 'completed';
       }
 
       // Handle OAuth provider sign in
@@ -517,34 +570,58 @@ export const authOptions: NextAuthOptions = {
 
           if (oauthResult.success) {
             const oauthUser = oauthResult.user;
+            // Default to 'customer' role if no role exists
+            const defaultRole = oauthUser.role || ('customer' as UserRole);
+
             token.id = oauthUser.id;
-            token.role = oauthUser.role || null;
-            token.permissions = oauthUser.permissions || [];
-            token.isVerified = oauthUser.isVerified;
+            token.role = defaultRole;
+            token.permissions =
+              oauthUser.permissions ||
+              rolePermissions[defaultRole] ||
+              [];
+            token.isVerified = oauthUser.isVerified ?? false;
             token.status = oauthUser.status;
-            token.onboarding = oauthUser.onboarding;
+            token.onboarding = oauthUser.onboarding || {
+              status: 'completed' as OnboardingStatus,
+              selectedRole: defaultRole,
+              completedAt: new Date(),
+            };
+            token.isOnboardingCompleted = true;
+            token.accessToken = user.accessToken || '';
+            token.refreshToken = user.refreshToken || '';
+            token.tokenExpiresIn = user.tokenExpiresIn || 3600;
+            token.tokenExpiresAt = Date.now() + (user.tokenExpiresIn || 3600) * 1000;
+
           } else {
+            const defaultRole = 'customer' as UserRole;
             token.id = profile?.sub || profile?.id;
-            token.role = null;
-            token.permissions = [];
+            token.role = defaultRole;
+            token.permissions = rolePermissions[defaultRole] || [];
             token.isVerified = false;
             token.status = 'active';
             token.onboarding = {
-              status: 'pending',
-              selectedRole: undefined,
+              status: 'completed' as OnboardingStatus,
+              selectedRole: defaultRole,
+              completedAt: new Date(),
             };
+            token.isOnboardingCompleted = true;
           }
         } catch (error) {
           console.error('Error handling OAuth user:', error);
+          // Default to 'customer' on error
+          const defaultRole = 'customer' as UserRole;
           token.id = profile?.sub || profile?.id;
-          token.role = null;
-          token.permissions = [];
+          token.role = defaultRole;
+          token.permissions = rolePermissions[defaultRole] || [];
           token.isVerified = false;
           token.status = 'active';
           token.onboarding = {
-            status: 'pending',
-            selectedRole: undefined,
+            status: 'completed' as OnboardingStatus,
+            selectedRole: defaultRole,
+            completedAt: new Date(),
           };
+          token.isOnboardingCompleted = true;
+          token.jwtToken = token.token;
         }
       }
 
@@ -554,11 +631,25 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }: any) {
       if (session.user) {
         session.user.id = token.id;
-        session.user.role = token.role;
-        session.user.permissions = token.permissions;
-        session.user.isVerified = token.isVerified;
-        session.user.status = token.status;
-        session.user.onboarding = token.onboarding;
+        session.user.email = token.email;
+        session.user.name = token.name;
+        session.user.image = token.image;
+        session.user.phone = token.phone;
+        session.user.role = token.role || ('customer' as UserRole);
+        session.user.permissions = token.permissions || [];
+        session.user.isVerified = token.isVerified ?? true;
+        session.user.status = token.status || 'active';
+        session.user.onboarding = token.onboarding || {
+          status: 'completed' as OnboardingStatus,
+          selectedRole: token.role || ('customer' as UserRole),
+          completedAt: new Date(),
+        };
+
+        session.accessToken = token.accessToken || '';
+        session.refreshToken = token.refreshToken || '';
+        session.tokenExpiresIn = token.tokenExpiresIn || 3600;
+        session.tokenExpiresAt = Date.now() + (token.tokenExpiresIn || 3600) * 1000;
+
 
         // Role-based convenience flags
         session.user.isAdmin = token.role === 'admin';
@@ -568,9 +659,13 @@ export const authOptions: NextAuthOptions = {
         session.user.isSupport = token.role === 'support';
         session.user.isPartner = token.role === 'partner';
 
-        // Onboarding status flags
-        session.user.isOnboardingCompleted = token.onboarding?.status === 'completed';
-        session.user.isOnboardingPending = token.onboarding?.status === 'pending' || !token.role;
+        // Onboarding status flags - Mark as completed after OTP verification
+        session.user.isOnboardingCompleted =
+          token.isOnboardingCompleted ||
+          token.onboarding?.status === 'completed';
+        session.user.isOnboardingPending =
+          token.onboarding?.status === 'pending' &&
+          !token.isOnboardingCompleted;
 
         // Permission helper functions
         session.user.hasPermission = (permission: string): boolean => {
@@ -589,7 +684,13 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
 
-    async redirect({ url, baseUrl }: any) {
+    async redirect({ url, baseUrl, user }: any) {
+      // After OTP verification, redirect to role-specific dashboard
+      if (user?.role) {
+        return `${baseUrl}/${user.role}/dashboard`;
+      }
+
+      // Default redirect for OAuth/other flows
       if (url.includes('callbackUrl')) {
         return url;
       }
@@ -597,7 +698,37 @@ export const authOptions: NextAuthOptions = {
       if (url.startsWith('/')) return `${baseUrl}${url}`;
       else if (new URL(url).origin === baseUrl) return url;
 
-      return baseUrl;
+      // Default to customer dashboard
+      return `${baseUrl}/customer/dashboard`;
+    },
+
+    async signIn({ user, account }) {
+      if (account?.provider === "google") {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/auth/social-login`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: user.email,
+              name: user.name,
+              image: user.image,
+              provider: "google",
+              token: account.id_token,
+            }),
+          }
+        );
+
+        if (!res.ok) return false;
+
+        const data = await res.json();
+        user.role = data.role;
+        user.permissions = data.permissions;  
+        user.refreshToken = data.refreshToken;
+        user.accessToken = data.accessToken;
+        user.tokenExpiresIn = data.tokenExpiresIn;
+      }
+      return true;
     },
   },
 

@@ -20,6 +20,7 @@ declare module 'next-auth' {
 
   interface Session {
     user?: {
+      accessToken: any;
       name?: string | null;
       email?: string | null;
       image?: string | null;
@@ -106,7 +107,7 @@ export default function LoginPage() {
       } else if (session.user.isOnboardingCompleted && session.user.role) {
         const role = session.user.role;
         const callbackUrl = searchParams?.get('callbackUrl');
-
+        router.push(`/${role}/dashboard`);
         if (callbackUrl && !callbackUrl.includes('/login')) {
           router.push(callbackUrl);
         } else {
@@ -230,10 +231,12 @@ export default function LoginPage() {
         ? {
             email,
             otp,
+            redirect: false
           }
         : {
             phone: `${countryCode}${phoneNumber}`,
             otp,
+            redirect: false
           };
 
       const signInResult = await signIn(signInProvider, signInCredentials);
@@ -259,8 +262,10 @@ export default function LoginPage() {
     try {
       const result = await signIn(provider, {
         redirect: false,
-        callbackUrl: '/onboarding',
+        callbackUrl: '/login',
       });
+
+
 
       if (result?.error) {
         setError(`Failed to sign in with ${provider}`);

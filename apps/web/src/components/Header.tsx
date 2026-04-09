@@ -13,6 +13,7 @@ import {
   HeartIcon,
   CheckBadgeIcon,
 } from '@heroicons/react/24/outline';
+ import { handleLogout} from "@catering-marketplace/auth"
 
 const Header = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -391,10 +392,7 @@ const Header = () => {
 
           {/* Logout */}
           <button
-            onClick={async () => {
-              setIsProfileMenuOpen(false);
-              await signOut({ callbackUrl: '/' });
-            }}
+            onClick={handleLogout}
             style={{
               width: '100%',
               display: 'flex',
