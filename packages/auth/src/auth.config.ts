@@ -11,7 +11,10 @@ declare module 'next-auth' {
     accessToken?: string;
     tokenExpiresIn?: number;
     tokenExpiresAt?: number;
-    isOnboardingCompleted?: boolean;    
+    access_token?: string;
+    refresh_token?: string;
+    expires_in?: number;
+    isOnboardingCompleted?: boolean;
   }
 
   interface CustomUser extends NextAuthUser {
@@ -20,7 +23,10 @@ declare module 'next-auth' {
     accessToken?: string;
     tokenExpiresIn?: number;
     tokenExpiresAt?: number;
-    isOnboardingCompleted?: boolean;    
+    access_token?: string;
+    refresh_token?: string;
+    expires_in?: number;
+    isOnboardingCompleted?: boolean;
   }
 }
 import { verifyOtpApi } from '../../query-client/src';
@@ -408,49 +414,53 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         console.log('Email OTP Authorization:', credentials);
-
+    
         if (!credentials?.otp) {
           throw new Error('OTP is required');
         }
-
+    
         try {
           // Verify OTP with backend API
           const otpVerification = await verifyOtpWithBackend(credentials);
-
+    
           console.log('OTP Verification Result:', otpVerification);
-
+    
           if (!otpVerification.success) {
             throw new Error(
               otpVerification.message || 'Invalid OTP. Please try again.'
             );
           }
-
-          const user = otpVerification?.data || {};
-
+    
+          // ✅ Access nested data object
+          const userData = otpVerification?.data || {};
+    
+          console.log("Email verify SATYA 1 response", userData);
+    
           // If no role found, default to 'customer' and mark onboarding as completed
-          const userRole = user.role || ('customer' as UserRole);
+          const userRole = userData.role || ('customer' as UserRole);
           const onboardingStatus = 'completed';
-
+    
           return {
-            id: user.user_id || `email-${Date.now()}`,
+            id: userData.user_id || `email-${Date.now()}`,
             email: credentials.email || '',
-            name: user.name || '',
-            image: user.image || '',
+            name: userData.name || '',
+            image: userData.image || '',
             phone: credentials.phone || '',
             role: userRole,
             permissions:
-              user.permissions || rolePermissions[userRole] || [],
-            isVerified: user.isVerified || true,
-            status: user.status || 'active',
+              userData.permissions || rolePermissions[userRole] || [],
+            isVerified: userData.email_verified || true,
+            status: userData.status || 'active',
             onboarding: {
               status: onboardingStatus as OnboardingStatus,
               selectedRole: userRole,
               completedAt: new Date(),
             },
             isOnboardingCompleted: true,
-            accessToken: user.accessToken || '',
-            refreshToken: user.refreshToken || '',
-            tokenExpiresIn: user.tokenExpiresIn || 3600,
+            // ✅ Access tokens from userData (nested data)
+            accessToken: userData.access_token || '',
+            refreshToken: userData.refresh_token || '',
+            tokenExpiresIn: userData.expires_in || 3600,
           };
         } catch (error: any) {
           console.error('Email OTP authorization error:', error);
@@ -470,53 +480,54 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         console.log('Phone OTP Authorization:', credentials);
-
+    
         if (!credentials?.phone || !credentials?.otp) {
           throw new Error('Phone and OTP are required');
         }
-
+    
         try {
           // Verify OTP with backend API
           const otpVerification = await verifyOtpWithBackend(credentials);
-
+    
           console.log('OTP Verification Result:', otpVerification);
-
+    
           if (!otpVerification.success || !otpVerification.data?.verified) {
             throw new Error(
               otpVerification.message || 'Invalid OTP. Please try again.'
             );
           }
-
-          const user = otpVerification?.data || {};
-
+    
+          // ✅ Access nested data object
+          const userData = otpVerification?.data || {};
+    
           // If no role found, default to 'customer' and mark onboarding as completed
-          const userRole = user.role || ('customer' as UserRole);
+          const userRole = userData.role || ('customer' as UserRole);
           const onboardingStatus = 'completed';
-
+    
           // Get permissions for the role
           const userPermissions =
-            user.permissions || rolePermissions[userRole] || [];
-
+            userData.permissions || rolePermissions[userRole] || [];
+    
           return {
-            id: user.user_id || `phone-${Date.now()}`,
-            email: user.email || '',
-            name: user.name || 'User',
-            image: user.image || '',
+            id: userData.user_id || `phone-${Date.now()}`,
+            email: userData.email || '',
+            name: userData.name || 'User',
+            image: userData.image || '',
             phone: credentials.phone,
             role: userRole,
             permissions: userPermissions,
-            isVerified: user.isVerified || true,
-            status: user.status || 'active',
+            isVerified: userData.email_verified || true,
+            status: userData.status || 'active',
             onboarding: {
               status: onboardingStatus as OnboardingStatus,
               selectedRole: userRole,
               completedAt: new Date(),
             },
             isOnboardingCompleted: true,
-            accessToken: user.accessToken || '',
-            refreshToken: user.refreshToken || '',
-            tokenExpiresIn: user.tokenExpiresIn || 3600
-
+            // ✅ Access tokens from userData (nested data)
+            accessToken: userData.access_token || '',
+            refreshToken: userData.refresh_token || '',
+            tokenExpiresIn: userData.expires_in || 3600,
           };
         } catch (error: any) {
           console.error('Phone OTP authorization error:', error);
@@ -526,109 +537,17 @@ export const authOptions: NextAuthOptions = {
           );
         }
       },
-    }),
+    })
   ],
   pages: {
     signIn: '/login',
   },
   callbacks: {
-    async jwt({ token, user, account, profile }: any) {
-      // Store user data from CredentialsProvider authorize() response
-      if (user) {
-        token.id = user.id;
-        token.email = user.email;
-        token.name = user.name;
-        token.image = user.image;
-        token.phone = user.phone;
-        token.role = user.role || ('customer' as UserRole);
-        token.permissions = user.permissions || [];
-        token.isVerified = user.isVerified ?? true;
-        token.status = user.status || 'active';
-        token.onboarding = user.onboarding || {
-          status: 'completed' as OnboardingStatus,
-          selectedRole: user.role || ('customer' as UserRole),
-          completedAt: new Date(),
-        };
-        token.accessToken = user.accessToken || '';
-        token.refreshToken = user.refreshToken || '';
-        token.tokenExpiresIn = user.tokenExpiresIn || 3600;
-        token.tokenExpiresAt = Date.now() + (user.tokenExpiresIn || 3600) * 1000;
-        token.isOnboardingCompleted =
-          user.isOnboardingCompleted || token.onboarding?.status === 'completed';
-      }
-
-      // Handle OAuth provider sign in
-      if (account && account.provider !== 'credentials') {
-        try {
-          const oauthResult = await handleOAuthUser({
-            id: profile?.sub || profile?.id,
-            email: token.email,
-            name: token.name,
-            image: token.picture || profile?.picture?.data?.url,
-            provider: account.provider,
-          });
-
-          if (oauthResult.success) {
-            const oauthUser = oauthResult.user;
-            // Default to 'customer' role if no role exists
-            const defaultRole = oauthUser.role || ('customer' as UserRole);
-
-            token.id = oauthUser.id;
-            token.role = defaultRole;
-            token.permissions =
-              oauthUser.permissions ||
-              rolePermissions[defaultRole] ||
-              [];
-            token.isVerified = oauthUser.isVerified ?? false;
-            token.status = oauthUser.status;
-            token.onboarding = oauthUser.onboarding || {
-              status: 'completed' as OnboardingStatus,
-              selectedRole: defaultRole,
-              completedAt: new Date(),
-            };
-            token.isOnboardingCompleted = true;
-            token.accessToken = user.accessToken || '';
-            token.refreshToken = user.refreshToken || '';
-            token.tokenExpiresIn = user.tokenExpiresIn || 3600;
-            token.tokenExpiresAt = Date.now() + (user.tokenExpiresIn || 3600) * 1000;
-
-          } else {
-            const defaultRole = 'customer' as UserRole;
-            token.id = profile?.sub || profile?.id;
-            token.role = defaultRole;
-            token.permissions = rolePermissions[defaultRole] || [];
-            token.isVerified = false;
-            token.status = 'active';
-            token.onboarding = {
-              status: 'completed' as OnboardingStatus,
-              selectedRole: defaultRole,
-              completedAt: new Date(),
-            };
-            token.isOnboardingCompleted = true;
-          }
-        } catch (error) {
-          console.error('Error handling OAuth user:', error);
-          // Default to 'customer' on error
-          const defaultRole = 'customer' as UserRole;
-          token.id = profile?.sub || profile?.id;
-          token.role = defaultRole;
-          token.permissions = rolePermissions[defaultRole] || [];
-          token.isVerified = false;
-          token.status = 'active';
-          token.onboarding = {
-            status: 'completed' as OnboardingStatus,
-            selectedRole: defaultRole,
-            completedAt: new Date(),
-          };
-          token.isOnboardingCompleted = true;
-          token.jwtToken = token.token;
-        }
-      }
-
-      return token;
-    },
+ 
 
     async session({ session, token }: any) {
+      console.log("SATYA 9 - Token:", token);
+      
       if (session.user) {
         session.user.id = token.id;
         session.user.email = token.email;
@@ -645,11 +564,13 @@ export const authOptions: NextAuthOptions = {
           completedAt: new Date(),
         };
 
-        session.accessToken = token.accessToken || '';
-        session.refreshToken = token.refreshToken || '';
-        session.tokenExpiresIn = token.tokenExpiresIn || 3600;
-        session.tokenExpiresAt = Date.now() + (token.tokenExpiresIn || 3600) * 1000;
-
+        // Store tokens on session.user (not on session root)
+        session.user.accessToken = token.accessToken || '';
+        session.user.refreshToken = token.refreshToken || '';
+        session.user.tokenExpiresIn = token.tokenExpiresIn || 3600;
+        session.user.tokenExpiresAt = token.tokenExpiresAt || Date.now() + (token.tokenExpiresIn || 3600) * 1000;
+        session.user.tokenType = token.tokenType || 'Bearer';
+        session.user.error = token.error || null;
 
         // Role-based convenience flags
         session.user.isAdmin = token.role === 'admin';
@@ -659,7 +580,7 @@ export const authOptions: NextAuthOptions = {
         session.user.isSupport = token.role === 'support';
         session.user.isPartner = token.role === 'partner';
 
-        // Onboarding status flags - Mark as completed after OTP verification
+        // Onboarding status flags
         session.user.isOnboardingCompleted =
           token.isOnboardingCompleted ||
           token.onboarding?.status === 'completed';
@@ -680,6 +601,8 @@ export const authOptions: NextAuthOptions = {
           return permissions.some((p) => token.permissions?.includes(p));
         };
       }
+
+      console.log("SATYA 10 - Session:", session);
 
       return session;
     },
@@ -702,34 +625,212 @@ export const authOptions: NextAuthOptions = {
       return `${baseUrl}/customer/dashboard`;
     },
 
-    async signIn({ user, account }) {
-      if (account?.provider === "google") {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/auth/social-login`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              email: user.email,
-              name: user.name,
-              image: user.image,
-              provider: "google",
-              token: account.id_token,
-            }),
-          }
-        );
 
-        if (!res.ok) return false;
 
-        const data = await res.json();
-        user.role = data.role;
-        user.permissions = data.permissions;  
-        user.refreshToken = data.refreshToken;
-        user.accessToken = data.accessToken;
-        user.tokenExpiresIn = data.tokenExpiresIn;
+async jwt({ token, user, account, profile }: any) {
+  // Store user data from CredentialsProvider authorize() response
+  console.log("SATYA 8", token, user, account, profile);
+  
+  if (user) {
+    token.id = user.id;
+    token.email = user.email;
+    token.name = user.name;
+    token.image = user.image;
+    token.phone = user.phone;
+    token.role = user.role || ('customer' as UserRole);
+    token.permissions = user.permissions || [];
+    token.isVerified = user.isVerified ?? true;
+    token.status = user.status || 'active';
+    token.onboarding = user.onboarding || {
+      status: 'completed' as OnboardingStatus,
+      selectedRole: user.role || ('customer' as UserRole),
+      completedAt: new Date(),
+    };
+    // ✅ Use camelCase - accessToken not access_token
+    token.accessToken = user.accessToken || '';
+    token.refreshToken = user.refreshToken || '';
+    token.tokenExpiresIn = user.tokenExpiresIn || 3600;
+    token.tokenExpiresAt = Date.now() + (user.tokenExpiresIn || 3600) * 1000;
+    token.isOnboardingCompleted =
+      user.isOnboardingCompleted || token.onboarding?.status === 'completed';
+  }
+
+  // Token refresh logic
+  if (
+    token.tokenExpiresAt &&
+    Date.now() > (token.tokenExpiresAt as number)
+  ) {
+    try {
+      const response = await fetch(
+        `${process.env.BACKEND_URL}/api/auth/refresh`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            refreshToken: token.refreshToken,
+          }),
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        // ✅ Normalize snake_case from backend to camelCase
+        token.accessToken = data.access_token || data.accessToken || token.accessToken;
+        token.refreshToken = data.refresh_token || data.refreshToken || token.refreshToken;
+        token.tokenExpiresIn = data.expires_in || data.expiresIn || token.tokenExpiresIn;
+        token.tokenExpiresAt = Date.now() + (data.expires_in || data.expiresIn) * 1000;
+      } else {
+        token.error = "RefreshAccessTokenError";
       }
-      return true;
-    },
+    } catch (error) {
+      console.error("Error refreshing token:", error);
+      token.error = "RefreshAccessTokenError";
+    }
+  }
+
+  // Handle OAuth provider sign in
+  if (account && account.provider !== 'credentials') {
+    try {
+      const oauthResult = await handleOAuthUser({
+        id: profile?.sub || profile?.id,
+        email: token.email,
+        name: token.name,
+        image: token.picture || profile?.picture?.data?.url,
+        provider: account.provider,
+      });
+
+      if (oauthResult.success) {
+        const oauthUser = oauthResult.user;
+        const defaultRole = oauthUser.role || ('customer' as UserRole);
+
+        token.id = oauthUser.id;
+        token.role = defaultRole;
+        token.permissions =
+          oauthUser.permissions ||
+          rolePermissions[defaultRole] ||
+          [];
+        token.isVerified = oauthUser.isVerified ?? false;
+        token.status = oauthUser.status;
+        token.onboarding = oauthUser.onboarding || {
+          status: 'completed' as OnboardingStatus,
+          selectedRole: defaultRole,
+          completedAt: new Date(),
+        };
+        token.isOnboardingCompleted = true;
+        // ✅ Initialize tokens (will be set by Google provider below)
+        token.accessToken = token.accessToken || '';
+        token.refreshToken = token.refreshToken || '';
+        token.tokenExpiresIn = token.tokenExpiresIn || 3600;
+        token.tokenExpiresAt = token.tokenExpiresAt || Date.now() + 3600 * 1000;
+
+      } else {
+        const defaultRole = 'customer' as UserRole;
+        token.id = profile?.sub || profile?.id;
+        token.role = defaultRole;
+        token.permissions = rolePermissions[defaultRole] || [];
+        token.isVerified = false;
+        token.status = 'active';
+        token.accessToken = '';
+        token.refreshToken = '';
+        token.tokenExpiresIn = 0;
+        token.tokenExpiresAt = 0;
+        token.onboarding = {
+          status: 'completed' as OnboardingStatus,
+          selectedRole: defaultRole,
+          completedAt: new Date(),
+        };
+        token.isOnboardingCompleted = true;
+      }
+    } catch (error) {
+      console.error('Error handling OAuth user:', error);
+      const defaultRole = 'customer' as UserRole;
+      token.id = profile?.sub || profile?.id;
+      token.role = defaultRole;
+      token.permissions = rolePermissions[defaultRole] || [];
+      token.isVerified = false;
+      token.status = 'active';
+      token.accessToken = '';
+      token.refreshToken = '';
+      token.tokenExpiresIn = 0;
+      token.tokenExpiresAt = 0;
+      token.onboarding = {
+        status: 'completed' as OnboardingStatus,
+        selectedRole: defaultRole,
+        completedAt: new Date(),
+      };
+      token.isOnboardingCompleted = true;
+    }
+  }
+
+  // Google social login - overrides OAuth data above
+  if (account?.provider === "google") {
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/social-login`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: token.email,
+            name: token.name,
+            image: token.picture,
+            provider: "google",
+            token: account.id_token,
+          }),
+        }
+      );
+
+      if (!res.ok) {
+        console.error("Social login failed:", res.statusText);
+        return token;
+      }
+
+      const response = await res.json();
+      console.log("Google login response:", response);
+
+      // ✅ Access nested data correctly
+      const data = response.data || response;
+
+      token.id = data.user_id || token.id;
+      token.role = data.role || 'customer';
+      token.status = data.status || 'active';
+      token.isVerified = data.email_verified ?? false;
+      token.permissions = rolePermissions[data.role || 'customer'] || [];
+      
+      token.onboarding = {
+        status: (data.onboarding_status || 'pending') as OnboardingStatus,
+        selectedRole: data.role || 'customer',
+        completedAt: data.onboarding_status === 'completed' ? new Date() : undefined,
+      };
+      token.isOnboardingCompleted = data.onboarding_status === 'completed';
+      token.isNewUser = data.is_new_user ?? false;
+      token.emailVerified = data.email_verified ?? false;
+      token.phoneVerified = data.phone_verified ?? false;
+
+      // ✅ Normalize snake_case to camelCase
+      token.accessToken = data.access_token || '';
+      token.refreshToken = data.refresh_token || '';
+      token.tokenType = data.token_type || 'Bearer';
+      token.tokenExpiresIn = data.expires_in || 900;
+      token.tokenExpiresAt = Date.now() + (data.expires_in || 900) * 1000;
+
+      console.log("Token after Google login:", {
+        accessToken: token.accessToken ? 'SET' : 'EMPTY',
+        refreshToken: token.refreshToken ? 'SET' : 'EMPTY',
+        tokenExpiresIn: token.tokenExpiresIn,
+        tokenExpiresAt: token.tokenExpiresAt,
+      });
+    }
+    catch (error) {
+      console.error("Error during Google social login:", error);
+      token.error = "GoogleLoginError";
+    }
+  }
+
+  return token;
+}
   },
 
   session: {
