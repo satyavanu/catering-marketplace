@@ -37,17 +37,8 @@ declare module 'next-auth' {
 
 // Country codes list
 const COUNTRY_CODES = [
-  { code: '+1', country: 'United States' },
-  { code: '+44', country: 'United Kingdom' },
+  
   { code: '+91', country: 'India' },
-  { code: '+86', country: 'China' },
-  { code: '+81', country: 'Japan' },
-  { code: '+33', country: 'France' },
-  { code: '+49', country: 'Germany' },
-  { code: '+39', country: 'Italy' },
-  { code: '+31', country: 'Netherlands' },
-  { code: '+34', country: 'Spain' },
-  { code: '+61', country: 'Australia' },
 ];
 
 const MAX_RETRIES = 3;
@@ -101,10 +92,7 @@ export default function LoginPage() {
     if (status === 'authenticated' && session?.user && mounted) {
       setIsRedirecting(true);
 
-      if (session.user.isOnboardingPending || !session.user.role) {
-        console.log('Onboarding pending, redirecting to onboarding');
-        router.push('/onboarding');
-      } else if (session.user.isOnboardingCompleted && session.user.role) {
+     if (session.user.role) {
         const role = session.user.role;
         const callbackUrl = searchParams?.get('callbackUrl');
         router.push(`/${role}/dashboard`);
@@ -257,7 +245,7 @@ export default function LoginPage() {
     }
   };
 
-  const handleSocialLogin = async (provider: 'google' | 'github') => {
+  const handleSocialLogin = async (provider: 'google' | 'facebook') => {
     setSocialLoading(provider);
     try {
       const result = await signIn(provider, {

@@ -840,7 +840,7 @@ export const authOptions: NextAuthOptions = {
           const data = response.data || response;
 
           token.id = data.user_id || token.id;
-          token.role = data.role || 'customer';
+          token.role =  'caterer' //data.role || 'customer';
           token.status = data.status || 'active';
           token.isVerified = data.email_verified ?? false;
           token.permissions = rolePermissions[data.role || 'customer'] || [];
