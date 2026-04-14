@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
   PencilIcon,
@@ -9,219 +9,146 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
 } from '@heroicons/react/24/outline';
+import {
+  useCollection,
+  useCollectionSections,
+  useCreateCollectionSection,
+  useUpdateSection,
+  useDeleteSection,
+  useCreateItem,
+  useUpdateItem,
+  useDeleteItem,
+  type MenuSection,
+  type MenuItem,
+} from '@catering-marketplace/query-client';
 
 export default function PackageDetailPage() {
   const router = useRouter();
   const params = useParams();
   const packageId = params.packageId as string;
 
-  // Mock data - replace with API call
-  const [packageData, setPackageData] = useState({
-    id: parseInt(packageId) || 1,
-    name: 'Special Hyderabadi Biryani',
-    description: 'Aromatic biryani with premium basmati rice and spices',
-    coverImage: null,
-    pricingType: 'per_plate',
-    basePrice: 350,
-    currency: 'INR',
-    minGuests: 50,
-    maxGuests: 500,
-    isActive: true,
-    createdDate: 'March 15, 2025',
-  });
+  // Real API queries
+  const { data: packageData, isLoading: packageLoading } = useCollection(packageId);
+  const { data: sections = [], isLoading: sectionsLoading } = useCollectionSections(packageId);
+  
+  const createSectionMutation = useCreateCollectionSection();
+  const updateSectionMutation = useUpdateSection();
+  const deleteSectionMutation = useDeleteSection();
+  const createItemMutation = useCreateItem();
+  const updateItemMutation = useUpdateItem();
+  const deleteItemMutation = useDeleteItem();
 
-  const [categories, setCategories] = useState([
-    {
-      id: 1,
-      name: 'Biryani & Rice',
-      description: 'Aromatic rice-based dishes',
-      sortOrder: 1,
-      isActive: true,
-      dishes: [
-        {
-          id: 1,
-          name: 'Chicken Biryani',
-          description: 'Fragrant basmati rice with tender chicken',
-          type: 'non_veg',
-          spiceLevel: 'medium',
-          pricing: 'included',
-          price: 0,
-          isActive: true,
-        },
-        {
-          id: 2,
-          name: 'Mutton Biryani',
-          description: 'Premium mutton with aromatic spices',
-          type: 'non_veg',
-          spiceLevel: 'spicy',
-          pricing: 'included',
-          price: 0,
-          isActive: true,
-        },
-      ],
-    },
-    {
-      id: 2,
-      name: 'Desserts',
-      description: 'Sweet treats and desserts',
-      sortOrder: 2,
-      isActive: true,
-      dishes: [
-        {
-          id: 3,
-          name: 'Double Ka Meetha',
-          description: 'Traditional Indian sweet bread pudding',
-          type: 'veg',
-          spiceLevel: 'mild',
-          pricing: 'included',
-          price: 0,
-          isActive: true,
-        },
-      ],
-    },
-  ]);
-
-  const [expandedCategories, setExpandedCategories] = useState<number[]>([1, 2]);
+  // Local UI state
+  const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
   const [showAddDishModal, setShowAddDishModal] = useState(false);
-  const [selectedCategoryForDish, setSelectedCategoryForDish] = useState<number | null>(null);
-  const [editingCategory, setEditingCategory] = useState<number | null>(null);
-  const [editingDish, setEditingDish] = useState<number | null>(null);
+  const [selectedCategoryForDish, setSelectedCategoryForDish] = useState<string | null>(null);
+  const [editingCategory, setEditingCategory] = useState<string | null>(null);
+  const [editingDish, setEditingDish] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
+  // Form state for category
   const [categoryFormData, setCategoryFormData] = useState({
     name: '',
     description: '',
-    sortOrder: 1,
-    isActive: true,
+    sort_order: 1,
+    is_active: true,
   });
 
+  // Form state for dish
   const [dishFormData, setDishFormData] = useState({
     name: '',
     description: '',
-    image: null as File | null,
-    type: 'veg',
-    spiceLevel: 'medium',
-    pricing: 'included',
+    image_url: '',
+    is_veg: true,
+    is_vegan: false,
+    is_gluten_free: false,
+    spice_level: 'medium' as 'mild' | 'medium' | 'spicy',
+    pricing_type: 'included' as 'included' | 'extra' | 'on_request',
     price: '0',
-    isActive: true,
+    currency_code: 'INR',
+    sort_order: 1,
+    is_active: true,
   });
 
+  // Initialize expanded categories
+  useEffect(() => {
+    if (sections.length > 0) {
+      setExpandedCategories(sections.map((s) => s.id));
+    }
+  }, [sections]);
+
   // Toggle category expansion
-  const toggleCategory = (categoryId: number) => {
+  const toggleCategory = (categoryId: string) => {
     setExpandedCategories((prev) =>
-      prev.includes(categoryId)
-        ? prev.filter((id) => id !== categoryId)
-        : [...prev, categoryId]
+      prev.includes(categoryId) ? prev.filter((id) => id !== categoryId) : [...prev, categoryId]
     );
   };
 
-  // Add/Edit Category
-  const handleSaveCategory = () => {
-    if (!categoryFormData.name) {
-      alert('Please enter category name');
+  // ============ CATEGORY HANDLERS ============
+  const handleSaveCategory = async () => {
+    if (!categoryFormData.name.trim()) {
+      setErrorMessage('Please enter category name');
       return;
     }
 
-    if (editingCategory) {
-      setCategories(
-        categories.map((cat) =>
-          cat.id === editingCategory
-            ? { ...cat, ...categoryFormData }
-            : cat
-        )
-      );
-    } else {
-      const newCategory = {
-        id: Math.max(...categories.map((c) => c.id), 0) + 1,
-        ...categoryFormData,
-        dishes: [],
-      };
-      setCategories([...categories, newCategory]);
-      setExpandedCategories([...expandedCategories, newCategory.id]);
-    }
+    setErrorMessage('');
+    setSuccessMessage('');
 
-    setCategoryFormData({
-      name: '',
-      description: '',
-      sortOrder: 1,
-      isActive: true,
-    });
-    setEditingCategory(null);
-    setShowAddCategoryModal(false);
+    try {
+      if (editingCategory) {
+        // Update existing section
+        await updateSectionMutation.mutateAsync({
+          id: editingCategory,
+          data: {
+            name: categoryFormData.name,
+            description: categoryFormData.description || undefined,
+            sort_order: categoryFormData.sort_order,
+            is_active: categoryFormData.is_active,
+          },
+        });
+        setSuccessMessage('Category updated successfully!');
+      } else {
+        // Create new section
+        await createSectionMutation.mutateAsync({
+          collectionId: packageId,
+          data: {
+            name: categoryFormData.name,
+            description: categoryFormData.description || undefined,
+            sort_order: categoryFormData.sort_order,
+          },
+        });
+        setSuccessMessage('Category created successfully!');
+      }
+
+      // Reset form
+      setCategoryFormData({
+        name: '',
+        description: '',
+        sort_order: 1,
+        is_active: true,
+      });
+      setEditingCategory(null);
+      setShowAddCategoryModal(false);
+
+      setTimeout(() => setSuccessMessage(''), 2000);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Failed to save category';
+      setErrorMessage(errorMsg);
+    }
   };
 
-  // Delete Category
-  const handleDeleteCategory = (categoryId: number) => {
-    if (window.confirm('Are you sure you want to delete this category?')) {
-      setCategories(categories.filter((cat) => cat.id !== categoryId));
-    }
-  };
+  const handleDeleteCategory = async (categoryId: string) => {
+    if (!window.confirm('Are you sure you want to delete this category?')) return;
 
-  // Add/Edit Dish
-  const handleSaveDish = () => {
-    if (!dishFormData.name || !selectedCategoryForDish) {
-      alert('Please fill required fields');
-      return;
-    }
-
-    setCategories(
-      categories.map((cat) => {
-        if (cat.id === selectedCategoryForDish) {
-          if (editingDish) {
-            return {
-              ...cat,
-              dishes: cat.dishes.map((dish) =>
-                dish.id === editingDish
-                  ? { ...dish, ...dishFormData }
-                  : dish
-              ),
-            };
-          } else {
-            const newDish = {
-              id: Math.max(
-                ...cat.dishes.map((d) => d.id),
-                ...categories.flatMap((c) => c.dishes.map((d) => d.id)),
-                0
-              ) + 1,
-              ...dishFormData,
-            };
-            return {
-              ...cat,
-              dishes: [...cat.dishes, newDish],
-            };
-          }
-        }
-        return cat;
-      })
-    );
-
-    setDishFormData({
-      name: '',
-      description: '',
-      image: null,
-      type: 'veg',
-      spiceLevel: 'medium',
-      pricing: 'included',
-      price: '0',
-      isActive: true,
-    });
-    setEditingDish(null);
-    setShowAddDishModal(false);
-  };
-
-  // Delete Dish
-  const handleDeleteDish = (categoryId: number, dishId: number) => {
-    if (window.confirm('Are you sure you want to delete this dish?')) {
-      setCategories(
-        categories.map((cat) =>
-          cat.id === categoryId
-            ? {
-                ...cat,
-                dishes: cat.dishes.filter((dish) => dish.id !== dishId),
-              }
-            : cat
-        )
-      );
+    try {
+      await deleteSectionMutation.mutateAsync(categoryId);
+      setSuccessMessage('Category deleted successfully!');
+      setTimeout(() => setSuccessMessage(''), 2000);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Failed to delete category';
+      setErrorMessage(errorMsg);
     }
   };
 
@@ -229,93 +156,250 @@ export default function PackageDetailPage() {
     setCategoryFormData({
       name: '',
       description: '',
-      sortOrder: 1,
-      isActive: true,
+      sort_order: (sections.length + 1) * 10,
+      is_active: true,
     });
     setEditingCategory(null);
     setShowAddCategoryModal(true);
+    setErrorMessage('');
   };
 
-  const openEditCategoryModal = (category: typeof categories[0]) => {
+  const openEditCategoryModal = (category: MenuSection) => {
     setCategoryFormData({
       name: category.name,
-      description: category.description,
-      sortOrder: category.sortOrder,
-      isActive: category.isActive,
+      description: category.description || '',
+      sort_order: category.sort_order,
+      is_active: category.is_active,
     });
     setEditingCategory(category.id);
     setShowAddCategoryModal(true);
+    setErrorMessage('');
   };
 
-  const openAddDishModal = (categoryId: number) => {
+  // ============ DISH HANDLERS ============
+  const handleSaveDish = async () => {
+    if (!dishFormData.name.trim() || !selectedCategoryForDish) {
+      setErrorMessage('Please fill required fields');
+      return;
+    }
+
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    try {
+      const payload = {
+        name: dishFormData.name,
+        description: dishFormData.description || undefined,
+        image_url: dishFormData.image_url || undefined,
+        is_veg: dishFormData.is_veg,
+        is_vegan: dishFormData.is_vegan,
+        is_gluten_free: dishFormData.is_gluten_free,
+        spice_level: dishFormData.spice_level,
+        pricing_type: dishFormData.pricing_type,
+        price: dishFormData.pricing_type === 'included' ? undefined : parseFloat(dishFormData.price),
+        currency_code: dishFormData.currency_code,
+        sort_order: dishFormData.sort_order,
+      };
+
+      if (editingDish) {
+        // Update existing item
+        await updateItemMutation.mutateAsync({
+          id: editingDish,
+          data: {
+            ...payload,
+            is_active: dishFormData.is_active,
+          },
+        });
+        setSuccessMessage('Dish updated successfully!');
+      } else {
+        // Create new item
+        await createItemMutation.mutateAsync({
+          sectionId: selectedCategoryForDish,
+          data: payload,
+        });
+        setSuccessMessage('Dish created successfully!');
+      }
+
+      // Reset form
+      setDishFormData({
+        name: '',
+        description: '',
+        image_url: '',
+        is_veg: true,
+        is_vegan: false,
+        is_gluten_free: false,
+        spice_level: 'medium',
+        pricing_type: 'included',
+        price: '0',
+        currency_code: 'INR',
+        sort_order: 1,
+        is_active: true,
+      });
+      setEditingDish(null);
+      setSelectedCategoryForDish(null);
+      setShowAddDishModal(false);
+
+      setTimeout(() => setSuccessMessage(''), 2000);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Failed to save dish';
+      setErrorMessage(errorMsg);
+    }
+  };
+
+  const handleDeleteDish = async (dishId: string) => {
+    if (!window.confirm('Are you sure you want to delete this dish?')) return;
+
+    try {
+      await deleteItemMutation.mutateAsync(dishId);
+      setSuccessMessage('Dish deleted successfully!');
+      setTimeout(() => setSuccessMessage(''), 2000);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Failed to delete dish';
+      setErrorMessage(errorMsg);
+    }
+  };
+
+  const openAddDishModal = (categoryId: string) => {
     setSelectedCategoryForDish(categoryId);
     setDishFormData({
       name: '',
       description: '',
-      image: null,
-      type: 'veg',
-      spiceLevel: 'medium',
-      pricing: 'included',
+      image_url: '',
+      is_veg: true,
+      is_vegan: false,
+      is_gluten_free: false,
+      spice_level: 'medium',
+      pricing_type: 'included',
       price: '0',
-      isActive: true,
+      currency_code: 'INR',
+      sort_order: 1,
+      is_active: true,
     });
     setEditingDish(null);
     setShowAddDishModal(true);
+    setErrorMessage('');
   };
 
-  const openEditDishModal = (categoryId: number, dish: typeof categories[0]['dishes'][0]) => {
+  const openEditDishModal = (categoryId: string, dish: MenuItem) => {
     setSelectedCategoryForDish(categoryId);
     setDishFormData({
       name: dish.name,
-      description: dish.description,
-      image: null,
-      type: dish.type,
-      spiceLevel: dish.spiceLevel,
-      pricing: dish.pricing,
-      price: dish.price.toString(),
-      isActive: dish.isActive,
+      description: dish.description || '',
+      image_url: dish.image_url || '',
+      is_veg: dish.is_veg,
+      is_vegan: dish.is_vegan,
+      is_gluten_free: dish.is_gluten_free,
+      spice_level: dish.spice_level || 'medium',
+      pricing_type: (dish.pricing_type as 'included' | 'extra' | 'on_request') || 'included',
+      price: dish.price?.toString() || '0',
+      currency_code: dish.currency_code || 'INR',
+      sort_order: dish.sort_order,
+      is_active: dish.is_active,
     });
     setEditingDish(dish.id);
     setShowAddDishModal(true);
+    setErrorMessage('');
   };
+
+  // Loading state
+  if (packageLoading || sectionsLoading) {
+    return (
+      <div style={styles.container}>
+        <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <p style={{ color: '#64748b' }}>Loading package details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (!packageData) {
+    return (
+      <div style={styles.container}>
+        <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <p style={{ color: '#dc2626' }}>Package not found</p>
+          <button
+            onClick={() => router.back()}
+            style={{
+              marginTop: '16px',
+              padding: '10px 20px',
+              backgroundColor: '#2563eb',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: '600',
+            }}
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.container}>
       {/* Header */}
       <div style={styles.header}>
-        <button
-          onClick={() => router.back()}
-          style={styles.backButton}
-        >
+        <button onClick={() => router.back()} style={styles.backButton}>
           ← Back
         </button>
 
         <div style={styles.headerContent}>
           <h1 style={styles.packageTitle}>📦 {packageData.name}</h1>
           <p style={styles.packageMeta}>
-            {packageData.currency} {packageData.basePrice} per plate | Min Guests: {packageData.minGuests}
+            {packageData.currency_code} {packageData.base_price} {packageData.pricing_type} | Min
+            Guests: {packageData.min_guests}
           </p>
         </div>
 
         <div style={styles.headerActions}>
-          <button
-            onClick={() => router.push(`/caterer/packages/${packageId}/edit`)}
-            style={styles.buttonPrimary}
-          >
+          <button onClick={() => router.push(`/caterer/packages/${packageId}/edit`)} style={styles.buttonPrimary}>
             <PencilIcon style={{ width: '16px', height: '16px' }} />
             Edit Package
           </button>
         </div>
       </div>
 
+      {/* Error/Success Messages */}
+      {errorMessage && (
+        <div
+          style={{
+            padding: '12px 16px',
+            backgroundColor: '#fee2e2',
+            borderRadius: '8px',
+            border: '1px solid #fecaca',
+            color: '#7f1d1d',
+            marginBottom: '16px',
+            fontSize: '14px',
+          }}
+        >
+          {errorMessage}
+        </div>
+      )}
+
+      {successMessage && (
+        <div
+          style={{
+            padding: '12px 16px',
+            backgroundColor: '#d1fae5',
+            borderRadius: '8px',
+            border: '1px solid #a7f3d0',
+            color: '#065f46',
+            marginBottom: '16px',
+            fontSize: '14px',
+          }}
+        >
+          {successMessage}
+        </div>
+      )}
+
       {/* Main Content */}
       <div style={styles.mainContent}>
         {/* Add Category Button */}
         <div style={styles.addCategoryButtonContainer}>
-          <button
-            onClick={openAddCategoryModal}
-            style={styles.addCategoryButton}
-          >
+          <button onClick={openAddCategoryModal} style={styles.addCategoryButton}>
             <PlusIcon style={{ width: '18px', height: '18px' }} />
             Add Category
           </button>
@@ -323,8 +407,8 @@ export default function PackageDetailPage() {
 
         {/* Categories List */}
         <div style={styles.categoriesList}>
-          {categories.length > 0 ? (
-            categories.map((category) => (
+          {sections && sections.length > 0 ? (
+            sections.map((category) => (
               <div key={category.id} style={styles.categoryCard}>
                 {/* Category Header */}
                 <div style={styles.categoryHeader}>
@@ -357,6 +441,7 @@ export default function PackageDetailPage() {
                       onClick={() => handleDeleteCategory(category.id)}
                       style={styles.buttonIconDelete}
                       title="Delete"
+                      disabled={deleteSectionMutation.isPending}
                     >
                       <TrashIcon style={{ width: '16px', height: '16px' }} />
                     </button>
@@ -368,46 +453,67 @@ export default function PackageDetailPage() {
                   <div style={styles.categoryContent}>
                     {/* Dishes List */}
                     <div style={styles.dishesList}>
-                      {category.dishes.length > 0 ? (
-                        category.dishes.map((dish) => (
-                          <div key={dish.id} style={styles.dishItem}>
-                            <div style={styles.dishInfo}>
-                              <div style={styles.dishNameSection}>
-                                <p style={styles.dishName}>• {dish.name}</p>
-                                <div style={styles.dishMeta}>
-                                  <span style={styles.dishType}>
-                                    {dish.type === 'veg' ? '🥬' : '🍖'} {dish.type === 'veg' ? 'Veg' : 'Non-Veg'}
-                                  </span>
-                                  <span style={styles.dishSpice}>
-                                    {dish.spiceLevel === 'mild' && '🌶️'}
-                                    {dish.spiceLevel === 'medium' && '🌶️🌶️'}
-                                    {dish.spiceLevel === 'spicy' && '🌶️🌶️🌶️'} {dish.spiceLevel.charAt(0).toUpperCase() + dish.spiceLevel.slice(1)}
-                                  </span>
+                      {category.items && category.items.length > 0 ? (
+                        category.items
+                          .sort((a, b) => a.sort_order - b.sort_order)
+                          .map((dish) => (
+                            <div key={dish.id} style={styles.dishItem}>
+                              <div style={styles.dishInfo}>
+                                <div style={styles.dishNameSection}>
+                                  <p style={styles.dishName}>• {dish.name}</p>
+                                  <div style={styles.dishMeta}>
+                                    <span style={styles.dishType}>
+                                      {dish.is_veg ? '🥬' : '🍖'} {dish.is_veg ? 'Veg' : 'Non-Veg'}
+                                    </span>
+                                    <span style={styles.dishSpice}>
+                                      {dish.spice_level === 'mild' && '🌶️'}
+                                      {dish.spice_level === 'medium' && '🌶️🌶️'}
+                                      {dish.spice_level === 'spicy' && '🌶️🌶️🌶️'}{' '}
+                                      {dish.spice_level
+                                        ? dish.spice_level.charAt(0).toUpperCase() +
+                                          dish.spice_level.slice(1)
+                                        : 'Medium'}
+                                    </span>
+                                    {dish.pricing_type !== 'included' && dish.price && (
+                                      <span
+                                        style={{
+                                          backgroundColor: '#fef3c7',
+                                          color: '#92400e',
+                                          padding: '2px 6px',
+                                          borderRadius: '4px',
+                                          fontWeight: '600',
+                                          fontSize: '12px',
+                                        }}
+                                      >
+                                        +₹{dish.price}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
+                                {dish.description && (
+                                  <p style={styles.dishDescription}>{dish.description}</p>
+                                )}
                               </div>
-                              {dish.description && (
-                                <p style={styles.dishDescription}>{dish.description}</p>
-                              )}
-                            </div>
 
-                            <div style={styles.dishActions}>
-                              <button
-                                onClick={() => openEditDishModal(category.id, dish)}
-                                style={styles.buttonIcon}
-                                title="Edit"
-                              >
-                                <PencilIcon style={{ width: '16px', height: '16px' }} />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteDish(category.id, dish.id)}
-                                style={styles.buttonIconDelete}
-                                title="Delete"
-                              >
-                                <TrashIcon style={{ width: '16px', height: '16px' }} />
-                              </button>
+                              <div style={styles.dishActions}>
+                                <button
+                                  onClick={() => openEditDishModal(category.id, dish)}
+                                  style={styles.buttonIcon}
+                                  title="Edit"
+                                >
+                                  <PencilIcon style={{ width: '16px', height: '16px' }} />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteDish(dish.id)}
+                                  style={styles.buttonIconDelete}
+                                  title="Delete"
+                                  disabled={deleteItemMutation.isPending}
+                                >
+                                  <TrashIcon style={{ width: '16px', height: '16px' }} />
+                                </button>
+                              </div>
                             </div>
-                          </div>
-                        ))
+                          ))
                       ) : (
                         <p style={styles.emptyDishes}>No dishes added yet</p>
                       )}
@@ -460,10 +566,9 @@ export default function PackageDetailPage() {
                   type="text"
                   placeholder="e.g., Biryani & Rice"
                   value={categoryFormData.name}
-                  onChange={(e) =>
-                    setCategoryFormData({ ...categoryFormData, name: e.target.value })
-                  }
+                  onChange={(e) => setCategoryFormData({ ...categoryFormData, name: e.target.value })}
                   style={styles.input}
+                  disabled={createSectionMutation.isPending || updateSectionMutation.isPending}
                 />
               </div>
 
@@ -476,6 +581,7 @@ export default function PackageDetailPage() {
                     setCategoryFormData({ ...categoryFormData, description: e.target.value })
                   }
                   style={{ ...styles.input, minHeight: '80px', resize: 'vertical' }}
+                  disabled={createSectionMutation.isPending || updateSectionMutation.isPending}
                 />
               </div>
 
@@ -483,11 +589,12 @@ export default function PackageDetailPage() {
                 <label style={styles.label}>Sort Order</label>
                 <input
                   type="number"
-                  value={categoryFormData.sortOrder}
+                  value={categoryFormData.sort_order}
                   onChange={(e) =>
-                    setCategoryFormData({ ...categoryFormData, sortOrder: parseInt(e.target.value) })
+                    setCategoryFormData({ ...categoryFormData, sort_order: parseInt(e.target.value) })
                   }
                   style={styles.input}
+                  disabled={createSectionMutation.isPending || updateSectionMutation.isPending}
                 />
               </div>
 
@@ -495,11 +602,12 @@ export default function PackageDetailPage() {
                 <label style={styles.checkboxLabel}>
                   <input
                     type="checkbox"
-                    checked={categoryFormData.isActive}
+                    checked={categoryFormData.is_active}
                     onChange={(e) =>
-                      setCategoryFormData({ ...categoryFormData, isActive: e.target.checked })
+                      setCategoryFormData({ ...categoryFormData, is_active: e.target.checked })
                     }
                     style={styles.checkbox}
+                    disabled={createSectionMutation.isPending || updateSectionMutation.isPending}
                   />
                   <span>Active</span>
                 </label>
@@ -513,11 +621,20 @@ export default function PackageDetailPage() {
                   setEditingCategory(null);
                 }}
                 style={styles.buttonSecondary}
+                disabled={createSectionMutation.isPending || updateSectionMutation.isPending}
               >
                 Cancel
               </button>
-              <button onClick={handleSaveCategory} style={styles.buttonPrimary}>
-                {editingCategory ? 'Update' : 'Save'}
+              <button
+                onClick={handleSaveCategory}
+                style={styles.buttonPrimary}
+                disabled={createSectionMutation.isPending || updateSectionMutation.isPending}
+              >
+                {createSectionMutation.isPending || updateSectionMutation.isPending
+                  ? '⏳ Saving...'
+                  : editingCategory
+                  ? 'Update'
+                  : 'Save'}
               </button>
             </div>
           </div>
@@ -529,9 +646,7 @@ export default function PackageDetailPage() {
         <div style={styles.modalOverlay}>
           <div style={styles.modal}>
             <div style={styles.modalHeader}>
-              <h2 style={styles.modalTitle}>
-                {editingDish ? '✏️ Edit Dish' : '🥘 Add Dish'}
-              </h2>
+              <h2 style={styles.modalTitle}>{editingDish ? '✏️ Edit Dish' : '🥘 Add Dish'}</h2>
               <button
                 onClick={() => {
                   setShowAddDishModal(false);
@@ -551,10 +666,9 @@ export default function PackageDetailPage() {
                   type="text"
                   placeholder="e.g., Chicken Biryani"
                   value={dishFormData.name}
-                  onChange={(e) =>
-                    setDishFormData({ ...dishFormData, name: e.target.value })
-                  }
+                  onChange={(e) => setDishFormData({ ...dishFormData, name: e.target.value })}
                   style={styles.input}
+                  disabled={createItemMutation.isPending || updateItemMutation.isPending}
                 />
               </div>
 
@@ -567,31 +681,20 @@ export default function PackageDetailPage() {
                     setDishFormData({ ...dishFormData, description: e.target.value })
                   }
                   style={{ ...styles.input, minHeight: '80px', resize: 'vertical' }}
+                  disabled={createItemMutation.isPending || updateItemMutation.isPending}
                 />
               </div>
 
               <div style={styles.formGroup}>
-                <label style={styles.label}>Image</label>
-                <div style={styles.imageUploadBox}>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      if (e.target.files?.[0]) {
-                        setDishFormData({ ...dishFormData, image: e.target.files[0] });
-                      }
-                    }}
-                    style={styles.fileInput}
-                    id="dishImage"
-                  />
-                  <label htmlFor="dishImage" style={styles.uploadLabel}>
-                    <span style={styles.uploadIcon}>📸</span>
-                    <span style={styles.uploadText}>Click to upload</span>
-                    {dishFormData.image && (
-                      <span style={styles.uploadHint}>✓ {dishFormData.image.name}</span>
-                    )}
-                  </label>
-                </div>
+                <label style={styles.label}>Image URL</label>
+                <input
+                  type="url"
+                  placeholder="https://example.com/image.jpg"
+                  value={dishFormData.image_url}
+                  onChange={(e) => setDishFormData({ ...dishFormData, image_url: e.target.value })}
+                  style={styles.input}
+                  disabled={createItemMutation.isPending || updateItemMutation.isPending}
+                />
               </div>
 
               <div style={styles.formRow}>
@@ -602,12 +705,12 @@ export default function PackageDetailPage() {
                       <input
                         type="radio"
                         name="dishType"
-                        value="veg"
-                        checked={dishFormData.type === 'veg'}
-                        onChange={(e) =>
-                          setDishFormData({ ...dishFormData, type: e.target.value })
+                        checked={dishFormData.is_veg}
+                        onChange={() =>
+                          setDishFormData({ ...dishFormData, is_veg: true, is_vegan: false })
                         }
                         style={styles.radio}
+                        disabled={createItemMutation.isPending || updateItemMutation.isPending}
                       />
                       🥬 Veg
                     </label>
@@ -615,12 +718,10 @@ export default function PackageDetailPage() {
                       <input
                         type="radio"
                         name="dishType"
-                        value="non_veg"
-                        checked={dishFormData.type === 'non_veg'}
-                        onChange={(e) =>
-                          setDishFormData({ ...dishFormData, type: e.target.value })
-                        }
+                        checked={!dishFormData.is_veg}
+                        onChange={() => setDishFormData({ ...dishFormData, is_veg: false })}
                         style={styles.radio}
+                        disabled={createItemMutation.isPending || updateItemMutation.isPending}
                       />
                       🍖 Non-Veg
                     </label>
@@ -630,11 +731,15 @@ export default function PackageDetailPage() {
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Spice Level</label>
                   <select
-                    value={dishFormData.spiceLevel}
+                    value={dishFormData.spice_level}
                     onChange={(e) =>
-                      setDishFormData({ ...dishFormData, spiceLevel: e.target.value })
+                      setDishFormData({
+                        ...dishFormData,
+                        spice_level: e.target.value as 'mild' | 'medium' | 'spicy',
+                      })
                     }
                     style={styles.input}
+                    disabled={createItemMutation.isPending || updateItemMutation.isPending}
                   >
                     <option value="mild">🌶️ Mild</option>
                     <option value="medium">🌶️🌶️ Medium</option>
@@ -645,44 +750,100 @@ export default function PackageDetailPage() {
 
               <div style={styles.formRow}>
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Pricing</label>
-                  <select
-                    value={dishFormData.pricing}
-                    onChange={(e) =>
-                      setDishFormData({ ...dishFormData, pricing: e.target.value })
-                    }
-                    style={styles.input}
+                  <label style={styles.label}>Dietary Info</label>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px',
+                    }}
                   >
-                    <option value="included">Included</option>
-                    <option value="addon">Add-on</option>
-                  </select>
+                    <label style={styles.checkboxLabel}>
+                      <input
+                        type="checkbox"
+                        checked={dishFormData.is_vegan}
+                        onChange={(e) =>
+                          setDishFormData({ ...dishFormData, is_vegan: e.target.checked })
+                        }
+                        style={styles.checkbox}
+                        disabled={createItemMutation.isPending || updateItemMutation.isPending}
+                      />
+                      <span>Vegan</span>
+                    </label>
+                    <label style={styles.checkboxLabel}>
+                      <input
+                        type="checkbox"
+                        checked={dishFormData.is_gluten_free}
+                        onChange={(e) =>
+                          setDishFormData({ ...dishFormData, is_gluten_free: e.target.checked })
+                        }
+                        style={styles.checkbox}
+                        disabled={createItemMutation.isPending || updateItemMutation.isPending}
+                      />
+                      <span>Gluten Free</span>
+                    </label>
+                  </div>
                 </div>
 
-                {dishFormData.pricing === 'addon' && (
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Price</label>
-                    <input
-                      type="number"
-                      placeholder="0"
-                      value={dishFormData.price}
-                      onChange={(e) =>
-                        setDishFormData({ ...dishFormData, price: e.target.value })
-                      }
-                      style={styles.input}
-                    />
-                  </div>
-                )}
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Pricing Type</label>
+                  <select
+                    value={dishFormData.pricing_type}
+                    onChange={(e) =>
+                      setDishFormData({
+                        ...dishFormData,
+                        pricing_type: e.target.value as 'included' | 'extra' | 'on_request',
+                      })
+                    }
+                    style={styles.input}
+                    disabled={createItemMutation.isPending || updateItemMutation.isPending}
+                  >
+                    <option value="included">Included</option>
+                    <option value="extra">Extra Charge</option>
+                    <option value="on_request">On Request</option>
+                  </select>
+                </div>
+              </div>
+
+              {dishFormData.pricing_type === 'extra' && (
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Price</label>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={dishFormData.price}
+                    onChange={(e) => setDishFormData({ ...dishFormData, price: e.target.value })}
+                    style={styles.input}
+                    disabled={createItemMutation.isPending || updateItemMutation.isPending}
+                    step="0.01"
+                    min="0"
+                  />
+                </div>
+              )}
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Sort Order</label>
+                <input
+                  type="number"
+                  value={dishFormData.sort_order}
+                  onChange={(e) =>
+                    setDishFormData({ ...dishFormData, sort_order: parseInt(e.target.value) })
+                  }
+                  style={styles.input}
+                  disabled={createItemMutation.isPending || updateItemMutation.isPending}
+                />
               </div>
 
               <div style={styles.formGroup}>
                 <label style={styles.checkboxLabel}>
                   <input
                     type="checkbox"
-                    checked={dishFormData.isActive}
+                    checked={dishFormData.is_active}
                     onChange={(e) =>
-                      setDishFormData({ ...dishFormData, isActive: e.target.checked })
+                      setDishFormData({ ...dishFormData, is_active: e.target.checked })
                     }
                     style={styles.checkbox}
+                    disabled={createItemMutation.isPending || updateItemMutation.isPending}
                   />
                   <span>Active</span>
                 </label>
@@ -697,11 +858,20 @@ export default function PackageDetailPage() {
                   setSelectedCategoryForDish(null);
                 }}
                 style={styles.buttonSecondary}
+                disabled={createItemMutation.isPending || updateItemMutation.isPending}
               >
                 Cancel
               </button>
-              <button onClick={handleSaveDish} style={styles.buttonPrimary}>
-                {editingDish ? 'Update' : 'Save'}
+              <button
+                onClick={handleSaveDish}
+                style={styles.buttonPrimary}
+                disabled={createItemMutation.isPending || updateItemMutation.isPending}
+              >
+                {createItemMutation.isPending || updateItemMutation.isPending
+                  ? '⏳ Saving...'
+                  : editingDish
+                  ? 'Update'
+                  : 'Save'}
               </button>
             </div>
           </div>
@@ -711,7 +881,7 @@ export default function PackageDetailPage() {
   );
 }
 
-// Styles
+// Styles (unchanged)
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
     padding: '24px',
@@ -919,6 +1089,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     gap: '12px',
     fontSize: '12px',
+    flexWrap: 'wrap' as const,
   },
   dishType: {
     backgroundColor: '#dbeafe',
@@ -1067,37 +1238,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
     gap: '12px',
-  },
-  imageUploadBox: {
-    borderRadius: '8px',
-    border: '2px dashed #cbd5e1',
-    padding: '20px',
-    backgroundColor: '#f8fafc',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-  },
-  fileInput: {
-    display: 'none',
-  },
-  uploadLabel: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    alignItems: 'center',
-    gap: '6px',
-    cursor: 'pointer',
-  },
-  uploadIcon: {
-    fontSize: '28px',
-  },
-  uploadText: {
-    fontSize: '13px',
-    fontWeight: '600',
-    color: '#1e293b',
-  },
-  uploadHint: {
-    fontSize: '11px',
-    color: '#10b981',
-    display: 'block',
   },
   radioGroup: {
     display: 'flex',
