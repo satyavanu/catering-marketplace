@@ -524,6 +524,16 @@ export const authOptions: NextAuthOptions = {
           const userPermissions =
             userData.permissions || rolePermissions[userRole] || [];
 
+            const termsAccepted = userData.terms_accepted ?? false;
+    const privacyAccepted = userData.privacy_accepted ?? false;
+    const marketingEmail = userData.marketing_email ?? false;
+    const marketingSms = userData.marketing_sms ?? false;
+    const marketingPush = userData.marketing_push ?? false;
+    const marketingWhatsapp = userData.marketing_whatsapp ?? false;
+    const consentsProvided = userData.consents_provided ?? false;
+
+  
+
           return {
             id: userData.user_id || `phone-${Date.now()}`,
             email: userData.email || '',
@@ -544,6 +554,14 @@ export const authOptions: NextAuthOptions = {
             accessToken: userData.access_token || '',
             refreshToken: userData.refresh_token || '',
             tokenExpiresIn: userData.expires_in || 3600,
+            // ✅ Include consents in the returned user object
+            termsAccepted,
+            privacyAccepted,
+            marketingEmail,
+            marketingSms,
+            marketingPush,
+            marketingWhatsapp,
+            consentsProvided, 
           };
         } catch (error: any) {
           console.error('Phone OTP authorization error:', error);
@@ -587,6 +605,15 @@ export const authOptions: NextAuthOptions = {
         session.user.tokenExpiresAt = token.tokenExpiresAt || Date.now() + (token.tokenExpiresIn || 3600) * 1000;
         session.user.tokenType = token.tokenType || 'Bearer';
         session.user.error = token.error || null;
+
+        session.user.termsAccepted = token.termsAccepted ?? false;
+        session.user.privacyAccepted = token.privacyAccepted ?? false;
+        session.user.marketingEmail = token.marketingEmail ?? false;
+        session.user.marketingSms = token.marketingSms ?? false;
+        session.user.marketingPush = token.marketingPush ?? false;
+        session.user.marketingWhatsapp = token.marketingWhatsapp ?? false;
+        session.user.consentsProvided = token.consentsProvided ?? false;
+    
 
         // Role-based convenience flags
         session.user.isAdmin = token.role === 'admin';
@@ -680,6 +707,15 @@ export const authOptions: NextAuthOptions = {
         token.tokenExpiresIn = user.tokenExpiresIn || 3600;
         token.tokenExpiresAt = Date.now() + ((user.tokenExpiresIn || 3600) * 1000);
         token.tokenType = user.tokenType || 'Bearer';
+
+
+        token.termsAccepted = user.termsAccepted ?? false;
+        token.privacyAccepted = user.privacyAccepted ?? false;
+        token.marketingEmail = user.marketingEmail ?? false;
+        token.marketingSms = user.marketingSms ?? false;
+        token.marketingPush = user.marketingPush ?? false;
+        token.marketingWhatsapp = user.marketingWhatsapp ?? false;
+        token.consentsProvided = user.consentsProvided ?? false;
 
         token.isOnboardingCompleted =
           user.isOnboardingCompleted || token.onboarding?.status === 'completed';
