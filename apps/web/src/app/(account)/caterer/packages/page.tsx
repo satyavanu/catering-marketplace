@@ -20,7 +20,8 @@ export default function PackagesPage() {
   const deleteMutation = useDeleteCollection();
 
   // UI state only
-  const [activeTab, setActiveTab] = useState<'all' | 'add-package' | 'bulk'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'add-package' | 'bulk' | 'simple-menu'>('all');
+  const [menuType, setMenuType] = useState<'catering' | 'simple'>('catering');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'newest' | 'price' | 'name'>('newest');
@@ -38,14 +39,18 @@ export default function PackagesPage() {
     min_guests: '50',
     max_guests: '500',
     is_active: true,
+    menu_type: 'catering' as 'catering' | 'simple',
   });
 
   // Filtered & sorted packages
   const filtered = collections
-    .filter((p) =>
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.description?.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    .filter((p) => {
+      const typeMatch = menuType === 'catering' ? !p.menu_type || p.menu_type === 'catering' : p.menu_type === 'simple';
+      return typeMatch && (
+        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    })
     .sort((a, b) => {
       if (sortBy === 'price') return a.base_price - b.base_price;
       if (sortBy === 'name') return a.name.localeCompare(b.name);
@@ -53,18 +58,20 @@ export default function PackagesPage() {
     });
 
   // ============ HANDLERS ============
-  const handleCreate = () => {
+  const handleCreate = (type: 'catering' | 'simple') => {
+    setMenuType(type);
     setEditingId(null);
     setForm({
       name: '',
       description: '',
       image_url: '',
-      pricing_type: 'per_plate',
-      base_price: '350',
+      pricing_type: type === 'simple' ? 'fixed' : 'per_plate',
+      base_price: type === 'simple' ? '0' : '350',
       currency_code: 'INR',
-      min_guests: '50',
-      max_guests: '500',
+      min_guests: type === 'simple' ? '1' : '50',
+      max_guests: type === 'simple' ? '999' : '500',
       is_active: true,
+      menu_type: type,
     });
     setFormError('');
     setFormSuccess('');
@@ -72,6 +79,7 @@ export default function PackagesPage() {
   };
 
   const handleEdit = (pkg: MenuCollection) => {
+    setMenuType(pkg.menu_type === 'simple' ? 'simple' : 'catering');
     setEditingId(pkg.id);
     setForm({
       name: pkg.name,
@@ -83,6 +91,7 @@ export default function PackagesPage() {
       min_guests: pkg.min_guests.toString(),
       max_guests: pkg.max_guests.toString(),
       is_active: pkg.is_active,
+      menu_type: pkg.menu_type === 'simple' ? 'simple' : 'catering',
     });
     setFormError('');
     setFormSuccess('');
@@ -95,12 +104,12 @@ export default function PackagesPage() {
 
     // Validation
     if (!form.name.trim()) {
-      setFormError('Package name is required');
+      setFormError('Name is required');
       return;
     }
 
     if (!form.base_price || isNaN(parseFloat(form.base_price))) {
-      setFormError('Valid base price is required');
+      setFormError('Valid price is required');
       return;
     }
 
@@ -119,6 +128,7 @@ export default function PackagesPage() {
         currency_code: form.currency_code,
         min_guests: parseInt(form.min_guests),
         max_guests: parseInt(form.max_guests),
+        menu_type: form.menu_type,
       };
 
       if (editingId) {
@@ -126,82 +136,146 @@ export default function PackagesPage() {
           id: editingId,
           data: { ...payload, is_active: form.is_active },
         });
-        setFormSuccess('Package updated successfully!');
+        setFormSuccess(`${form.menu_type === 'simple' ? 'Simple Menu' : 'Package'} updated successfully!`);
       } else {
         await createMutation.mutateAsync(payload);
-        setFormSuccess('Package created successfully!');
+        setFormSuccess(`${form.menu_type === 'simple' ? 'Simple Menu' : 'Package'} created successfully!`);
       }
 
       setTimeout(() => {
         setActiveTab('all');
+        setMenuType('catering');
         setEditingId(null);
       }, 1500);
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Failed to save package');
+      setFormError(err instanceof Error ? err.message : 'Failed to save');
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this package?')) return;
+    if (!window.confirm('Are you sure you want to delete this?')) return;
 
     try {
       await deleteMutation.mutateAsync(id);
-      setFormSuccess('Package deleted successfully!');
+      setFormSuccess('Deleted successfully!');
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Failed to delete package');
+      setFormError(err instanceof Error ? err.message : 'Failed to delete');
     }
   };
 
-  const handleView = (id: string) => {
-    router.push(`/caterer/packages/${id}`);
+  const handleView = (id: string, type: string) => {
+    if (type === 'simple') {
+      router.push(`/caterer/menus/${id}`);
+    } else {
+      router.push(`/caterer/packages/${id}`);
+    }
   };
 
-  // ============ EMPTY STATE ============
-  if (!isLoading && collections.length === 0 && activeTab === 'all') {
-    return (
-      <div style={styles.container}>
-        <div style={styles.emptyStateContainer}>
-          <div style={styles.emptyStateContent}>
-            <h1 style={styles.emptyStateTitle}>🍽️ Create Your First Catering Package</h1>
-            <p style={styles.emptyStateSubtitle}>
-              Showcase your catering offerings to attract customers.
-            </p>
+ // ============ EMPTY STATE ============
+ if (!isLoading && collections.length === 0 && activeTab === 'all') {
+  return (
+    <div style={styles.container}>
+      <div style={styles.emptyStateContainer}>
+        <div style={styles.emptyStateContent}>
+          <h1 style={styles.emptyStateTitle}>🍽️ Create Your First Offering</h1>
+          <p style={styles.emptyStateSubtitle}>
+            Showcase your catering offerings to attract customers. Choose how you want to get started.
+          </p>
 
-            <div style={styles.optionsContainer}>
-              <div style={styles.optionCard}>
-                <div style={styles.optionIcon}>📦</div>
-                <h3 style={styles.optionTitle}>Create Catering Packages</h3>
-                <p style={styles.optionDescription}>
-                  Perfect for complete meal offerings with flexible pricing options. Great for weddings, corporate events, and celebrations.
-                </p>
-                <div style={styles.optionDetails}>
-                  <p style={styles.detailTitle}>What you can do:</p>
-                  <ul style={styles.detailList}>
-                    <li>Set pricing type (per plate, per person, fixed, or on request)</li>
-                    <li>Define guest range (minimum & maximum)</li>
-                    <li>Add multiple dish categories to each package</li>
-                    <li>Include descriptions and images</li>
-                  </ul>
-                </div>
-                <p style={styles.optionExample}>
-                  <strong>Example:</strong> "Wedding Gold Package" - ₹500/plate for 100-500 guests
-                </p>
+          <div style={styles.optionsContainer}>
+            <div style={styles.optionCard}>
+              <div style={styles.optionIcon}>📦</div>
+              <h3 style={styles.optionTitle}>Create Catering Packages</h3>
+              <p style={styles.optionDescription}>
+                Perfect for complete meal offerings with flexible pricing options. Great for weddings, corporate events, and celebrations.
+              </p>
+              <div style={styles.optionDetails}>
+                <p style={styles.detailTitle}>What you can do:</p>
+                <ul style={styles.detailList}>
+                  <li>Set pricing type (per plate, per person, fixed, or on request)</li>
+                  <li>Define guest range (minimum & maximum)</li>
+                  <li>Add multiple dish categories to each package</li>
+                  <li>Include descriptions and images</li>
+                </ul>
               </div>
+              <p style={styles.optionExample}>
+                <strong>Example:</strong> "Wedding Gold Package" - ₹500/plate for 100-500 guests
+              </p>
+              <button 
+                onClick={() => handleCreate('catering')}
+                style={styles.optionButton}
+              >
+                ➕ Create Package
+              </button>
             </div>
 
-            <div style={styles.actionButtonsContainer}>
-              <button onClick={handleCreate} style={styles.buttonCreatePackage}>
-                ➕ Create First Package
+            <div style={styles.optionCard}>
+              <div style={styles.optionIcon}>📋</div>
+              <h3 style={styles.optionTitle}>Simple Menu</h3>
+              <p style={styles.optionDescription}>
+                Quick and easy way to showcase your dishes without complex pricing structures. Perfect for restaurants and cloud kitchens.
+              </p>
+              <div style={styles.optionDetails}>
+                <p style={styles.detailTitle}>What you can do:</p>
+                <ul style={styles.detailList}>
+                  <li>Create a basic menu with dish categories</li>
+                  <li>Set fixed or flexible pricing</li>
+                  <li>Add dietary information (Veg, Vegan, Gluten-free)</li>
+                  <li>Include spice levels and descriptions</li>
+                </ul>
+              </div>
+              <p style={styles.optionExample}>
+                <strong>Example:</strong> Create "North Indian" or "Chinese" categories with dishes
+              </p>
+              <button 
+                onClick={() => handleCreate('simple')}
+                style={styles.optionButton}
+              >
+                📋 Create Simple Menu
+              </button>
+            </div>
+
+            <div style={styles.optionCard}>
+              <div style={styles.optionIcon}>📤</div>
+              <h3 style={styles.optionTitle}>Bulk Upload</h3>
+              <p style={styles.optionDescription}>
+                Import multiple packages and dishes at once using CSV/Excel. Fastest way to get your entire menu online.
+              </p>
+              <div style={styles.optionDetails}>
+                <p style={styles.detailTitle}>What you can do:</p>
+                <ul style={styles.detailList}>
+                  <li>Upload CSV/Excel file with package details</li>
+                  <li>Add multiple dishes in bulk</li>
+                  <li>Auto-categorize and organize items</li>
+                  <li>Update existing packages quickly</li>
+                </ul>
+              </div>
+              <p style={styles.optionExample}>
+                <strong>Example:</strong> Upload 50+ dishes with pricing in one go
+              </p>
+              <button 
+                style={styles.optionButtonBulk}
+                title="Upload CSV file with your packages"
+              >
+                📤 Bulk Upload
               </button>
             </div>
           </div>
+
+          <div style={styles.actionButtonsContainer}>
+            <button onClick={() => handleCreate('catering')} style={styles.buttonCreatePackage}>
+              ➕ Create First Package
+            </button>
+          </div>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
   // ============ ADD/EDIT PACKAGE ============
   if (activeTab === 'add-package') {
+    const isSimpleMenu = form.menu_type === 'simple';
     return (
       <div style={styles.container}>
         <div style={styles.header}>
@@ -210,12 +284,12 @@ export default function PackagesPage() {
           </button>
           <div>
             <h1 style={styles.title}>
-              {editingId ? '✏️ Edit Package' : '📦 Add New Package'}
+              {editingId ? `✏️ Edit ${isSimpleMenu ? 'Menu' : 'Package'}` : `📦 Add New ${isSimpleMenu ? 'Menu' : 'Package'}`}
             </h1>
             <p style={styles.subtitle}>
               {editingId
-                ? 'Update your package details'
-                : 'Create a new catering package with pricing and guest limits'}
+                ? `Update your ${isSimpleMenu ? 'menu' : 'package'} details`
+                : `Create a new ${isSimpleMenu ? 'simple menu' : 'catering package'}`}
             </p>
           </div>
         </div>
@@ -232,28 +306,28 @@ export default function PackagesPage() {
               </div>
 
               <div style={styles.formGroup}>
-                <label style={styles.label}>Package Name *</label>
+                <label style={styles.label}>{isSimpleMenu ? 'Menu' : 'Package'} Name *</label>
                 <input
                   type="text"
-                  placeholder="e.g., Special Hyderabadi Biryani, Wedding Gold Package"
+                  placeholder={isSimpleMenu ? "e.g., North Indian Menu" : "e.g., Wedding Gold Package"}
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   style={styles.input}
                   disabled={createMutation.isPending || updateMutation.isPending}
                 />
-                <p style={styles.helperText}>Give your package a catchy name that describes the offering</p>
+                <p style={styles.helperText}>Give your {isSimpleMenu ? 'menu' : 'package'} a catchy name</p>
               </div>
 
               <div style={styles.formGroup}>
                 <label style={styles.label}>Description</label>
                 <textarea
-                  placeholder="e.g., Includes biryani, raita, salad, dessert, and beverages. Perfect for celebrations and events."
+                  placeholder={isSimpleMenu ? "e.g., Authentic North Indian dishes including biryani, tandoori..." : "e.g., Includes biryani, raita, salad, dessert, and beverages..."}
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   style={{ ...styles.input, minHeight: '100px', resize: 'vertical' }}
                   disabled={createMutation.isPending || updateMutation.isPending}
                 />
-                <p style={styles.helperText}>Describe what's included in this package</p>
+                <p style={styles.helperText}>Describe what's included</p>
               </div>
 
               <div style={styles.formGroup}>
@@ -266,7 +340,7 @@ export default function PackagesPage() {
                   style={styles.input}
                   disabled={createMutation.isPending || updateMutation.isPending}
                 />
-                <p style={styles.helperText}>Link to an image that represents this package</p>
+                <p style={styles.helperText}>Link to an image representing this {isSimpleMenu ? 'menu' : 'package'}</p>
               </div>
             </div>
 
@@ -310,7 +384,7 @@ export default function PackagesPage() {
                     <option value="fixed">Fixed Price</option>
                     <option value="on_request">On Request</option>
                   </select>
-                  <p style={styles.helperText}>How you charge for this package</p>
+                  <p style={styles.helperText}>How you charge</p>
                 </div>
 
                 <div style={styles.formGroup}>
@@ -331,37 +405,37 @@ export default function PackagesPage() {
 
             <div style={styles.formSection}>
               <div style={styles.sectionHeader}>
-                <h3 style={styles.sectionSubtitle}>Guest Requirements</h3>
+                <h3 style={styles.sectionSubtitle}>{isSimpleMenu ? 'Menu Capacity' : 'Guest Requirements'}</h3>
                 <span style={styles.helpIcon}>👥</span>
               </div>
 
               <div style={styles.guestGrid}>
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Minimum Guests *</label>
+                  <label style={styles.label}>{isSimpleMenu ? 'Min' : 'Minimum'} {isSimpleMenu ? 'Orders' : 'Guests'} *</label>
                   <input
                     type="number"
-                    placeholder="50"
+                    placeholder={isSimpleMenu ? "1" : "50"}
                     value={form.min_guests}
                     onChange={(e) => setForm({ ...form, min_guests: e.target.value })}
                     style={styles.input}
                     disabled={createMutation.isPending || updateMutation.isPending}
                     min="1"
                   />
-                  <p style={styles.helperText}>Minimum guests required for this package</p>
+                  <p style={styles.helperText}>Minimum {isSimpleMenu ? 'orders' : 'guests'} required</p>
                 </div>
 
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Maximum Guests *</label>
+                  <label style={styles.label}>{isSimpleMenu ? 'Max' : 'Maximum'} {isSimpleMenu ? 'Orders' : 'Guests'} *</label>
                   <input
                     type="number"
-                    placeholder="500"
+                    placeholder={isSimpleMenu ? "999" : "500"}
                     value={form.max_guests}
                     onChange={(e) => setForm({ ...form, max_guests: e.target.value })}
                     style={styles.input}
                     disabled={createMutation.isPending || updateMutation.isPending}
                     min="1"
                   />
-                  <p style={styles.helperText}>Maximum guests this package can serve</p>
+                  <p style={styles.helperText}>Maximum {isSimpleMenu ? 'orders' : 'guests'} this can serve</p>
                 </div>
               </div>
             </div>
@@ -381,10 +455,10 @@ export default function PackagesPage() {
                     style={{ marginRight: '8px', width: '18px', height: '18px', cursor: 'pointer' }}
                     disabled={createMutation.isPending || updateMutation.isPending}
                   />
-                  Active Package
+                  Active
                 </label>
                 <p style={styles.helperText}>
-                  Active packages are visible to customers. Inactive packages are hidden.
+                  Active {isSimpleMenu ? 'menus' : 'packages'} are visible to customers.
                 </p>
               </div>
             </div>
@@ -405,8 +479,8 @@ export default function PackagesPage() {
                 {createMutation.isPending || updateMutation.isPending
                   ? '⏳ Saving...'
                   : editingId
-                  ? 'Update Package'
-                  : 'Create Package'}
+                  ? `Update ${isSimpleMenu ? 'Menu' : 'Package'}`
+                  : `Create ${isSimpleMenu ? 'Menu' : 'Package'}`}
               </button>
             </div>
           </div>
@@ -420,8 +494,8 @@ export default function PackagesPage() {
     <div style={styles.container}>
       <div style={styles.header}>
         <div>
-          <h1 style={styles.title}>🍽️ Package Management</h1>
-          <p style={styles.subtitle}>Manage your catering packages</p>
+          <h1 style={styles.title}>🍽️ Menu Management</h1>
+          <p style={styles.subtitle}>Manage your catering packages and menus</p>
         </div>
       </div>
 
@@ -429,7 +503,7 @@ export default function PackagesPage() {
         <div style={styles.searchAndSort}>
           <input
             type="text"
-            placeholder="Search packages..."
+            placeholder="Search..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={styles.searchInput}
@@ -447,8 +521,17 @@ export default function PackagesPage() {
         </div>
 
         <div style={styles.actionButtons}>
-          <button onClick={handleCreate} style={styles.buttonPrimary}>
-            ➕ Create Package
+          <button 
+            onClick={() => handleCreate('catering')} 
+            style={{...styles.buttonPrimary, backgroundColor: menuType === 'catering' ? '#2563eb' : '#94a3b8'}}
+          >
+            ➕ Package
+          </button>
+          <button 
+            onClick={() => handleCreate('simple')} 
+            style={{...styles.buttonPrimary, backgroundColor: menuType === 'simple' ? '#7c3aed' : '#94a3b8'}}
+          >
+            ➕ Menu
           </button>
         </div>
       </div>
@@ -456,75 +539,100 @@ export default function PackagesPage() {
       {formSuccess && <div style={styles.alertSuccess}><p>{formSuccess}</p></div>}
       {formError && <div style={styles.alertError}><p>{formError}</p></div>}
 
+      <div style={styles.tabContainer}>
+        <button
+          onClick={() => setMenuType('catering')}
+          style={{
+            ...styles.tabButton,
+            borderBottom: menuType === 'catering' ? '3px solid #2563eb' : '3px solid transparent',
+            color: menuType === 'catering' ? '#2563eb' : '#64748b',
+          }}
+        >
+          📦 Catering Packages
+        </button>
+        <button
+          onClick={() => setMenuType('simple')}
+          style={{
+            ...styles.tabButton,
+            borderBottom: menuType === 'simple' ? '3px solid #7c3aed' : '3px solid transparent',
+            color: menuType === 'simple' ? '#7c3aed' : '#64748b',
+          }}
+        >
+          📋 Simple Menus
+        </button>
+      </div>
+
       <div style={styles.section}>
         {isLoading ? (
           <div style={styles.loadingState}>
-            <p>Loading packages...</p>
+            <p>Loading...</p>
           </div>
         ) : error ? (
           <div style={styles.errorState}>
-            <p>❌ Error loading packages</p>
+            <p>❌ Error loading data</p>
             <p style={{ fontSize: '14px', color: '#64748b' }}>
               {error instanceof Error ? error.message : 'An error occurred'}
             </p>
           </div>
         ) : filtered.length > 0 ? (
           <>
-            <h2 style={styles.sectionTitle}>📦 Packages ({filtered.length})</h2>
+            <h2 style={styles.sectionTitle}>
+              {menuType === 'catering' ? '📦 Catering Packages' : '📋 Simple Menus'} ({filtered.length})
+            </h2>
             <div style={styles.grid}>
-              {filtered.map((pkg) => (
-                <div key={pkg.id} style={styles.card}>
-                  {pkg.image_url && (
+              {filtered.map((item) => (
+                <div key={item.id} style={styles.card}>
+                  {item.image_url && (
                     <div
                       style={{
                         ...styles.cardImage,
-                        backgroundImage: `url(${pkg.image_url})`,
+                        backgroundImage: `url(${item.image_url})`,
                       }}
                     />
                   )}
                   <div style={styles.cardContent}>
-                    <h3 style={styles.cardTitle}>{pkg.name}</h3>
-                    {pkg.description && (
-                      <p style={styles.cardDesc}>{pkg.description}</p>
+                    <h3 style={styles.cardTitle}>{item.name}</h3>
+                    {item.description && (
+                      <p style={styles.cardDesc}>{item.description}</p>
                     )}
                     <div style={styles.cardMeta}>
                       <span style={styles.metaBadge}>
-                        {pkg.pricing_type === 'per_plate'
-                          ? `₹${pkg.base_price}/plate`
-                          : pkg.pricing_type === 'per_person'
-                          ? `₹${pkg.base_price}/person`
-                          : pkg.pricing_type === 'fixed'
-                          ? `₹${pkg.base_price} fixed`
+                        {item.pricing_type === 'per_plate'
+                          ? `₹${item.base_price}/plate`
+                          : item.pricing_type === 'per_person'
+                          ? `₹${item.base_price}/person`
+                          : item.pricing_type === 'fixed'
+                          ? `₹${item.base_price} fixed`
                           : 'On Request'}
                       </span>
                       <span style={styles.metaBadge}>
-                        {pkg.min_guests}-{pkg.max_guests} guests
+                        {item.min_guests}-{item.max_guests}
                       </span>
                       <span
                         style={{
                           ...styles.metaBadge,
-                          backgroundColor: pkg.is_active ? '#d1fae5' : '#fee2e2',
-                          color: pkg.is_active ? '#065f46' : '#7f1d1d',
+                          backgroundColor: item.is_active ? '#d1fae5' : '#fee2e2',
+                          color: item.is_active ? '#065f46' : '#7f1d1d',
                         }}
                       >
-                        {pkg.is_active ? '🟢 Active' : '🔴 Inactive'}
+                        {item.is_active ? '🟢 Active' : '🔴 Inactive'}
                       </span>
                     </div>
                     <div style={styles.cardActions}>
                       <button
-                        onClick={() => handleView(pkg.id)}
+                        onClick={() => handleView(item.id, item.menu_type || 'catering')}
                         style={styles.btnSmall}
                       >
                         👁️ View
                       </button>
                       <button
-                        onClick={() => handleEdit(pkg)}
+                        onClick={() => handleEdit(item)}
                         style={styles.btnSmall}
                       >
                         ✏️ Edit
                       </button>
                       <button
-                        onClick={() => handleDelete(pkg.id)}
+                        onClick={() => handleDelete(item.id)}
                         style={styles.btnSmallDanger}
                         disabled={deleteMutation.isPending}
                       >
@@ -538,9 +646,12 @@ export default function PackagesPage() {
           </>
         ) : (
           <div style={styles.emptyState}>
-            <p>No packages found</p>
-            <button onClick={handleCreate} style={styles.buttonPrimary}>
-              Create First Package
+            <p>No {menuType === 'simple' ? 'menus' : 'packages'} found</p>
+            <button 
+              onClick={() => handleCreate(menuType)} 
+              style={styles.buttonPrimary}
+            >
+              Create {menuType === 'simple' ? 'Menu' : 'Package'}
             </button>
           </div>
         )}
@@ -745,6 +856,21 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     gap: '12px',
   },
+  tabContainer: {
+    display: 'flex',
+    gap: '12px',
+    borderBottom: '1px solid #e2e8f0',
+    marginBottom: '24px',
+  },
+  tabButton: {
+    padding: '12px 24px',
+    backgroundColor: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+    fontWeight: '600',
+    fontSize: '14px',
+    transition: 'all 0.2s ease',
+  },
   section: {
     display: 'flex',
     flexDirection: 'column' as const,
@@ -927,5 +1053,31 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: 'pointer',
     fontWeight: '600',
     fontSize: '14px',
+  },
+  optionButton: {
+    width: '100%',
+    padding: '10px 16px',
+    borderRadius: '8px',
+    backgroundColor: '#2563eb',
+    color: 'white',
+    border: 'none',
+    cursor: 'pointer',
+    fontWeight: '600',
+    fontSize: '14px',
+    marginTop: '12px',
+    transition: 'all 0.2s ease',
+  },
+  optionButtonBulk: {
+    width: '100%',
+    padding: '10px 16px',
+    borderRadius: '8px',
+    backgroundColor: '#7c3aed',
+    color: 'white',
+    border: 'none',
+    cursor: 'pointer',
+    fontWeight: '600',
+    fontSize: '14px',
+    marginTop: '12px',
+    transition: 'all 0.2s ease',
   },
 };
