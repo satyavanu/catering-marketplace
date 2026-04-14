@@ -13,7 +13,7 @@ export * from './queries/reviews';
 export * from './queries/categories';
 export * from './queries/menu-items';
 export * from './api/auth';
-
+export * from "./queries/profile";
 // Mutation Hooks
 export * from './mutations/newsletter';
 

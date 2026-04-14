@@ -62,7 +62,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 /**
  * Get authorization headers with access token
  */
-async function getAuthHeaders(includeContentType: boolean = true): Promise<HeadersInit> {
+export async function getAuthHeaders(includeContentType: boolean = true): Promise<HeadersInit> {
   const session = await getSession();
   const headers = new Headers();
 

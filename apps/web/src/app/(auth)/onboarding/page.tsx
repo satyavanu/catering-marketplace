@@ -20,6 +20,7 @@ import {
   AlertCircle,
   Utensils,
 } from 'lucide-react';
+import { TermsAndCommunications } from './components/TermsAndCommunications';
 
 type UserRole = 'customer' | 'caterer';
 type OnboardingStep =
@@ -128,6 +129,12 @@ export default function OnboardingPage() {
   const [serviceRadius, setServiceRadius] =
     useState<ServiceRadius>('city-wide');
   const [serviceRadius_km, setServiceRadius_km] = useState('');
+
+  const [agreeTerms, setAgreeTerms] = useState(false);
+  const [agreePrivacy, setAgreePrivacy] = useState(false);
+  const [emailMarketing, setEmailMarketing] = useState(false);
+  const [smsMarketing, setSmsMarketing] = useState(false);
+  const [pushNotifications, setPushNotifications] = useState(false);
 
   // Track if initial redirect check has been done
   const initialRedirectChecked = useRef(false);
@@ -303,6 +310,13 @@ export default function OnboardingPage() {
   }, [session, status, mounted, isRedirecting, router]);
 
   const handleRoleSelect = (role: UserRole) => {
+    if (!agreeTerms || !agreePrivacy) {
+      setError(
+        'Please accept Terms & Conditions and Privacy Policy to continue'
+      );
+      return;
+    }
+
     setSelectedRole(role);
     setFullName(session?.user?.name || '');
     // Move to phone verification step
@@ -374,9 +388,9 @@ export default function OnboardingPage() {
         otp,
       });
 
-      console.log("Satya", result)
+      console.log('Satya', result);
 
-      if (!result.success || !(result?.data?.phone_verified)) {
+      if (!result.success || !result?.data?.phone_verified) {
         setError(result.message || 'Invalid OTP. Please try again.');
         setIsLoading(false);
         return;
@@ -672,7 +686,10 @@ export default function OnboardingPage() {
   }
 
   // Step 1: Role Selection with Phone Verification
-  if (onboardingStep === 'role-select' || onboardingStep === 'phone-verification') {
+  if (
+    onboardingStep === 'role-select' ||
+    onboardingStep === 'phone-verification'
+  ) {
     return (
       <div style={styles.container}>
         <style>{`
@@ -705,99 +722,7 @@ export default function OnboardingPage() {
                 </p>
               </div>
 
-              <div style={styles.userInfoBox}>
-                <h3 style={styles.userInfoTitle}>Your Account</h3>
-                <div style={styles.userInfoGrid}>
-                  <div style={styles.userInfoItem}>
-                    <Mail size={18} color="#667eea" />
-                    <div>
-                      <p style={styles.userInfoLabel}>Email</p>
-                      <p style={styles.userInfoValue}>{session.user.email}</p>
-                    </div>
-                  </div>
-
-                  <div style={styles.userInfoItem}>
-                    <Users size={18} color="#f59e0b" />
-                    <div>
-                      <p style={styles.userInfoLabel}>Name</p>
-                      <p style={styles.userInfoValue}>
-                        {session.user.name || 'Not set'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div style={styles.rolesContainer}>
-                <div
-                  onClick={() => handleRoleSelect('customer')}
-                  style={{
-                    ...styles.roleCard,
-                    borderColor: '#667eea',
-                    backgroundColor: '#f0f4ff',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.boxShadow =
-                      '0 8px 24px rgba(102, 126, 234, 0.2)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                >
-                  <div style={styles.roleIconContainer}>
-                    <Users
-                      size={48}
-                      color="#667eea"
-                      strokeWidth={1.5}
-                    />
-                  </div>
-                  <h3 style={styles.roleTitle}>Order Catering</h3>
-                  <p style={styles.roleDescription}>
-                    Browse and book catering services from top caterers in your area
-                  </p>
-                  <ul style={styles.roleFeatures}>
-                    <li>✓ Browse catering menus</li>
-                    <li>✓ Book events easily</li>
-                    <li>✓ Track orders</li>
-                    <li>✓ Leave reviews</li>
-                  </ul>
-                </div>
-
-                <div
-                  onClick={() => handleRoleSelect('caterer')}
-                  style={{
-                    ...styles.roleCard,
-                    borderColor: '#f97316',
-                    backgroundColor: '#fff7ed',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.boxShadow =
-                      '0 8px 24px rgba(249, 115, 22, 0.2)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                >
-                  <div style={styles.roleIconContainer}>
-                    <ChefHat
-                      size={48}
-                      color="#f97316"
-                      strokeWidth={1.5}
-                    />
-                  </div>
-                  <h3 style={styles.roleTitle}>Become a Caterer</h3>
-                  <p style={styles.roleDescription}>
-                    List your catering business and reach customers across the
-                    platform
-                  </p>
-                  <ul style={styles.roleFeatures}>
-                    <li>✓ Create business profile</li>
-                    <li>✓ Manage menus & pricing</li>
-                    <li>✓ Receive bookings</li>
-                    <li>✓ Grow your business</li>
-                  </ul>
-                </div>
-              </div>
+              <TermsAndCommunications/>
             </>
           ) : (
             <>
@@ -906,7 +831,8 @@ export default function OnboardingPage() {
                         <div style={styles.formGroup}>
                           <label style={styles.label}>Enter OTP</label>
                           <p style={styles.otpSentText}>
-                            We've sent a verification code to {countryCode} {phone}
+                            We've sent a verification code to {countryCode}{' '}
+                            {phone}
                           </p>
                           <input
                             type="text"
@@ -965,7 +891,8 @@ export default function OnboardingPage() {
                           onMouseEnter={(e) => {
                             if (!isLoading && otp.length === 6) {
                               e.currentTarget.style.backgroundColor = '#ea580c';
-                              e.currentTarget.style.transform = 'translateY(-2px)';
+                              e.currentTarget.style.transform =
+                                'translateY(-2px)';
                             }
                           }}
                           onMouseLeave={(e) => {
@@ -1016,9 +943,7 @@ export default function OnboardingPage() {
                             type="button"
                             onClick={handleSendPhoneOtp}
                             disabled={
-                              resendTimer > 0 ||
-                              resendCount >= 3 ||
-                              isLoading
+                              resendTimer > 0 || resendCount >= 3 || isLoading
                             }
                             style={{
                               padding: '0.5rem 1rem',
@@ -1039,8 +964,10 @@ export default function OnboardingPage() {
                             }}
                             onMouseEnter={(e) => {
                               if (resendTimer === 0 && resendCount < 3) {
-                                e.currentTarget.style.backgroundColor = '#059669';
-                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                e.currentTarget.style.backgroundColor =
+                                  '#059669';
+                                e.currentTarget.style.transform =
+                                  'translateY(-2px)';
                                 e.currentTarget.style.boxShadow =
                                   '0 4px 12px rgba(16, 185, 129, 0.3)';
                               }
@@ -1054,7 +981,9 @@ export default function OnboardingPage() {
                               e.currentTarget.style.boxShadow = 'none';
                             }}
                           >
-                            {resendTimer > 0 ? `Resend (${resendTimer}s)` : 'Resend OTP'}
+                            {resendTimer > 0
+                              ? `Resend (${resendTimer}s)`
+                              : 'Resend OTP'}
                           </button>
 
                           <p
@@ -1084,7 +1013,8 @@ export default function OnboardingPage() {
                             }
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = 'transparent';
+                            e.currentTarget.style.backgroundColor =
+                              'transparent';
                             e.currentTarget.style.borderColor = '#d1d5db';
                           }}
                         >
@@ -1096,7 +1026,9 @@ export default function OnboardingPage() {
                     {phoneVerified && (
                       <div style={styles.successVerificationBox}>
                         <div style={styles.checkmarkIcon}>✓</div>
-                        <h3 style={styles.verificationTitle}>Phone Verified!</h3>
+                        <h3 style={styles.verificationTitle}>
+                          Phone Verified!
+                        </h3>
                         <p style={styles.verificationText}>
                           {countryCode} {phone}
                         </p>
@@ -1109,7 +1041,8 @@ export default function OnboardingPage() {
                           }}
                           onMouseEnter={(e) => {
                             e.currentTarget.style.backgroundColor = '#ea580c';
-                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.transform =
+                              'translateY(-2px)';
                             e.currentTarget.style.boxShadow =
                               '0 8px 16px rgba(249, 115, 22, 0.3)';
                           }}
@@ -2651,8 +2584,6 @@ export default function OnboardingPage() {
   return null;
 }
 
-
-
 const styles = {
   container: {
     minHeight: '100vh',
@@ -3084,5 +3015,131 @@ const styles = {
     width: '18px',
     height: '18px',
     cursor: 'pointer',
+  } as React.CSSProperties,
+
+  termsSection: {
+    marginTop: '2rem',
+    padding: '1.5rem',
+    backgroundColor: '#f9fafb',
+    border: '1px solid #e5e7eb',
+    borderRadius: '1rem',
+  } as React.CSSProperties,
+  termsSectionTitle: {
+    fontSize: '0.875rem',
+    fontWeight: '600',
+    color: '#1f2937',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.05em',
+    margin: '0 0 1rem 0',
+  } as React.CSSProperties,
+  termsContainer: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '1rem',
+  } as React.CSSProperties,
+  termItem: {
+    display: 'flex',
+    alignItems: 'flex-start',
+  } as React.CSSProperties,
+  termCheckboxLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.75rem',
+    fontSize: '0.875rem',
+    color: '#374151',
+    cursor: 'pointer',
+    fontWeight: '500',
+    lineHeight: '1.5',
+  } as React.CSSProperties,
+  termCheckbox: {
+    width: '20px',
+    height: '20px',
+    cursor: 'pointer',
+    flexShrink: 0,
+  } as React.CSSProperties,
+  required: {
+    color: '#dc2626',
+    fontWeight: 'bold',
+  } as React.CSSProperties,
+  link: {
+    color: '#667eea',
+    textDecoration: 'none',
+    fontWeight: '600',
+    borderBottom: '1px solid #667eea',
+  } as React.CSSProperties,
+  marketingSection: {
+    marginTop: '1.5rem',
+    padding: '1.5rem',
+    backgroundColor: '#f0f9ff',
+    border: '1px solid #bfdbfe',
+    borderRadius: '1rem',
+  } as React.CSSProperties,
+  marketingSectionTitle: {
+    fontSize: '1rem',
+    fontWeight: '700',
+    color: '#0c4a6e',
+    margin: '0 0 0.5rem 0',
+  } as React.CSSProperties,
+  marketingDescription: {
+    fontSize: '0.875rem',
+    color: '#0c4a6e',
+    margin: '0 0 1rem 0',
+  } as React.CSSProperties,
+  marketingOptionsContainer: {
+    display: 'grid',
+    gridTemplateColumns: '1fr',
+    gap: '1rem',
+    marginBottom: '1rem',
+  } as React.CSSProperties,
+  marketingOption: {
+    padding: '1rem',
+    backgroundColor: 'white',
+    border: '1px solid #bfdbfe',
+    borderRadius: '0.75rem',
+    transition: 'all 0.2s ease',
+  } as React.CSSProperties,
+  marketingCheckboxLabel: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '0.75rem',
+    cursor: 'pointer',
+    width: '100%',
+  } as React.CSSProperties,
+  marketingCheckbox: {
+    width: '20px',
+    height: '20px',
+    cursor: 'pointer',
+    marginTop: '0.25rem',
+    flexShrink: 0,
+  } as React.CSSProperties,
+  marketingOptionContent: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '0.75rem',
+    width: '100%',
+  } as React.CSSProperties,
+  marketingIcon: {
+    fontSize: '1.5rem',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: '24px',
+  } as React.CSSProperties,
+  marketingOptionTitle: {
+    fontSize: '0.875rem',
+    fontWeight: '600',
+    color: '#1f2937',
+    margin: '0 0 0.25rem 0',
+  } as React.CSSProperties,
+  marketingOptionDescription: {
+    fontSize: '0.75rem',
+    color: '#6b7280',
+    margin: 0,
+  } as React.CSSProperties,
+  marketingFooter: {
+    fontSize: '0.75rem',
+    color: '#6b7280',
+    margin: '0.75rem 0 0 0',
+    fontStyle: 'italic',
   } as React.CSSProperties,
 };
