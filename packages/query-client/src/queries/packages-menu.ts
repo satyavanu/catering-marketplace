@@ -12,7 +12,7 @@ interface MenuItem {
   is_vegan: boolean;
   is_gluten_free: boolean;
   spice_level?: 'mild' | 'medium' | 'spicy';
-  pricing_type: 'included' | 'extra' | 'on_request' | 'per_plate' | 'per_person';
+  pricing_type: 'included' | 'extra' | 'on_request';
   price?: number;
   currency_code?: string;
   sort_order: number;
@@ -24,7 +24,6 @@ interface MenuItem {
 export interface MenuSection {
   id: string;
   collection_id?: string;
-  caterer_id?: string;
   name: string;
   description?: string;
   sort_order: number;
@@ -49,7 +48,6 @@ export interface MenuCollection {
   sort_order: number;
   created_at: string;
   updated_at: string;
-  menu_type?: 'catering' | 'simple';
   sections?: MenuSection[];
 }
 
@@ -61,11 +59,6 @@ export const packagesMenuKeys = {
   collections: () => [...packagesMenuKeys.all, 'collections'] as const,
   collectionsList: () => [...packagesMenuKeys.collections(), 'list'] as const,
   collection: (id: string) => [...packagesMenuKeys.collections(), id] as const,
-  
-  // Simple Menus
-  simpleMenus: () => [...packagesMenuKeys.all, 'simpleMenus'] as const,
-  simpleMenusList: () => [...packagesMenuKeys.simpleMenus(), 'list'] as const,
-  simpleMenu: (id: string) => [...packagesMenuKeys.simpleMenus(), id] as const,
   
   // Sections
   sections: () => [...packagesMenuKeys.all, 'sections'] as const,
@@ -101,9 +94,9 @@ async function getAuthHeaders(includeContentType: boolean = true): Promise<Heade
   return headers;
 }
 
-// ============ API FUNCTIONS - COLLECTIONS & SIMPLE MENUS ============
+// ============ API FUNCTIONS - COLLECTIONS ============
 export const packagesMenuApi = {
-  // ===== COLLECTIONS (CATERING PACKAGES) =====
+  // ===== COLLECTIONS =====
   
   /**
    * Create a new collection (package)
@@ -117,7 +110,6 @@ export const packagesMenuApi = {
     currency_code: string;
     min_guests: number;
     max_guests: number;
-    menu_type?: 'catering';
   }): Promise<MenuCollection> => {
     try {
       const headers = await getAuthHeaders();
@@ -255,169 +247,6 @@ export const packagesMenuApi = {
     }
   },
 
-  // ===== SIMPLE MENUS (STANDALONE SECTIONS WITH ITEMS) =====
-
-  /**
-   * Create a simple menu (just a section with items, no collection wrapper)
-   */
-  createSimpleMenu: async (data: {
-    name: string;
-    description?: string;
-    sort_order?: number;
-  }): Promise<MenuSection> => {
-    try {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${API_BASE_URL}/api/v1/my/menu/simple/sections`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(data),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(
-          errorData.message || `Failed to create simple menu: ${res.status}`
-        );
-      }
-
-      return res.json();
-    } catch (error) {
-      console.error('Error creating simple menu:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Get all standalone sections (simple menus)
-   */
-  getSimpleMenus: async (): Promise<MenuSection[]> => {
-    try {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${API_BASE_URL}/api/v1/my/menu/simple/sections`, {
-        method: 'GET',
-        headers,
-      });
-
-      if (!res.ok) {
-        throw new Error(`Failed to fetch simple menus: ${res.status}`);
-      }
-
-      const data = await res.json();
-      return Array.isArray(data) ? data : data.data || [];
-    } catch (error) {
-      console.error('Error fetching simple menus:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Get complete simple menu (all sections with items)
-   */
-  getCompleteSimpleMenu: async (): Promise<MenuSection[]> => {
-    try {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${API_BASE_URL}/api/v1/my/menu/simple`, {
-        method: 'GET',
-        headers,
-      });
-
-      if (!res.ok) {
-        throw new Error(`Failed to fetch complete simple menu: ${res.status}`);
-      }
-
-      const data = await res.json();
-      return Array.isArray(data) ? data : data.data || [];
-    } catch (error) {
-      console.error('Error fetching complete simple menu:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Get a specific simple menu section with items
-   */
-  getSimpleMenu: async (sectionId: string): Promise<MenuSection> => {
-    try {
-      const headers = await getAuthHeaders();
-      const res = await fetch(
-        `${API_BASE_URL}/api/v1/my/menu/simple/sections/${sectionId}`,
-        {
-          method: 'GET',
-          headers,
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error(`Failed to fetch simple menu: ${res.status}`);
-      }
-
-      return res.json();
-    } catch (error) {
-      console.error('Error fetching simple menu:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Update a simple menu section
-   */
-  updateSimpleMenu: async (
-    sectionId: string,
-    data: Partial<{
-      name: string;
-      description: string;
-      is_active: boolean;
-      sort_order: number;
-    }>
-  ): Promise<MenuSection> => {
-    try {
-      const headers = await getAuthHeaders();
-      const res = await fetch(
-        `${API_BASE_URL}/api/v1/my/menu/simple/sections/${sectionId}`,
-        {
-          method: 'PUT',
-          headers,
-          body: JSON.stringify(data),
-        }
-      );
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(
-          errorData.message || `Failed to update simple menu: ${res.status}`
-        );
-      }
-
-      return res.json();
-    } catch (error) {
-      console.error('Error updating simple menu:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Delete a simple menu section
-   */
-  deleteSimpleMenu: async (sectionId: string): Promise<void> => {
-    try {
-      const headers = await getAuthHeaders();
-      const res = await fetch(
-        `${API_BASE_URL}/api/v1/my/menu/simple/sections/${sectionId}`,
-        {
-          method: 'DELETE',
-          headers,
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error(`Failed to delete simple menu: ${res.status}`);
-      }
-    } catch (error) {
-      console.error('Error deleting simple menu:', error);
-      throw error;
-    }
-  },
-
   // ===== SECTIONS WITH COLLECTION =====
 
   /**
@@ -521,6 +350,146 @@ export const packagesMenuApi = {
     }
   },
 
+  // ===== STANDALONE SECTIONS =====
+
+  /**
+   * Create a standalone section
+   */
+  createSection: async (data: {
+    name: string;
+    description?: string;
+    sort_order: number;
+  }): Promise<MenuSection> => {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE_URL}/api/v1/my/menu/sections`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `Failed to create section: ${res.status}`
+        );
+      }
+
+      return res.json();
+    } catch (error) {
+      console.error('Error creating standalone section:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get all standalone sections
+   */
+  getSections: async (): Promise<MenuSection[]> => {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE_URL}/api/v1/my/menu/sections`, {
+        method: 'GET',
+        headers,
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to fetch sections: ${res.status}`);
+      }
+
+      const data = await res.json();
+      return Array.isArray(data) ? data : data.data || [];
+    } catch (error) {
+      console.error('Error fetching sections:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get a specific section with its items
+   */
+  getSection: async (sectionId: string): Promise<MenuSection> => {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(
+        `${API_BASE_URL}/api/v1/my/menu/sections/${sectionId}`,
+        {
+          method: 'GET',
+          headers,
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error(`Failed to fetch section: ${res.status}`);
+      }
+
+      return res.json();
+    } catch (error) {
+      console.error('Error fetching section:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Update a section
+   */
+  updateSection: async (
+    sectionId: string,
+    data: Partial<{
+      name: string;
+      description: string;
+      is_active: boolean;
+      sort_order: number;
+    }>
+  ): Promise<MenuSection> => {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(
+        `${API_BASE_URL}/api/v1/my/menu/sections/${sectionId}`,
+        {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify(data),
+        }
+      );
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `Failed to update section: ${res.status}`
+        );
+      }
+
+      return res.json();
+    } catch (error) {
+      console.error('Error updating section:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Delete a section
+   */
+  deleteSection: async (sectionId: string): Promise<void> => {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(
+        `${API_BASE_URL}/api/v1/my/menu/sections/${sectionId}`,
+        {
+          method: 'DELETE',
+          headers,
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error(`Failed to delete section: ${res.status}`);
+      }
+    } catch (error) {
+      console.error('Error deleting section:', error);
+      throw error;
+    }
+  },
+
   // ===== ITEMS =====
 
   /**
@@ -536,7 +505,7 @@ export const packagesMenuApi = {
       is_vegan: boolean;
       is_gluten_free: boolean;
       spice_level?: 'mild' | 'medium' | 'spicy';
-      pricing_type: 'included' | 'extra' | 'on_request' | 'per_plate' | 'per_person';
+      pricing_type: 'included' | 'extra' | 'on_request';
       price?: number;
       currency_code?: string;
       sort_order: number;
@@ -581,7 +550,7 @@ export const packagesMenuApi = {
         is_vegan: boolean;
         is_gluten_free: boolean;
         spice_level?: 'mild' | 'medium' | 'spicy';
-        pricing_type: 'included' | 'extra' | 'on_request' | 'per_plate' | 'per_person';
+        pricing_type: 'included' | 'extra' | 'on_request';
         price?: number;
         currency_code?: string;
         sort_order: number;
@@ -653,7 +622,7 @@ export const packagesMenuApi = {
       is_vegan: boolean;
       is_gluten_free: boolean;
       spice_level: 'mild' | 'medium' | 'spicy';
-      pricing_type: 'included' | 'extra' | 'on_request' | 'per_plate' | 'per_person';
+      pricing_type: 'included' | 'extra' | 'on_request';
       price: number;
       currency_code: string;
       is_active: boolean;
@@ -718,8 +687,8 @@ export const useCollections = () => {
   return useQuery({
     queryKey: packagesMenuKeys.collectionsList(),
     queryFn: () => packagesMenuApi.getCollections(),
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
     retry: 1,
   });
 };
@@ -810,129 +779,6 @@ export const useDeleteCollection = () => {
   });
 };
 
-// ============ REACT QUERY HOOKS - SIMPLE MENUS ============
-
-/**
- * Get all simple menus (standalone sections)
- */
-export const useSimpleMenus = () => {
-  return useQuery({
-    queryKey: packagesMenuKeys.simpleMenusList(),
-    queryFn: () => packagesMenuApi.getSimpleMenus(),
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-    retry: 1,
-  });
-};
-
-/**
- * Get complete simple menu (all sections with items)
- */
-export const useCompleteSimpleMenu = () => {
-  return useQuery({
-    queryKey: packagesMenuKeys.simpleMenus(),
-    queryFn: () => packagesMenuApi.getCompleteSimpleMenu(),
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-    retry: 1,
-  });
-};
-
-/**
- * Get a specific simple menu section with items
- */
-export const useSimpleMenu = (sectionId: string | null) => {
-  return useQuery({
-    queryKey: packagesMenuKeys.simpleMenu(sectionId || ''),
-    queryFn: () => packagesMenuApi.getSimpleMenu(sectionId!),
-    enabled: !!sectionId,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-  });
-};
-
-/**
- * Create a simple menu section
- */
-export const useCreateSimpleMenu = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (data: Parameters<typeof packagesMenuApi.createSimpleMenu>[0]) =>
-      packagesMenuApi.createSimpleMenu(data),
-    onSuccess: (newSection) => {
-      queryClient.invalidateQueries({
-        queryKey: packagesMenuKeys.simpleMenusList(),
-      });
-      queryClient.invalidateQueries({
-        queryKey: packagesMenuKeys.simpleMenus(),
-      });
-      queryClient.setQueryData(
-        packagesMenuKeys.simpleMenu(newSection.id),
-        newSection
-      );
-    },
-    onError: (error: Error) => {
-      console.error('Create simple menu error:', error.message);
-    },
-  });
-};
-
-/**
- * Update a simple menu section
- */
-export const useUpdateSimpleMenu = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      id,
-      data,
-    }: {
-      id: string;
-      data: Parameters<typeof packagesMenuApi.updateSimpleMenu>[1];
-    }) => packagesMenuApi.updateSimpleMenu(id, data),
-    onSuccess: (updatedSection, { id }) => {
-      queryClient.setQueryData(
-        packagesMenuKeys.simpleMenu(id),
-        updatedSection
-      );
-      queryClient.invalidateQueries({
-        queryKey: packagesMenuKeys.simpleMenusList(),
-      });
-      queryClient.invalidateQueries({
-        queryKey: packagesMenuKeys.simpleMenus(),
-      });
-    },
-    onError: (error: Error) => {
-      console.error('Update simple menu error:', error.message);
-    },
-  });
-};
-
-/**
- * Delete a simple menu section
- */
-export const useDeleteSimpleMenu = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (sectionId: string) =>
-      packagesMenuApi.deleteSimpleMenu(sectionId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: packagesMenuKeys.simpleMenusList(),
-      });
-      queryClient.invalidateQueries({
-        queryKey: packagesMenuKeys.simpleMenus(),
-      });
-    },
-    onError: (error: Error) => {
-      console.error('Delete simple menu error:', error.message);
-    },
-  });
-};
-
 // ============ REACT QUERY HOOKS - SECTIONS ============
 
 /**
@@ -943,6 +789,32 @@ export const useCollectionSections = (collectionId: string | null) => {
     queryKey: packagesMenuKeys.sectionsByCollection(collectionId || ''),
     queryFn: () => packagesMenuApi.getCollectionSections(collectionId!),
     enabled: !!collectionId,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+};
+
+/**
+ * Get all standalone sections
+ */
+export const useSections = () => {
+  return useQuery({
+    queryKey: packagesMenuKeys.sectionsList(),
+    queryFn: () => packagesMenuApi.getSections(),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    retry: 1,
+  });
+};
+
+/**
+ * Get a specific section with items
+ */
+export const useSection = (sectionId: string | null) => {
+  return useQuery({
+    queryKey: packagesMenuKeys.section(sectionId || ''),
+    queryFn: () => packagesMenuApi.getSection(sectionId!),
+    enabled: !!sectionId,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });
@@ -1004,6 +876,78 @@ export const useBulkCreateCollectionSections = () => {
   });
 };
 
+/**
+ * Create a standalone section
+ */
+export const useCreateSection = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: Parameters<typeof packagesMenuApi.createSection>[0]) =>
+      packagesMenuApi.createSection(data),
+    onSuccess: (newSection) => {
+      queryClient.invalidateQueries({
+        queryKey: packagesMenuKeys.sectionsList(),
+      });
+      queryClient.setQueryData(
+        packagesMenuKeys.section(newSection.id),
+        newSection
+      );
+    },
+    onError: (error: Error) => {
+      console.error('Create section error:', error.message);
+    },
+  });
+};
+
+/**
+ * Update a section
+ */
+export const useUpdateSection = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: Parameters<typeof packagesMenuApi.updateSection>[1];
+    }) => packagesMenuApi.updateSection(id, data),
+    onSuccess: (updatedSection, { id }) => {
+      queryClient.setQueryData(packagesMenuKeys.section(id), updatedSection);
+      queryClient.invalidateQueries({
+        queryKey: packagesMenuKeys.sectionsList(),
+      });
+    },
+    onError: (error: Error) => {
+      console.error('Update section error:', error.message);
+    },
+  });
+};
+
+/**
+ * Delete a section
+ */
+export const useDeleteSection = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (sectionId: string) => packagesMenuApi.deleteSection(sectionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: packagesMenuKeys.sectionsList(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: packagesMenuKeys.collectionsList(),
+      });
+    },
+    onError: (error: Error) => {
+      console.error('Delete section error:', error.message);
+    },
+  });
+};
+
 // ============ REACT QUERY HOOKS - ITEMS ============
 
 /**
@@ -1037,6 +981,9 @@ export const useCreateItem = () => {
       queryClient.invalidateQueries({
         queryKey: packagesMenuKeys.itemsBySection(sectionId),
       });
+      queryClient.invalidateQueries({
+        queryKey: packagesMenuKeys.section(sectionId),
+      });
     },
     onError: (error: Error) => {
       console.error('Create item error:', error.message);
@@ -1062,6 +1009,9 @@ export const useBulkCreateItems = () => {
       queryClient.invalidateQueries({
         queryKey: packagesMenuKeys.itemsBySection(sectionId),
       });
+      queryClient.invalidateQueries({
+        queryKey: packagesMenuKeys.section(sectionId),
+      });
     },
     onError: (error: Error) => {
       console.error('Bulk create items error:', error.message);
@@ -1083,12 +1033,10 @@ export const useUpdateItem = () => {
       id: string;
       data: Parameters<typeof packagesMenuApi.updateItem>[1];
     }) => packagesMenuApi.updateItem(id, data),
-    onSuccess: () => {
+    onSuccess: (updatedItem) => {
+      // Invalidate all section/items queries since we don't know which section
       queryClient.invalidateQueries({
         queryKey: packagesMenuKeys.sectionsList(),
-      });
-      queryClient.invalidateQueries({
-        queryKey: packagesMenuKeys.simpleMenus(),
       });
     },
     onError: (error: Error) => {
@@ -1108,9 +1056,6 @@ export const useDeleteItem = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: packagesMenuKeys.sectionsList(),
-      });
-      queryClient.invalidateQueries({
-        queryKey: packagesMenuKeys.simpleMenus(),
       });
     },
     onError: (error: Error) => {
