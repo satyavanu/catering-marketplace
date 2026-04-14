@@ -21,11 +21,13 @@ import {
   type MenuSection,
   type MenuItem,
 } from '@catering-marketplace/query-client';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function PackageDetailPage() {
   const router = useRouter();
   const params = useParams();
   const packageId = params.packageId as string;
+  const queryClient = useQueryClient();
 
   // Real API queries
   const { data: packageData, isLoading: packageLoading } = useCollection(packageId);
@@ -122,6 +124,11 @@ export default function PackageDetailPage() {
         setSuccessMessage('Category created successfully!');
       }
 
+      // Invalidate and refetch sections
+      await queryClient.invalidateQueries({
+        queryKey: ['collectionSections', packageId],
+      });
+
       // Reset form
       setCategoryFormData({
         name: '',
@@ -145,6 +152,12 @@ export default function PackageDetailPage() {
     try {
       await deleteSectionMutation.mutateAsync(categoryId);
       setSuccessMessage('Category deleted successfully!');
+      
+      // Invalidate and refetch sections
+      await queryClient.invalidateQueries({
+        queryKey: ['collectionSections', packageId],
+      });
+
       setTimeout(() => setSuccessMessage(''), 2000);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Failed to delete category';
@@ -220,6 +233,11 @@ export default function PackageDetailPage() {
         setSuccessMessage('Dish created successfully!');
       }
 
+      // Invalidate and refetch sections (to get updated items)
+      await queryClient.invalidateQueries({
+        queryKey: ['collectionSections', packageId],
+      });
+
       // Reset form
       setDishFormData({
         name: '',
@@ -252,6 +270,12 @@ export default function PackageDetailPage() {
     try {
       await deleteItemMutation.mutateAsync(dishId);
       setSuccessMessage('Dish deleted successfully!');
+      
+      // Invalidate and refetch sections
+      await queryClient.invalidateQueries({
+        queryKey: ['collectionSections', packageId],
+      });
+
       setTimeout(() => setSuccessMessage(''), 2000);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Failed to delete dish';
