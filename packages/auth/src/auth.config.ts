@@ -665,7 +665,7 @@ export const authOptions: NextAuthOptions = {
       else if (new URL(url).origin === baseUrl) return url;
 
       // Default to customer dashboard
-      return `${baseUrl}/customer/dashboard`;
+      return `${baseUrl}/customer1/dashboard`;
     },
 
 

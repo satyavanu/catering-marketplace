@@ -27,6 +27,9 @@ declare module 'next-auth' {
       role?: string | null;
       isOnboardingCompleted?: boolean;
       isOnboardingPending?: boolean;
+      refreshToken?: any;
+      termsAccepted: boolean;
+      privacyAccepted: boolean;
       onboarding?: {
         status: 'pending' | 'in_progress' | 'completed';
         selectedRole?: string;
@@ -93,6 +96,10 @@ export default function LoginPage() {
       setIsRedirecting(true);
 
      if (session.user.role) {
+       if(session.user.termsAccepted === false || session.user.privacyAccepted === false) {
+          router.push('/accept-terms');
+          return;
+        }
         const role = session.user.role;
         const callbackUrl = searchParams?.get('callbackUrl');
         router.push(`/${role}/dashboard`);
