@@ -88,82 +88,175 @@ export default function PackageDetailPage() {
     );
   };
 
-  // ============ CATEGORY HANDLERS ============
-  const handleSaveCategory = async () => {
-    if (!categoryFormData.name.trim()) {
-      setErrorMessage('Please enter category name');
-      return;
+ 
+// ============ CATEGORY HANDLERS ============
+const handleSaveCategory = async () => {
+  if (!categoryFormData.name.trim()) {
+    setErrorMessage('Please enter category name');
+    return;
+  }
+
+  setErrorMessage('');
+  setSuccessMessage('');
+
+  try {
+    if (editingCategory) {
+      await updateSectionMutation.mutateAsync({
+        id: editingCategory,
+        data: {
+          name: categoryFormData.name,
+          description: categoryFormData.description || undefined,
+          sort_order: categoryFormData.sort_order,
+          is_active: categoryFormData.is_active,
+        },
+      });
+      setSuccessMessage('Category updated successfully!');
+    } else {
+      await createSectionMutation.mutateAsync({
+        collectionId: packageId,
+        data: {
+          name: categoryFormData.name,
+          description: categoryFormData.description || undefined,
+          sort_order: categoryFormData.sort_order,
+        },
+      });
+      setSuccessMessage('Category created successfully!');
     }
 
-    setErrorMessage('');
-    setSuccessMessage('');
+    // ✅ REPLACE: Use refetchQueries instead of invalidateQueries
+    await queryClient.refetchQueries({
+      queryKey: ['collectionSections', packageId],
+      type: 'active',
+    });
 
-    try {
-      if (editingCategory) {
-        // Update existing section
-        await updateSectionMutation.mutateAsync({
-          id: editingCategory,
-          data: {
-            name: categoryFormData.name,
-            description: categoryFormData.description || undefined,
-            sort_order: categoryFormData.sort_order,
-            is_active: categoryFormData.is_active,
-          },
-        });
-        setSuccessMessage('Category updated successfully!');
-      } else {
-        // Create new section
-        await createSectionMutation.mutateAsync({
-          collectionId: packageId,
-          data: {
-            name: categoryFormData.name,
-            description: categoryFormData.description || undefined,
-            sort_order: categoryFormData.sort_order,
-          },
-        });
-        setSuccessMessage('Category created successfully!');
-      }
+    setCategoryFormData({
+      name: '',
+      description: '',
+      sort_order: 1,
+      is_active: true,
+    });
+    setEditingCategory(null);
+    setShowAddCategoryModal(false);
 
-      // Invalidate and refetch sections
-      await queryClient.invalidateQueries({
-        queryKey: ['collectionSections', packageId],
+    setTimeout(() => setSuccessMessage(''), 2000);
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : 'Failed to save category';
+    setErrorMessage(errorMsg);
+  }
+};
+
+const handleDeleteCategory = async (categoryId: string) => {
+  if (!window.confirm('Are you sure you want to delete this category?')) return;
+
+  try {
+    await deleteSectionMutation.mutateAsync(categoryId);
+    setSuccessMessage('Category deleted successfully!');
+    
+    // ✅ REPLACE: Use refetchQueries instead of invalidateQueries
+    await queryClient.refetchQueries({
+      queryKey: ['collectionSections', packageId],
+      type: 'active',
+    });
+
+    setTimeout(() => setSuccessMessage(''), 2000);
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : 'Failed to delete category';
+    setErrorMessage(errorMsg);
+  }
+};
+
+// ============ DISH HANDLERS ============
+const handleSaveDish = async () => {
+  if (!dishFormData.name.trim() || !selectedCategoryForDish) {
+    setErrorMessage('Please fill required fields');
+    return;
+  }
+
+  setErrorMessage('');
+  setSuccessMessage('');
+
+  try {
+    const payload = {
+      name: dishFormData.name,
+      description: dishFormData.description || undefined,
+      image_url: dishFormData.image_url || undefined,
+      is_veg: dishFormData.is_veg,
+      is_vegan: dishFormData.is_vegan,
+      is_gluten_free: dishFormData.is_gluten_free,
+      spice_level: dishFormData.spice_level,
+      pricing_type: dishFormData.pricing_type,
+      price: dishFormData.pricing_type === 'included' ? undefined : parseFloat(dishFormData.price),
+      currency_code: dishFormData.currency_code,
+      sort_order: dishFormData.sort_order,
+    };
+
+    if (editingDish) {
+      await updateItemMutation.mutateAsync({
+        id: editingDish,
+        data: {
+          ...payload,
+          is_active: dishFormData.is_active,
+        },
       });
-
-      // Reset form
-      setCategoryFormData({
-        name: '',
-        description: '',
-        sort_order: 1,
-        is_active: true,
+      setSuccessMessage('Dish updated successfully!');
+    } else {
+      await createItemMutation.mutateAsync({
+        sectionId: selectedCategoryForDish,
+        data: payload,
       });
-      setEditingCategory(null);
-      setShowAddCategoryModal(false);
-
-      setTimeout(() => setSuccessMessage(''), 2000);
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Failed to save category';
-      setErrorMessage(errorMsg);
+      setSuccessMessage('Dish created successfully!');
     }
-  };
 
-  const handleDeleteCategory = async (categoryId: string) => {
-    if (!window.confirm('Are you sure you want to delete this category?')) return;
+    // ✅ REPLACE: Use refetchQueries instead of invalidateQueries
+    await queryClient.refetchQueries({
+      queryKey: ['collectionSections', packageId],
+      type: 'active',
+    });
 
-    try {
-      await deleteSectionMutation.mutateAsync(categoryId);
-      setSuccessMessage('Category deleted successfully!');
-      
-      // Invalidate and refetch sections
-      await queryClient.invalidateQueries({
-        queryKey: ['collectionSections', packageId],
-      });
+    setDishFormData({
+      name: '',
+      description: '',
+      image_url: '',
+      is_veg: true,
+      is_vegan: false,
+      is_gluten_free: false,
+      spice_level: 'medium',
+      pricing_type: 'included',
+      price: '0',
+      currency_code: 'INR',
+      sort_order: 1,
+      is_active: true,
+    });
+    setEditingDish(null);
+    setSelectedCategoryForDish(null);
+    setShowAddDishModal(false);
 
-      setTimeout(() => setSuccessMessage(''), 2000);
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Failed to delete category';
-      setErrorMessage(errorMsg);
-    }
-  };
+    setTimeout(() => setSuccessMessage(''), 2000);
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : 'Failed to save dish';
+    setErrorMessage(errorMsg);
+  }
+};
+
+const handleDeleteDish = async (dishId: string) => {
+  if (!window.confirm('Are you sure you want to delete this dish?')) return;
+
+  try {
+    await deleteItemMutation.mutateAsync(dishId);
+    setSuccessMessage('Dish deleted successfully!');
+    
+    // ✅ REPLACE: Use refetchQueries instead of invalidateQueries
+    await queryClient.refetchQueries({
+      queryKey: ['collectionSections', packageId],
+      type: 'active',
+    });
+
+    setTimeout(() => setSuccessMessage(''), 2000);
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : 'Failed to delete dish';
+    setErrorMessage(errorMsg);
+  }
+};
 
   const openAddCategoryModal = () => {
     setCategoryFormData({
@@ -189,99 +282,7 @@ export default function PackageDetailPage() {
     setErrorMessage('');
   };
 
-  // ============ DISH HANDLERS ============
-  const handleSaveDish = async () => {
-    if (!dishFormData.name.trim() || !selectedCategoryForDish) {
-      setErrorMessage('Please fill required fields');
-      return;
-    }
-
-    setErrorMessage('');
-    setSuccessMessage('');
-
-    try {
-      const payload = {
-        name: dishFormData.name,
-        description: dishFormData.description || undefined,
-        image_url: dishFormData.image_url || undefined,
-        is_veg: dishFormData.is_veg,
-        is_vegan: dishFormData.is_vegan,
-        is_gluten_free: dishFormData.is_gluten_free,
-        spice_level: dishFormData.spice_level,
-        pricing_type: dishFormData.pricing_type,
-        price: dishFormData.pricing_type === 'included' ? undefined : parseFloat(dishFormData.price),
-        currency_code: dishFormData.currency_code,
-        sort_order: dishFormData.sort_order,
-      };
-
-      if (editingDish) {
-        // Update existing item
-        await updateItemMutation.mutateAsync({
-          id: editingDish,
-          data: {
-            ...payload,
-            is_active: dishFormData.is_active,
-          },
-        });
-        setSuccessMessage('Dish updated successfully!');
-      } else {
-        // Create new item
-        await createItemMutation.mutateAsync({
-          sectionId: selectedCategoryForDish,
-          data: payload,
-        });
-        setSuccessMessage('Dish created successfully!');
-      }
-
-      // Invalidate and refetch sections (to get updated items)
-      await queryClient.invalidateQueries({
-        queryKey: ['collectionSections', packageId],
-      });
-
-      // Reset form
-      setDishFormData({
-        name: '',
-        description: '',
-        image_url: '',
-        is_veg: true,
-        is_vegan: false,
-        is_gluten_free: false,
-        spice_level: 'medium',
-        pricing_type: 'included',
-        price: '0',
-        currency_code: 'INR',
-        sort_order: 1,
-        is_active: true,
-      });
-      setEditingDish(null);
-      setSelectedCategoryForDish(null);
-      setShowAddDishModal(false);
-
-      setTimeout(() => setSuccessMessage(''), 2000);
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Failed to save dish';
-      setErrorMessage(errorMsg);
-    }
-  };
-
-  const handleDeleteDish = async (dishId: string) => {
-    if (!window.confirm('Are you sure you want to delete this dish?')) return;
-
-    try {
-      await deleteItemMutation.mutateAsync(dishId);
-      setSuccessMessage('Dish deleted successfully!');
-      
-      // Invalidate and refetch sections
-      await queryClient.invalidateQueries({
-        queryKey: ['collectionSections', packageId],
-      });
-
-      setTimeout(() => setSuccessMessage(''), 2000);
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Failed to delete dish';
-      setErrorMessage(errorMsg);
-    }
-  };
+  
 
   const openAddDishModal = (categoryId: string) => {
     setSelectedCategoryForDish(categoryId);
