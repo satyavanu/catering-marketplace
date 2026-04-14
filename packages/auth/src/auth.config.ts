@@ -524,15 +524,15 @@ export const authOptions: NextAuthOptions = {
           const userPermissions =
             userData.permissions || rolePermissions[userRole] || [];
 
-            const termsAccepted = userData.terms_accepted ?? false;
-    const privacyAccepted = userData.privacy_accepted ?? false;
-    const marketingEmail = userData.marketing_email ?? false;
-    const marketingSms = userData.marketing_sms ?? false;
-    const marketingPush = userData.marketing_push ?? false;
-    const marketingWhatsapp = userData.marketing_whatsapp ?? false;
-    const consentsProvided = userData.consents_provided ?? false;
+          const termsAccepted = userData.terms_accepted ?? false;
+          const privacyAccepted = userData.privacy_accepted ?? false;
+          const marketingEmail = userData.marketing_email ?? false;
+          const marketingSms = userData.marketing_sms ?? false;
+          const marketingPush = userData.marketing_push ?? false;
+          const marketingWhatsapp = userData.marketing_whatsapp ?? false;
+          const consentsProvided = userData.consents_provided ?? false;
 
-  
+
 
           return {
             id: userData.user_id || `phone-${Date.now()}`,
@@ -561,7 +561,7 @@ export const authOptions: NextAuthOptions = {
             marketingSms,
             marketingPush,
             marketingWhatsapp,
-            consentsProvided, 
+            consentsProvided,
           };
         } catch (error: any) {
           console.error('Phone OTP authorization error:', error);
@@ -613,7 +613,7 @@ export const authOptions: NextAuthOptions = {
         session.user.marketingPush = token.marketingPush ?? false;
         session.user.marketingWhatsapp = token.marketingWhatsapp ?? false;
         session.user.consentsProvided = token.consentsProvided ?? false;
-    
+
 
         // Role-based convenience flags
         session.user.isAdmin = token.role === 'admin';
@@ -876,7 +876,7 @@ export const authOptions: NextAuthOptions = {
           const data = response.data || response;
 
           token.id = data.user_id || token.id;
-          token.role =  'caterer' //data.role || 'customer';
+          token.role = 'caterer' //data.role || 'customer';
           token.status = data.status || 'active';
           token.isVerified = data.email_verified ?? false;
           token.permissions = rolePermissions[data.role || 'customer'] || [];
@@ -898,6 +898,14 @@ export const authOptions: NextAuthOptions = {
           token.tokenExpiresIn = data.expires_in || 900;
           token.tokenExpiresAt = Date.now() + ((data.expires_in || 900) * 1000);
 
+          token.termsAccepted = data.terms_accepted ?? false;
+          token.privacyAccepted = data.privacy_accepted ?? false;
+          token.marketingEmail = data.marketing_email ?? false;
+          token.marketingSms = data.marketing_sms ?? false;
+          token.marketingPush = data.marketing_push ?? false;
+          token.marketingWhatsapp = data.marketing_whatsapp ?? false;
+          token.consentsProvided = data.consents_provided ?? false;
+          
           console.log("SATYA 8F - Token after Google login:", {
             accessToken: token.accessToken ? 'SET' : 'EMPTY',
             refreshToken: token.refreshToken ? 'SET' : 'EMPTY',

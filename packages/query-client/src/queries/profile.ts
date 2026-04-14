@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getSession } from '@catering-marketplace/auth';
 import { getAuthHeaders } from './menu-items';
 
 export type UserRole = 'customer' | 'caterer' | 'admin';
@@ -963,88 +964,6 @@ export const profileApi = {
         return res.json();
     },
 
-    completeOnboarding: async (data: OnboardingData): Promise<OnboardingResponse> => {
-       
-        const headers = await getAuthHeaders();
-
-        console.log("Satya header", headers);
-        const res = await fetch(`${API_BASE_URL}/api/consents/save`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                ...headers,
-            },
-            body: JSON.stringify(data),
-        });
-        if (!res.ok) throw new Error('Failed to complete onboarding');
-        return res.json();
-    },
-
-    // NEW: Update communication preferences specifically
-    updateCommunicationPreferences: async (data: {
-        emailMarketing: boolean;
-        smsMarketing: boolean;
-        pushNotifications: boolean;
-    }): Promise<NotificationPreferences> => {
-        if (USE_MOCK_DATA) {
-            await new Promise(resolve => setTimeout(resolve, 300));
-
-            mockNotificationPreferences = {
-                ...mockNotificationPreferences,
-                marketingEmails: data.emailMarketing,
-                smsOnDelivery: data.smsMarketing,
-                pushOnPromotion: data.pushNotifications,
-                updatedAt: new Date().toISOString(),
-            };
-
-            return { ...mockNotificationPreferences };
-        }
-
-        const headers = await getAuthHeaders();
-        const res = await fetch(`${API_BASE_URL}/consents/communication`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                ...headers,
-            },
-            body: JSON.stringify(data),
-        });
-        if (!res.ok) throw new Error('Failed to update communication preferences');
-        return res.json();
-    },
-
-    // NEW: Accept terms and conditions
-    acceptTermsAndConditions: async (data: {
-        agreeTerms: boolean;
-        agreePrivacy: boolean;
-    }): Promise<ProfileResponse> => {
-        if (USE_MOCK_DATA) {
-            await new Promise(resolve => setTimeout(resolve, 300));
-
-            mockProfile = {
-                ...mockProfile,
-                agreedToTerms: data.agreeTerms && data.agreePrivacy,
-            };
-
-            return {
-                data: mockProfile,
-                message: 'Terms and conditions accepted successfully',
-                timestamp: new Date().toISOString(),
-            };
-        }
-
-        const headers = await getAuthHeaders();
-        const res = await fetch(`${API_BASE_URL}/consents/accept`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                ...headers,
-            },
-            body: JSON.stringify(data),
-        });
-        if (!res.ok) throw new Error('Failed to accept terms and conditions');
-        return res.json();
-    },
 };
 
 // Hooks
@@ -1440,59 +1359,7 @@ export const onboardingKeys = {
     complete: () => [...onboardingKeys.all, 'complete'] as const,
 };
 
-// NEW: Hooks for onboarding mutations
-export const useCompleteOnboarding = () => {
-    const queryClient = useQueryClient();
 
-    return useMutation({
-        mutationFn: (data: OnboardingData) => profileApi.completeOnboarding(data),
-        onSuccess: (response) => {
-            // Update profile and preferences in cache
-            queryClient.setQueryData(profileKeys.detail(), response.data.profile);
-            queryClient.setQueryData(
-                notificationKeys.preferences(),
-                response.data.preferences
-            );
-            queryClient.setQueryData(onboardingKeys.complete(), response);
-        },
-        onError: (error) => {
-            console.error('Failed to complete onboarding:', error);
-        },
-    });
-};
 
-export const useUpdateCommunicationPreferences = () => {
-    const queryClient = useQueryClient();
 
-    return useMutation({
-        mutationFn: (data: {
-            emailMarketing: boolean;
-            smsMarketing: boolean;
-            pushNotifications: boolean;
-        }) => profileApi.updateCommunicationPreferences(data),
-        onSuccess: (response) => {
-            queryClient.setQueryData(notificationKeys.preferences(), response);
-            queryClient.invalidateQueries({ queryKey: preferenceKeys.detail() });
-        },
-        onError: (error) => {
-            console.error('Failed to update communication preferences:', error);
-        },
-    });
-};
 
-export const useAcceptTermsAndConditions = () => {
-    const queryClient = useQueryClient();
-
-    return useMutation({
-        mutationFn: (data: {
-            agreeTerms: boolean;
-            agreePrivacy: boolean;
-        }) => profileApi.acceptTermsAndConditions(data),
-        onSuccess: (response) => {
-            queryClient.setQueryData(profileKeys.detail(), response.data);
-        },
-        onError: (error) => {
-            console.error('Failed to accept terms and conditions:', error);
-        },
-    });
-};

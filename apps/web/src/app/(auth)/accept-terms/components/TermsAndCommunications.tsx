@@ -10,7 +10,6 @@ export const TermsAndCommunications = () => {
   const router = useRouter();
   const completeOnboardingMutation = useCompleteOnboarding();
   const [isRedirecting, setIsRedirecting] = useState(false);
-
   // Local state for all preferences
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreePrivacy, setAgreePrivacy] = useState(false);
@@ -26,6 +25,20 @@ export const TermsAndCommunications = () => {
   const handleContinueClick = async () => {
     setError(null);
 
+    // ✅ Check if session is loaded
+    if (status === 'loading') {
+      setError('Loading session... Please wait');
+      return;
+    }
+
+    if (status === 'unauthenticated' || !session?.user?.accessToken) {
+      setError('Authentication required. Please log in again.');
+      console.error('Session status:', status);
+      console.error('Has session:', !!session);
+      console.error('Has accessToken:', !!session?.user?.accessToken);
+      return;
+    }
+
     if (!isMandatoryComplete) {
       setError('Please accept both Terms & Conditions and Privacy Policy to continue');
       return;
@@ -33,6 +46,10 @@ export const TermsAndCommunications = () => {
 
     try {
       console.log('🔄 Starting onboarding completion...');
+      console.log('📋 Session info:', {
+        email: session.user.email,
+        hasAccessToken: !!session.user.accessToken,
+      });
       console.log('📋 Payload:', {
         agreeTerms,
         agreePrivacy,
@@ -43,31 +60,23 @@ export const TermsAndCommunications = () => {
 
       // Wait for the mutation to complete
       const response = await completeOnboardingMutation.mutateAsync({
-        agreeTerms,
-        agreePrivacy,
-        emailMarketing,
-        smsMarketing,
-        pushNotifications,
+          "agree_terms": agreeTerms,
+          "agree_privacy": agreePrivacy,
+          "marketing_email": emailMarketing,
+          "marketing_sms": smsMarketing,
+          "marketing_push": pushNotifications,
+          "marketing_whatsapp": false
       });
 
-      console.log('✅ Onboarding completed successfully!');
-      console.log('📦 Response received:', response);
-      console.log('📊 Response data:', {
-        profile: response?.data?.profile,
-        preferences: response?.data?.preferences,
-        message: response?.message,
-        timestamp: response?.timestamp,
-      });
-
-      // Set redirecting state to show loading feedback
+     
       setIsRedirecting(true);
       console.log('🚀 Redirecting to dashboard...');
 
       // Add a small delay for visual feedback
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      const role = session?.user?.role ?? 'customer'; // Default to 'customer' if role is missing
-      router.push(`/${role}/dashboard`);
+      // Redirect to dashboard
+      router.push('/dashboard');
 
       console.log('✨ Redirect initiated');
     } catch (err) {
@@ -78,7 +87,8 @@ export const TermsAndCommunications = () => {
         full: err,
       });
 
-      const errorMessage = err instanceof Error ? err.message : 'Failed to save preferences. Please try again.';
+      const errorMessage =
+        err instanceof Error ? err.message : 'Failed to save preferences. Please try again.';
       setError(errorMessage);
     }
   };

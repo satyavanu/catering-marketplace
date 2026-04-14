@@ -66,6 +66,9 @@ export async function getAuthHeaders(includeContentType: boolean = true): Promis
   const session = await getSession();
   const headers = new Headers();
 
+
+  console.log("Getting auth headers. Session:", session);
+
   if (includeContentType) {
     headers.set('Content-Type', 'application/json');
   }
