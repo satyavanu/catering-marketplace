@@ -53,6 +53,8 @@ export function AddMenuCategoryModal({
     isSubmitting ||
     categoriesLoading;
 
+  const isFormValid = formData.name.trim().length > 0 && (editingCategory || imageFiles.length > 0);
+
   // Initialize form with editing category data or set default sort order
   useEffect(() => {
     if (isOpen) {
@@ -107,6 +109,7 @@ export function AddMenuCategoryModal({
     const errors: string[] = [];
     const newFiles: File[] = [];
     const newPreviews: string[] = [];
+    let successCount = 0;
 
     Array.from(files).forEach((file) => {
       const validationError = validateImageFile(file);
@@ -117,8 +120,8 @@ export function AddMenuCategoryModal({
         const reader = new FileReader();
         reader.onload = (e: any) => {
           if (e.target?.result && typeof e.target.result === 'string') {
-            newPreviews.push(e.target.result);
             setImagePreviews((prev) => [...prev, e.target.result]);
+            successCount++;
           }
         };
         reader.onerror = () => {
@@ -152,12 +155,12 @@ export function AddMenuCategoryModal({
     setApiError(null);
     setUploadErrors([]);
 
+    // Final validation
     if (!formData.name.trim()) {
       setApiError('Please enter category name');
       return;
     }
 
-    // Validate that new categories have at least one image
     if (!editingCategory && imageFiles.length === 0) {
       setApiError('Please upload at least one category image');
       return;
@@ -168,48 +171,54 @@ export function AddMenuCategoryModal({
     try {
       if (editingCategory) {
         // Update existing category
+        const updatePayload = {
+          name: formData.name.trim(),
+          description: formData.description.trim(),
+          display_order: formData.sort_order,
+        };
+
+        console.log('Updating category with payload:', updatePayload);
+
         const updatedCategory = await updateCategoryMutation.mutateAsync({
           id: editingCategory.id,
-          data: {
-            name: formData.name.trim(),
-            description: formData.description.trim(),
-            image_url: editingCategory.image_url,
-            display_order: formData.sort_order,
-          },
+          data: updatePayload,
         });
+
+        console.log('Category updated successfully:', updatedCategory);
         onSuccess(updatedCategory);
+        resetForm();
+        onClose();
       } else {
-        // Create new category with FormData (includes images as binary array)
+        // Create new category with FormData
         const payload = new FormData();
         payload.append('name', formData.name.trim());
         payload.append('description', formData.description.trim());
-        payload.append('sort_order', formData.sort_order.toString());
+        payload.append('display_order', formData.sort_order.toString());
         payload.append('is_active', formData.is_active.toString());
 
-        // Append all image files as binary data in array format
-        imageFiles.forEach((file, index) => {
-          payload.append(`images[${index}]`, file);
+        // Append all image files - use 'image' field name for array
+        imageFiles.forEach((file) => {
+          payload.append('image', file);
         });
 
         // Debug: Log FormData entries
-        console.log('FormData entries:');
+        console.log('Creating category with FormData:');
         for (const [key, value] of payload.entries()) {
           if (value instanceof File) {
-            console.log(`  ${key}: File(${value.name}, ${value.size} bytes, ${value.type})`);
+            console.log(`  ${key}: File(name=${value.name}, size=${value.size} bytes, type=${value.type})`);
           } else {
             console.log(`  ${key}: ${value}`);
           }
         }
 
         const newCategory = await createCategoryMutation.mutateAsync(payload);
+        console.log('Category created successfully:', newCategory);
         onSuccess(newCategory);
+        resetForm();
+        onClose();
       }
-
-      resetForm();
-      onClose();
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Something went wrong';
+      const errorMessage = error instanceof Error ? error.message : 'Something went wrong';
       setApiError(errorMessage);
       console.error('Error saving category:', error);
     } finally {
@@ -234,9 +243,6 @@ export function AddMenuCategoryModal({
     resetForm();
     onClose();
   };
-
-  // Show message if no categories exist and trying to create
-  const showNoCategoriesMessage = !editingCategory && allCategories.length === 0 && !categoriesLoading;
 
   if (!isOpen) return null;
 
@@ -271,15 +277,6 @@ export function AddMenuCategoryModal({
             </div>
           )}
 
-          {/* No Categories Warning */}
-          {showNoCategoriesMessage && (
-            <div style={styles.warningContainer}>
-              <div style={styles.warningMessage}>
-                ℹ️ This is your first category. After creating this, you'll be able to add menu items.
-              </div>
-            </div>
-          )}
-
           {/* Error Message */}
           {apiError && (
             <div style={styles.errorContainer}>
@@ -287,27 +284,10 @@ export function AddMenuCategoryModal({
             </div>
           )}
 
-          {/* Success Message from Mutation */}
-          {createCategoryMutation.isSuccess && !editingCategory && (
-            <div style={styles.successContainer}>
-              <div style={styles.successMessage}>
-                ✅ Category created successfully!
-              </div>
-            </div>
-          )}
-
-          {updateCategoryMutation.isSuccess && editingCategory && (
-            <div style={styles.successContainer}>
-              <div style={styles.successMessage}>
-                ✅ Category updated successfully!
-              </div>
-            </div>
-          )}
-
           {/* Image Upload Section */}
           <div style={styles.formGroup}>
             <label style={styles.label}>
-              Category Images {!editingCategory && '*'}
+              Category Images {!editingCategory && <span style={{ color: '#dc2626' }}>*</span>}
             </label>
 
             {/* Image Previews */}
@@ -348,7 +328,12 @@ export function AddMenuCategoryModal({
               />
               <label
                 htmlFor="category-image-upload"
-                style={styles.uploadLabel}
+                style={{
+                  ...styles.uploadLabel,
+                  opacity: isLoading ? 0.5 : 1,
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
+                  pointerEvents: isLoading ? 'none' : 'auto',
+                }}
               >
                 <PhotoIcon style={{ width: '32px', height: '32px' }} />
                 <span style={styles.uploadText}>
@@ -381,7 +366,9 @@ export function AddMenuCategoryModal({
 
           {/* Category Name */}
           <div style={styles.formGroup}>
-            <label style={styles.label}>Category Name *</label>
+            <label style={styles.label}>
+              Category Name <span style={{ color: '#dc2626' }}>*</span>
+            </label>
             <input
               type="text"
               placeholder="e.g., Appetizers, Main Course"
@@ -415,7 +402,7 @@ export function AddMenuCategoryModal({
 
           {/* Sort Order */}
           <div style={styles.formGroup}>
-            <label style={styles.label}>Sort Order</label>
+            <label style={styles.label}>Display Order</label>
             <input
               type="number"
               placeholder="1"
@@ -445,7 +432,7 @@ export function AddMenuCategoryModal({
                   setFormData({ ...formData, is_active: e.target.checked })
                 }
                 disabled={isLoading}
-                style={{ marginRight: '8px' }}
+                style={{ marginRight: '8px', cursor: 'pointer' }}
               />
               Category is Active
             </label>
@@ -458,13 +445,27 @@ export function AddMenuCategoryModal({
               onClick={handleClose}
               style={styles.buttonSecondary}
               disabled={isLoading}
+              title={isLoading ? 'Please wait...' : 'Cancel'}
             >
               Cancel
             </button>
             <button
               type="submit"
-              style={styles.buttonPrimary}
-              disabled={isLoading || showNoCategoriesMessage}
+              style={{
+                ...styles.buttonPrimary,
+                opacity: !isFormValid || isLoading ? 0.6 : 1,
+                cursor: !isFormValid || isLoading ? 'not-allowed' : 'pointer',
+              }}
+              disabled={!isFormValid || isLoading}
+              title={
+                !isFormValid
+                  ? editingCategory
+                    ? 'Enter category name'
+                    : 'Enter category name and upload image'
+                  : isLoading
+                    ? 'Processing...'
+                    : 'Save category'
+              }
             >
               {isLoading
                 ? editingCategory
@@ -582,7 +583,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: '24px',
     textAlign: 'center' as const,
     backgroundColor: '#f8fafc',
-    cursor: 'pointer',
     transition: 'all 0.2s ease',
   },
   fileInput: {
@@ -593,7 +593,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexDirection: 'column' as const,
     alignItems: 'center',
     gap: '8px',
-    cursor: 'pointer',
     color: '#64748b',
   },
   uploadText: {
@@ -665,32 +664,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '6px',
     fontSize: '13px',
     border: '1px solid #fecaca',
-  },
-  successContainer: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '8px',
-  },
-  successMessage: {
-    padding: '10px 12px',
-    backgroundColor: '#dcfce7',
-    color: '#166534',
-    borderRadius: '6px',
-    fontSize: '13px',
-    border: '1px solid #bbf7d0',
-  },
-  warningContainer: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '8px',
-  },
-  warningMessage: {
-    padding: '10px 12px',
-    backgroundColor: '#fef3c7',
-    color: '#92400e',
-    borderRadius: '6px',
-    fontSize: '13px',
-    border: '1px solid #fcd34d',
   },
   infoContainer: {
     display: 'flex',

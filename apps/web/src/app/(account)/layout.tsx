@@ -26,6 +26,7 @@ import {
   BuildingOfficeIcon,
   CheckCircleIcon,
   ArrowPathIcon,
+  SwapIcon,
 } from '@heroicons/react/24/outline';
 
 interface MenuItem {
@@ -45,6 +46,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [userRole, setUserRole] = useState<UserRole>('caterer');
+  const [displayRole, setDisplayRole] = useState<'customer' | 'caterer'>('caterer');
 
   // Detect mobile on mount and resize
   useEffect(() => {
@@ -66,8 +68,28 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
     if (session?.user) {
       const role = (session.user as any)?.role || 'caterer';
       setUserRole(role as UserRole);
+      // Set display role to the actual role initially
+      if (role === 'customer' || role === 'caterer') {
+        setDisplayRole(role as 'customer' | 'caterer');
+      }
     }
   }, [session]);
+
+  // Handle role switch
+  const handleRoleSwitch = (newRole: 'customer' | 'caterer') => {
+    setDisplayRole(newRole);
+    setActiveMenu('Dashboard');
+    
+    // Navigate to the appropriate dashboard
+    if (newRole === 'customer') {
+      router.push('/customer/dashboard');
+    } else {
+      router.push('/caterer/dashboard');
+    }
+    
+    // Close mobile menu after navigation
+    setMobileMenuOpen(false);
+  };
 
   // Redirect to signin if not authenticated
   if (status === 'loading') {
@@ -97,7 +119,6 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
   }
 
   // Menu configuration based on role
-  // Menu configuration based on role
   const getMenuByRole = (): MenuItem[] => {
     const baseMenu: { [key in UserRole]: MenuItem[] } = {
       customer: [
@@ -124,7 +145,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
       ],
     };
 
-    return baseMenu[userRole];
+    return baseMenu[displayRole];
   };
 
   const menu = getMenuByRole();
@@ -143,12 +164,15 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
     Bookings: ['Home', 'Bookings'],
     Refunds: ['Home', 'Refunds'],
     Payments: ['Home', 'Payments'],
+    'My Quotes': ['Home', 'My Quotes'],
+    'My Subscriptions': ['Home', 'My Subscriptions'],
+    'My Orders': ['Home', 'My Orders'],
   };
 
   const handleMenuClick = (item: MenuItem) => {
     setActiveMenu(item.name);
     router.push(item.path);
-    setMobileMenuOpen(false); // Close mobile menu after navigation
+    setMobileMenuOpen(false);
   };
 
   const handleSignOut = async () => {
@@ -157,15 +181,18 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
 
   // Get role badge
   const getRoleBadge = () => {
-    const badges: { [key in UserRole]: { label: string; bg: string; color: string } } = {
-      customer: { label: '👤 Customer', bg: '#dbeafe', color: '#0c4a6e' },
-      caterer: { label: '👨‍🍳 Caterer', bg: '#fef3c7', color: '#92400e' },
-      admin: { label: '🔐 Admin', bg: '#fee2e2', color: '#991b1b' },
+    const badges: { [key in 'customer' | 'caterer']: { label: string; bg: string; color: string; icon: string } } = {
+      customer: { label: 'Customer', bg: '#dbeafe', color: '#0c4a6e', icon: '👤' },
+      caterer: { label: 'Caterer', bg: '#fef3c7', color: '#92400e', icon: '👨‍🍳' },
     };
 
-    const badge = badges[userRole];
-    return badge;
+    return badges[displayRole];
   };
+
+  const currentRoleBadge = getRoleBadge();
+
+  // Check if user has both roles
+  const canSwitchRoles = (session?.user as any)?.roles?.includes('customer') && (session?.user as any)?.roles?.includes('caterer');
 
   return (
     <div style={{ display: 'flex', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
@@ -199,7 +226,8 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
           overflow: 'hidden',
           transition: isMobile ? 'width 0.3s ease, padding 0.3s ease' : 'all 0.3s ease',
           boxShadow: isMobile && mobileMenuOpen ? '0 20px 25px rgba(0, 0, 0, 0.15)' : '0 4px 6px rgba(0, 0, 0, 0.07)',
-          height: isMobile && mobileMenuOpen ? '100vh' : '640px',
+          height: isMobile && mobileMenuOpen ? '100vh' : 'auto',
+          minHeight: '100vh',
           zIndex: isMobile ? (mobileMenuOpen ? 40 : -1) : 40,
           display: 'flex',
           flexDirection: 'column',
@@ -259,7 +287,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
                   whiteSpace: 'nowrap',
                 }}
               >
-                {userRole === 'customer' ? 'Your Events' : userRole === 'caterer' ? 'Your Services' : 'Management'}
+                {displayRole === 'customer' ? 'Find Events' : 'Your Services'}
               </p>
             </div>
           )}
@@ -327,6 +355,139 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
             </button>
           ) : null}
         </div>
+
+        {/* Role Switcher - Only show if user has both roles */}
+        {canSwitchRoles && (
+          <div
+            style={{
+              marginBottom: '20px',
+              padding: '12px',
+              backgroundColor: '#f8fafc',
+              borderRadius: '10px',
+              border: '1px solid #e2e8f0',
+              display: 'flex',
+              flexDirection: (sidebarOpen || (isMobile && mobileMenuOpen)) ? 'column' : 'column',
+              gap: '8px',
+              flexShrink: 0,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                marginBottom: (sidebarOpen || (isMobile && mobileMenuOpen)) ? '8px' : '0px',
+              }}
+            >
+              <SwapIcon
+                style={{
+                  width: '14px',
+                  height: '14px',
+                  color: '#667eea',
+                  flexShrink: 0,
+                }}
+              />
+              {(sidebarOpen || (isMobile && mobileMenuOpen)) && (
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    color: '#667eea',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  Switch Role
+                </span>
+              )}
+            </div>
+
+            {/* Role Buttons */}
+            <div
+              style={{
+                display: 'flex',
+                gap: '6px',
+                flexDirection: (sidebarOpen || (isMobile && mobileMenuOpen)) ? 'row' : 'column',
+              }}
+            >
+              {/* Customer Button */}
+              <button
+                onClick={() => handleRoleSwitch('customer')}
+                style={{
+                  flex: 1,
+                  padding: (sidebarOpen || (isMobile && mobileMenuOpen)) ? '8px 10px' : '8px',
+                  borderRadius: '8px',
+                  border: displayRole === 'customer' ? '2px solid #0c4a6e' : '1px solid #cbd5e1',
+                  backgroundColor: displayRole === 'customer' ? '#dbeafe' : 'white',
+                  color: displayRole === 'customer' ? '#0c4a6e' : '#64748b',
+                  cursor: 'pointer',
+                  fontWeight: displayRole === 'customer' ? '700' : '600',
+                  fontSize: '12px',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: (sidebarOpen || (isMobile && mobileMenuOpen)) ? 'center' : 'center',
+                  gap: (sidebarOpen || (isMobile && mobileMenuOpen)) ? '4px' : '0px',
+                  minHeight: '32px',
+                }}
+                onMouseEnter={(e) => {
+                  if (displayRole !== 'customer') {
+                    e.currentTarget.style.backgroundColor = '#f0fdf4';
+                    e.currentTarget.style.borderColor = '#0c4a6e';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (displayRole !== 'customer') {
+                    e.currentTarget.style.backgroundColor = 'white';
+                    e.currentTarget.style.borderColor = '#cbd5e1';
+                  }
+                }}
+                title="Switch to Customer"
+              >
+                <span>👤</span>
+                {(sidebarOpen || (isMobile && mobileMenuOpen)) && 'Customer'}
+              </button>
+
+              {/* Caterer Button */}
+              <button
+                onClick={() => handleRoleSwitch('caterer')}
+                style={{
+                  flex: 1,
+                  padding: (sidebarOpen || (isMobile && mobileMenuOpen)) ? '8px 10px' : '8px',
+                  borderRadius: '8px',
+                  border: displayRole === 'caterer' ? '2px solid #92400e' : '1px solid #cbd5e1',
+                  backgroundColor: displayRole === 'caterer' ? '#fef3c7' : 'white',
+                  color: displayRole === 'caterer' ? '#92400e' : '#64748b',
+                  cursor: 'pointer',
+                  fontWeight: displayRole === 'caterer' ? '700' : '600',
+                  fontSize: '12px',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: (sidebarOpen || (isMobile && mobileMenuOpen)) ? 'center' : 'center',
+                  gap: (sidebarOpen || (isMobile && mobileMenuOpen)) ? '4px' : '0px',
+                  minHeight: '32px',
+                }}
+                onMouseEnter={(e) => {
+                  if (displayRole !== 'caterer') {
+                    e.currentTarget.style.backgroundColor = '#fef3c7';
+                    e.currentTarget.style.borderColor = '#92400e';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (displayRole !== 'caterer') {
+                    e.currentTarget.style.backgroundColor = 'white';
+                    e.currentTarget.style.borderColor = '#cbd5e1';
+                  }
+                }}
+                title="Switch to Caterer"
+              >
+                <span>👨‍🍳</span>
+                {(sidebarOpen || (isMobile && mobileMenuOpen)) && 'Caterer'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Navigation Menu - Scrollable */}
         <nav
@@ -637,6 +798,27 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
               </div>
             ))}
           </div>
+
+          {/* Current Role Badge */}
+          {canSwitchRoles && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '6px 12px',
+                backgroundColor: currentRoleBadge.bg,
+                color: currentRoleBadge.color,
+                borderRadius: '20px',
+                fontSize: '12px',
+                fontWeight: '600',
+                flexShrink: 0,
+              }}
+            >
+              <span>{currentRoleBadge.icon}</span>
+              <span>{currentRoleBadge.label}</span>
+            </div>
+          )}
         </div>
 
         {/* CONTENT AREA */}

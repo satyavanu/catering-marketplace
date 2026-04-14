@@ -11,56 +11,26 @@ import {
 import {
   useCategories,
   useDeleteCategory,
+  useMenuItems,
+  useDeleteMenuItem,
   type MenuCategory,
+  type MenuItem,
 } from '@catering-marketplace/query-client';
 import { AddMenuCategoryModal } from './AddMenuCategoryModal';
 
-interface MenuItem {
-  id: number;
-  name: string;
-  category: string;
-  description: string;
-  price: number;
-  offer?: number;
-  finalPrice: number;
-  dietary: string[];
-  halal: boolean;
-  vegan: boolean;
-  glutenFree: boolean;
-  nutrition: {
-    calories: number;
-    protein: number;
-    carbs: number;
-    fat: number;
-    fiber: number;
-  };
-  optionalIngredients: string[];
-  availability: 'available' | 'unavailable' | 'out-of-stock';
-  images?: string[];
-  image?: string;
-  prepTime: number;
-  servings: number;
-}
-
-
 interface MenuManagementProps {
-  categories: MenuCategory[];
-  items: MenuItem[];
+  categories: any[];
   onAddMenuItem: () => void;
-  onEditMenuItem: (item: MenuItem) => void;
-  onDeleteMenuItem: (id: number) => void;
+  onEditMenuItem: (item: any) => void;
   onCategoryChange: (category: string) => void;
   selectedCategory: string;
   menuView: 'grid' | 'list';
   onViewChange: (view: 'grid' | 'list') => void;
-  onCategoriesFetch: React.Dispatch<React.SetStateAction<MenuCategory[]>>;
 }
 
- function MenuManagementContent({
-  items,
+function MenuManagementContent({
   onAddMenuItem,
   onEditMenuItem,
-  onDeleteMenuItem,
   onCategoryChange,
   selectedCategory,
   menuView,
@@ -78,7 +48,17 @@ interface MenuManagementProps {
     error: categoriesError,
   } = useCategories();
 
+  // Fetch menu items from API
+  const {
+    data: menuItems = [],
+    isLoading: itemsLoading,
+    error: itemsError,
+  } = useMenuItems({
+    category: selectedCategory === 'all' ? undefined : selectedCategory.id,
+  });
+
   const deleteCategoryMutation = useDeleteCategory();
+  const deleteMenuItemMutation = useDeleteMenuItem();
 
   const handleAddMenuCategory = () => {
     setEditingCategory(null);
@@ -104,16 +84,23 @@ interface MenuManagementProps {
     }
   };
 
+  const handleDeleteMenuItem = (id: string) => {
+    if (window.confirm('Are you sure you want to delete this menu item?')) {
+      deleteMenuItemMutation.mutate(id);
+    }
+  };
+
   const handleCategorySaved = () => {
     setEditingCategory(null);
     setShowCategoryModal(false);
     // Categories will be refetched automatically via React Query
   };
 
+  // Filter menu items based on selected category
   const filteredMenuItems =
     selectedCategory === 'all'
-      ? items
-      : items.filter((item) => item.category === selectedCategory);
+      ? menuItems
+      : menuItems.filter((item: any) => item.category_id === selectedCategory.id);
 
   if (categoriesError) {
     return (
@@ -123,6 +110,17 @@ interface MenuManagementProps {
           {categoriesError instanceof Error
             ? categoriesError.message
             : 'Unknown error'}
+        </p>
+      </div>
+    );
+  }
+
+  if (itemsError) {
+    return (
+      <div style={styles.errorState}>
+        <p>❌ Failed to load menu items</p>
+        <p style={{ fontSize: '12px', color: '#64748b' }}>
+          {itemsError instanceof Error ? itemsError.message : 'Unknown error'}
         </p>
       </div>
     );
@@ -167,7 +165,7 @@ interface MenuManagementProps {
               </div>
               <div style={styles.categoryInfo}>
                 <h4 style={styles.categoryButtonName}>All Items</h4>
-                <p style={styles.categoryButtonCount}>{items.length} items</p>
+                <p style={styles.categoryButtonCount}>{menuItems.length} items</p>
               </div>
             </button>
           )}
@@ -209,7 +207,7 @@ interface MenuManagementProps {
                   }}
                 >
                   <button
-                    onClick={() => onCategoryChange(cat.name)}
+                    onClick={() => onCategoryChange(cat)}
                     style={{
                       ...styles.categoryButton,
                       ...(selectedCategory === cat.name
@@ -231,7 +229,9 @@ interface MenuManagementProps {
                     <div style={styles.categoryInfo}>
                       <h4 style={styles.categoryButtonName}>{cat.name}</h4>
                       <p style={styles.categoryButtonCount}>
-                        {items.filter((i) => i.category === cat.name).length}{' '}
+                        {menuItems.filter(
+                          (i) => i.category_id === cat.id || i.category === cat.name
+                        ).length}{' '}
                         items
                       </p>
                     </div>
@@ -279,7 +279,7 @@ interface MenuManagementProps {
           <h2 style={styles.sectionTitle}>
             {selectedCategory === 'all'
               ? 'All Menu Items'
-              : selectedCategory}{' '}
+              : selectedCategory.name}
             ({filteredMenuItems.length})
           </h2>
           <div style={styles.viewControls}>
@@ -310,8 +310,13 @@ interface MenuManagementProps {
           </div>
         </div>
 
+        {/* Loading State */}
+        {itemsLoading && (
+          <div style={styles.loadingState}>Loading menu items...</div>
+        )}
+
         {/* Grid View */}
-        {menuView === 'grid' && (
+        {menuView === 'grid' && !itemsLoading && (
           <div style={styles.menuItemsGrid}>
             {filteredMenuItems.length > 0 ? (
               filteredMenuItems.map((item) => (
@@ -362,11 +367,27 @@ interface MenuManagementProps {
                   {/* Description */}
                   <p style={styles.itemDescription}>{item.description}</p>
 
+                  {/* Tags */}
+                  {item.tags && item.tags.length > 0 && (
+                    <div style={styles.dietarySection}>
+                      {item.tags.map((tag) => (
+                        <span key={tag} style={styles.tagBadge}>
+                          {tag === 'spicy' && '🌶️'}
+                          {tag === 'bestseller' && '⭐'}
+                          {tag === 'new' && '✨'}
+                          {tag === 'gluten-free' && '🌾'}
+                          {tag === 'dairy-free' && '🥛'}
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
                   {/* Price Section */}
                   <div style={styles.priceSection}>
                     <div style={styles.priceBox}>
                       <span style={styles.originalPrice}>₹{item.price}</span>
-                      {item.offer > 0 && (
+                      {item.offer && item.offer > 0 && (
                         <>
                           <span style={styles.offerBadge}>
                             {item.offer}% OFF
@@ -392,7 +413,7 @@ interface MenuManagementProps {
                         🌾 Gluten Free
                       </span>
                     )}
-                    {item.dietary.map((d) => (
+                    {item.dietary && item.dietary.map((d) => (
                       <span key={d} style={styles.dietaryBadge}>
                         {d === 'vegetarian' && '🥬'}
                         {d === 'non-vegetarian' && '🍗'}
@@ -407,25 +428,25 @@ interface MenuManagementProps {
                     <div style={styles.nutritionItem}>
                       <span style={styles.nutritionLabel}>Calories</span>
                       <span style={styles.nutritionValue}>
-                        {item.nutrition.calories}
+                        {item.nutrition?.calories || 0}
                       </span>
                     </div>
                     <div style={styles.nutritionItem}>
                       <span style={styles.nutritionLabel}>Protein</span>
                       <span style={styles.nutritionValue}>
-                        {item.nutrition.protein}g
+                        {item.nutrition?.protein || 0}g
                       </span>
                     </div>
                     <div style={styles.nutritionItem}>
                       <span style={styles.nutritionLabel}>Carbs</span>
                       <span style={styles.nutritionValue}>
-                        {item.nutrition.carbs}g
+                        {item.nutrition?.carbs || 0}g
                       </span>
                     </div>
                     <div style={styles.nutritionItem}>
                       <span style={styles.nutritionLabel}>Fat</span>
                       <span style={styles.nutritionValue}>
-                        {item.nutrition.fat}g
+                        {item.nutrition?.fat || 0}g
                       </span>
                     </div>
                   </div>
@@ -445,13 +466,15 @@ interface MenuManagementProps {
                     <button
                       onClick={() => onEditMenuItem(item)}
                       style={styles.buttonItemEdit}
+                      disabled={deleteMenuItemMutation.isPending}
                     >
                       <PencilIcon style={{ width: '14px', height: '14px' }} />
                       Edit
                     </button>
                     <button
-                      onClick={() => onDeleteMenuItem(item.id)}
+                      onClick={() => handleDeleteMenuItem(item.id)}
                       style={styles.buttonItemDelete}
+                      disabled={deleteMenuItemMutation.isPending}
                     >
                       <TrashIcon style={{ width: '14px', height: '14px' }} />
                       Delete
@@ -468,7 +491,7 @@ interface MenuManagementProps {
         )}
 
         {/* List View */}
-        {menuView === 'list' && (
+        {menuView === 'list' && !itemsLoading && (
           <div style={styles.menuItemsList}>
             {filteredMenuItems.length > 0 ? (
               filteredMenuItems.map((item) => (
@@ -479,7 +502,7 @@ interface MenuManagementProps {
                       {item.description}
                     </p>
                     <div style={styles.listRowTags}>
-                      {item.dietary.map((d) => (
+                      {item.dietary && item.dietary.map((d) => (
                         <span key={d} style={styles.dietaryBadge}>
                           {d}
                         </span>
@@ -490,6 +513,11 @@ interface MenuManagementProps {
                       {item.vegan && (
                         <span style={styles.standardBadge}>🌱 Vegan</span>
                       )}
+                      {item.tags && item.tags.map((tag) => (
+                        <span key={tag} style={styles.tagBadge}>
+                          {tag}
+                        </span>
+                      ))}
                     </div>
                   </div>
                   <div style={styles.listRowMeta}>
@@ -516,7 +544,7 @@ interface MenuManagementProps {
                     </span>
                   </div>
                   <div style={styles.listRowPrice}>
-                    {item.offer > 0 && (
+                    {item.offer && item.offer > 0 && (
                       <span style={styles.offerBadge}>
                         {item.offer}% OFF
                       </span>
@@ -529,12 +557,14 @@ interface MenuManagementProps {
                     <button
                       onClick={() => onEditMenuItem(item)}
                       style={styles.buttonSmall}
+                      disabled={deleteMenuItemMutation.isPending}
                     >
                       <PencilIcon style={{ width: '14px', height: '14px' }} />
                     </button>
                     <button
-                      onClick={() => onDeleteMenuItem(item.id)}
+                      onClick={() => handleDeleteMenuItem(item.id)}
                       style={styles.buttonSmallDanger}
+                      disabled={deleteMenuItemMutation.isPending}
                     >
                       <TrashIcon style={{ width: '14px', height: '14px' }} />
                     </button>
@@ -566,6 +596,7 @@ interface MenuManagementProps {
 
 // Styles
 const styles: { [key: string]: React.CSSProperties } = {
+  // ...existing styles...
   container: {
     display: 'grid',
     gridTemplateColumns: '1fr',
@@ -895,6 +926,14 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '11px',
     fontWeight: '600',
   },
+  tagBadge: {
+    padding: '3px 8px',
+    backgroundColor: '#fef3c7',
+    color: '#92400e',
+    borderRadius: '4px',
+    fontSize: '11px',
+    fontWeight: '600',
+  },
   nutritionGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(4, 1fr)',
@@ -1063,6 +1102,5 @@ const styles: { [key: string]: React.CSSProperties } = {
     border: '1px solid #fecaca',
   },
 };
-
 
 export const MenuManagement = memo(MenuManagementContent);
