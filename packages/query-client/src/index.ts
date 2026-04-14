@@ -15,6 +15,7 @@ export * from './queries/menu-items';
 export * from './api/auth';
 export * from "./queries/profile";
 export * from "./queries/consents";
+export * from "./queries/packages-menu";
 // Mutation Hooks
 export * from './mutations/newsletter';
 
