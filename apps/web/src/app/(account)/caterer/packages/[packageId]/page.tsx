@@ -42,20 +42,24 @@ export default function PackageDetailPage() {
 
   // Local UI state
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
-  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
+  const [showAddSectionModal, setShowAddSectionModal] = useState(false);
   const [showAddDishModal, setShowAddDishModal] = useState(false);
-  const [selectedCategoryForDish, setSelectedCategoryForDish] = useState<string | null>(null);
-  const [editingCategory, setEditingCategory] = useState<string | null>(null);
+  const [selectedSectionForDish, setSelectedSectionForDish] = useState<string | null>(null);
+  const [editingSection, setEditingSection] = useState<string | null>(null);
   const [editingDish, setEditingDish] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Form state for category
-  const [categoryFormData, setCategoryFormData] = useState({
+  // Form state for section
+  const [sectionFormData, setSectionFormData] = useState({
     name: '',
     description: '',
     sort_order: 1,
     is_active: true,
+    max_items_selectable: 1,
+    additional_charge_type: 'none' as 'none' | 'per_item' | 'percentage',
+    additional_charge_amount: '0',
+    additional_charge_description: '',
   });
 
   // Form state for dish
@@ -81,211 +85,230 @@ export default function PackageDetailPage() {
     }
   }, [sections]);
 
-  // Toggle category expansion
-  const toggleCategory = (categoryId: string) => {
+  // Toggle section expansion
+  const toggleSection = (sectionId: string) => {
     setExpandedCategories((prev) =>
-      prev.includes(categoryId) ? prev.filter((id) => id !== categoryId) : [...prev, categoryId]
+      prev.includes(sectionId) ? prev.filter((id) => id !== sectionId) : [...prev, sectionId]
     );
   };
 
- 
-// ============ CATEGORY HANDLERS ============
-const handleSaveCategory = async () => {
-  if (!categoryFormData.name.trim()) {
-    setErrorMessage('Please enter category name');
-    return;
-  }
-
-  setErrorMessage('');
-  setSuccessMessage('');
-
-  try {
-    if (editingCategory) {
-      await updateSectionMutation.mutateAsync({
-        id: editingCategory,
-        data: {
-          name: categoryFormData.name,
-          description: categoryFormData.description || undefined,
-          sort_order: categoryFormData.sort_order,
-          is_active: categoryFormData.is_active,
-        },
-      });
-      setSuccessMessage('Category updated successfully!');
-    } else {
-      await createSectionMutation.mutateAsync({
-        collectionId: packageId,
-        data: {
-          name: categoryFormData.name,
-          description: categoryFormData.description || undefined,
-          sort_order: categoryFormData.sort_order,
-        },
-      });
-      setSuccessMessage('Category created successfully!');
+  // ============ SECTION HANDLERS ============
+  const handleSaveSection = async () => {
+    if (!sectionFormData.name.trim()) {
+      setErrorMessage('Please enter section name');
+      return;
     }
 
-    // ✅ REPLACE: Use refetchQueries instead of invalidateQueries
-    await queryClient.refetchQueries({
-      queryKey: ['collectionSections', packageId],
-      type: 'active',
-    });
+    setErrorMessage('');
+    setSuccessMessage('');
 
-    setCategoryFormData({
-      name: '',
-      description: '',
-      sort_order: 1,
-      is_active: true,
-    });
-    setEditingCategory(null);
-    setShowAddCategoryModal(false);
+    try {
+      if (editingSection) {
+        await updateSectionMutation.mutateAsync({
+          id: editingSection,
+          data: {
+            name: sectionFormData.name,
+            description: sectionFormData.description || undefined,
+            sort_order: sectionFormData.sort_order,
+            is_active: sectionFormData.is_active,
+            max_items_selectable: sectionFormData.max_items_selectable,
+            additional_charge_type: sectionFormData.additional_charge_type,
+            additional_charge_amount: 
+              sectionFormData.additional_charge_type !== 'none' 
+                ? parseFloat(sectionFormData.additional_charge_amount) 
+                : 0,
+            additional_charge_description: sectionFormData.additional_charge_description || undefined,
+          },
+        });
+        setSuccessMessage('Menu Section updated successfully!');
+      } else {
+        await createSectionMutation.mutateAsync({
+          collectionId: packageId,
+          data: {
+            name: sectionFormData.name,
+            description: sectionFormData.description || undefined,
+            sort_order: sectionFormData.sort_order,
+            max_items_selectable: sectionFormData.max_items_selectable,
+            additional_charge_type: sectionFormData.additional_charge_type,
+            additional_charge_amount: 
+              sectionFormData.additional_charge_type !== 'none' 
+                ? parseFloat(sectionFormData.additional_charge_amount) 
+                : 0,
+            additional_charge_description: sectionFormData.additional_charge_description || undefined,
+          },
+        });
+        setSuccessMessage('Menu Section created successfully!');
+      }
 
-    setTimeout(() => setSuccessMessage(''), 2000);
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : 'Failed to save category';
-    setErrorMessage(errorMsg);
-  }
-};
-
-const handleDeleteCategory = async (categoryId: string) => {
-  if (!window.confirm('Are you sure you want to delete this category?')) return;
-
-  try {
-    await deleteSectionMutation.mutateAsync(categoryId);
-    setSuccessMessage('Category deleted successfully!');
-    
-    // ✅ REPLACE: Use refetchQueries instead of invalidateQueries
-    await queryClient.refetchQueries({
-      queryKey: ['collectionSections', packageId],
-      type: 'active',
-    });
-
-    setTimeout(() => setSuccessMessage(''), 2000);
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : 'Failed to delete category';
-    setErrorMessage(errorMsg);
-  }
-};
-
-// ============ DISH HANDLERS ============
-const handleSaveDish = async () => {
-  if (!dishFormData.name.trim() || !selectedCategoryForDish) {
-    setErrorMessage('Please fill required fields');
-    return;
-  }
-
-  setErrorMessage('');
-  setSuccessMessage('');
-
-  try {
-    const payload = {
-      name: dishFormData.name,
-      description: dishFormData.description || undefined,
-      image_url: dishFormData.image_url || undefined,
-      is_veg: dishFormData.is_veg,
-      is_vegan: dishFormData.is_vegan,
-      is_gluten_free: dishFormData.is_gluten_free,
-      spice_level: dishFormData.spice_level,
-      pricing_type: dishFormData.pricing_type,
-      price: dishFormData.pricing_type === 'included' ? undefined : parseFloat(dishFormData.price),
-      currency_code: dishFormData.currency_code,
-      sort_order: dishFormData.sort_order,
-    };
-
-    if (editingDish) {
-      await updateItemMutation.mutateAsync({
-        id: editingDish,
-        data: {
-          ...payload,
-          is_active: dishFormData.is_active,
-        },
+      await queryClient.refetchQueries({
+        queryKey: ['collectionSections', packageId],
+        type: 'active',
       });
-      setSuccessMessage('Dish updated successfully!');
-    } else {
-      await createItemMutation.mutateAsync({
-        sectionId: selectedCategoryForDish,
-        data: payload,
+
+      setSectionFormData({
+        name: '',
+        description: '',
+        sort_order: 1,
+        is_active: true,
+        max_items_selectable: 1,
+        additional_charge_type: 'none',
+        additional_charge_amount: '0',
+        additional_charge_description: '',
       });
-      setSuccessMessage('Dish created successfully!');
+      setEditingSection(null);
+      setShowAddSectionModal(false);
+
+      setTimeout(() => setSuccessMessage(''), 2000);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Failed to save section';
+      setErrorMessage(errorMsg);
+    }
+  };
+
+  const handleDeleteSection = async (sectionId: string) => {
+    if (!window.confirm('Are you sure you want to delete this section and all its items?')) return;
+
+    try {
+      await deleteSectionMutation.mutateAsync(sectionId);
+      setSuccessMessage('Menu Section deleted successfully!');
+      
+      await queryClient.refetchQueries({
+        queryKey: ['collectionSections', packageId],
+        type: 'active',
+      });
+
+      setTimeout(() => setSuccessMessage(''), 2000);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Failed to delete section';
+      setErrorMessage(errorMsg);
+    }
+  };
+
+  // ============ DISH HANDLERS ============
+  const handleSaveDish = async () => {
+    if (!dishFormData.name.trim() || !selectedSectionForDish) {
+      setErrorMessage('Please fill required fields');
+      return;
     }
 
-    // ✅ REPLACE: Use refetchQueries instead of invalidateQueries
-    await queryClient.refetchQueries({
-      queryKey: ['collectionSections', packageId],
-      type: 'active',
-    });
+    setErrorMessage('');
+    setSuccessMessage('');
 
-    setDishFormData({
-      name: '',
-      description: '',
-      image_url: '',
-      is_veg: true,
-      is_vegan: false,
-      is_gluten_free: false,
-      spice_level: 'medium',
-      pricing_type: 'included',
-      price: '0',
-      currency_code: 'INR',
-      sort_order: 1,
-      is_active: true,
-    });
-    setEditingDish(null);
-    setSelectedCategoryForDish(null);
-    setShowAddDishModal(false);
+    try {
+      const payload = {
+        name: dishFormData.name,
+        description: dishFormData.description || undefined,
+        image_url: dishFormData.image_url || undefined,
+        is_veg: dishFormData.is_veg,
+        is_vegan: dishFormData.is_vegan,
+        is_gluten_free: dishFormData.is_gluten_free,
+        spice_level: dishFormData.spice_level,
+        pricing_type: dishFormData.pricing_type,
+        price: dishFormData.pricing_type === 'included' ? undefined : parseFloat(dishFormData.price),
+        currency_code: dishFormData.currency_code,
+        sort_order: dishFormData.sort_order,
+      };
 
-    setTimeout(() => setSuccessMessage(''), 2000);
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : 'Failed to save dish';
-    setErrorMessage(errorMsg);
-  }
-};
+      if (editingDish) {
+        await updateItemMutation.mutateAsync({
+          id: editingDish,
+          data: {
+            ...payload,
+            is_active: dishFormData.is_active,
+          },
+        });
+        setSuccessMessage('Dish updated successfully!');
+      } else {
+        await createItemMutation.mutateAsync({
+          sectionId: selectedSectionForDish,
+          data: payload,
+        });
+        setSuccessMessage('Dish created successfully!');
+      }
 
-const handleDeleteDish = async (dishId: string) => {
-  if (!window.confirm('Are you sure you want to delete this dish?')) return;
+      await queryClient.refetchQueries({
+        queryKey: ['collectionSections', packageId],
+        type: 'active',
+      });
 
-  try {
-    await deleteItemMutation.mutateAsync(dishId);
-    setSuccessMessage('Dish deleted successfully!');
-    
-    // ✅ REPLACE: Use refetchQueries instead of invalidateQueries
-    await queryClient.refetchQueries({
-      queryKey: ['collectionSections', packageId],
-      type: 'active',
-    });
+      setDishFormData({
+        name: '',
+        description: '',
+        image_url: '',
+        is_veg: true,
+        is_vegan: false,
+        is_gluten_free: false,
+        spice_level: 'medium',
+        pricing_type: 'included',
+        price: '0',
+        currency_code: 'INR',
+        sort_order: 1,
+        is_active: true,
+      });
+      setEditingDish(null);
+      setSelectedSectionForDish(null);
+      setShowAddDishModal(false);
 
-    setTimeout(() => setSuccessMessage(''), 2000);
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : 'Failed to delete dish';
-    setErrorMessage(errorMsg);
-  }
-};
+      setTimeout(() => setSuccessMessage(''), 2000);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Failed to save dish';
+      setErrorMessage(errorMsg);
+    }
+  };
 
-  const openAddCategoryModal = () => {
-    setCategoryFormData({
+  const handleDeleteDish = async (dishId: string) => {
+    if (!window.confirm('Are you sure you want to delete this dish?')) return;
+
+    try {
+      await deleteItemMutation.mutateAsync(dishId);
+      setSuccessMessage('Dish deleted successfully!');
+      
+      await queryClient.refetchQueries({
+        queryKey: ['collectionSections', packageId],
+        type: 'active',
+      });
+
+      setTimeout(() => setSuccessMessage(''), 2000);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Failed to delete dish';
+      setErrorMessage(errorMsg);
+    }
+  };
+
+  const openAddSectionModal = () => {
+    setSectionFormData({
       name: '',
       description: '',
       sort_order: (sections.length + 1) * 10,
       is_active: true,
+      max_items_selectable: 1,
+      additional_charge_type: 'none',
+      additional_charge_amount: '0',
+      additional_charge_description: '',
     });
-    setEditingCategory(null);
-    setShowAddCategoryModal(true);
+    setEditingSection(null);
+    setShowAddSectionModal(true);
     setErrorMessage('');
   };
 
-  const openEditCategoryModal = (category: MenuSection) => {
-    setCategoryFormData({
-      name: category.name,
-      description: category.description || '',
-      sort_order: category.sort_order,
-      is_active: category.is_active,
+  const openEditSectionModal = (section: MenuSection) => {
+    setSectionFormData({
+      name: section.name,
+      description: section.description || '',
+      sort_order: section.sort_order,
+      is_active: section.is_active,
+      max_items_selectable: (section.max_items_selectable as number) || 1,
+      additional_charge_type: (section.additional_charge_type as 'none' | 'per_item' | 'percentage') || 'none',
+      additional_charge_amount: (section.additional_charge_amount as number)?.toString() || '0',
+      additional_charge_description: (section.additional_charge_description as string) || '',
     });
-    setEditingCategory(category.id);
-    setShowAddCategoryModal(true);
+    setEditingSection(section.id);
+    setShowAddSectionModal(true);
     setErrorMessage('');
   };
 
-  
-
-  const openAddDishModal = (categoryId: string) => {
-    setSelectedCategoryForDish(categoryId);
+  const openAddDishModal = (sectionId: string) => {
+    setSelectedSectionForDish(sectionId);
     setDishFormData({
       name: '',
       description: '',
@@ -305,8 +328,8 @@ const handleDeleteDish = async (dishId: string) => {
     setErrorMessage('');
   };
 
-  const openEditDishModal = (categoryId: string, dish: MenuItem) => {
-    setSelectedCategoryForDish(categoryId);
+  const openEditDishModal = (sectionId: string, dish: MenuItem) => {
+    setSelectedSectionForDish(sectionId);
     setDishFormData({
       name: dish.name,
       description: dish.description || '',
@@ -422,48 +445,72 @@ const handleDeleteDish = async (dishId: string) => {
 
       {/* Main Content */}
       <div style={styles.mainContent}>
-        {/* Add Category Button */}
-        <div style={styles.addCategoryButtonContainer}>
-          <button onClick={openAddCategoryModal} style={styles.addCategoryButton}>
+        {/* Add Menu Section Button */}
+        <div style={styles.addSectionButtonContainer}>
+          <button onClick={openAddSectionModal} style={styles.addSectionButton}>
             <PlusIcon style={{ width: '18px', height: '18px' }} />
-            Add Category
+            Add Menu Section
           </button>
+          <p style={styles.sectionHint}>Organize your menu items into sections (e.g., Appetizers, Main Course, Desserts)</p>
         </div>
 
-        {/* Categories List */}
-        <div style={styles.categoriesList}>
+        {/* Sections List */}
+        <div style={styles.sectionsList}>
           {sections && sections.length > 0 ? (
-            sections.map((category) => (
-              <div key={category.id} style={styles.categoryCard}>
-                {/* Category Header */}
-                <div style={styles.categoryHeader}>
-                  <div style={styles.categoryTitleSection}>
+            sections.map((section) => (
+              <div key={section.id} style={styles.sectionCard}>
+                {/* Section Header */}
+                <div style={styles.sectionHeader}>
+                  <div style={styles.sectionTitleSection}>
                     <button
-                      onClick={() => toggleCategory(category.id)}
+                      onClick={() => toggleSection(section.id)}
                       style={styles.expandButton}
                     >
-                      {expandedCategories.includes(category.id) ? (
+                      {expandedCategories.includes(section.id) ? (
                         <ChevronUpIcon style={{ width: '20px', height: '20px' }} />
                       ) : (
                         <ChevronDownIcon style={{ width: '20px', height: '20px' }} />
                       )}
                     </button>
-                    <div style={styles.categoryInfo}>
-                      <h3 style={styles.categoryName}>📂 {category.name}</h3>
-                      <p style={styles.categoryDescription}>{category.description}</p>
+                    <div style={styles.sectionInfo}>
+                      <h3 style={styles.sectionName}>📂 {section.name}</h3>
+                      <p style={styles.sectionDescription}>{section.description}</p>
+                      
+                      {/* Section Meta Info */}
+                      <div style={styles.sectionMetaInfo}>
+                        <span style={styles.metaBadge}>
+                          📋 {section.items?.length || 0} items
+                        </span>
+                        {section.max_items_selectable && (
+                          <span style={styles.metaBadge}>
+                            🔢 Max selectable: {section.max_items_selectable}
+                          </span>
+                        )}
+                        {section.additional_charge_type !== 'none' && (
+                          <span style={styles.metaBadgeWarning}>
+                            {section.additional_charge_type === 'per_item' 
+                              ? `💰 +₹${section.additional_charge_amount} per item`
+                              : `💰 +${section.additional_charge_amount}% charge`
+                            }
+                          </span>
+                        )}
+                        {!section.is_active && (
+                          <span style={styles.metaBadgeDanger}>🔴 Inactive</span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  <div style={styles.categoryActions}>
+                  <div style={styles.sectionActions}>
                     <button
-                      onClick={() => openEditCategoryModal(category)}
+                      onClick={() => openEditSectionModal(section)}
                       style={styles.buttonIcon}
                       title="Edit"
                     >
                       <PencilIcon style={{ width: '16px', height: '16px' }} />
                     </button>
                     <button
-                      onClick={() => handleDeleteCategory(category.id)}
+                      onClick={() => handleDeleteSection(section.id)}
                       style={styles.buttonIconDelete}
                       title="Delete"
                       disabled={deleteSectionMutation.isPending}
@@ -473,13 +520,13 @@ const handleDeleteDish = async (dishId: string) => {
                   </div>
                 </div>
 
-                {/* Category Content - Expanded */}
-                {expandedCategories.includes(category.id) && (
-                  <div style={styles.categoryContent}>
+                {/* Section Content - Expanded */}
+                {expandedCategories.includes(section.id) && (
+                  <div style={styles.sectionContent}>
                     {/* Dishes List */}
                     <div style={styles.dishesList}>
-                      {category.items && category.items.length > 0 ? (
-                        category.items
+                      {section.items && section.items.length > 0 ? (
+                        section.items
                           .sort((a, b) => a.sort_order - b.sort_order)
                           .map((dish) => (
                             <div key={dish.id} style={styles.dishItem}>
@@ -499,17 +546,10 @@ const handleDeleteDish = async (dishId: string) => {
                                           dish.spice_level.slice(1)
                                         : 'Medium'}
                                     </span>
+                                    {dish.is_vegan && <span style={styles.dishVegan}>🌱 Vegan</span>}
+                                    {dish.is_gluten_free && <span style={styles.dishGF}>🌾 GF</span>}
                                     {dish.pricing_type !== 'included' && dish.price && (
-                                      <span
-                                        style={{
-                                          backgroundColor: '#fef3c7',
-                                          color: '#92400e',
-                                          padding: '2px 6px',
-                                          borderRadius: '4px',
-                                          fontWeight: '600',
-                                          fontSize: '12px',
-                                        }}
-                                      >
+                                      <span style={styles.dishPrice}>
                                         +₹{dish.price}
                                       </span>
                                     )}
@@ -522,7 +562,7 @@ const handleDeleteDish = async (dishId: string) => {
 
                               <div style={styles.dishActions}>
                                 <button
-                                  onClick={() => openEditDishModal(category.id, dish)}
+                                  onClick={() => openEditDishModal(section.id, dish)}
                                   style={styles.buttonIcon}
                                   title="Edit"
                                 >
@@ -546,11 +586,11 @@ const handleDeleteDish = async (dishId: string) => {
 
                     {/* Add Dish Button */}
                     <button
-                      onClick={() => openAddDishModal(category.id)}
+                      onClick={() => openAddDishModal(section.id)}
                       style={styles.addDishButton}
                     >
                       <PlusIcon style={{ width: '16px', height: '16px' }} />
-                      Add Dish
+                      Add Dish to {section.name}
                     </button>
                   </div>
                 )}
@@ -558,25 +598,25 @@ const handleDeleteDish = async (dishId: string) => {
             ))
           ) : (
             <div style={styles.emptyState}>
-              <p style={styles.emptyStateText}>No categories yet</p>
-              <p style={styles.emptyStateSubtext}>Create your first category to get started</p>
+              <p style={styles.emptyStateText}>No menu sections yet</p>
+              <p style={styles.emptyStateSubtext}>Create your first section to organize menu items</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Add/Edit Category Modal */}
-      {showAddCategoryModal && (
+      {/* Add/Edit Menu Section Modal */}
+      {showAddSectionModal && (
         <div style={styles.modalOverlay}>
-          <div style={styles.modal}>
+          <div style={{ ...styles.modal, maxWidth: '600px' }}>
             <div style={styles.modalHeader}>
               <h2 style={styles.modalTitle}>
-                {editingCategory ? '✏️ Edit Category' : '📂 Add Menu Category'}
+                {editingSection ? '✏️ Edit Menu Section' : '📂 Add Menu Section'}
               </h2>
               <button
                 onClick={() => {
-                  setShowAddCategoryModal(false);
-                  setEditingCategory(null);
+                  setShowAddSectionModal(false);
+                  setEditingSection(null);
                 }}
                 style={styles.modalCloseButton}
               >
@@ -585,65 +625,189 @@ const handleDeleteDish = async (dishId: string) => {
             </div>
 
             <div style={styles.modalContent}>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Category Name *</label>
-                <input
-                  type="text"
-                  placeholder="e.g., Biryani & Rice"
-                  value={categoryFormData.name}
-                  onChange={(e) => setCategoryFormData({ ...categoryFormData, name: e.target.value })}
-                  style={styles.input}
-                  disabled={createSectionMutation.isPending || updateSectionMutation.isPending}
-                />
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Description</label>
-                <textarea
-                  placeholder="Describe this category..."
-                  value={categoryFormData.description}
-                  onChange={(e) =>
-                    setCategoryFormData({ ...categoryFormData, description: e.target.value })
-                  }
-                  style={{ ...styles.input, minHeight: '80px', resize: 'vertical' }}
-                  disabled={createSectionMutation.isPending || updateSectionMutation.isPending}
-                />
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Sort Order</label>
-                <input
-                  type="number"
-                  value={categoryFormData.sort_order}
-                  onChange={(e) =>
-                    setCategoryFormData({ ...categoryFormData, sort_order: parseInt(e.target.value) })
-                  }
-                  style={styles.input}
-                  disabled={createSectionMutation.isPending || updateSectionMutation.isPending}
-                />
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.checkboxLabel}>
+              {/* Basic Info */}
+              <div style={styles.formGroupSection}>
+                <h3 style={styles.formSectionTitle}>📋 Basic Information</h3>
+                
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Section Name *</label>
                   <input
-                    type="checkbox"
-                    checked={categoryFormData.is_active}
-                    onChange={(e) =>
-                      setCategoryFormData({ ...categoryFormData, is_active: e.target.checked })
-                    }
-                    style={styles.checkbox}
+                    type="text"
+                    placeholder="e.g., Appetizers, Main Course, Desserts"
+                    value={sectionFormData.name}
+                    onChange={(e) => setSectionFormData({ ...sectionFormData, name: e.target.value })}
+                    style={styles.input}
                     disabled={createSectionMutation.isPending || updateSectionMutation.isPending}
                   />
-                  <span>Active</span>
-                </label>
+                  <p style={styles.helperText}>Name of this menu section</p>
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Description</label>
+                  <textarea
+                    placeholder="e.g., Starters and light bites to begin your meal..."
+                    value={sectionFormData.description}
+                    onChange={(e) =>
+                      setSectionFormData({ ...sectionFormData, description: e.target.value })
+                    }
+                    style={{ ...styles.input, minHeight: '80px', resize: 'vertical' }}
+                    disabled={createSectionMutation.isPending || updateSectionMutation.isPending}
+                  />
+                  <p style={styles.helperText}>Optional: Describe this section</p>
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Sort Order</label>
+                  <input
+                    type="number"
+                    value={sectionFormData.sort_order}
+                    onChange={(e) =>
+                      setSectionFormData({ ...sectionFormData, sort_order: parseInt(e.target.value) })
+                    }
+                    style={styles.input}
+                    disabled={createSectionMutation.isPending || updateSectionMutation.isPending}
+                  />
+                  <p style={styles.helperText}>Lower numbers appear first</p>
+                </div>
+              </div>
+
+              {/* Selection Rules */}
+              <div style={styles.formGroupSection}>
+                <h3 style={styles.formSectionTitle}>🔢 Selection Rules</h3>
+                
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Maximum Items Selectable *</label>
+                  <input
+                    type="number"
+                    placeholder="1"
+                    value={sectionFormData.max_items_selectable}
+                    onChange={(e) =>
+                      setSectionFormData({
+                        ...sectionFormData,
+                        max_items_selectable: parseInt(e.target.value) || 1,
+                      })
+                    }
+                    style={styles.input}
+                    disabled={createSectionMutation.isPending || updateSectionMutation.isPending}
+                    min="1"
+                  />
+                  <p style={styles.helperText}>
+                    How many items can customers choose from this section? (e.g., 1 for main course, 2 for sides)
+                  </p>
+                </div>
+              </div>
+
+              {/* Additional Charges */}
+              <div style={styles.formGroupSection}>
+                <h3 style={styles.formSectionTitle}>💰 Additional Charges (Optional)</h3>
+                
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Additional Charge Type</label>
+                  <select
+                    value={sectionFormData.additional_charge_type}
+                    onChange={(e) =>
+                      setSectionFormData({
+                        ...sectionFormData,
+                        additional_charge_type: e.target.value as 'none' | 'per_item' | 'percentage',
+                      })
+                    }
+                    style={styles.input}
+                    disabled={createSectionMutation.isPending || updateSectionMutation.isPending}
+                  >
+                    <option value="none">No Additional Charge</option>
+                    <option value="per_item">Fixed Charge Per Item Selected</option>
+                    <option value="percentage">Percentage Charge on Total</option>
+                  </select>
+                  <p style={styles.helperText}>
+                    How should additional items in this section be charged?
+                  </p>
+                </div>
+
+                {sectionFormData.additional_charge_type !== 'none' && (
+                  <>
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>
+                        {sectionFormData.additional_charge_type === 'per_item' 
+                          ? 'Charge Per Item (₹)' 
+                          : 'Percentage (%)'}
+                      </label>
+                      <input
+                        type="number"
+                        placeholder={sectionFormData.additional_charge_type === 'per_item' ? '50' : '10'}
+                        value={sectionFormData.additional_charge_amount}
+                        onChange={(e) =>
+                          setSectionFormData({
+                            ...sectionFormData,
+                            additional_charge_amount: e.target.value,
+                          })
+                        }
+                        style={styles.input}
+                        disabled={createSectionMutation.isPending || updateSectionMutation.isPending}
+                        step="0.01"
+                        min="0"
+                      />
+                      <p style={styles.helperText}>
+                        {sectionFormData.additional_charge_type === 'per_item'
+                          ? 'Amount charged per additional item selected'
+                          : 'Percentage added to the total bill'}
+                      </p>
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Charge Description (Optional)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g., Premium side dish charge, Extra protein upcharge"
+                        value={sectionFormData.additional_charge_description}
+                        onChange={(e) =>
+                          setSectionFormData({
+                            ...sectionFormData,
+                            additional_charge_description: e.target.value,
+                          })
+                        }
+                        style={styles.input}
+                        disabled={createSectionMutation.isPending || updateSectionMutation.isPending}
+                      />
+                      <p style={styles.helperText}>Brief description shown to customers</p>
+                    </div>
+
+                    {/* Charge Preview */}
+                    <div style={styles.chargePreview}>
+                      <p style={styles.chargePreviewTitle}>💡 Charge Example:</p>
+                      <p style={styles.chargePreviewText}>
+                        {sectionFormData.additional_charge_type === 'per_item'
+                          ? `If customer selects 2 items, extra charge = ₹${(parseFloat(sectionFormData.additional_charge_amount) || 0) * (sectionFormData.max_items_selectable - 1)}`
+                          : `If total is ₹1000, charge = ₹${Math.round(1000 * (parseFloat(sectionFormData.additional_charge_amount) || 0) / 100)}`}
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Status */}
+              <div style={styles.formGroupSection}>
+                <div style={styles.formGroup}>
+                  <label style={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={sectionFormData.is_active}
+                      onChange={(e) =>
+                        setSectionFormData({ ...sectionFormData, is_active: e.target.checked })
+                      }
+                      style={styles.checkbox}
+                      disabled={createSectionMutation.isPending || updateSectionMutation.isPending}
+                    />
+                    <span>Active (Show to customers)</span>
+                  </label>
+                </div>
               </div>
             </div>
 
             <div style={styles.modalFooter}>
               <button
                 onClick={() => {
-                  setShowAddCategoryModal(false);
-                  setEditingCategory(null);
+                  setShowAddSectionModal(false);
+                  setEditingSection(null);
                 }}
                 style={styles.buttonSecondary}
                 disabled={createSectionMutation.isPending || updateSectionMutation.isPending}
@@ -651,15 +815,15 @@ const handleDeleteDish = async (dishId: string) => {
                 Cancel
               </button>
               <button
-                onClick={handleSaveCategory}
+                onClick={handleSaveSection}
                 style={styles.buttonPrimary}
                 disabled={createSectionMutation.isPending || updateSectionMutation.isPending}
               >
                 {createSectionMutation.isPending || updateSectionMutation.isPending
                   ? '⏳ Saving...'
-                  : editingCategory
-                  ? 'Update'
-                  : 'Save'}
+                  : editingSection
+                  ? 'Update Section'
+                  : 'Create Section'}
               </button>
             </div>
           </div>
@@ -676,7 +840,7 @@ const handleDeleteDish = async (dishId: string) => {
                 onClick={() => {
                   setShowAddDishModal(false);
                   setEditingDish(null);
-                  setSelectedCategoryForDish(null);
+                  setSelectedSectionForDish(null);
                 }}
                 style={styles.modalCloseButton}
               >
@@ -880,7 +1044,7 @@ const handleDeleteDish = async (dishId: string) => {
                 onClick={() => {
                   setShowAddDishModal(false);
                   setEditingDish(null);
-                  setSelectedCategoryForDish(null);
+                  setSelectedSectionForDish(null);
                 }}
                 style={styles.buttonSecondary}
                 disabled={createItemMutation.isPending || updateItemMutation.isPending}
@@ -906,7 +1070,7 @@ const handleDeleteDish = async (dishId: string) => {
   );
 }
 
-// Styles (unchanged)
+// ============ STYLES ============
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
     padding: '24px',
@@ -983,10 +1147,10 @@ const styles: { [key: string]: React.CSSProperties } = {
   mainContent: {
     maxWidth: '900px',
   },
-  addCategoryButtonContainer: {
+  addSectionButtonContainer: {
     marginBottom: '24px',
   },
-  addCategoryButton: {
+  addSectionButton: {
     padding: '12px 20px',
     borderRadius: '8px',
     border: 'none',
@@ -1000,19 +1164,25 @@ const styles: { [key: string]: React.CSSProperties } = {
     gap: '8px',
     transition: 'all 0.2s ease',
   },
-  categoriesList: {
+  sectionHint: {
+    fontSize: '12px',
+    color: '#64748b',
+    margin: '8px 0 0 0',
+    fontStyle: 'italic',
+  },
+  sectionsList: {
     display: 'flex',
     flexDirection: 'column' as const,
     gap: '16px',
   },
-  categoryCard: {
+  sectionCard: {
     backgroundColor: 'white',
     borderRadius: '12px',
     border: '1px solid #e2e8f0',
     overflow: 'hidden',
     transition: 'all 0.2s ease',
   },
-  categoryHeader: {
+  sectionHeader: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1021,7 +1191,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderBottom: '1px solid #e2e8f0',
     cursor: 'pointer',
   },
-  categoryTitleSection: {
+  sectionTitleSection: {
     display: 'flex',
     alignItems: 'flex-start',
     gap: '12px',
@@ -1037,22 +1207,50 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     minWidth: '32px',
   },
-  categoryInfo: {
+  sectionInfo: {
     flex: 1,
   },
-  categoryName: {
+  sectionName: {
     fontSize: '16px',
     fontWeight: '700',
     color: '#1e293b',
     margin: 0,
     marginBottom: '4px',
   },
-  categoryDescription: {
+  sectionDescription: {
     fontSize: '13px',
     color: '#64748b',
     margin: 0,
+    marginBottom: '8px',
   },
-  categoryActions: {
+  sectionMetaInfo: {
+    display: 'flex',
+    gap: '8px',
+    flexWrap: 'wrap' as const,
+    fontSize: '12px',
+  },
+  metaBadge: {
+    backgroundColor: '#dbeafe',
+    color: '#0c4a6e',
+    padding: '4px 8px',
+    borderRadius: '4px',
+    fontWeight: '600',
+  },
+  metaBadgeWarning: {
+    backgroundColor: '#fef3c7',
+    color: '#92400e',
+    padding: '4px 8px',
+    borderRadius: '4px',
+    fontWeight: '600',
+  },
+  metaBadgeDanger: {
+    backgroundColor: '#fee2e2',
+    color: '#7f1d1d',
+    padding: '4px 8px',
+    borderRadius: '4px',
+    fontWeight: '600',
+  },
+  sectionActions: {
     display: 'flex',
     gap: '8px',
   },
@@ -1078,7 +1276,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     transition: 'all 0.2s ease',
   },
-  categoryContent: {
+  sectionContent: {
     padding: '16px',
   },
   dishesList: {
@@ -1112,7 +1310,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   dishMeta: {
     display: 'flex',
-    gap: '12px',
+    gap: '8px',
     fontSize: '12px',
     flexWrap: 'wrap' as const,
   },
@@ -1126,6 +1324,27 @@ const styles: { [key: string]: React.CSSProperties } = {
   dishSpice: {
     backgroundColor: '#fed7aa',
     color: '#7c2d12',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    fontWeight: '600',
+  },
+  dishVegan: {
+    backgroundColor: '#dcfce7',
+    color: '#166534',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    fontWeight: '600',
+  },
+  dishGF: {
+    backgroundColor: '#fce7f3',
+    color: '#be185d',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    fontWeight: '600',
+  },
+  dishPrice: {
+    backgroundColor: '#fef3c7',
+    color: '#92400e',
     padding: '2px 6px',
     borderRadius: '4px',
     fontWeight: '600',
@@ -1239,10 +1458,27 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderTop: '1px solid #e2e8f0',
     backgroundColor: '#f8fafc',
   },
+  formGroupSection: {
+    padding: '16px',
+    backgroundColor: '#f8fafc',
+    borderRadius: '8px',
+    border: '1px solid #e2e8f0',
+  },
+  formSectionTitle: {
+    fontSize: '13px',
+    fontWeight: '700',
+    color: '#1e293b',
+    margin: 0,
+    marginBottom: '16px',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.5px',
+    color: '#64748b',
+  },
   formGroup: {
     display: 'flex',
     flexDirection: 'column' as const,
     gap: '6px',
+    marginBottom: '16px',
   },
   label: {
     fontSize: '14px',
@@ -1258,6 +1494,12 @@ const styles: { [key: string]: React.CSSProperties } = {
     transition: 'all 0.2s ease',
     boxSizing: 'border-box' as const,
     fontFamily: 'inherit',
+  },
+  helperText: {
+    fontSize: '12px',
+    color: '#64748b',
+    margin: 0,
+    fontStyle: 'italic',
   },
   formRow: {
     display: 'grid',
@@ -1293,5 +1535,24 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '14px',
     color: '#1e293b',
     cursor: 'pointer',
+  },
+  chargePreview: {
+    backgroundColor: '#eff6ff',
+    border: '1px solid #bfdbfe',
+    borderRadius: '6px',
+    padding: '12px',
+    marginTop: '8px',
+  },
+  chargePreviewTitle: {
+    fontSize: '12px',
+    fontWeight: '700',
+    color: '#1e40af',
+    margin: 0,
+    marginBottom: '4px',
+  },
+  chargePreviewText: {
+    fontSize: '12px',
+    color: '#1e40af',
+    margin: 0,
   },
 };
