@@ -8,6 +8,7 @@ import {
   PlusIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 import {
   useCollection,
@@ -18,8 +19,11 @@ import {
   useCreateItem,
   useUpdateItem,
   useDeleteItem,
+  useCatererMenuItems,
+  useCreateCatererMenuItem,
   type MenuSection,
   type MenuItem,
+  type CatererMenuItem,
 } from '@catering-marketplace/query-client';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -32,6 +36,7 @@ export default function PackageDetailPage() {
   // Real API queries
   const { data: packageData, isLoading: packageLoading } = useCollection(packageId);
   const { data: sections = [], isLoading: sectionsLoading } = useCollectionSections(packageId);
+  const { data: globalMenuItems = [] } = useCatererMenuItems();
   
   const createSectionMutation = useCreateCollectionSection();
   const updateSectionMutation = useUpdateSection();
@@ -39,16 +44,19 @@ export default function PackageDetailPage() {
   const createItemMutation = useCreateItem();
   const updateItemMutation = useUpdateItem();
   const deleteItemMutation = useDeleteItem();
+  const createGlobalItemMutation = useCreateCatererMenuItem();
 
   // Local UI state
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   const [showAddSectionModal, setShowAddSectionModal] = useState(false);
-  const [showAddDishModal, setShowAddDishModal] = useState(false);
-  const [selectedSectionForDish, setSelectedSectionForDish] = useState<string | null>(null);
+  const [showSelectItemsModal, setShowSelectItemsModal] = useState(false);
+  const [showCreateGlobalItemModal, setShowCreateGlobalItemModal] = useState(false);
+  const [selectedSectionForItems, setSelectedSectionForItems] = useState<string | null>(null);
   const [editingSection, setEditingSection] = useState<string | null>(null);
-  const [editingDish, setEditingDish] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [itemSearchTerm, setItemSearchTerm] = useState('');
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
 
   // Form state for section
   const [sectionFormData, setSectionFormData] = useState({
@@ -57,25 +65,25 @@ export default function PackageDetailPage() {
     sort_order: 1,
     is_active: true,
     max_items_selectable: 1,
+    selection_type: 'fixed' as 'fixed' | 'single' | 'multi',
     additional_charge_type: 'none' as 'none' | 'per_item' | 'percentage',
     additional_charge_amount: '0',
     additional_charge_description: '',
   });
 
-  // Form state for dish
-  const [dishFormData, setDishFormData] = useState({
+  // Form state for creating global menu item
+  const [globalItemFormData, setGlobalItemFormData] = useState({
     name: '',
     description: '',
     image_url: '',
     is_veg: true,
     is_vegan: false,
     is_gluten_free: false,
-    spice_level: 'medium' as 'mild' | 'medium' | 'spicy',
-    pricing_type: 'included' as 'included' | 'extra' | 'on_request',
+    spice_level: '' as 'mild' | 'medium' | 'spicy' | '',
+    pricing_type: 'per_plate' as 'included' | 'extra' | 'on_request' | 'per_plate' | 'per_person',
     price: '0',
     currency_code: 'INR',
     sort_order: 1,
-    is_active: true,
   });
 
   // Initialize expanded categories
@@ -112,6 +120,7 @@ export default function PackageDetailPage() {
             sort_order: sectionFormData.sort_order,
             is_active: sectionFormData.is_active,
             max_items_selectable: sectionFormData.max_items_selectable,
+            selection_type: sectionFormData.selection_type,
             additional_charge_type: sectionFormData.additional_charge_type,
             additional_charge_amount: 
               sectionFormData.additional_charge_type !== 'none' 
@@ -129,6 +138,7 @@ export default function PackageDetailPage() {
             description: sectionFormData.description || undefined,
             sort_order: sectionFormData.sort_order,
             max_items_selectable: sectionFormData.max_items_selectable,
+            selection_type: sectionFormData.selection_type,
             additional_charge_type: sectionFormData.additional_charge_type,
             additional_charge_amount: 
               sectionFormData.additional_charge_type !== 'none' 
@@ -151,6 +161,7 @@ export default function PackageDetailPage() {
         sort_order: 1,
         is_active: true,
         max_items_selectable: 1,
+        selection_type: 'fixed',
         additional_charge_type: 'none',
         additional_charge_amount: '0',
         additional_charge_description: '',
@@ -184,10 +195,15 @@ export default function PackageDetailPage() {
     }
   };
 
-  // ============ DISH HANDLERS ============
-  const handleSaveDish = async () => {
-    if (!dishFormData.name.trim() || !selectedSectionForDish) {
-      setErrorMessage('Please fill required fields');
+  // ============ GLOBAL MENU ITEM HANDLERS ============
+  const handleCreateGlobalMenuItem = async () => {
+    if (!globalItemFormData.name.trim()) {
+      setErrorMessage('Please enter item name');
+      return;
+    }
+
+    if (globalItemFormData.pricing_type !== 'included' && (!globalItemFormData.price || isNaN(parseFloat(globalItemFormData.price)))) {
+      setErrorMessage('Valid price is required for non-included items');
       return;
     }
 
@@ -195,73 +211,114 @@ export default function PackageDetailPage() {
     setSuccessMessage('');
 
     try {
-      const payload = {
-        name: dishFormData.name,
-        description: dishFormData.description || undefined,
-        image_url: dishFormData.image_url || undefined,
-        is_veg: dishFormData.is_veg,
-        is_vegan: dishFormData.is_vegan,
-        is_gluten_free: dishFormData.is_gluten_free,
-        spice_level: dishFormData.spice_level,
-        pricing_type: dishFormData.pricing_type,
-        price: dishFormData.pricing_type === 'included' ? undefined : parseFloat(dishFormData.price),
-        currency_code: dishFormData.currency_code,
-        sort_order: dishFormData.sort_order,
-      };
+      const newItem = await createGlobalItemMutation.mutateAsync({
+        name: globalItemFormData.name,
+        description: globalItemFormData.description || undefined,
+        image_url: globalItemFormData.image_url || undefined,
+        is_veg: globalItemFormData.is_veg,
+        is_vegan: globalItemFormData.is_vegan,
+        is_gluten_free: globalItemFormData.is_gluten_free,
+        spice_level: globalItemFormData.spice_level || undefined,
+        pricing_type: globalItemFormData.pricing_type,
+        price: globalItemFormData.pricing_type === 'included' ? undefined : parseFloat(globalItemFormData.price),
+        currency_code: globalItemFormData.currency_code,
+        sort_order: globalItemFormData.sort_order,
+      });
 
-      if (editingDish) {
-        await updateItemMutation.mutateAsync({
-          id: editingDish,
-          data: {
-            ...payload,
-            is_active: dishFormData.is_active,
-          },
-        });
-        setSuccessMessage('Dish updated successfully!');
-      } else {
-        await createItemMutation.mutateAsync({
-          sectionId: selectedSectionForDish,
-          data: payload,
-        });
-        setSuccessMessage('Dish created successfully!');
-      }
-
+      setSuccessMessage('Menu item created successfully!');
+      
+      // Refetch global menu items
       await queryClient.refetchQueries({
-        queryKey: ['collectionSections', packageId],
+        queryKey: ['catererMenuItems'],
         type: 'active',
       });
 
-      setDishFormData({
+      // Auto-select the newly created item
+      if (newItem?.id) {
+        setSelectedItemIds((prev) => [...prev, newItem.id]);
+      }
+
+      setGlobalItemFormData({
         name: '',
         description: '',
         image_url: '',
         is_veg: true,
         is_vegan: false,
         is_gluten_free: false,
-        spice_level: 'medium',
-        pricing_type: 'included',
+        spice_level: '',
+        pricing_type: 'per_plate',
         price: '0',
         currency_code: 'INR',
         sort_order: 1,
-        is_active: true,
       });
-      setEditingDish(null);
-      setSelectedSectionForDish(null);
-      setShowAddDishModal(false);
+      setShowCreateGlobalItemModal(false);
 
       setTimeout(() => setSuccessMessage(''), 2000);
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Failed to save dish';
+      const errorMsg = error instanceof Error ? error.message : 'Failed to create menu item';
       setErrorMessage(errorMsg);
     }
   };
 
-  const handleDeleteDish = async (dishId: string) => {
-    if (!window.confirm('Are you sure you want to delete this dish?')) return;
+  // ============ ITEM SELECTION HANDLERS ============
+  const handleAddItemsToSection = async () => {
+    if (selectedItemIds.length === 0 || !selectedSectionForItems) {
+      setErrorMessage('Please select at least one item');
+      return;
+    }
+
+    setErrorMessage('');
+    setSuccessMessage('');
 
     try {
-      await deleteItemMutation.mutateAsync(dishId);
-      setSuccessMessage('Dish deleted successfully!');
+      // Create menu items for the section
+      for (const itemId of selectedItemIds) {
+        const globalItem = globalMenuItems.find((item) => item.id === itemId);
+        if (globalItem) {
+          await createItemMutation.mutateAsync({
+            sectionId: selectedSectionForItems,
+            data: {
+              name: globalItem.name,
+              description: globalItem.description || undefined,
+              image_url: globalItem.image_url || undefined,
+              is_veg: globalItem.is_veg,
+              is_vegan: globalItem.is_vegan,
+              is_gluten_free: globalItem.is_gluten_free,
+              spice_level: globalItem.spice_level || undefined,
+              pricing_type: globalItem.pricing_type,
+              price: globalItem.price,
+              currency_code: globalItem.currency_code,
+              sort_order: globalItem.sort_order,
+            },
+          });
+        }
+      }
+
+      setSuccessMessage(`Added ${selectedItemIds.length} item(s) to section!`);
+
+      await queryClient.refetchQueries({
+        queryKey: ['collectionSections', packageId],
+        type: 'active',
+      });
+
+      setSelectedItemIds([]);
+      setSelectedSectionForItems(null);
+      setItemSearchTerm('');
+      setShowSelectItemsModal(false);
+
+      setTimeout(() => setSuccessMessage(''), 2000);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Failed to add items';
+      setErrorMessage(errorMsg);
+    }
+  };
+
+  const handleDeleteItem = async (itemId: string) => {
+    if (!window.confirm('Are you sure you want to delete this item?')) return;
+
+    try {
+      await deleteItemMutation.mutateAsync(itemId);
+      setSuccessMessage('Item deleted successfully!');
       
       await queryClient.refetchQueries({
         queryKey: ['collectionSections', packageId],
@@ -270,11 +327,12 @@ export default function PackageDetailPage() {
 
       setTimeout(() => setSuccessMessage(''), 2000);
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Failed to delete dish';
+      const errorMsg = error instanceof Error ? error.message : 'Failed to delete item';
       setErrorMessage(errorMsg);
     }
   };
 
+  // ============ MODAL HANDLERS ============
   const openAddSectionModal = () => {
     setSectionFormData({
       name: '',
@@ -282,6 +340,7 @@ export default function PackageDetailPage() {
       sort_order: (sections.length + 1) * 10,
       is_active: true,
       max_items_selectable: 1,
+      selection_type: 'fixed',
       additional_charge_type: 'none',
       additional_charge_amount: '0',
       additional_charge_description: '',
@@ -298,6 +357,7 @@ export default function PackageDetailPage() {
       sort_order: section.sort_order,
       is_active: section.is_active,
       max_items_selectable: (section.max_items_selectable as number) || 1,
+      selection_type: (section.selection_type as 'fixed' | 'single' | 'multi') || 'fixed',
       additional_charge_type: (section.additional_charge_type as 'none' | 'per_item' | 'percentage') || 'none',
       additional_charge_amount: (section.additional_charge_amount as number)?.toString() || '0',
       additional_charge_description: (section.additional_charge_description as string) || '',
@@ -307,47 +367,37 @@ export default function PackageDetailPage() {
     setErrorMessage('');
   };
 
-  const openAddDishModal = (sectionId: string) => {
-    setSelectedSectionForDish(sectionId);
-    setDishFormData({
+  const openSelectItemsModal = (sectionId: string) => {
+    setSelectedSectionForItems(sectionId);
+    setSelectedItemIds([]);
+    setItemSearchTerm('');
+    setShowSelectItemsModal(true);
+    setErrorMessage('');
+  };
+
+  const openCreateGlobalItemModal = () => {
+    setShowCreateGlobalItemModal(true);
+    setGlobalItemFormData({
       name: '',
       description: '',
       image_url: '',
       is_veg: true,
       is_vegan: false,
       is_gluten_free: false,
-      spice_level: 'medium',
-      pricing_type: 'included',
+      spice_level: '',
+      pricing_type: 'per_plate',
       price: '0',
       currency_code: 'INR',
       sort_order: 1,
-      is_active: true,
     });
-    setEditingDish(null);
-    setShowAddDishModal(true);
     setErrorMessage('');
   };
 
-  const openEditDishModal = (sectionId: string, dish: MenuItem) => {
-    setSelectedSectionForDish(sectionId);
-    setDishFormData({
-      name: dish.name,
-      description: dish.description || '',
-      image_url: dish.image_url || '',
-      is_veg: dish.is_veg,
-      is_vegan: dish.is_vegan,
-      is_gluten_free: dish.is_gluten_free,
-      spice_level: dish.spice_level || 'medium',
-      pricing_type: (dish.pricing_type as 'included' | 'extra' | 'on_request') || 'included',
-      price: dish.price?.toString() || '0',
-      currency_code: dish.currency_code || 'INR',
-      sort_order: dish.sort_order,
-      is_active: dish.is_active,
-    });
-    setEditingDish(dish.id);
-    setShowAddDishModal(true);
-    setErrorMessage('');
-  };
+  // Filter global menu items based on search
+  const filteredMenuItems = globalMenuItems.filter((item) =>
+    item.name.toLowerCase().includes(itemSearchTerm.toLowerCase()) ||
+    item.description?.toLowerCase().includes(itemSearchTerm.toLowerCase())
+  );
 
   // Loading state
   if (packageLoading || sectionsLoading) {
@@ -412,33 +462,13 @@ export default function PackageDetailPage() {
 
       {/* Error/Success Messages */}
       {errorMessage && (
-        <div
-          style={{
-            padding: '12px 16px',
-            backgroundColor: '#fee2e2',
-            borderRadius: '8px',
-            border: '1px solid #fecaca',
-            color: '#7f1d1d',
-            marginBottom: '16px',
-            fontSize: '14px',
-          }}
-        >
+        <div style={styles.alertError}>
           {errorMessage}
         </div>
       )}
 
       {successMessage && (
-        <div
-          style={{
-            padding: '12px 16px',
-            backgroundColor: '#d1fae5',
-            borderRadius: '8px',
-            border: '1px solid #a7f3d0',
-            color: '#065f46',
-            marginBottom: '16px',
-            fontSize: '14px',
-          }}
-        >
+        <div style={styles.alertSuccess}>
           {successMessage}
         </div>
       )}
@@ -481,11 +511,9 @@ export default function PackageDetailPage() {
                         <span style={styles.metaBadge}>
                           📋 {section.items?.length || 0} items
                         </span>
-                        {section.max_items_selectable && (
-                          <span style={styles.metaBadge}>
-                            🔢 Max selectable: {section.max_items_selectable}
-                          </span>
-                        )}
+                        <span style={styles.metaBadge}>
+                          🔢 {section.selection_type === 'fixed' ? 'Fixed' : section.selection_type === 'single' ? 'Choose 1' : `Choose up to ${section.max_items_selectable}`}
+                        </span>
                         {section.additional_charge_type !== 'none' && (
                           <span style={styles.metaBadgeWarning}>
                             {section.additional_charge_type === 'per_item' 
@@ -523,53 +551,45 @@ export default function PackageDetailPage() {
                 {/* Section Content - Expanded */}
                 {expandedCategories.includes(section.id) && (
                   <div style={styles.sectionContent}>
-                    {/* Dishes List */}
+                    {/* Items List */}
                     <div style={styles.dishesList}>
                       {section.items && section.items.length > 0 ? (
                         section.items
                           .sort((a, b) => a.sort_order - b.sort_order)
-                          .map((dish) => (
-                            <div key={dish.id} style={styles.dishItem}>
+                          .map((item) => (
+                            <div key={item.id} style={styles.dishItem}>
                               <div style={styles.dishInfo}>
                                 <div style={styles.dishNameSection}>
-                                  <p style={styles.dishName}>• {dish.name}</p>
+                                  <p style={styles.dishName}>• {item.name}</p>
                                   <div style={styles.dishMeta}>
                                     <span style={styles.dishType}>
-                                      {dish.is_veg ? '🥬' : '🍖'} {dish.is_veg ? 'Veg' : 'Non-Veg'}
+                                      {item.is_veg ? '🥬' : '🍖'} {item.is_veg ? 'Veg' : 'Non-Veg'}
                                     </span>
-                                    <span style={styles.dishSpice}>
-                                      {dish.spice_level === 'mild' && '🌶️'}
-                                      {dish.spice_level === 'medium' && '🌶️🌶️'}
-                                      {dish.spice_level === 'spicy' && '🌶️🌶️🌶️'}{' '}
-                                      {dish.spice_level
-                                        ? dish.spice_level.charAt(0).toUpperCase() +
-                                          dish.spice_level.slice(1)
-                                        : 'Medium'}
-                                    </span>
-                                    {dish.is_vegan && <span style={styles.dishVegan}>🌱 Vegan</span>}
-                                    {dish.is_gluten_free && <span style={styles.dishGF}>🌾 GF</span>}
-                                    {dish.pricing_type !== 'included' && dish.price && (
+                                    {item.spice_level && (
+                                      <span style={styles.dishSpice}>
+                                        {item.spice_level === 'mild' && '🌶️'}
+                                        {item.spice_level === 'medium' && '🌶️🌶️'}
+                                        {item.spice_level === 'spicy' && '🌶️🌶️🌶️'}{' '}
+                                        {item.spice_level.charAt(0).toUpperCase() + item.spice_level.slice(1)}
+                                      </span>
+                                    )}
+                                    {item.is_vegan && <span style={styles.dishVegan}>🌱 Vegan</span>}
+                                    {item.is_gluten_free && <span style={styles.dishGF}>🌾 GF</span>}
+                                    {item.pricing_type !== 'included' && item.price && (
                                       <span style={styles.dishPrice}>
-                                        +₹{dish.price}
+                                        +₹{item.price}
                                       </span>
                                     )}
                                   </div>
                                 </div>
-                                {dish.description && (
-                                  <p style={styles.dishDescription}>{dish.description}</p>
+                                {item.description && (
+                                  <p style={styles.dishDescription}>{item.description}</p>
                                 )}
                               </div>
 
                               <div style={styles.dishActions}>
                                 <button
-                                  onClick={() => openEditDishModal(section.id, dish)}
-                                  style={styles.buttonIcon}
-                                  title="Edit"
-                                >
-                                  <PencilIcon style={{ width: '16px', height: '16px' }} />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteDish(dish.id)}
+                                  onClick={() => handleDeleteItem(item.id)}
                                   style={styles.buttonIconDelete}
                                   title="Delete"
                                   disabled={deleteItemMutation.isPending}
@@ -580,17 +600,17 @@ export default function PackageDetailPage() {
                             </div>
                           ))
                       ) : (
-                        <p style={styles.emptyDishes}>No dishes added yet</p>
+                        <p style={styles.emptyDishes}>No items added yet</p>
                       )}
                     </div>
 
-                    {/* Add Dish Button */}
+                    {/* Add Items Button */}
                     <button
-                      onClick={() => openAddDishModal(section.id)}
+                      onClick={() => openSelectItemsModal(section.id)}
                       style={styles.addDishButton}
                     >
                       <PlusIcon style={{ width: '16px', height: '16px' }} />
-                      Add Dish to {section.name}
+                      Add Items to {section.name}
                     </button>
                   </div>
                 )}
@@ -671,30 +691,58 @@ export default function PackageDetailPage() {
                 </div>
               </div>
 
-              {/* Selection Rules */}
+              {/* Selection Type */}
               <div style={styles.formGroupSection}>
-                <h3 style={styles.formSectionTitle}>🔢 Selection Rules</h3>
+                <h3 style={styles.formSectionTitle}>🔢 Selection Type</h3>
                 
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Maximum Items Selectable *</label>
-                  <input
-                    type="number"
-                    placeholder="1"
-                    value={sectionFormData.max_items_selectable}
+                  <label style={styles.label}>How can customers select items? *</label>
+                  <select
+                    value={sectionFormData.selection_type}
                     onChange={(e) =>
                       setSectionFormData({
                         ...sectionFormData,
-                        max_items_selectable: parseInt(e.target.value) || 1,
+                        selection_type: e.target.value as 'fixed' | 'single' | 'multi',
                       })
                     }
                     style={styles.input}
                     disabled={createSectionMutation.isPending || updateSectionMutation.isPending}
-                    min="1"
-                  />
+                  >
+                    <option value="fixed">Fixed Items (No choice)</option>
+                    <option value="single">Choose 1 Item</option>
+                    <option value="multi">Choose Multiple Items</option>
+                  </select>
                   <p style={styles.helperText}>
-                    How many items can customers choose from this section? (e.g., 1 for main course, 2 for sides)
+                    "Fixed" = all items included, "Single" = pick one, "Multi" = pick up to max
                   </p>
                 </div>
+
+                {sectionFormData.selection_type !== 'fixed' && (
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>
+                      {sectionFormData.selection_type === 'single' ? 'Items Available' : 'Maximum Items Selectable'} *
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="1"
+                      value={sectionFormData.max_items_selectable}
+                      onChange={(e) =>
+                        setSectionFormData({
+                          ...sectionFormData,
+                          max_items_selectable: parseInt(e.target.value) || 1,
+                        })
+                      }
+                      style={styles.input}
+                      disabled={createSectionMutation.isPending || updateSectionMutation.isPending}
+                      min="1"
+                    />
+                    <p style={styles.helperText}>
+                      {sectionFormData.selection_type === 'single'
+                        ? 'Number of items available to choose from'
+                        : 'Maximum items customer can choose'}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Additional Charges */}
@@ -757,7 +805,7 @@ export default function PackageDetailPage() {
                       <label style={styles.label}>Charge Description (Optional)</label>
                       <input
                         type="text"
-                        placeholder="e.g., Premium side dish charge, Extra protein upcharge"
+                        placeholder="e.g., Premium side dish charge"
                         value={sectionFormData.additional_charge_description}
                         onChange={(e) =>
                           setSectionFormData({
@@ -776,7 +824,7 @@ export default function PackageDetailPage() {
                       <p style={styles.chargePreviewTitle}>💡 Charge Example:</p>
                       <p style={styles.chargePreviewText}>
                         {sectionFormData.additional_charge_type === 'per_item'
-                          ? `If customer selects 2 items, extra charge = ₹${(parseFloat(sectionFormData.additional_charge_amount) || 0) * (sectionFormData.max_items_selectable - 1)}`
+                          ? `If customer selects extra items, charge = ₹${(parseFloat(sectionFormData.additional_charge_amount) || 0) * (sectionFormData.max_items_selectable - 1)}`
                           : `If total is ₹1000, charge = ₹${Math.round(1000 * (parseFloat(sectionFormData.additional_charge_amount) || 0) / 100)}`}
                       </p>
                     </div>
@@ -830,17 +878,18 @@ export default function PackageDetailPage() {
         </div>
       )}
 
-      {/* Add/Edit Dish Modal */}
-      {showAddDishModal && (
+      {/* Select Items Modal */}
+      {showSelectItemsModal && (
         <div style={styles.modalOverlay}>
-          <div style={styles.modal}>
+          <div style={{ ...styles.modal, maxWidth: '700px', maxHeight: '80vh' }}>
             <div style={styles.modalHeader}>
-              <h2 style={styles.modalTitle}>{editingDish ? '✏️ Edit Dish' : '🥘 Add Dish'}</h2>
+              <h2 style={styles.modalTitle}>🍛 Select Items for Section</h2>
               <button
                 onClick={() => {
-                  setShowAddDishModal(false);
-                  setEditingDish(null);
-                  setSelectedSectionForDish(null);
+                  setShowSelectItemsModal(false);
+                  setSelectedSectionForItems(null);
+                  setSelectedItemIds([]);
+                  setItemSearchTerm('');
                 }}
                 style={styles.modalCloseButton}
               >
@@ -849,218 +898,352 @@ export default function PackageDetailPage() {
             </div>
 
             <div style={styles.modalContent}>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Dish Name *</label>
-                <input
-                  type="text"
-                  placeholder="e.g., Chicken Biryani"
-                  value={dishFormData.name}
-                  onChange={(e) => setDishFormData({ ...dishFormData, name: e.target.value })}
-                  style={styles.input}
-                  disabled={createItemMutation.isPending || updateItemMutation.isPending}
-                />
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Description</label>
-                <textarea
-                  placeholder="Fragrant basmati rice with tender chicken..."
-                  value={dishFormData.description}
-                  onChange={(e) =>
-                    setDishFormData({ ...dishFormData, description: e.target.value })
-                  }
-                  style={{ ...styles.input, minHeight: '80px', resize: 'vertical' }}
-                  disabled={createItemMutation.isPending || updateItemMutation.isPending}
-                />
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Image URL</label>
-                <input
-                  type="url"
-                  placeholder="https://example.com/image.jpg"
-                  value={dishFormData.image_url}
-                  onChange={(e) => setDishFormData({ ...dishFormData, image_url: e.target.value })}
-                  style={styles.input}
-                  disabled={createItemMutation.isPending || updateItemMutation.isPending}
-                />
-              </div>
-
-              <div style={styles.formRow}>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Type</label>
-                  <div style={styles.radioGroup}>
-                    <label style={styles.radioLabel}>
-                      <input
-                        type="radio"
-                        name="dishType"
-                        checked={dishFormData.is_veg}
-                        onChange={() =>
-                          setDishFormData({ ...dishFormData, is_veg: true, is_vegan: false })
-                        }
-                        style={styles.radio}
-                        disabled={createItemMutation.isPending || updateItemMutation.isPending}
-                      />
-                      🥬 Veg
-                    </label>
-                    <label style={styles.radioLabel}>
-                      <input
-                        type="radio"
-                        name="dishType"
-                        checked={!dishFormData.is_veg}
-                        onChange={() => setDishFormData({ ...dishFormData, is_veg: false })}
-                        style={styles.radio}
-                        disabled={createItemMutation.isPending || updateItemMutation.isPending}
-                      />
-                      🍖 Non-Veg
-                    </label>
-                  </div>
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Spice Level</label>
-                  <select
-                    value={dishFormData.spice_level}
-                    onChange={(e) =>
-                      setDishFormData({
-                        ...dishFormData,
-                        spice_level: e.target.value as 'mild' | 'medium' | 'spicy',
-                      })
-                    }
-                    style={styles.input}
-                    disabled={createItemMutation.isPending || updateItemMutation.isPending}
-                  >
-                    <option value="mild">🌶️ Mild</option>
-                    <option value="medium">🌶️🌶️ Medium</option>
-                    <option value="spicy">🌶️🌶️🌶️ Spicy</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style={styles.formRow}>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Dietary Info</label>
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '8px',
-                    }}
-                  >
-                    <label style={styles.checkboxLabel}>
-                      <input
-                        type="checkbox"
-                        checked={dishFormData.is_vegan}
-                        onChange={(e) =>
-                          setDishFormData({ ...dishFormData, is_vegan: e.target.checked })
-                        }
-                        style={styles.checkbox}
-                        disabled={createItemMutation.isPending || updateItemMutation.isPending}
-                      />
-                      <span>Vegan</span>
-                    </label>
-                    <label style={styles.checkboxLabel}>
-                      <input
-                        type="checkbox"
-                        checked={dishFormData.is_gluten_free}
-                        onChange={(e) =>
-                          setDishFormData({ ...dishFormData, is_gluten_free: e.target.checked })
-                        }
-                        style={styles.checkbox}
-                        disabled={createItemMutation.isPending || updateItemMutation.isPending}
-                      />
-                      <span>Gluten Free</span>
-                    </label>
-                  </div>
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Pricing Type</label>
-                  <select
-                    value={dishFormData.pricing_type}
-                    onChange={(e) =>
-                      setDishFormData({
-                        ...dishFormData,
-                        pricing_type: e.target.value as 'included' | 'extra' | 'on_request',
-                      })
-                    }
-                    style={styles.input}
-                    disabled={createItemMutation.isPending || updateItemMutation.isPending}
-                  >
-                    <option value="included">Included</option>
-                    <option value="extra">Extra Charge</option>
-                    <option value="on_request">On Request</option>
-                  </select>
-                </div>
-              </div>
-
-              {dishFormData.pricing_type === 'extra' && (
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Price</label>
+              {/* Search and Add New Item */}
+              <div style={styles.searchContainer}>
+                <div style={styles.searchInputWrapper}>
+                  <MagnifyingGlassIcon style={{ width: '16px', height: '16px', color: '#94a3b8' }} />
                   <input
-                    type="number"
-                    placeholder="0"
-                    value={dishFormData.price}
-                    onChange={(e) => setDishFormData({ ...dishFormData, price: e.target.value })}
-                    style={styles.input}
-                    disabled={createItemMutation.isPending || updateItemMutation.isPending}
-                    step="0.01"
-                    min="0"
+                    type="text"
+                    placeholder="Search menu items..."
+                    value={itemSearchTerm}
+                    onChange={(e) => setItemSearchTerm(e.target.value)}
+                    style={styles.searchInput}
                   />
                 </div>
-              )}
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Sort Order</label>
-                <input
-                  type="number"
-                  value={dishFormData.sort_order}
-                  onChange={(e) =>
-                    setDishFormData({ ...dishFormData, sort_order: parseInt(e.target.value) })
-                  }
-                  style={styles.input}
-                  disabled={createItemMutation.isPending || updateItemMutation.isPending}
-                />
+                <button
+                  onClick={openCreateGlobalItemModal}
+                  style={{ ...styles.buttonPrimary, marginLeft: '8px', whiteSpace: 'nowrap' }}
+                >
+                  <PlusIcon style={{ width: '16px', height: '16px' }} />
+                  New Item
+                </button>
               </div>
 
-              <div style={styles.formGroup}>
-                <label style={styles.checkboxLabel}>
-                  <input
-                    type="checkbox"
-                    checked={dishFormData.is_active}
-                    onChange={(e) =>
-                      setDishFormData({ ...dishFormData, is_active: e.target.checked })
-                    }
-                    style={styles.checkbox}
-                    disabled={createItemMutation.isPending || updateItemMutation.isPending}
-                  />
-                  <span>Active</span>
-                </label>
+              {/* Items List */}
+              <div style={styles.itemsContainer}>
+                {filteredMenuItems.length > 0 ? (
+                  filteredMenuItems.map((item) => (
+                    <div
+                      key={item.id}
+                      style={{
+                        ...styles.itemCheckbox,
+                        backgroundColor: selectedItemIds.includes(item.id) ? '#eff6ff' : 'white',
+                        borderColor: selectedItemIds.includes(item.id) ? '#2563eb' : '#e2e8f0',
+                      }}
+                      onClick={() => {
+                        setSelectedItemIds((prev) =>
+                          prev.includes(item.id) ? prev.filter((id) => id !== item.id) : [...prev, item.id]
+                        );
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedItemIds.includes(item.id)}
+                        onChange={() => {}}
+                        style={styles.checkbox}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <div style={styles.itemContent}>
+                        <p style={styles.itemName}>{item.name}</p>
+                        <div style={styles.itemMetaTags}>
+                          <span style={styles.itemTag}>
+                            {item.is_veg ? '🥬 Veg' : '🍖 Non-Veg'}
+                          </span>
+                          {item.is_vegan && <span style={styles.itemTag}>🌱 Vegan</span>}
+                          {item.is_gluten_free && <span style={styles.itemTag}>🌾 GF</span>}
+                          {item.spice_level && (
+                            <span style={styles.itemTag}>
+                              {item.spice_level === 'mild' && '🌶️ Mild'}
+                              {item.spice_level === 'medium' && '🌶️🌶️ Medium'}
+                              {item.spice_level === 'spicy' && '🌶️🌶️🌶️ Spicy'}
+                            </span>
+                          )}
+                        </div>
+                        {item.description && (
+                          <p style={styles.itemDescription}>{item.description}</p>
+                        )}
+                        {item.pricing_type !== 'included' && item.price && (
+                          <p style={styles.itemPrice}>
+                            +₹{item.price} ({item.pricing_type})
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div style={styles.emptyItems}>
+                    <p>No items found</p>
+                    <p style={{ fontSize: '13px', color: '#64748b', marginTop: '8px' }}>
+                      Create a new item to get started
+                    </p>
+                  </div>
+                )}
               </div>
+
+              <p style={styles.selectedCount}>
+                {selectedItemIds.length} item{selectedItemIds.length !== 1 ? 's' : ''} selected
+              </p>
             </div>
 
             <div style={styles.modalFooter}>
               <button
                 onClick={() => {
-                  setShowAddDishModal(false);
-                  setEditingDish(null);
-                  setSelectedSectionForDish(null);
+                  setShowSelectItemsModal(false);
+                  setSelectedSectionForItems(null);
+                  setSelectedItemIds([]);
+                  setItemSearchTerm('');
                 }}
                 style={styles.buttonSecondary}
-                disabled={createItemMutation.isPending || updateItemMutation.isPending}
               >
                 Cancel
               </button>
               <button
-                onClick={handleSaveDish}
+                onClick={handleAddItemsToSection}
                 style={styles.buttonPrimary}
-                disabled={createItemMutation.isPending || updateItemMutation.isPending}
+                disabled={selectedItemIds.length === 0 || createItemMutation.isPending}
               >
-                {createItemMutation.isPending || updateItemMutation.isPending
-                  ? '⏳ Saving...'
-                  : editingDish
-                  ? 'Update'
-                  : 'Save'}
+                {createItemMutation.isPending ? '⏳ Adding...' : `Add Selected Items`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Global Menu Item Modal */}
+      {showCreateGlobalItemModal && (
+        <div style={styles.modalOverlay}>
+          <div style={{ ...styles.modal, maxWidth: '600px', maxHeight: '80vh', overflow: 'auto' }}>
+            <div style={styles.modalHeader}>
+              <h2 style={styles.modalTitle}>🍛 Create Menu Item</h2>
+              <button
+                onClick={() => setShowCreateGlobalItemModal(false)}
+                style={styles.modalCloseButton}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={styles.modalContent}>
+              <div style={styles.formGroupSection}>
+                <h3 style={styles.formSectionTitle}>📋 Item Information</h3>
+                
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Item Name *</label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Paneer Tikka"
+                    value={globalItemFormData.name}
+                    onChange={(e) =>
+                      setGlobalItemFormData({ ...globalItemFormData, name: e.target.value })
+                    }
+                    style={styles.input}
+                    disabled={createGlobalItemMutation.isPending}
+                  />
+                  <p style={styles.helperText}>Name of the dish</p>
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Description</label>
+                  <textarea
+                    placeholder="e.g., Grilled paneer cubes marinated in yogurt and spices"
+                    value={globalItemFormData.description}
+                    onChange={(e) =>
+                      setGlobalItemFormData({ ...globalItemFormData, description: e.target.value })
+                    }
+                    style={{ ...styles.input, minHeight: '80px', resize: 'vertical' }}
+                    disabled={createGlobalItemMutation.isPending}
+                  />
+                  <p style={styles.helperText}>Describe the item</p>
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Image URL</label>
+                  <input
+                    type="url"
+                    placeholder="https://example.com/image.jpg"
+                    value={globalItemFormData.image_url}
+                    onChange={(e) =>
+                      setGlobalItemFormData({ ...globalItemFormData, image_url: e.target.value })
+                    }
+                    style={styles.input}
+                    disabled={createGlobalItemMutation.isPending}
+                  />
+                  <p style={styles.helperText}>Link to item image</p>
+                </div>
+              </div>
+
+              <div style={styles.formGroupSection}>
+                <h3 style={styles.formSectionTitle}>🌿 Dietary Information</h3>
+                
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Type</label>
+                    <div style={styles.radioGroup}>
+                      <label style={styles.radioLabel}>
+                        <input
+                          type="radio"
+                          name="itemType"
+                          checked={globalItemFormData.is_veg}
+                          onChange={() =>
+                            setGlobalItemFormData({
+                              ...globalItemFormData,
+                              is_veg: true,
+                              is_vegan: false,
+                            })
+                          }
+                          style={styles.radio}
+                          disabled={createGlobalItemMutation.isPending}
+                        />
+                        🥬 Veg
+                      </label>
+                      <label style={styles.radioLabel}>
+                        <input
+                          type="radio"
+                          name="itemType"
+                          checked={!globalItemFormData.is_veg}
+                          onChange={() =>
+                            setGlobalItemFormData({ ...globalItemFormData, is_veg: false })
+                          }
+                          style={styles.radio}
+                          disabled={createGlobalItemMutation.isPending}
+                        />
+                        🍖 Non-Veg
+                      </label>
+                    </div>
+                  </div>
+
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Spice Level</label>
+                    <select
+                      value={globalItemFormData.spice_level}
+                      onChange={(e) =>
+                        setGlobalItemFormData({
+                          ...globalItemFormData,
+                          spice_level: e.target.value as 'mild' | 'medium' | 'spicy' | '',
+                        })
+                      }
+                      style={styles.input}
+                      disabled={createGlobalItemMutation.isPending}
+                    >
+                      <option value="">Not Specified</option>
+                      <option value="mild">🌶️ Mild</option>
+                      <option value="medium">🌶️🌶️ Medium</option>
+                      <option value="spicy">🌶️🌶️🌶️ Spicy</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style={styles.checkboxGrid}>
+                  <label style={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={globalItemFormData.is_vegan}
+                      onChange={(e) =>
+                        setGlobalItemFormData({
+                          ...globalItemFormData,
+                          is_vegan: e.target.checked,
+                        })
+                      }
+                      style={styles.checkbox}
+                      disabled={createGlobalItemMutation.isPending}
+                    />
+                    🌱 Vegan
+                  </label>
+
+                  <label style={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={globalItemFormData.is_gluten_free}
+                      onChange={(e) =>
+                        setGlobalItemFormData({
+                          ...globalItemFormData,
+                          is_gluten_free: e.target.checked,
+                        })
+                      }
+                      style={styles.checkbox}
+                      disabled={createGlobalItemMutation.isPending}
+                    />
+                    🌾 Gluten Free
+                  </label>
+                </div>
+              </div>
+
+              <div style={styles.formGroupSection}>
+                <h3 style={styles.formSectionTitle}>💰 Pricing</h3>
+                
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Pricing Type *</label>
+                  <select
+                    value={globalItemFormData.pricing_type}
+                    onChange={(e) =>
+                      setGlobalItemFormData({
+                        ...globalItemFormData,
+                        pricing_type: e.target.value as 'included' | 'extra' | 'on_request' | 'per_plate' | 'per_person',
+                      })
+                    }
+                    style={styles.input}
+                    disabled={createGlobalItemMutation.isPending}
+                  >
+                    <option value="included">Included in Package</option>
+                    <option value="extra">Extra Charge</option>
+                    <option value="on_request">On Request</option>
+                    <option value="per_plate">Per Plate</option>
+                    <option value="per_person">Per Person</option>
+                  </select>
+                </div>
+
+                {globalItemFormData.pricing_type !== 'included' && (
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Price *</label>
+                    <input
+                      type="number"
+                      placeholder="200"
+                      value={globalItemFormData.price}
+                      onChange={(e) =>
+                        setGlobalItemFormData({ ...globalItemFormData, price: e.target.value })
+                      }
+                      style={styles.input}
+                      disabled={createGlobalItemMutation.isPending}
+                      step="0.01"
+                      min="0"
+                    />
+                  </div>
+                )}
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Currency Code</label>
+                  <input
+                    type="text"
+                    placeholder="INR"
+                    value={globalItemFormData.currency_code}
+                    onChange={(e) =>
+                      setGlobalItemFormData({
+                        ...globalItemFormData,
+                        currency_code: e.target.value.toUpperCase(),
+                      })
+                    }
+                    style={styles.input}
+                    disabled={createGlobalItemMutation.isPending}
+                    maxLength={3}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div style={styles.modalFooter}>
+              <button
+                onClick={() => setShowCreateGlobalItemModal(false)}
+                style={styles.buttonSecondary}
+                disabled={createGlobalItemMutation.isPending}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateGlobalMenuItem}
+                style={styles.buttonPrimary}
+                disabled={createGlobalItemMutation.isPending}
+              >
+                {createGlobalItemMutation.isPending ? '⏳ Creating...' : 'Create Item'}
               </button>
             </div>
           </div>
@@ -1467,7 +1650,6 @@ const styles: { [key: string]: React.CSSProperties } = {
   formSectionTitle: {
     fontSize: '13px',
     fontWeight: '700',
-    color: '#1e293b',
     margin: 0,
     marginBottom: '16px',
     textTransform: 'uppercase' as const,
@@ -1536,6 +1718,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: '#1e293b',
     cursor: 'pointer',
   },
+  checkboxGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '12px',
+  },
   chargePreview: {
     backgroundColor: '#eff6ff',
     border: '1px solid #bfdbfe',
@@ -1554,5 +1741,112 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '12px',
     color: '#1e40af',
     margin: 0,
+  },
+  searchContainer: {
+    display: 'flex',
+    gap: '8px',
+    marginBottom: '16px',
+  },
+  searchInputWrapper: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    flex: 1,
+    padding: '8px 12px',
+    borderRadius: '8px',
+    border: '1px solid #e2e8f0',
+    backgroundColor: 'white',
+  },
+  searchInput: {
+    flex: 1,
+    border: 'none',
+    outline: 'none',
+    fontSize: '14px',
+    backgroundColor: 'transparent',
+    fontFamily: 'inherit',
+  },
+  itemsContainer: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '8px',
+    maxHeight: '400px',
+    overflowY: 'auto' as const,
+    marginBottom: '12px',
+  },
+  itemCheckbox: {
+    display: 'flex',
+    gap: '12px',
+    padding: '12px',
+    borderRadius: '8px',
+    border: '1px solid #e2e8f0',
+    backgroundColor: 'white',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+  },
+  itemContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+  itemName: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#1e293b',
+    margin: 0,
+    marginBottom: '6px',
+  },
+  itemMetaTags: {
+    display: 'flex',
+    gap: '6px',
+    flexWrap: 'wrap' as const,
+    marginBottom: '6px',
+  },
+  itemTag: {
+    fontSize: '11px',
+    backgroundColor: '#dbeafe',
+    color: '#0c4a6e',
+    padding: '2px 6px',
+    borderRadius: '3px',
+    fontWeight: '600',
+  },
+  itemDescription: {
+    fontSize: '12px',
+    color: '#64748b',
+    margin: 0,
+    fontStyle: 'italic',
+  },
+  itemPrice: {
+    fontSize: '12px',
+    color: '#ea580c',
+    margin: '4px 0 0 0',
+    fontWeight: '600',
+  },
+  emptyItems: {
+    textAlign: 'center' as const,
+    padding: '40px 20px',
+    color: '#94a3b8',
+  },
+  selectedCount: {
+    fontSize: '12px',
+    color: '#64748b',
+    margin: 0,
+    fontStyle: 'italic',
+  },
+  alertError: {
+    padding: '12px 16px',
+    backgroundColor: '#fee2e2',
+    borderRadius: '8px',
+    border: '1px solid #fecaca',
+    color: '#7f1d1d',
+    marginBottom: '16px',
+    fontSize: '14px',
+  },
+  alertSuccess: {
+    padding: '12px 16px',
+    backgroundColor: '#d1fae5',
+    borderRadius: '8px',
+    border: '1px solid #a7f3d0',
+    color: '#065f46',
+    marginBottom: '16px',
+    fontSize: '14px',
   },
 };

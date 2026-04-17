@@ -3,55 +3,91 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  useCollections,
+  PencilIcon,
+  TrashIcon,
+  PlusIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  MagnifyingGlassIcon,
+  CheckIcon,
+} from '@heroicons/react/24/outline';
+import {
   useCreateCollection,
-  useUpdateCollection,
-  useDeleteCollection,
+  useCreateCollectionSection,
+  useCreateItem,
   useCatererMenuItems,
   useCreateCatererMenuItem,
-  useUpdateCatererMenuItem,
-  useDeleteCatererMenuItem,
-  type MenuCollection,
-  type CatererMenuItem,
 } from '@catering-marketplace/query-client';
+import { useQueryClient } from '@tanstack/react-query';
 
-export default function PackagesPage() {
+type PackageStep = 'basic' | 'sections' | 'pricing' | 'subscription' | 'addons' | 'review';
+
+interface Section {
+  id: string;
+  name: string;
+  description: string;
+  selection_type: 'fixed' | 'single' | 'multi';
+  max_items_selectable: number;
+  items: string[]; // item IDs
+  additional_charge_type: 'none' | 'per_item' | 'percentage';
+  additional_charge_amount: number;
+}
+
+interface MenuItem {
+  id: string;
+  name: string;
+  description: string;
+  is_veg: boolean;
+  is_vegan: boolean;
+  is_gluten_free: boolean;
+  spice_level: 'mild' | 'medium' | 'spicy' | '';
+  pricing_type: string;
+  price: number;
+}
+
+export default function CreatePackagePage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
 
-  // Real API queries
-  const { data: collections = [], isLoading, error } = useCollections();
-  const { data: menuItems = [], isLoading: itemsLoading } = useCatererMenuItems();
-  const createCollectionMutation = useCreateCollection();
-  const updateCollectionMutation = useUpdateCollection();
-  const deleteCollectionMutation = useDeleteCollection();
-  const createItemMutation = useCreateCatererMenuItem();
-  const updateItemMutation = useUpdateCatererMenuItem();
-  const deleteItemMutation = useDeleteCatererMenuItem();
+  // API mutations
+  const createPackageMutation = useCreateCollection();
+  const createSectionMutation = useCreateCollectionSection();
+  const createItemMutation = useCreateItem();
+  const createGlobalItemMutation = useCreateCatererMenuItem();
 
-  // UI state only
-  const [activeTab, setActiveTab] = useState<'all' | 'add-package' | 'add-item'>('all');
-  const [menuType, setMenuType] = useState<'catering' | 'simple' | 'items'>('catering');
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState<'newest' | 'price' | 'name'>('newest');
-  const [formError, setFormError] = useState('');
-  const [formSuccess, setFormSuccess] = useState('');
+  // Queries
+  const { data: globalMenuItems = [] } = useCatererMenuItems();
 
-  // Package Form state
-  const [packageForm, setPackageForm] = useState({
+  // Current step
+  const [currentStep, setCurrentStep] = useState<PackageStep>('basic');
+
+  // Package data
+  const [packageData, setPackageData] = useState({
     name: '',
     description: '',
-    image_url: '',
-    pricing_type: 'per_plate' as 'per_plate' | 'per_person' | 'fixed' | 'on_request',
-    base_price: '350',
+    type: 'fixed' as 'fixed' | 'customizable',
+    is_subscribable: false,
     currency_code: 'INR',
-    min_guests: '50',
-    max_guests: '500',
-    is_active: true,
   });
 
-  // Menu Item Form state
-  const [itemForm, setItemForm] = useState({
+  // Sections data
+  const [sections, setSections] = useState<Section[]>([]);
+  const [expandedSections, setExpandedSections] = useState<string[]>([]);
+
+  // Current section being edited
+  const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
+  const [sectionForm, setSectionForm] = useState({
+    name: '',
+    description: '',
+    selection_type: 'fixed' as 'fixed' | 'single' | 'multi',
+    max_items_selectable: 1,
+    additional_charge_type: 'none' as 'none' | 'per_item' | 'percentage',
+    additional_charge_amount: 0,
+  });
+
+  // Global menu item creation
+  const [showCreateItemModal, setShowCreateItemModal] = useState(false);
+  const [globalItemForm, setGlobalItemForm] = useState({
     name: '',
     description: '',
     image_url: '',
@@ -59,980 +95,1273 @@ export default function PackagesPage() {
     is_vegan: false,
     is_gluten_free: false,
     spice_level: '' as 'mild' | 'medium' | 'spicy' | '',
-    pricing_type: 'per_plate' as 'included' | 'extra' | 'on_request' | 'per_plate' | 'per_person',
-    price: '200',
+    pricing_type: 'per_plate',
+    price: 0,
     currency_code: 'INR',
-    sort_order: 1,
   });
 
-  // Filtered & sorted packages
-  const filtered = collections
-    .filter((p) => {
-      const typeMatch = menuType === 'catering' ? !p.menu_type || p.menu_type === 'catering' : p.menu_type === 'simple';
-      return typeMatch && (
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  // Item selection for section
+  const [selectedSectionForItems, setSelectedSectionForItems] = useState<string | null>(null);
+  const [itemSearchTerm, setItemSearchTerm] = useState('');
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+
+  // Pricing data
+  const [pricingData, setPricingData] = useState({
+    base_price: 0,
+    min_guests: 2,
+    min_order_value: 0,
+  });
+
+  // Subscription data
+  const [subscriptionData, setSubscriptionData] = useState({
+    meal_types: [] as ('breakfast' | 'lunch' | 'dinner')[],
+    available_days: [] as string[],
+    allowed_frequencies: [] as ('daily' | 'weekly')[],
+    min_duration_days: 7,
+    max_duration_days: 365,
+    cutoff_hours: 24,
+  });
+
+  // Addons
+  const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
+
+  // UI state
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Helper functions
+  const toggleSection = (sectionId: string) => {
+    setExpandedSections((prev) =>
+      prev.includes(sectionId) ? prev.filter((id) => id !== sectionId) : [...prev, sectionId]
+    );
+  };
+
+  const addSection = () => {
+    const newSection: Section = {
+      id: Date.now().toString(),
+      name: sectionForm.name,
+      description: sectionForm.description,
+      selection_type: sectionForm.selection_type,
+      max_items_selectable: sectionForm.max_items_selectable,
+      items: [],
+      additional_charge_type: sectionForm.additional_charge_type,
+      additional_charge_amount: sectionForm.additional_charge_amount,
+    };
+
+    if (editingSectionId) {
+      setSections((prev) =>
+        prev.map((s) => (s.id === editingSectionId ? { ...newSection, id: editingSectionId } : s))
       );
-    })
-    .sort((a, b) => {
-      if (sortBy === 'price') return a.base_price - b.base_price;
-      if (sortBy === 'name') return a.name.localeCompare(b.name);
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
-
-  // Filtered & sorted menu items
-  const filteredItems = menuItems
-    .filter((item) =>
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.description?.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    .sort((a, b) => {
-      if (sortBy === 'price') return (a.price || 0) - (b.price || 0);
-      if (sortBy === 'name') return a.name.localeCompare(b.name);
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
-
-  // ============ HANDLERS - PACKAGES ============
-  const handleCreatePackage = (type: 'catering' | 'simple') => {
-    setMenuType(type);
-    setEditingId(null);
-    setPackageForm({
-      name: '',
-      description: '',
-      image_url: '',
-      pricing_type: type === 'simple' ? 'fixed' : 'per_plate',
-      base_price: type === 'simple' ? '0' : '350',
-      currency_code: 'INR',
-      min_guests: type === 'simple' ? '1' : '50',
-      max_guests: type === 'simple' ? '999' : '500',
-      is_active: true,
-    });
-    setFormError('');
-    setFormSuccess('');
-    setActiveTab('add-package');
-  };
-
-  const handleEditPackage = (pkg: MenuCollection) => {
-    setMenuType(pkg.menu_type === 'simple' ? 'simple' : 'catering');
-    setEditingId(pkg.id);
-    setPackageForm({
-      name: pkg.name,
-      description: pkg.description || '',
-      image_url: pkg.image_url || '',
-      pricing_type: pkg.pricing_type,
-      base_price: pkg.base_price.toString(),
-      currency_code: pkg.currency_code,
-      min_guests: pkg.min_guests.toString(),
-      max_guests: pkg.max_guests.toString(),
-      is_active: pkg.is_active,
-    });
-    setFormError('');
-    setFormSuccess('');
-    setActiveTab('add-package');
-  };
-
-  const handleSavePackage = async () => {
-    setFormError('');
-    setFormSuccess('');
-
-    if (!packageForm.name.trim()) {
-      setFormError('Name is required');
-      return;
-    }
-
-    if (!packageForm.base_price || isNaN(parseFloat(packageForm.base_price))) {
-      setFormError('Valid price is required');
-      return;
-    }
-
-    if (parseInt(packageForm.min_guests) > parseInt(packageForm.max_guests)) {
-      setFormError('Minimum guests cannot exceed maximum guests');
-      return;
-    }
-
-    try {
-      const payload = {
-        name: packageForm.name,
-        description: packageForm.description || undefined,
-        image_url: packageForm.image_url || undefined,
-        pricing_type: packageForm.pricing_type,
-        base_price: parseFloat(packageForm.base_price),
-        currency_code: packageForm.currency_code,
-        min_guests: parseInt(packageForm.min_guests),
-        max_guests: parseInt(packageForm.max_guests),
-        menu_type: menuType,
-      };
-
-      if (editingId) {
-        await updateCollectionMutation.mutateAsync({
-          id: editingId,
-          data: { ...payload, is_active: packageForm.is_active },
-        });
-        setFormSuccess(`Package updated successfully!`);
-      } else {
-        await createCollectionMutation.mutateAsync(payload);
-        setFormSuccess(`Package created successfully!`);
-      }
-
-      setTimeout(() => {
-        setActiveTab('all');
-        setEditingId(null);
-      }, 1500);
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Failed to save');
-    }
-  };
-
-  // ============ HANDLERS - MENU ITEMS ============
-  const handleCreateMenuItem = () => {
-    setEditingId(null);
-    setItemForm({
-      name: '',
-      description: '',
-      image_url: '',
-      is_veg: true,
-      is_vegan: false,
-      is_gluten_free: false,
-      spice_level: '',
-      pricing_type: 'per_plate',
-      price: '200',
-      currency_code: 'INR',
-      sort_order: 1,
-    });
-    setFormError('');
-    setFormSuccess('');
-    setActiveTab('add-item');
-  };
-
-  const handleEditMenuItem = (item: CatererMenuItem) => {
-    setEditingId(item.id);
-    setItemForm({
-      name: item.name,
-      description: item.description || '',
-      image_url: item.image_url || '',
-      is_veg: item.is_veg,
-      is_vegan: item.is_vegan,
-      is_gluten_free: item.is_gluten_free,
-      spice_level: item.spice_level || '',
-      pricing_type: item.pricing_type,
-      price: item.price?.toString() || '200',
-      currency_code: item.currency_code || 'INR',
-      sort_order: item.sort_order,
-    });
-    setFormError('');
-    setFormSuccess('');
-    setActiveTab('add-item');
-  };
-
-  const handleSaveMenuItem = async () => {
-    setFormError('');
-    setFormSuccess('');
-
-    if (!itemForm.name.trim()) {
-      setFormError('Item name is required');
-      return;
-    }
-
-    if (!itemForm.price || isNaN(parseFloat(itemForm.price))) {
-      setFormError('Valid price is required');
-      return;
-    }
-
-    try {
-      const payload = {
-        section_id: 'standalone', // Global menu item
-        name: itemForm.name,
-        description: itemForm.description || undefined,
-        image_url: itemForm.image_url || undefined,
-        is_veg: itemForm.is_veg,
-        is_vegan: itemForm.is_vegan,
-        is_gluten_free: itemForm.is_gluten_free,
-        spice_level: itemForm.spice_level || undefined,
-        pricing_type: itemForm.pricing_type,
-        price: parseFloat(itemForm.price),
-        currency_code: itemForm.currency_code,
-        sort_order: itemForm.sort_order,
-      };
-
-      if (editingId) {
-        await updateItemMutation.mutateAsync({
-          id: editingId,
-          data: payload,
-        });
-        setFormSuccess('Menu item updated successfully!');
-      } else {
-        await createItemMutation.mutateAsync(payload);
-        setFormSuccess('Menu item created successfully!');
-      }
-
-      setTimeout(() => {
-        setActiveTab('all');
-        setMenuType('items');
-        setEditingId(null);
-      }, 1500);
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Failed to save');
-    }
-  };
-
-  const handleDeletePackage = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this?')) return;
-
-    try {
-      await deleteCollectionMutation.mutateAsync(id);
-      setFormSuccess('Package deleted successfully!');
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Failed to delete');
-    }
-  };
-
-  const handleDeleteMenuItem = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this?')) return;
-
-    try {
-      await deleteItemMutation.mutateAsync(id);
-      setFormSuccess('Menu item deleted successfully!');
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Failed to delete');
-    }
-  };
-
-  const handleView = (id: string, type: string) => {
-    if (type === 'item') {
-      router.push(`/caterer/items/${id}`);
-    } else if (type === 'simple') {
-      router.push(`/caterer/menus/${id}`);
+      setEditingSectionId(null);
     } else {
-      router.push(`/caterer/packages/${id}`);
+      setSections((prev) => [...prev, newSection]);
+    }
+
+    setSectionForm({
+      name: '',
+      description: '',
+      selection_type: 'fixed',
+      max_items_selectable: 1,
+      additional_charge_type: 'none',
+      additional_charge_amount: 0,
+    });
+
+    setSuccessMessage(
+      editingSectionId ? 'Section updated successfully!' : 'Section added successfully!'
+    );
+    setTimeout(() => setSuccessMessage(''), 2000);
+  };
+
+  const deleteSection = (sectionId: string) => {
+    setSections((prev) => prev.filter((s) => s.id !== sectionId));
+    setSuccessMessage('Section deleted');
+    setTimeout(() => setSuccessMessage(''), 2000);
+  };
+
+  const startEditSection = (section: Section) => {
+    setSectionForm({
+      name: section.name,
+      description: section.description,
+      selection_type: section.selection_type,
+      max_items_selectable: section.max_items_selectable,
+      additional_charge_type: section.additional_charge_type,
+      additional_charge_amount: section.additional_charge_amount,
+    });
+    setEditingSectionId(section.id);
+  };
+
+  const addItemsToSection = (sectionId: string) => {
+    setSections((prev) =>
+      prev.map((s) =>
+        s.id === sectionId
+          ? {
+              ...s,
+              items: [...new Set([...s.items, ...selectedItemIds])],
+            }
+          : s
+      )
+    );
+
+    setSelectedSectionForItems(null);
+    setSelectedItemIds([]);
+    setItemSearchTerm('');
+    setSuccessMessage(`Added ${selectedItemIds.length} item(s) to section!`);
+    setTimeout(() => setSuccessMessage(''), 2000);
+  };
+
+  const removeItemFromSection = (sectionId: string, itemId: string) => {
+    setSections((prev) =>
+      prev.map((s) =>
+        s.id === sectionId ? { ...s, items: s.items.filter((i) => i !== itemId) } : s
+      )
+    );
+  };
+
+  const createGlobalMenuItem = async () => {
+    if (!globalItemForm.name.trim()) {
+      setErrorMessage('Please enter item name');
+      return;
+    }
+
+    try {
+      const newItem = await createGlobalItemMutation.mutateAsync({
+        name: globalItemForm.name,
+        description: globalItemForm.description || undefined,
+        image_url: globalItemForm.image_url || undefined,
+        is_veg: globalItemForm.is_veg,
+        is_vegan: globalItemForm.is_vegan,
+        is_gluten_free: globalItemForm.is_gluten_free,
+        spice_level: globalItemForm.spice_level || undefined,
+        pricing_type: globalItemForm.pricing_type,
+        price: globalItemForm.price || undefined,
+        currency_code: globalItemForm.currency_code,
+      });
+
+      await queryClient.refetchQueries({
+        queryKey: ['catererMenuItems'],
+        type: 'active',
+      });
+
+      if (newItem?.id && selectedSectionForItems) {
+        setSelectedItemIds((prev) => [...prev, newItem.id]);
+      }
+
+      setGlobalItemForm({
+        name: '',
+        description: '',
+        image_url: '',
+        is_veg: true,
+        is_vegan: false,
+        is_gluten_free: false,
+        spice_level: '',
+        pricing_type: 'per_plate',
+        price: 0,
+        currency_code: 'INR',
+      });
+      setShowCreateItemModal(false);
+      setSuccessMessage('Menu item created!');
+      setTimeout(() => setSuccessMessage(''), 2000);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to create item';
+      setErrorMessage(msg);
     }
   };
 
-  // ============ EMPTY STATE ============
-  if (!isLoading && !itemsLoading && collections.length === 0 && menuItems.length === 0 && activeTab === 'all') {
-    return (
-      <div style={styles.container}>
-        <div style={styles.emptyStateContainer}>
-          <div style={styles.emptyStateContent}>
-            <h1 style={styles.emptyStateTitle}>🍽️ Create Your First Offering</h1>
-            <p style={styles.emptyStateSubtitle}>
-              Showcase your catering offerings to attract customers. Choose how you want to get started.
-            </p>
+  const createPackageFlow = async () => {
+    if (!packageData.name.trim()) {
+      setErrorMessage('Please enter package name');
+      return;
+    }
 
-            <div style={styles.optionsContainer}>
-              <div style={styles.optionCard}>
-                <div style={styles.optionIcon}>📦</div>
-                <h3 style={styles.optionTitle}>Create Catering Packages</h3>
-                <p style={styles.optionDescription}>
-                  Perfect for complete meal offerings with flexible pricing options.
-                </p>
-                <button 
-                  onClick={() => handleCreatePackage('catering')}
-                  style={styles.optionButton}
-                >
-                  ➕ Create Package
-                </button>
-              </div>
+    if (sections.length === 0) {
+      setErrorMessage('Please add at least one section');
+      return;
+    }
 
-              <div style={styles.optionCard}>
-                <div style={styles.optionIcon}>📋</div>
-                <h3 style={styles.optionTitle}>Simple Menu</h3>
-                <p style={styles.optionDescription}>
-                  Quick way to showcase your dishes with sections and items.
-                </p>
-                <button 
-                  onClick={() => handleCreatePackage('simple')}
-                  style={styles.optionButton}
-                >
-                  📋 Create Menu
-                </button>
-              </div>
+    if (pricingData.base_price <= 0) {
+      setErrorMessage('Please set a valid base price');
+      return;
+    }
 
-              <div style={styles.optionCard}>
-                <div style={styles.optionIcon}>🍛</div>
-                <h3 style={styles.optionTitle}>Menu Items</h3>
-                <p style={styles.optionDescription}>
-                  Create standalone menu items (dishes) with individual pricing.
-                </p>
-                <button 
-                  onClick={handleCreateMenuItem}
-                  style={{...styles.optionButton, backgroundColor: '#10b981'}}
-                >
-                  🍛 Create Item
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+    setIsLoading(true);
+    setErrorMessage('');
 
-  // ============ ADD/EDIT MENU ITEM ============
-  if (activeTab === 'add-item') {
-    return (
-      <div style={styles.container}>
-        <div style={styles.header}>
-          <button onClick={() => setActiveTab('all')} style={styles.backButton}>
-            ← Back
-          </button>
-          <div>
-            <h1 style={styles.title}>
-              {editingId ? '✏️ Edit Menu Item' : '🍛 Create Menu Item'}
-            </h1>
-            <p style={styles.subtitle}>
-              {editingId ? 'Update item details' : 'Create a new standalone menu item'}
-            </p>
-          </div>
-        </div>
+    try {
+      // Create package
+      const newPackage = await createPackageMutation.mutateAsync({
+        name: packageData.name,
+        description: packageData.description || undefined,
+        type: packageData.type,
+        is_subscribable: packageData.is_subscribable,
+        base_price: pricingData.base_price,
+        min_guests: pricingData.min_guests,
+        currency_code: packageData.currency_code,
+        pricing_type: packageData.type === 'fixed' ? 'per_person' : 'custom',
+      });
 
-        {formError && <div style={styles.alertError}><p>{formError}</p></div>}
-        {formSuccess && <div style={styles.alertSuccess}><p>{formSuccess}</p></div>}
+      if (!newPackage?.id) throw new Error('Failed to create package');
 
-        <div style={styles.section}>
-          <div style={styles.largeFormContainer}>
-            <div style={styles.formSection}>
-              <div style={styles.sectionHeader}>
-                <h3 style={styles.sectionSubtitle}>Item Information</h3>
-                <span style={styles.helpIcon}>🍛</span>
-              </div>
+      // Create sections with items
+      for (const section of sections) {
+        const newSection = await createSectionMutation.mutateAsync({
+          collectionId: newPackage.id,
+          data: {
+            name: section.name,
+            description: section.description || undefined,
+            selection_type: section.selection_type,
+            max_items_selectable: section.max_items_selectable,
+            additional_charge_type: section.additional_charge_type,
+            additional_charge_amount: section.additional_charge_amount,
+          },
+        });
 
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Item Name *</label>
-                <input
-                  type="text"
-                  placeholder="e.g., Paneer Tikka"
-                  value={itemForm.name}
-                  onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })}
-                  style={styles.input}
-                  disabled={createItemMutation.isPending || updateItemMutation.isPending}
-                />
-                <p style={styles.helperText}>Name of the dish</p>
-              </div>
+        if (newSection?.id) {
+          // Add items to section
+          for (const itemId of section.items) {
+            const globalItem = globalMenuItems.find((i) => i.id === itemId);
+            if (globalItem) {
+              await createItemMutation.mutateAsync({
+                sectionId: newSection.id,
+                data: {
+                  name: globalItem.name,
+                  description: globalItem.description || undefined,
+                  is_veg: globalItem.is_veg,
+                  is_vegan: globalItem.is_vegan,
+                  is_gluten_free: globalItem.is_gluten_free,
+                  spice_level: globalItem.spice_level || undefined,
+                  pricing_type: globalItem.pricing_type,
+                  price: globalItem.price,
+                  currency_code: globalItem.currency_code,
+                },
+              });
+            }
+          }
+        }
+      }
 
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Description</label>
-                <textarea
-                  placeholder="e.g., Grilled paneer cubes marinated in yogurt and spices"
-                  value={itemForm.description}
-                  onChange={(e) => setItemForm({ ...itemForm, description: e.target.value })}
-                  style={{ ...styles.input, minHeight: '100px', resize: 'vertical' }}
-                  disabled={createItemMutation.isPending || updateItemMutation.isPending}
-                />
-                <p style={styles.helperText}>Describe the item</p>
-              </div>
+      setSuccessMessage('Package created successfully!');
+      setTimeout(() => router.push('/caterer/packages'), 2000);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to create package';
+      setErrorMessage(msg);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Image URL</label>
-                <input
-                  type="url"
-                  placeholder="https://example.com/image.jpg"
-                  value={itemForm.image_url}
-                  onChange={(e) => setItemForm({ ...itemForm, image_url: e.target.value })}
-                  style={styles.input}
-                  disabled={createItemMutation.isPending || updateItemMutation.isPending}
-                />
-                <p style={styles.helperText}>Link to item image</p>
-              </div>
-            </div>
+  // Filtered items
+  const filteredMenuItems = globalMenuItems.filter((item) =>
+    item.name.toLowerCase().includes(itemSearchTerm.toLowerCase()) ||
+    item.description?.toLowerCase().includes(itemSearchTerm.toLowerCase())
+  );
 
-            <div style={styles.formSection}>
-              <div style={styles.sectionHeader}>
-                <h3 style={styles.sectionSubtitle}>Dietary Information</h3>
-                <span style={styles.helpIcon}>🌿</span>
-              </div>
+  const currentSelectedSection = sections.find((s) => s.id === selectedSectionForItems);
+  const getItemName = (itemId: string) =>
+    globalMenuItems.find((i) => i.id === itemId)?.name || 'Unknown Item';
 
-              <div style={styles.checkboxGrid}>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>
-                    <input
-                      type="checkbox"
-                      checked={itemForm.is_veg}
-                      onChange={(e) => setItemForm({ ...itemForm, is_veg: e.target.checked })}
-                      style={{ marginRight: '8px', width: '18px', height: '18px', cursor: 'pointer' }}
-                      disabled={createItemMutation.isPending || updateItemMutation.isPending}
-                    />
-                    Vegetarian
-                  </label>
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>
-                    <input
-                      type="checkbox"
-                      checked={itemForm.is_vegan}
-                      onChange={(e) => setItemForm({ ...itemForm, is_vegan: e.target.checked })}
-                      style={{ marginRight: '8px', width: '18px', height: '18px', cursor: 'pointer' }}
-                      disabled={createItemMutation.isPending || updateItemMutation.isPending}
-                    />
-                    Vegan
-                  </label>
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>
-                    <input
-                      type="checkbox"
-                      checked={itemForm.is_gluten_free}
-                      onChange={(e) => setItemForm({ ...itemForm, is_gluten_free: e.target.checked })}
-                      style={{ marginRight: '8px', width: '18px', height: '18px', cursor: 'pointer' }}
-                      disabled={createItemMutation.isPending || updateItemMutation.isPending}
-                    />
-                    Gluten Free
-                  </label>
-                </div>
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Spice Level</label>
-                <select
-                  value={itemForm.spice_level}
-                  onChange={(e) => setItemForm({ ...itemForm, spice_level: e.target.value as 'mild' | 'medium' | 'spicy' | '' })}
-                  style={styles.input}
-                  disabled={createItemMutation.isPending || updateItemMutation.isPending}
-                >
-                  <option value="">Not Specified</option>
-                  <option value="mild">🟢 Mild</option>
-                  <option value="medium">🟡 Medium</option>
-                  <option value="spicy">🔴 Spicy</option>
-                </select>
-                <p style={styles.helperText}>Heat level of the dish</p>
-              </div>
-            </div>
-
-            <div style={styles.formSection}>
-              <div style={styles.sectionHeader}>
-                <h3 style={styles.sectionSubtitle}>Pricing</h3>
-                <span style={styles.helpIcon}>💰</span>
-              </div>
-
-              <div style={styles.pricingGrid}>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Price *</label>
-                  <input
-                    type="number"
-                    placeholder="200"
-                    value={itemForm.price}
-                    onChange={(e) => setItemForm({ ...itemForm, price: e.target.value })}
-                    style={styles.input}
-                    disabled={createItemMutation.isPending || updateItemMutation.isPending}
-                    step="0.01"
-                    min="0"
-                  />
-                  <p style={styles.helperText}>Item price</p>
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Pricing Type *</label>
-                  <select
-                    value={itemForm.pricing_type}
-                    onChange={(e) =>
-                      setItemForm({
-                        ...itemForm,
-                        pricing_type: e.target.value as 'included' | 'extra' | 'on_request' | 'per_plate' | 'per_person',
-                      })
-                    }
-                    style={styles.input}
-                    disabled={createItemMutation.isPending || updateItemMutation.isPending}
-                  >
-                    <option value="per_plate">Per Plate</option>
-                    <option value="per_person">Per Person</option>
-                    <option value="included">Included</option>
-                    <option value="extra">Extra Charge</option>
-                    <option value="on_request">On Request</option>
-                  </select>
-                  <p style={styles.helperText}>How you charge for this item</p>
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Currency Code *</label>
-                  <input
-                    type="text"
-                    placeholder="INR"
-                    value={itemForm.currency_code}
-                    onChange={(e) => setItemForm({ ...itemForm, currency_code: e.target.value.toUpperCase() })}
-                    style={styles.input}
-                    disabled={createItemMutation.isPending || updateItemMutation.isPending}
-                    maxLength={3}
-                  />
-                  <p style={styles.helperText}>Currency code (INR, USD, etc.)</p>
-                </div>
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Display Order</label>
-                <input
-                  type="number"
-                  placeholder="1"
-                  value={itemForm.sort_order}
-                  onChange={(e) => setItemForm({ ...itemForm, sort_order: parseInt(e.target.value) || 1 })}
-                  style={styles.input}
-                  disabled={createItemMutation.isPending || updateItemMutation.isPending}
-                  min="1"
-                />
-                <p style={styles.helperText}>Order in which items are displayed</p>
-              </div>
-            </div>
-
-            <div style={styles.formActions}>
-              <button
-                onClick={() => setActiveTab('all')}
-                style={styles.buttonSecondary}
-                disabled={createItemMutation.isPending || updateItemMutation.isPending}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveMenuItem}
-                style={styles.buttonPrimary}
-                disabled={createItemMutation.isPending || updateItemMutation.isPending}
-              >
-                {createItemMutation.isPending || updateItemMutation.isPending
-                  ? '⏳ Saving...'
-                  : editingId
-                  ? 'Update Item'
-                  : 'Create Item'}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ============ ADD/EDIT PACKAGE ============
-  if (activeTab === 'add-package') {
-    const isSimpleMenu = menuType === 'simple';
-    return (
-      <div style={styles.container}>
-        <div style={styles.header}>
-          <button onClick={() => setActiveTab('all')} style={styles.backButton}>
-            ← Back
-          </button>
-          <div>
-            <h1 style={styles.title}>
-              {editingId ? `✏️ Edit ${isSimpleMenu ? 'Menu' : 'Package'}` : `📦 Add New ${isSimpleMenu ? 'Menu' : 'Package'}`}
-            </h1>
-            <p style={styles.subtitle}>
-              {editingId
-                ? `Update your ${isSimpleMenu ? 'menu' : 'package'} details`
-                : `Create a new ${isSimpleMenu ? 'simple menu' : 'catering package'}`}
-            </p>
-          </div>
-        </div>
-
-        {formError && <div style={styles.alertError}><p>{formError}</p></div>}
-        {formSuccess && <div style={styles.alertSuccess}><p>{formSuccess}</p></div>}
-
-        <div style={styles.section}>
-          <div style={styles.largeFormContainer}>
-            <div style={styles.formSection}>
-              <div style={styles.sectionHeader}>
-                <h3 style={styles.sectionSubtitle}>Basic Information</h3>
-                <span style={styles.helpIcon}>ℹ️</span>
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>{isSimpleMenu ? 'Menu' : 'Package'} Name *</label>
-                <input
-                  type="text"
-                  placeholder={isSimpleMenu ? "e.g., North Indian Menu" : "e.g., Wedding Gold Package"}
-                  value={packageForm.name}
-                  onChange={(e) => setPackageForm({ ...packageForm, name: e.target.value })}
-                  style={styles.input}
-                  disabled={createCollectionMutation.isPending || updateCollectionMutation.isPending}
-                />
-                <p style={styles.helperText}>Give your {isSimpleMenu ? 'menu' : 'package'} a catchy name</p>
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Description</label>
-                <textarea
-                  placeholder={isSimpleMenu ? "e.g., Authentic North Indian dishes..." : "e.g., Includes biryani, raita, salad, dessert..."}
-                  value={packageForm.description}
-                  onChange={(e) => setPackageForm({ ...packageForm, description: e.target.value })}
-                  style={{ ...styles.input, minHeight: '100px', resize: 'vertical' }}
-                  disabled={createCollectionMutation.isPending || updateCollectionMutation.isPending}
-                />
-                <p style={styles.helperText}>Describe what's included</p>
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Image URL</label>
-                <input
-                  type="url"
-                  placeholder="https://example.com/image.jpg"
-                  value={packageForm.image_url}
-                  onChange={(e) => setPackageForm({ ...packageForm, image_url: e.target.value })}
-                  style={styles.input}
-                  disabled={createCollectionMutation.isPending || updateCollectionMutation.isPending}
-                />
-                <p style={styles.helperText}>Link to an image</p>
-              </div>
-            </div>
-
-            <div style={styles.formSection}>
-              <div style={styles.sectionHeader}>
-                <h3 style={styles.sectionSubtitle}>Pricing Details</h3>
-                <span style={styles.helpIcon}>💰</span>
-              </div>
-
-              <div style={styles.pricingGrid}>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Base Price *</label>
-                  <input
-                    type="number"
-                    placeholder="350"
-                    value={packageForm.base_price}
-                    onChange={(e) => setPackageForm({ ...packageForm, base_price: e.target.value })}
-                    style={styles.input}
-                    disabled={createCollectionMutation.isPending || updateCollectionMutation.isPending}
-                    step="0.01"
-                    min="0"
-                  />
-                  <p style={styles.helperText}>Price amount</p>
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Pricing Type *</label>
-                  <select
-                    value={packageForm.pricing_type}
-                    onChange={(e) =>
-                      setPackageForm({
-                        ...packageForm,
-                        pricing_type: e.target.value as 'per_plate' | 'per_person' | 'fixed' | 'on_request',
-                      })
-                    }
-                    style={styles.input}
-                    disabled={createCollectionMutation.isPending || updateCollectionMutation.isPending}
-                  >
-                    <option value="per_plate">Per Plate</option>
-                    <option value="per_person">Per Person</option>
-                    <option value="fixed">Fixed Price</option>
-                    <option value="on_request">On Request</option>
-                  </select>
-                  <p style={styles.helperText}>How you charge</p>
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Currency Code *</label>
-                  <input
-                    type="text"
-                    placeholder="INR"
-                    value={packageForm.currency_code}
-                    onChange={(e) => setPackageForm({ ...packageForm, currency_code: e.target.value.toUpperCase() })}
-                    style={styles.input}
-                    disabled={createCollectionMutation.isPending || updateCollectionMutation.isPending}
-                    maxLength={3}
-                  />
-                  <p style={styles.helperText}>e.g., INR, USD, GBP</p>
-                </div>
-              </div>
-            </div>
-
-            <div style={styles.formSection}>
-              <div style={styles.sectionHeader}>
-                <h3 style={styles.sectionSubtitle}>{isSimpleMenu ? 'Menu Capacity' : 'Guest Requirements'}</h3>
-                <span style={styles.helpIcon}>👥</span>
-              </div>
-
-              <div style={styles.guestGrid}>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Minimum {isSimpleMenu ? 'Orders' : 'Guests'} *</label>
-                  <input
-                    type="number"
-                    placeholder={isSimpleMenu ? "1" : "50"}
-                    value={packageForm.min_guests}
-                    onChange={(e) => setPackageForm({ ...packageForm, min_guests: e.target.value })}
-                    style={styles.input}
-                    disabled={createCollectionMutation.isPending || updateCollectionMutation.isPending}
-                    min="1"
-                  />
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Maximum {isSimpleMenu ? 'Orders' : 'Guests'} *</label>
-                  <input
-                    type="number"
-                    placeholder={isSimpleMenu ? "999" : "500"}
-                    value={packageForm.max_guests}
-                    onChange={(e) => setPackageForm({ ...packageForm, max_guests: e.target.value })}
-                    style={styles.input}
-                    disabled={createCollectionMutation.isPending || updateCollectionMutation.isPending}
-                    min="1"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div style={styles.formActions}>
-              <button
-                onClick={() => setActiveTab('all')}
-                style={styles.buttonSecondary}
-                disabled={createCollectionMutation.isPending || updateCollectionMutation.isPending}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSavePackage}
-                style={styles.buttonPrimary}
-                disabled={createCollectionMutation.isPending || updateCollectionMutation.isPending}
-              >
-                {createCollectionMutation.isPending || updateCollectionMutation.isPending
-                  ? '⏳ Saving...'
-                  : editingId
-                  ? `Update ${isSimpleMenu ? 'Menu' : 'Package'}`
-                  : `Create ${isSimpleMenu ? 'Menu' : 'Package'}`}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ============ MAIN VIEW ============
   return (
     <div style={styles.container}>
+      {/* Header */}
       <div style={styles.header}>
+        <button onClick={() => router.back()} style={styles.backButton}>
+          ← Back
+        </button>
         <div>
-          <h1 style={styles.title}>🍽️ Menu Management</h1>
-          <p style={styles.subtitle}>Manage your catering packages, menus, and items</p>
+          <h1 style={styles.pageTitle}>📦 Create New Package</h1>
+          <p style={styles.pageSubtitle}>Build your catering package step by step</p>
         </div>
       </div>
 
-      <div style={styles.controlsSection}>
-        <div style={styles.searchAndSort}>
-          <input
-            type="text"
-            placeholder="Search..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={styles.searchInput}
-          />
+      {/* Messages */}
+      {errorMessage && <div style={styles.alertError}>{errorMessage}</div>}
+      {successMessage && <div style={styles.alertSuccess}>{successMessage}</div>}
 
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as 'newest' | 'price' | 'name')}
-            style={styles.sortSelect}
-          >
-            <option value="newest">Newest First</option>
-            <option value="price">Price: Low to High</option>
-            <option value="name">Name: A to Z</option>
-          </select>
-        </div>
-
-        <div style={styles.actionButtons}>
-          <button 
-            onClick={() => handleCreatePackage('catering')} 
-            style={{...styles.buttonPrimary, backgroundColor: '#2563eb'}}
-          >
-            ➕ Package
-          </button>
-          <button 
-            onClick={() => handleCreatePackage('simple')} 
-            style={{...styles.buttonPrimary, backgroundColor: '#7c3aed'}}
-          >
-            ➕ Menu
-          </button>
-          <button 
-            onClick={handleCreateMenuItem} 
-            style={{...styles.buttonPrimary, backgroundColor: '#10b981'}}
-          >
-            🍛 Item
-          </button>
-        </div>
+      {/* Progress Steps */}
+      <div style={styles.progressContainer}>
+        {(['basic', 'sections', 'pricing', 'subscription', 'addons', 'review'] as const).map(
+          (step, idx) => (
+            <div key={step} style={styles.progressStep}>
+              <div
+                style={{
+                  ...styles.stepCircle,
+                  backgroundColor:
+                    currentStep === step ? '#2563eb' : step < currentStep ? '#16a34a' : '#e2e8f0',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setCurrentStep(step)}
+              >
+                {step < currentStep ? (
+                  <CheckIcon style={{ width: '16px', height: '16px', color: 'white' }} />
+                ) : (
+                  <span style={{ color: step === currentStep ? 'white' : '#64748b' }}>
+                    {idx + 1}
+                  </span>
+                )}
+              </div>
+              <span style={styles.stepLabel}>
+                {step === 'basic'
+                  ? 'Basic Info'
+                  : step === 'sections'
+                  ? 'Sections'
+                  : step === 'pricing'
+                  ? 'Pricing'
+                  : step === 'subscription'
+                  ? 'Subscription'
+                  : step === 'addons'
+                  ? 'Add-ons'
+                  : 'Review'}
+              </span>
+            </div>
+          )
+        )}
       </div>
 
-      {formSuccess && <div style={styles.alertSuccess}><p>{formSuccess}</p></div>}
-      {formError && <div style={styles.alertError}><p>{formError}</p></div>}
+      {/* Main Content */}
+      <div style={styles.mainContent}>
+        {/* STEP 1: Basic Info */}
+        {currentStep === 'basic' && (
+          <div style={styles.stepContent}>
+            <h2 style={styles.stepTitle}>📋 Package Basic Information</h2>
 
-      <div style={styles.tabContainer}>
-        <button
-          onClick={() => setMenuType('catering')}
-          style={{
-            ...styles.tabButton,
-            borderBottom: menuType === 'catering' ? '3px solid #2563eb' : '3px solid transparent',
-            color: menuType === 'catering' ? '#2563eb' : '#64748b',
-          }}
-        >
-          📦 Packages ({collections.filter((p) => !p.menu_type || p.menu_type === 'catering').length})
-        </button>
-        <button
-          onClick={() => setMenuType('simple')}
-          style={{
-            ...styles.tabButton,
-            borderBottom: menuType === 'simple' ? '3px solid #7c3aed' : '3px solid transparent',
-            color: menuType === 'simple' ? '#7c3aed' : '#64748b',
-          }}
-        >
-          📋 Menus ({collections.filter((p) => p.menu_type === 'simple').length})
-        </button>
-        <button
-          onClick={() => setMenuType('items')}
-          style={{
-            ...styles.tabButton,
-            borderBottom: menuType === 'items' ? '3px solid #10b981' : '3px solid transparent',
-            color: menuType === 'items' ? '#10b981' : '#64748b',
-          }}
-        >
-          🍛 Items ({menuItems.length})
-        </button>
-      </div>
+            <div style={styles.formGroupSection}>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Package Name *</label>
+                <input
+                  type="text"
+                  placeholder="e.g., Wedding Deluxe, Corporate Lunch"
+                  value={packageData.name}
+                  onChange={(e) => setPackageData({ ...packageData, name: e.target.value })}
+                  style={styles.input}
+                />
+                <p style={styles.helperText}>Name your package</p>
+              </div>
 
-      <div style={styles.section}>
-        {(isLoading || itemsLoading) ? (
-          <div style={styles.loadingState}>
-            <p>Loading...</p>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Description</label>
+                <textarea
+                  placeholder="Describe what's included in this package..."
+                  value={packageData.description}
+                  onChange={(e) =>
+                    setPackageData({ ...packageData, description: e.target.value })
+                  }
+                  style={{ ...styles.input, minHeight: '100px', resize: 'vertical' }}
+                />
+                <p style={styles.helperText}>Help customers understand your package</p>
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Package Type *</label>
+                <div style={styles.radioGroup}>
+                  <label style={styles.radioLabel}>
+                    <input
+                      type="radio"
+                      checked={packageData.type === 'fixed'}
+                      onChange={() => setPackageData({ ...packageData, type: 'fixed' })}
+                      style={styles.radio}
+                    />
+                    🔒 Fixed (Same items for all)
+                  </label>
+                  <label style={styles.radioLabel}>
+                    <input
+                      type="radio"
+                      checked={packageData.type === 'customizable'}
+                      onChange={() => setPackageData({ ...packageData, type: 'customizable' })}
+                      style={styles.radio}
+                    />
+                    🎨 Customizable (Customers choose items)
+                  </label>
+                </div>
+                <p style={styles.helperText}>
+                  Fixed = predefined items, Customizable = customers pick from sections
+                </p>
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.checkboxLabel}>
+                  <input
+                    type="checkbox"
+                    checked={packageData.is_subscribable}
+                    onChange={(e) =>
+                      setPackageData({ ...packageData, is_subscribable: e.target.checked })
+                    }
+                    style={styles.checkbox}
+                  />
+                  <span>Available for Subscription Plans</span>
+                </label>
+                <p style={styles.helperText}>Allow customers to subscribe to this package</p>
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Currency</label>
+                <input
+                  type="text"
+                  placeholder="INR"
+                  value={packageData.currency_code}
+                  onChange={(e) =>
+                    setPackageData({
+                      ...packageData,
+                      currency_code: e.target.value.toUpperCase(),
+                    })
+                  }
+                  style={styles.input}
+                  maxLength={3}
+                />
+              </div>
+            </div>
+
+            <div style={styles.stepActions}>
+              <button onClick={() => setCurrentStep('sections')} style={styles.buttonPrimary}>
+                Next: Add Sections →
+              </button>
+            </div>
           </div>
-        ) : error ? (
-          <div style={styles.errorState}>
-            <p>❌ Error loading data</p>
-          </div>
-        ) : menuType === 'items' ? (
-          // MENU ITEMS VIEW
-          filteredItems.length > 0 ? (
-            <>
-              <h2 style={styles.sectionTitle}>🍛 Menu Items ({filteredItems.length})</h2>
-              <div style={styles.grid}>
-                {filteredItems.map((item) => (
-                  <div key={item.id} style={styles.card}>
-                    {item.image_url && (
-                      <div
-                        style={{
-                          ...styles.cardImage,
-                          backgroundImage: `url(${item.image_url})`,
-                        }}
-                      />
-                    )}
-                    <div style={styles.cardContent}>
-                      <h3 style={styles.cardTitle}>{item.name}</h3>
-                      {item.description && (
-                        <p style={styles.cardDesc}>{item.description}</p>
-                      )}
-                      <div style={styles.cardMeta}>
-                        <span style={styles.metaBadge}>
-                          ₹{item.price} {item.pricing_type === 'per_plate' ? '/plate' : ''}
-                        </span>
-                        {item.is_veg && <span style={styles.metaBadge}>🟢 Veg</span>}
-                        {item.is_vegan && <span style={styles.metaBadge}>🌱 Vegan</span>}
-                        {item.is_gluten_free && <span style={styles.metaBadge}>🌾 GF</span>}
-                        {item.spice_level && (
-                          <span style={styles.metaBadge}>
-                            {item.spice_level === 'mild' ? '🟢' : item.spice_level === 'medium' ? '🟡' : '🔴'} {item.spice_level}
-                          </span>
+        )}
+
+        {/* STEP 2: Sections */}
+        {currentStep === 'sections' && (
+          <div style={styles.stepContent}>
+            <h2 style={styles.stepTitle}>📂 Menu Sections</h2>
+            <p style={styles.stepDescription}>
+              Organize items into sections (e.g., Appetizers, Main Course, Desserts)
+            </p>
+
+            {/* Add Section Form */}
+            <div style={styles.formGroupSection}>
+              <h3 style={styles.formSectionTitle}>➕ {editingSectionId ? 'Edit' : 'Add'} Section</h3>
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Section Name *</label>
+                <input
+                  type="text"
+                  placeholder="e.g., Starters, Main Course"
+                  value={sectionForm.name}
+                  onChange={(e) => setSectionForm({ ...sectionForm, name: e.target.value })}
+                  style={styles.input}
+                />
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Description</label>
+                <input
+                  type="text"
+                  placeholder="e.g., Light appetizers to start"
+                  value={sectionForm.description}
+                  onChange={(e) =>
+                    setSectionForm({ ...sectionForm, description: e.target.value })
+                  }
+                  style={styles.input}
+                />
+              </div>
+
+              <div style={styles.formRow}>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Selection Type *</label>
+                  <select
+                    value={sectionForm.selection_type}
+                    onChange={(e) =>
+                      setSectionForm({
+                        ...sectionForm,
+                        selection_type: e.target.value as 'fixed' | 'single' | 'multi',
+                      })
+                    }
+                    style={styles.input}
+                  >
+                    <option value="fixed">Fixed (All items included)</option>
+                    <option value="single">Choose 1 Item</option>
+                    <option value="multi">Choose Multiple</option>
+                  </select>
+                </div>
+
+                {sectionForm.selection_type !== 'fixed' && (
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Max Items *</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={sectionForm.max_items_selectable}
+                      onChange={(e) =>
+                        setSectionForm({
+                          ...sectionForm,
+                          max_items_selectable: parseInt(e.target.value) || 1,
+                        })
+                      }
+                      style={styles.input}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div style={styles.formRow}>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Additional Charge Type</label>
+                  <select
+                    value={sectionForm.additional_charge_type}
+                    onChange={(e) =>
+                      setSectionForm({
+                        ...sectionForm,
+                        additional_charge_type: e.target.value as 'none' | 'per_item' | 'percentage',
+                      })
+                    }
+                    style={styles.input}
+                  >
+                    <option value="none">No Charge</option>
+                    <option value="per_item">Per Item</option>
+                    <option value="percentage">Percentage</option>
+                  </select>
+                </div>
+
+                {sectionForm.additional_charge_type !== 'none' && (
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>
+                      {sectionForm.additional_charge_type === 'per_item' ? 'Charge (₹)' : 'Charge (%)'}
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={sectionForm.additional_charge_amount}
+                      onChange={(e) =>
+                        setSectionForm({
+                          ...sectionForm,
+                          additional_charge_amount: parseFloat(e.target.value) || 0,
+                        })
+                      }
+                      style={styles.input}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div style={styles.formActions}>
+                <button onClick={addSection} style={styles.buttonPrimary}>
+                  <PlusIcon style={{ width: '16px', height: '16px' }} />
+                  {editingSectionId ? 'Update Section' : 'Add Section'}
+                </button>
+                {editingSectionId && (
+                  <button
+                    onClick={() => {
+                      setEditingSectionId(null);
+                      setSectionForm({
+                        name: '',
+                        description: '',
+                        selection_type: 'fixed',
+                        max_items_selectable: 1,
+                        additional_charge_type: 'none',
+                        additional_charge_amount: 0,
+                      });
+                    }}
+                    style={styles.buttonSecondary}
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Sections List */}
+            {sections.length > 0 && (
+              <div style={styles.sectionsList}>
+                <h3 style={styles.subsectionTitle}>Your Sections</h3>
+                {sections.map((section) => (
+                  <div key={section.id} style={styles.sectionCard}>
+                    <div style={styles.sectionHeader}>
+                      <button
+                        onClick={() => toggleSection(section.id)}
+                        style={styles.expandButton}
+                      >
+                        {expandedSections.includes(section.id) ? (
+                          <ChevronUpIcon style={{ width: '20px', height: '20px' }} />
+                        ) : (
+                          <ChevronDownIcon style={{ width: '20px', height: '20px' }} />
                         )}
+                      </button>
+                      <div style={{ flex: 1 }}>
+                        <p style={styles.sectionName}>{section.name}</p>
+                        <p style={styles.sectionMeta}>
+                          {section.items.length} items • {section.selection_type}
+                        </p>
                       </div>
-                      <div style={styles.cardActions}>
-                        <button
-                          onClick={() => handleView(item.id, 'item')}
-                          style={styles.btnSmall}
-                        >
-                          👁️ View
-                        </button>
-                        <button
-                          onClick={() => handleEditMenuItem(item)}
-                          style={styles.btnSmall}
-                        >
-                          ✏️ Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteMenuItem(item.id)}
-                          style={styles.btnSmallDanger}
-                          disabled={deleteItemMutation.isPending}
-                        >
-                          🗑️ Delete
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => startEditSection(section)}
+                        style={styles.buttonIcon}
+                      >
+                        <PencilIcon style={{ width: '16px', height: '16px' }} />
+                      </button>
+                      <button
+                        onClick={() => deleteSection(section.id)}
+                        style={styles.buttonIconDelete}
+                      >
+                        <TrashIcon style={{ width: '16px', height: '16px' }} />
+                      </button>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <div style={styles.emptyState}>
-              <p>No menu items found</p>
-              <button 
-                onClick={handleCreateMenuItem} 
-                style={styles.buttonPrimary}
-              >
-                Create Item
-              </button>
-            </div>
-          )
-        ) : (
-          // PACKAGES/MENUS VIEW
-          filtered.length > 0 ? (
-            <>
-              <h2 style={styles.sectionTitle}>
-                {menuType === 'catering' ? '📦 Catering Packages' : '📋 Simple Menus'} ({filtered.length})
-              </h2>
-              <div style={styles.grid}>
-                {filtered.map((item) => (
-                  <div key={item.id} style={styles.card}>
-                    {item.image_url && (
-                      <div
-                        style={{
-                          ...styles.cardImage,
-                          backgroundImage: `url(${item.image_url})`,
-                        }}
-                      />
+
+                    {expandedSections.includes(section.id) && (
+                      <div style={styles.sectionContent}>
+                        {section.items.length > 0 ? (
+                          <div style={styles.itemsList}>
+                            {section.items.map((itemId) => (
+                              <div key={itemId} style={styles.itemRow}>
+                                <span>• {getItemName(itemId)}</span>
+                                <button
+                                  onClick={() => removeItemFromSection(section.id, itemId)}
+                                  style={styles.buttonIconDelete}
+                                >
+                                  <TrashIcon style={{ width: '14px', height: '14px' }} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p style={styles.emptyText}>No items added yet</p>
+                        )}
+
+                        <button
+                          onClick={() => {
+                            setSelectedSectionForItems(section.id);
+                            setSelectedItemIds([]);
+                          }}
+                          style={styles.addItemButton}
+                        >
+                          <PlusIcon style={{ width: '16px', height: '16px' }} />
+                          Add Items to {section.name}
+                        </button>
+                      </div>
                     )}
-                    <div style={styles.cardContent}>
-                      <h3 style={styles.cardTitle}>{item.name}</h3>
-                      {item.description && (
-                        <p style={styles.cardDesc}>{item.description}</p>
-                      )}
-                      <div style={styles.cardMeta}>
-                        <span style={styles.metaBadge}>
-                          {item.pricing_type === 'per_plate'
-                            ? `₹${item.base_price}/plate`
-                            : item.pricing_type === 'per_person'
-                            ? `₹${item.base_price}/person`
-                            : item.pricing_type === 'fixed'
-                            ? `₹${item.base_price} fixed`
-                            : 'On Request'}
-                        </span>
-                        <span style={styles.metaBadge}>
-                          👥 {item.min_guests}-{item.max_guests}
-                        </span>
-                      </div>
-                      <div style={styles.cardActions}>
-                        <button
-                          onClick={() => handleView(item.id, item.menu_type || 'catering')}
-                          style={styles.btnSmall}
-                        >
-                          👁️ View
-                        </button>
-                        <button
-                          onClick={() => handleEditPackage(item)}
-                          style={styles.btnSmall}
-                        >
-                          ✏️ Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeletePackage(item.id)}
-                          style={styles.btnSmallDanger}
-                          disabled={deleteCollectionMutation.isPending}
-                        >
-                          🗑️ Delete
-                        </button>
-                      </div>
-                    </div>
                   </div>
                 ))}
               </div>
-            </>
-          ) : (
-            <div style={styles.emptyState}>
-              <p>No {menuType === 'simple' ? 'menus' : 'packages'} found</p>
-              <button 
-                onClick={() => handleCreatePackage(menuType as 'catering' | 'simple')} 
+            )}
+
+            {/* Select Items Modal */}
+            {selectedSectionForItems && (
+              <div style={styles.modalOverlay}>
+                <div style={{ ...styles.modal, maxWidth: '700px' }}>
+                  <div style={styles.modalHeader}>
+                    <h2 style={styles.modalTitle}>
+                      🍛 Add Items to {currentSelectedSection?.name}
+                    </h2>
+                    <button
+                      onClick={() => setSelectedSectionForItems(null)}
+                      style={styles.modalCloseButton}
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div style={styles.modalContent}>
+                    <div style={styles.searchContainer}>
+                      <div style={styles.searchInputWrapper}>
+                        <MagnifyingGlassIcon
+                          style={{ width: '16px', height: '16px', color: '#94a3b8' }}
+                        />
+                        <input
+                          type="text"
+                          placeholder="Search menu items..."
+                          value={itemSearchTerm}
+                          onChange={(e) => setItemSearchTerm(e.target.value)}
+                          style={styles.searchInput}
+                        />
+                      </div>
+                      <button
+                        onClick={() => setShowCreateItemModal(true)}
+                        style={{ ...styles.buttonPrimary, whiteSpace: 'nowrap' }}
+                      >
+                        <PlusIcon style={{ width: '16px', height: '16px' }} />
+                        New Item
+                      </button>
+                    </div>
+
+                    <div style={styles.itemsContainer}>
+                      {filteredMenuItems.length > 0 ? (
+                        filteredMenuItems.map((item) => (
+                          <div
+                            key={item.id}
+                            style={{
+                              ...styles.itemCheckbox,
+                              backgroundColor: selectedItemIds.includes(item.id)
+                                ? '#eff6ff'
+                                : 'white',
+                              borderColor: selectedItemIds.includes(item.id)
+                                ? '#2563eb'
+                                : '#e2e8f0',
+                            }}
+                            onClick={() => {
+                              setSelectedItemIds((prev) =>
+                                prev.includes(item.id)
+                                  ? prev.filter((id) => id !== item.id)
+                                  : [...prev, item.id]
+                              );
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedItemIds.includes(item.id)}
+                              onChange={() => {}}
+                              style={styles.checkbox}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <div style={styles.itemContent}>
+                              <p style={styles.itemName}>{item.name}</p>
+                              <div style={styles.itemMetaTags}>
+                                <span style={styles.itemTag}>
+                                  {item.is_veg ? '🥬 Veg' : '🍖 Non-Veg'}
+                                </span>
+                                {item.is_vegan && <span style={styles.itemTag}>🌱 Vegan</span>}
+                                {item.is_gluten_free && <span style={styles.itemTag}>🌾 GF</span>}
+                              </div>
+                              {item.description && (
+                                <p style={styles.itemDescription}>{item.description}</p>
+                              )}
+                              {item.price > 0 && (
+                                <p style={styles.itemPrice}>₹{item.price}</p>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div style={styles.emptyItems}>No items found</div>
+                      )}
+                    </div>
+
+                    <p style={styles.selectedCount}>
+                      {selectedItemIds.length} item{selectedItemIds.length !== 1 ? 's' : ''} selected
+                    </p>
+                  </div>
+
+                  <div style={styles.modalFooter}>
+                    <button
+                      onClick={() => setSelectedSectionForItems(null)}
+                      style={styles.buttonSecondary}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => addItemsToSection(selectedSectionForItems)}
+                      style={styles.buttonPrimary}
+                      disabled={selectedItemIds.length === 0}
+                    >
+                      Add {selectedItemIds.length} Item{selectedItemIds.length !== 1 ? 's' : ''}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Create Item Modal */}
+            {showCreateItemModal && (
+              <div style={styles.modalOverlay}>
+                <div style={{ ...styles.modal, maxWidth: '600px' }}>
+                  <div style={styles.modalHeader}>
+                    <h2 style={styles.modalTitle}>🍛 Create New Menu Item</h2>
+                    <button
+                      onClick={() => setShowCreateItemModal(false)}
+                      style={styles.modalCloseButton}
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div style={styles.modalContent}>
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Item Name *</label>
+                      <input
+                        type="text"
+                        placeholder="e.g., Paneer Tikka"
+                        value={globalItemForm.name}
+                        onChange={(e) =>
+                          setGlobalItemForm({ ...globalItemForm, name: e.target.value })
+                        }
+                        style={styles.input}
+                      />
+                    </div>
+
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Description</label>
+                      <textarea
+                        placeholder="Describe this item..."
+                        value={globalItemForm.description}
+                        onChange={(e) =>
+                          setGlobalItemForm({ ...globalItemForm, description: e.target.value })
+                        }
+                        style={{ ...styles.input, minHeight: '60px', resize: 'vertical' }}
+                      />
+                    </div>
+
+                    <div style={styles.formRow}>
+                      <div style={styles.formGroup}>
+                        <label style={styles.label}>Type</label>
+                        <div style={styles.radioGroup}>
+                          <label style={styles.radioLabel}>
+                            <input
+                              type="radio"
+                              checked={globalItemForm.is_veg}
+                              onChange={() =>
+                                setGlobalItemForm({
+                                  ...globalItemForm,
+                                  is_veg: true,
+                                  is_vegan: false,
+                                })
+                              }
+                              style={styles.radio}
+                            />
+                            🥬 Veg
+                          </label>
+                          <label style={styles.radioLabel}>
+                            <input
+                              type="radio"
+                              checked={!globalItemForm.is_veg}
+                              onChange={() =>
+                                setGlobalItemForm({ ...globalItemForm, is_veg: false })
+                              }
+                              style={styles.radio}
+                            />
+                            🍖 Non-Veg
+                          </label>
+                        </div>
+                      </div>
+
+                      <div style={styles.formGroup}>
+                        <label style={styles.label}>Spice Level</label>
+                        <select
+                          value={globalItemForm.spice_level}
+                          onChange={(e) =>
+                            setGlobalItemForm({
+                              ...globalItemForm,
+                              spice_level: e.target.value as 'mild' | 'medium' | 'spicy' | '',
+                            })
+                          }
+                          style={styles.input}
+                        >
+                          <option value="">Not specified</option>
+                          <option value="mild">🌶️ Mild</option>
+                          <option value="medium">🌶️🌶️ Medium</option>
+                          <option value="spicy">🌶️🌶️🌶️ Spicy</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div style={styles.checkboxGrid}>
+                      <label style={styles.checkboxLabel}>
+                        <input
+                          type="checkbox"
+                          checked={globalItemForm.is_vegan}
+                          onChange={(e) =>
+                            setGlobalItemForm({
+                              ...globalItemForm,
+                              is_vegan: e.target.checked,
+                            })
+                          }
+                          style={styles.checkbox}
+                        />
+                        🌱 Vegan
+                      </label>
+                      <label style={styles.checkboxLabel}>
+                        <input
+                          type="checkbox"
+                          checked={globalItemForm.is_gluten_free}
+                          onChange={(e) =>
+                            setGlobalItemForm({
+                              ...globalItemForm,
+                              is_gluten_free: e.target.checked,
+                            })
+                          }
+                          style={styles.checkbox}
+                        />
+                        🌾 Gluten Free
+                      </label>
+                    </div>
+
+                    <div style={styles.formRow}>
+                      <div style={styles.formGroup}>
+                        <label style={styles.label}>Pricing Type *</label>
+                        <select
+                          value={globalItemForm.pricing_type}
+                          onChange={(e) =>
+                            setGlobalItemForm({
+                              ...globalItemForm,
+                              pricing_type: e.target.value,
+                            })
+                          }
+                          style={styles.input}
+                        >
+                          <option value="included">Included</option>
+                          <option value="per_plate">Per Plate</option>
+                          <option value="per_person">Per Person</option>
+                          <option value="extra">Extra Charge</option>
+                        </select>
+                      </div>
+
+                      {globalItemForm.pricing_type !== 'included' && (
+                        <div style={styles.formGroup}>
+                          <label style={styles.label}>Price *</label>
+                          <input
+                            type="number"
+                            placeholder="0"
+                            value={globalItemForm.price}
+                            onChange={(e) =>
+                              setGlobalItemForm({
+                                ...globalItemForm,
+                                price: parseFloat(e.target.value) || 0,
+                              })
+                            }
+                            style={styles.input}
+                            step="0.01"
+                            min="0"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={styles.modalFooter}>
+                    <button
+                      onClick={() => setShowCreateItemModal(false)}
+                      style={styles.buttonSecondary}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={createGlobalMenuItem}
+                      style={styles.buttonPrimary}
+                      disabled={createGlobalItemMutation.isPending}
+                    >
+                      {createGlobalItemMutation.isPending ? '⏳ Creating...' : 'Create Item'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div style={styles.stepActions}>
+              <button onClick={() => setCurrentStep('basic')} style={styles.buttonSecondary}>
+                ← Back
+              </button>
+              <button
+                onClick={() => setCurrentStep('pricing')}
                 style={styles.buttonPrimary}
+                disabled={sections.length === 0}
               >
-                Create {menuType === 'simple' ? 'Menu' : 'Package'}
+                Next: Pricing →
               </button>
             </div>
-          )
+          </div>
+        )}
+
+        {/* STEP 3: Pricing */}
+        {currentStep === 'pricing' && (
+          <div style={styles.stepContent}>
+            <h2 style={styles.stepTitle}>💰 Pricing</h2>
+
+            <div style={styles.formGroupSection}>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Base Price Per Person *</label>
+                <input
+                  type="number"
+                  placeholder="500"
+                  value={pricingData.base_price}
+                  onChange={(e) =>
+                    setPricingData({
+                      ...pricingData,
+                      base_price: parseFloat(e.target.value) || 0,
+                    })
+                  }
+                  style={styles.input}
+                  step="0.01"
+                  min="0"
+                />
+                <p style={styles.helperText}>Price per person for this package</p>
+              </div>
+
+              <div style={styles.formRow}>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Minimum Guests *</label>
+                  <input
+                    type="number"
+                    placeholder="2"
+                    value={pricingData.min_guests}
+                    onChange={(e) =>
+                      setPricingData({
+                        ...pricingData,
+                        min_guests: parseInt(e.target.value) || 2,
+                      })
+                    }
+                    style={styles.input}
+                    min="1"
+                  />
+                  <p style={styles.helperText}>Minimum number of guests required</p>
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Minimum Order Value</label>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={pricingData.min_order_value}
+                    onChange={(e) =>
+                      setPricingData({
+                        ...pricingData,
+                        min_order_value: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    style={styles.input}
+                    step="0.01"
+                    min="0"
+                  />
+                  <p style={styles.helperText}>Minimum total order value (if any)</p>
+                </div>
+              </div>
+            </div>
+
+            <div style={styles.stepActions}>
+              <button onClick={() => setCurrentStep('sections')} style={styles.buttonSecondary}>
+                ← Back
+              </button>
+              <button
+                onClick={() => setCurrentStep('subscription')}
+                style={styles.buttonPrimary}
+              >
+                Next: Subscription →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 4: Subscription */}
+        {currentStep === 'subscription' && (
+          <div style={styles.stepContent}>
+            <h2 style={styles.stepTitle}>📅 Subscription Configuration (Optional)</h2>
+            <p style={styles.stepDescription}>
+              Configure this only if "Available for Subscription" was enabled
+            </p>
+
+            {packageData.is_subscribable ? (
+              <div style={styles.formGroupSection}>
+                <h3 style={styles.formSectionTitle}>Meal Types</h3>
+                <div style={styles.checkboxGrid}>
+                  {(['breakfast', 'lunch', 'dinner'] as const).map((meal) => (
+                    <label key={meal} style={styles.checkboxLabel}>
+                      <input
+                        type="checkbox"
+                        checked={subscriptionData.meal_types.includes(meal)}
+                        onChange={(e) =>
+                          setSubscriptionData({
+                            ...subscriptionData,
+                            meal_types: e.target.checked
+                              ? [...subscriptionData.meal_types, meal]
+                              : subscriptionData.meal_types.filter((m) => m !== meal),
+                          })
+                        }
+                        style={styles.checkbox}
+                      />
+                      {meal.charAt(0).toUpperCase() + meal.slice(1)}
+                    </label>
+                  ))}
+                </div>
+
+                <h3 style={styles.formSectionTitle} style={{ marginTop: '24px' }}>
+                  Available Days
+                </h3>
+                <div style={styles.checkboxGrid}>
+                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
+                    <label key={day} style={styles.checkboxLabel}>
+                      <input
+                        type="checkbox"
+                        checked={subscriptionData.available_days.includes(day)}
+                        onChange={(e) =>
+                          setSubscriptionData({
+                            ...subscriptionData,
+                            available_days: e.target.checked
+                              ? [...subscriptionData.available_days, day]
+                              : subscriptionData.available_days.filter((d) => d !== day),
+                          })
+                        }
+                        style={styles.checkbox}
+                      />
+                      {day}
+                    </label>
+                  ))}
+                </div>
+
+                <h3 style={styles.formSectionTitle} style={{ marginTop: '24px' }}>
+                  Allowed Frequencies
+                </h3>
+                <div style={styles.checkboxGrid}>
+                  {(['daily', 'weekly'] as const).map((freq) => (
+                    <label key={freq} style={styles.checkboxLabel}>
+                      <input
+                        type="checkbox"
+                        checked={subscriptionData.allowed_frequencies.includes(freq)}
+                        onChange={(e) =>
+                          setSubscriptionData({
+                            ...subscriptionData,
+                            allowed_frequencies: e.target.checked
+                              ? [...subscriptionData.allowed_frequencies, freq]
+                              : subscriptionData.allowed_frequencies.filter((f) => f !== freq),
+                          })
+                        }
+                        style={styles.checkbox}
+                      />
+                      {freq.charAt(0).toUpperCase() + freq.slice(1)}
+                    </label>
+                  ))}
+                </div>
+
+                <div style={styles.formRow} style={{ marginTop: '24px' }}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Minimum Duration (Days)</label>
+                    <input
+                      type="number"
+                      value={subscriptionData.min_duration_days}
+                      onChange={(e) =>
+                        setSubscriptionData({
+                          ...subscriptionData,
+                          min_duration_days: parseInt(e.target.value) || 7,
+                        })
+                      }
+                      style={styles.input}
+                      min="1"
+                    />
+                  </div>
+
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Maximum Duration (Days)</label>
+                    <input
+                      type="number"
+                      value={subscriptionData.max_duration_days}
+                      onChange={(e) =>
+                        setSubscriptionData({
+                          ...subscriptionData,
+                          max_duration_days: parseInt(e.target.value) || 365,
+                        })
+                      }
+                      style={styles.input}
+                      min="1"
+                    />
+                  </div>
+                </div>
+
+                <div style={styles.formGroup} style={{ marginTop: '16px' }}>
+                  <label style={styles.label}>Order Cutoff (Hours Before)</label>
+                  <input
+                    type="number"
+                    value={subscriptionData.cutoff_hours}
+                    onChange={(e) =>
+                      setSubscriptionData({
+                        ...subscriptionData,
+                        cutoff_hours: parseInt(e.target.value) || 24,
+                      })
+                    }
+                    style={styles.input}
+                    min="1"
+                  />
+                  <p style={styles.helperText}>
+                    e.g., 24 = customers must order 24 hours in advance
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div
+                style={{
+                  ...styles.formGroupSection,
+                  backgroundColor: '#eff6ff',
+                  border: '1px solid #bfdbfe',
+                }}
+              >
+                <p style={{ color: '#0c4a6e' }}>
+                  ℹ️ Subscription is not enabled for this package. Enable it in Step 1 to configure
+                  subscription settings.
+                </p>
+              </div>
+            )}
+
+            <div style={styles.stepActions}>
+              <button onClick={() => setCurrentStep('pricing')} style={styles.buttonSecondary}>
+                ← Back
+              </button>
+              <button onClick={() => setCurrentStep('review')} style={styles.buttonPrimary}>
+                Next: Review →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 5: Review */}
+        {currentStep === 'review' && (
+          <div style={styles.stepContent}>
+            <h2 style={styles.stepTitle}>✅ Review Your Package</h2>
+
+            {/* Package Info */}
+            <div style={styles.reviewSection}>
+              <h3 style={styles.reviewTitle}>📦 Package Information</h3>
+              <div style={styles.reviewContent}>
+                <p>
+                  <strong>Name:</strong> {packageData.name}
+                </p>
+                <p>
+                  <strong>Type:</strong>{' '}
+                  {packageData.type === 'fixed' ? '🔒 Fixed' : '🎨 Customizable'}
+                </p>
+                <p>
+                  <strong>Subscribable:</strong> {packageData.is_subscribable ? '✅ Yes' : '❌ No'}
+                </p>
+              </div>
+            </div>
+
+            {/* Sections Review */}
+            <div style={styles.reviewSection}>
+              <h3 style={styles.reviewTitle}>📂 Sections ({sections.length})</h3>
+              {sections.map((section) => (
+                <div key={section.id} style={styles.reviewContent}>
+                  <p>
+                    <strong>{section.name}</strong>
+                  </p>
+                  <ul style={{ margin: '8px 0 0 20px', paddingLeft: 0 }}>
+                    <li>Selection: {section.selection_type}</li>
+                    <li>Items: {section.items.length}</li>
+                    {section.additional_charge_type !== 'none' && (
+                      <li>
+                        Charge: {section.additional_charge_type === 'per_item' ? '₹' : ''}
+                        {section.additional_charge_amount}
+                        {section.additional_charge_type === 'percentage' ? '%' : ''}
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              ))}
+            </div>
+
+            {/* Pricing Review */}
+            <div style={styles.reviewSection}>
+              <h3 style={styles.reviewTitle}>💰 Pricing</h3>
+              <div style={styles.reviewContent}>
+                <p>
+                  <strong>Base Price:</strong> ₹{pricingData.base_price} per person
+                </p>
+                <p>
+                  <strong>Minimum Guests:</strong> {pricingData.min_guests}
+                </p>
+                {pricingData.min_order_value > 0 && (
+                  <p>
+                    <strong>Minimum Order Value:</strong> ₹{pricingData.min_order_value}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Create Button */}
+            <div style={styles.stepActions}>
+              <button onClick={() => setCurrentStep('subscription')} style={styles.buttonSecondary}>
+                ← Back
+              </button>
+              <button
+                onClick={createPackageFlow}
+                style={{ ...styles.buttonPrimary, backgroundColor: '#16a34a' }}
+                disabled={isLoading}
+              >
+                {isLoading ? '⏳ Creating Package...' : '🚀 Create Package'}
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>
@@ -1041,318 +1370,119 @@ export default function PackagesPage() {
 
 // ============ STYLES ============
 const styles: { [key: string]: React.CSSProperties } = {
-  // ...existing styles...
-  checkboxGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-    gap: '16px',
-    marginBottom: '20px',
-  },
   container: {
     padding: '24px',
-    backgroundColor: '#ffffff',
-    minHeight: '100vh',
-    maxWidth: '1400px',
-    margin: '0 auto',
-  },
-  loadingState: {
-    textAlign: 'center',
-    padding: '60px 20px',
-    color: '#64748b',
-    fontSize: '16px',
-  },
-  errorState: {
-    textAlign: 'center',
-    padding: '40px 20px',
-    backgroundColor: '#fee2e2',
-    borderRadius: '12px',
-    border: '1px solid #fecaca',
-    color: '#7f1d1d',
-  },
-  alertError: {
-    padding: '16px',
-    backgroundColor: '#fee2e2',
-    borderRadius: '8px',
-    border: '1px solid #fecaca',
-    color: '#7f1d1d',
-    marginBottom: '16px',
-    fontSize: '14px',
-  },
-  alertSuccess: {
-    padding: '16px',
-    backgroundColor: '#d1fae5',
-    borderRadius: '8px',
-    border: '1px solid #a7f3d0',
-    color: '#065f46',
-    marginBottom: '16px',
-    fontSize: '14px',
-  },
-  emptyStateContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '80vh',
-  },
-  emptyStateContent: {
-    textAlign: 'center',
-    maxWidth: '1000px',
-    width: '100%',
-  },
-  emptyStateTitle: {
-    fontSize: '32px',
-    fontWeight: '700',
-    color: '#1e293b',
-    marginBottom: '12px',
-  },
-  emptyStateSubtitle: {
-    fontSize: '16px',
-    color: '#64748b',
-    marginBottom: '32px',
-  },
-  optionsContainer: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-    gap: '24px',
-    marginBottom: '32px',
-  },
-  optionCard: {
     backgroundColor: '#f8fafc',
-    borderRadius: '12px',
-    border: '1px solid #e2e8f0',
-    padding: '28px',
-    textAlign: 'left' as const,
-  },
-  optionIcon: {
-    fontSize: '48px',
-    marginBottom: '12px',
-  },
-  optionTitle: {
-    fontSize: '18px',
-    fontWeight: '700',
-    color: '#1e293b',
-    marginBottom: '8px',
-  },
-  optionDescription: {
-    fontSize: '14px',
-    color: '#64748b',
-    margin: '0 0 16px 0',
-  },
-  optionButton: {
-    width: '100%',
-    padding: '10px 16px',
-    borderRadius: '8px',
-    backgroundColor: '#2563eb',
-    color: 'white',
-    border: 'none',
-    cursor: 'pointer',
-    fontWeight: '600',
-    fontSize: '14px',
-    marginTop: '12px',
-    transition: 'all 0.2s ease',
+    minHeight: '100vh',
   },
   header: {
-    marginBottom: '24px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '24px',
+    marginBottom: '32px',
+    backgroundColor: 'white',
+    padding: '24px',
+    borderRadius: '12px',
+    border: '1px solid #e2e8f0',
   },
   backButton: {
-    padding: '8px 16px',
+    padding: '8px 12px',
     borderRadius: '8px',
-    border: '1px solid #e2e8f0',
-    backgroundColor: 'white',
-    color: '#64748b',
+    border: 'none',
+    backgroundColor: '#f1f5f9',
+    color: '#1e293b',
     cursor: 'pointer',
     fontWeight: '600',
     fontSize: '14px',
-    marginBottom: '16px',
+    whiteSpace: 'nowrap' as const,
   },
-  title: {
+  pageTitle: {
     fontSize: '28px',
     fontWeight: '700',
     color: '#1e293b',
     margin: 0,
-    marginBottom: '8px',
+    marginBottom: '4px',
   },
-  subtitle: {
+  pageSubtitle: {
     fontSize: '14px',
     color: '#64748b',
     margin: 0,
   },
-  controlsSection: {
+  progressContainer: {
     display: 'flex',
-    gap: '16px',
-    marginBottom: '24px',
-    flexWrap: 'wrap' as const,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  searchAndSort: {
-    display: 'flex',
-    gap: '12px',
-    flex: 1,
-    minWidth: '300px',
-  },
-  searchInput: {
-    flex: 1,
-    padding: '10px 12px',
-    borderRadius: '8px',
-    border: '1px solid #e2e8f0',
-    fontSize: '14px',
-    fontFamily: 'inherit',
-  },
-  sortSelect: {
-    padding: '10px 12px',
-    borderRadius: '8px',
-    border: '1px solid #e2e8f0',
-    fontSize: '14px',
-    fontFamily: 'inherit',
-    backgroundColor: 'white',
-  },
-  actionButtons: {
-    display: 'flex',
-    gap: '12px',
-  },
-  tabContainer: {
-    display: 'flex',
-    gap: '12px',
-    borderBottom: '1px solid #e2e8f0',
-    marginBottom: '24px',
+    gap: '24px',
+    justifyContent: 'center',
+    marginBottom: '32px',
     overflowX: 'auto' as const,
+    padding: '16px 0',
   },
-  tabButton: {
-    padding: '12px 24px',
-    backgroundColor: 'transparent',
-    border: 'none',
-    cursor: 'pointer',
-    fontWeight: '600',
-    fontSize: '14px',
-    transition: 'all 0.2s ease',
-    whiteSpace: 'nowrap' as const,
-  },
-  section: {
+  progressStep: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: '24px',
+    alignItems: 'center',
+    gap: '8px',
   },
-  sectionTitle: {
-    fontSize: '20px',
-    fontWeight: '700',
-    color: '#1e293b',
-    margin: 0,
+  stepCircle: {
+    width: '40px',
+    height: '40px',
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontWeight: '600',
+    transition: 'all 0.2s ease',
   },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-    gap: '16px',
+  stepLabel: {
+    fontSize: '12px',
+    fontWeight: '600',
+    color: '#64748b',
+    textAlign: 'center' as const,
+    whiteSpace: 'nowrap' as const,
   },
-  card: {
-    backgroundColor: '#f8fafc',
+  mainContent: {
+    maxWidth: '900px',
+    margin: '0 auto',
+  },
+  stepContent: {
+    backgroundColor: 'white',
+    padding: '32px',
     borderRadius: '12px',
     border: '1px solid #e2e8f0',
-    overflow: 'hidden',
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
   },
-  cardImage: {
-    width: '100%',
-    height: '180px',
-    backgroundColor: '#e2e8f0',
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-  },
-  cardContent: {
-    padding: '20px',
-  },
-  cardTitle: {
-    fontSize: '16px',
+  stepTitle: {
+    fontSize: '24px',
     fontWeight: '700',
     color: '#1e293b',
     margin: 0,
     marginBottom: '8px',
   },
-  cardDesc: {
-    fontSize: '13px',
+  stepDescription: {
+    fontSize: '14px',
     color: '#64748b',
     margin: 0,
-    marginBottom: '12px',
-    lineHeight: '1.4',
-  },
-  cardMeta: {
-    display: 'flex',
-    gap: '8px',
-    flexWrap: 'wrap' as const,
-    marginBottom: '12px',
-  },
-  metaBadge: {
-    fontSize: '12px',
-    color: '#64748b',
-    backgroundColor: '#e2e8f0',
-    padding: '4px 8px',
-    borderRadius: '4px',
-  },
-  cardActions: {
-    display: 'flex',
-    gap: '8px',
-  },
-  btnSmall: {
-    flex: 1,
-    padding: '6px 12px',
-    borderRadius: '6px',
-    border: '1px solid #e2e8f0',
-    backgroundColor: 'white',
-    color: '#2563eb',
-    cursor: 'pointer',
-    fontWeight: '600',
-    fontSize: '12px',
-  },
-  btnSmallDanger: {
-    flex: 1,
-    padding: '6px 12px',
-    borderRadius: '6px',
-    border: '1px solid #fecaca',
-    backgroundColor: 'white',
-    color: '#dc2626',
-    cursor: 'pointer',
-    fontWeight: '600',
-    fontSize: '12px',
-  },
-  emptyState: {
-    textAlign: 'center' as const,
-    padding: '60px 20px',
-    backgroundColor: '#f8fafc',
-    borderRadius: '12px',
-    border: '1px dashed #e2e8f0',
-  },
-  largeFormContainer: {
-    maxWidth: '900px',
-    margin: '0 auto',
-    width: '100%',
-  },
-  formSection: {
-    backgroundColor: '#f8fafc',
-    borderRadius: '12px',
-    border: '1px solid #e2e8f0',
-    padding: '28px',
     marginBottom: '24px',
   },
-  sectionHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: '20px',
+  formGroupSection: {
+    padding: '20px',
+    backgroundColor: '#f8fafc',
+    borderRadius: '8px',
+    border: '1px solid #e2e8f0',
+    marginBottom: '24px',
   },
-  sectionSubtitle: {
-    fontSize: '16px',
+  formSectionTitle: {
+    fontSize: '13px',
     fontWeight: '700',
-    color: '#1e293b',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.5px',
+    color: '#64748b',
     margin: 0,
-  },
-  helpIcon: {
-    fontSize: '18px',
-    cursor: 'help',
+    marginBottom: '16px',
   },
   formGroup: {
     display: 'flex',
     flexDirection: 'column' as const,
     gap: '6px',
-    marginBottom: '20px',
+    marginBottom: '16px',
   },
   label: {
     fontSize: '14px',
@@ -1364,8 +1494,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '8px',
     border: '1px solid #e2e8f0',
     fontSize: '14px',
+    backgroundColor: 'white',
     fontFamily: 'inherit',
-    width: '100%',
     boxSizing: 'border-box' as const,
   },
   helperText: {
@@ -1374,40 +1504,363 @@ const styles: { [key: string]: React.CSSProperties } = {
     margin: 0,
     fontStyle: 'italic',
   },
-  pricingGrid: {
+  formRow: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '20px',
-  },
-  guestGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '20px',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '12px',
   },
   formActions: {
     display: 'flex',
     gap: '12px',
+  },
+  radioGroup: {
+    display: 'flex',
+    gap: '12px',
+  },
+  radioLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    fontSize: '14px',
+    color: '#1e293b',
+    cursor: 'pointer',
+  },
+  radio: {
+    width: '16px',
+    height: '16px',
+    cursor: 'pointer',
+  },
+  checkbox: {
+    width: '16px',
+    height: '16px',
+    cursor: 'pointer',
+  },
+  checkboxLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '14px',
+    color: '#1e293b',
+    cursor: 'pointer',
+  },
+  checkboxGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '12px',
+  },
+  sectionsList: {
+    marginBottom: '24px',
+  },
+  subsectionTitle: {
+    fontSize: '16px',
+    fontWeight: '700',
+    color: '#1e293b',
+    margin: 0,
+    marginBottom: '16px',
+  },
+  sectionCard: {
+    backgroundColor: 'white',
+    borderRadius: '8px',
+    border: '1px solid #e2e8f0',
+    overflow: 'hidden',
+    marginBottom: '12px',
+  },
+  sectionHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '16px',
+    backgroundColor: '#f8fafc',
+    borderBottom: '1px solid #e2e8f0',
+    cursor: 'pointer',
+  },
+  expandButton: {
+    padding: '4px',
+    border: 'none',
+    backgroundColor: 'transparent',
+    cursor: 'pointer',
+    color: '#64748b',
+    display: 'flex',
+    alignItems: 'center',
+  },
+  sectionName: {
+    fontSize: '14px',
+    fontWeight: '700',
+    color: '#1e293b',
+    margin: 0,
+    marginBottom: '4px',
+  },
+  sectionMeta: {
+    fontSize: '12px',
+    color: '#64748b',
+    margin: 0,
+  },
+  buttonIcon: {
+    padding: '8px',
+    borderRadius: '6px',
+    border: 'none',
+    backgroundColor: '#eff6ff',
+    color: '#2563eb',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+  },
+  buttonIconDelete: {
+    padding: '8px',
+    borderRadius: '6px',
+    border: 'none',
+    backgroundColor: '#fee2e2',
+    color: '#dc2626',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+  },
+  sectionContent: {
+    padding: '16px',
+  },
+  itemsList: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '8px',
+    marginBottom: '12px',
+  },
+  itemRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '8px 12px',
+    backgroundColor: '#f8fafc',
+    borderRadius: '6px',
+    fontSize: '14px',
+    color: '#1e293b',
+  },
+  emptyText: {
+    fontSize: '13px',
+    color: '#94a3b8',
+    margin: 0,
+    marginBottom: '12px',
+  },
+  addItemButton: {
+    width: '100%',
+    padding: '10px 16px',
+    borderRadius: '8px',
+    border: '1px dashed #cbd5e1',
+    backgroundColor: 'white',
+    color: '#2563eb',
+    cursor: 'pointer',
+    fontWeight: '600',
+    fontSize: '13px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '6px',
+  },
+  modalOverlay: {
+    position: 'fixed' as const,
+    inset: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 50,
+  },
+  modal: {
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+    width: '90%',
+    maxHeight: '80vh',
+    overflow: 'auto',
+  },
+  modalHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '20px 24px',
+    borderBottom: '1px solid #e2e8f0',
+  },
+  modalTitle: {
+    fontSize: '18px',
+    fontWeight: '700',
+    color: '#1e293b',
+    margin: 0,
+  },
+  modalCloseButton: {
+    padding: '4px 8px',
+    border: 'none',
+    backgroundColor: 'transparent',
+    color: '#64748b',
+    cursor: 'pointer',
+    fontSize: '20px',
+  },
+  modalContent: {
+    padding: '24px',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '16px',
+  },
+  modalFooter: {
+    display: 'flex',
+    gap: '12px',
     justifyContent: 'flex-end',
-    marginTop: '28px',
+    padding: '16px 24px',
+    borderTop: '1px solid #e2e8f0',
+    backgroundColor: '#f8fafc',
+  },
+  searchContainer: {
+    display: 'flex',
+    gap: '8px',
+  },
+  searchInputWrapper: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    flex: 1,
+    padding: '8px 12px',
+    borderRadius: '8px',
+    border: '1px solid #e2e8f0',
+    backgroundColor: 'white',
+  },
+  searchInput: {
+    flex: 1,
+    border: 'none',
+    outline: 'none',
+    fontSize: '14px',
+    backgroundColor: 'transparent',
+    fontFamily: 'inherit',
+  },
+  itemsContainer: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '8px',
+    maxHeight: '350px',
+    overflowY: 'auto' as const,
+    marginBottom: '12px',
+  },
+  itemCheckbox: {
+    display: 'flex',
+    gap: '12px',
+    padding: '12px',
+    borderRadius: '8px',
+    border: '1px solid #e2e8f0',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+  },
+  itemContent: {
+    flex: 1,
+  },
+  itemName: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#1e293b',
+    margin: 0,
+    marginBottom: '6px',
+  },
+  itemMetaTags: {
+    display: 'flex',
+    gap: '6px',
+    flexWrap: 'wrap' as const,
+    marginBottom: '6px',
+  },
+  itemTag: {
+    fontSize: '11px',
+    backgroundColor: '#dbeafe',
+    color: '#0c4a6e',
+    padding: '2px 6px',
+    borderRadius: '3px',
+    fontWeight: '600',
+  },
+  itemDescription: {
+    fontSize: '12px',
+    color: '#64748b',
+    margin: 0,
+    fontStyle: 'italic',
+  },
+  itemPrice: {
+    fontSize: '12px',
+    color: '#ea580c',
+    margin: '4px 0 0 0',
+    fontWeight: '600',
+  },
+  emptyItems: {
+    textAlign: 'center' as const,
+    padding: '40px 20px',
+    color: '#94a3b8',
+  },
+  selectedCount: {
+    fontSize: '12px',
+    color: '#64748b',
+    margin: 0,
+    fontStyle: 'italic',
   },
   buttonPrimary: {
-    padding: '12px 24px',
+    padding: '10px 16px',
     borderRadius: '8px',
+    border: 'none',
     backgroundColor: '#2563eb',
     color: 'white',
-    border: 'none',
     cursor: 'pointer',
     fontWeight: '600',
     fontSize: '14px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    transition: 'all 0.2s ease',
   },
   buttonSecondary: {
-    padding: '12px 24px',
+    padding: '10px 16px',
     borderRadius: '8px',
+    border: '1px solid #e2e8f0',
     backgroundColor: 'white',
     color: '#64748b',
-    border: '1px solid #e2e8f0',
     cursor: 'pointer',
     fontWeight: '600',
+    fontSize: '14px',
+    transition: 'all 0.2s ease',
+  },
+  stepActions: {
+    display: 'flex',
+    gap: '12px',
+    justifyContent: 'flex-end',
+    marginTop: '32px',
+    paddingTop: '24px',
+    borderTop: '1px solid #e2e8f0',
+  },
+  reviewSection: {
+    marginBottom: '24px',
+    padding: '16px',
+    backgroundColor: '#f8fafc',
+    borderRadius: '8px',
+    border: '1px solid #e2e8f0',
+  },
+  reviewTitle: {
+    fontSize: '14px',
+    fontWeight: '700',
+    color: '#1e293b',
+    margin: 0,
+    marginBottom: '12px',
+  },
+  reviewContent: {
+    fontSize: '13px',
+    color: '#64748b',
+    margin: 0,
+  },
+  alertError: {
+    padding: '12px 16px',
+    backgroundColor: '#fee2e2',
+    borderRadius: '8px',
+    border: '1px solid #fecaca',
+    color: '#7f1d1d',
+    marginBottom: '16px',
+    fontSize: '14px',
+  },
+  alertSuccess: {
+    padding: '12px 16px',
+    backgroundColor: '#d1fae5',
+    borderRadius: '8px',
+    border: '1px solid #a7f3d0',
+    color: '#065f46',
+    marginBottom: '16px',
     fontSize: '14px',
   },
 };
