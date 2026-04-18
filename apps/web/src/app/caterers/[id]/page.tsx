@@ -1,3044 +1,1059 @@
 'use client';
 
-import { useState } from 'react';
-import { ShoppingCart, ChevronDown, ChevronUp, Check, Star, MapPin, Clock, Users, Package, Utensils, X, ArrowLeft, Filter, Plus, Trash2 } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import {
+  StarIcon,
+  MapPinIcon,
+  HeartIcon,
+  ShareIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  UsersIcon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline';
+import Link from 'next/link';
 
-interface MenuItem {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  category: string;
-  servings: number;
-  image: string;
-  vegetarian: boolean;
-}
-
-interface MenuCategory {
-  id: string;
-  name: string;
-  description: string;
-  minItems: number;
-  maxItems: number;
-  items: MenuItem[];
-  price: number;
-}
-
-interface CartCategory {
-  categoryId: string;
-  categoryName: string;
-  selectedItems: MenuItem[];
-  categoryPrice: number;
-  quantity: number;
-}
-
-interface UserAddress {
-  id: string;
-  label: string;
-  address: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  isDefault: boolean;
-}
-
-interface BookingOptions {
-  guests: number;
-  date: string;
-  time: string;
-  packageType: 'basic' | 'premium' | 'deluxe';
-  sampleMenu: string;
-  staffRequired: number;
-  userName: string;
-  userContact: string;
-  selectedAddressId: string;
-  customAddress: string;
-  additionalServices: {
-    serveFood: boolean;
-    decoration: boolean;
-    cleanup: boolean;
-    beverageService: boolean;
-  };
-}
-
-interface Review {
-  id: number;
-  author: string;
-  rating: number;
-  date: string;
-  comment: string;
-  event: string;
-  timestamp: number;
-}
-
-interface CatererStory {
-  id: string;
-  image: string;
-  title: string;
-  timestamp: string;
-}
-
-interface CatererSocial {
-  platform: string;
-  url: string;
-  icon: string;
-  followers: string;
-}
-
-type TabType = 'overview' | 'menu' | 'reviews' | 'gallery' | 'location';
-type CheckoutStep = 'menu' | 'details' | 'booking' | 'payment' | 'confirmation';
-type ReviewSort = 'newest' | 'oldest' | 'highest' | 'lowest';
-type ReviewDisplay = 'grid' | 'list';
-type AddressType = 'existing' | 'custom';
-
-export default function CatererDetailsPage({ params }: { params: { id: string } }) {
-  const [activeTab, setActiveTab] = useState<TabType>('overview');
-  const [showBookingModal, setShowBookingModal] = useState(false);
-  const [cart, setCart] = useState<CartCategory[]>([]);
-  const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>('menu');
-  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
-  const [selectedItemsPerCategory, setSelectedItemsPerCategory] = useState<{ [key: string]: MenuItem[] }>({});
-  const [addressType, setAddressType] = useState<AddressType>('existing');
-  const [bookingOptions, setBookingOptions] = useState<BookingOptions>({
-    guests: 50,
-    date: '',
-    time: '12:00',
-    packageType: 'basic',
-    sampleMenu: '',
-    staffRequired: 0,
-    userName: '',
-    userContact: '',
-    selectedAddressId: 'addr-1',
-    customAddress: '',
-    additionalServices: {
-      serveFood: false,
-      decoration: false,
-      cleanup: false,
-      beverageService: false,
-    },
-  });
-
-  const [activeStory, setActiveStory] = useState<string | null>(null);
-
-  // Review filters
-  const [reviewSort, setReviewSort] = useState<ReviewSort>('newest');
-  const [reviewDisplay, setReviewDisplay] = useState<ReviewDisplay>('grid');
-
-  // Mock user data with addresses
-  const userData = {
-    id: 'user-1',
-    name: 'John Doe',
-    email: 'john@example.com',
-    phone: '+91 98765 12345',
-    addresses: [
-      {
-        id: 'addr-1',
-        label: 'Home',
-        address: '456 Residential Avenue, Andheri',
-        city: 'Mumbai',
-        state: 'Maharashtra',
-        zipCode: '400053',
-        isDefault: true,
-      },
-      {
-        id: 'addr-2',
-        label: 'Office',
-        address: '789 Business Plaza, BKC',
-        city: 'Mumbai',
-        state: 'Maharashtra',
-        zipCode: '400051',
-        isDefault: false,
-      },
-      {
-        id: 'addr-3',
-        label: 'Other',
-        address: '321 Event Hall, Powai',
-        city: 'Mumbai',
-        state: 'Maharashtra',
-        zipCode: '400076',
-        isDefault: false,
-      },
+// Mock data
+const ALL_CATERING_SERVICES = [
+  {
+    id: 1,
+    title: 'Premium Multi-Cuisine Catering',
+    location: 'Hyderabad',
+    image: 'https://images.unsplash.com/photo-1555939594-58d7cb561e1f?w=800&h=600&fit=crop',
+    rating: 4.9,
+    reviews: 528,
+    pricePerPerson: 550,
+    priceRange: '₹500 - ₹700/plate',
+    minGuests: 50,
+    maxGuests: 500,
+    cuisine: ['Multi-Cuisine', 'Indian', 'Continental'],
+    serviceType: ['Full Service', 'Delivery', 'Buffet'],
+    description: 'Transform your event with exquisite culinary excellence. Our team of experienced chefs creates customized menus using premium ingredients.',
+    highlights: [
+      { icon: '👨‍🍳', text: 'Experienced Chefs' },
+      { icon: '📋', text: 'Customizable Menus' },
+      { icon: '✨', text: 'Premium Ingredients' },
+      { icon: '⏰', text: 'On-Time Delivery' },
+      { icon: '✅', text: 'Hygienic Preparation' },
+      { icon: '🌱', text: 'Veg & Non-Veg Options' },
     ],
-  };
-
-  // Mock data
-  const catererData = {
-    id: params.id,
-    name: 'Maharaja Catering',
-    rating: 4.8,
-    reviews: 342,
-    location: 'Mumbai, Maharashtra',
-    address: '123 Food Street, Bandra, Mumbai 400050',
-    latitude: 19.0596,
-    longitude: 72.8295,
-    experience: '12 years',
-    image: '🍽️',
-    cuisine: 'North Indian, Multi-Cuisine',
-    minGuests: 20,
-    maxGuests: 1000,
-    description: 'Experience authentic North Indian cuisine with our premium catering services. We specialize in weddings, corporate events, and private celebrations with customized menus.',
-    highlights: ['Expert Chefs', 'Fresh Ingredients', 'Hygienic Preparation', 'On-Time Delivery', 'Professional Staff', 'Customized Menus'],
-    availableFor: ['Weddings', 'Corporate Events', 'Birthdays', 'Anniversaries', 'Private Parties', 'Festivals'],
-    responseTime: '2 hours',
-    deliveryRange: '15 km',
-    phone: '+91 98765 43210',
-    email: 'info@maharajatering.com',
-    operatingHours: '10:00 AM - 10:00 PM',
-  };
-
-  const menuCategories: MenuCategory[] = [
-    {
-      id: 'appetizers',
-      name: 'Appetizers',
-      description: 'Select 2-3 starters for your event',
-      minItems: 2,
-      maxItems: 3,
-      price: 450,
-      items: [
-        {
-          id: 'app-1',
-          name: 'Paneer Tikka',
-          description: 'Marinated cottage cheese skewers',
-          price: 450,
-          category: 'Appetizers',
-          servings: 5,
-          image: '🍗',
-          vegetarian: true,
-        },
-        {
-          id: 'app-2',
-          name: 'Tandoori Chicken',
-          description: 'Spiced and roasted chicken',
-          price: 550,
-          category: 'Appetizers',
-          servings: 5,
-          image: '🍗',
-          vegetarian: false,
-        },
-        {
-          id: 'app-3',
-          name: 'Shrimp Koliwada',
-          description: 'Crispy fried shrimp',
-          price: 650,
-          category: 'Appetizers',
-          servings: 5,
-          image: '🦐',
-          vegetarian: false,
-        },
-        {
-          id: 'app-4',
-          name: 'Hara Bhara Kebab',
-          description: 'Green vegetable kebabs',
-          price: 350,
-          category: 'Appetizers',
-          servings: 5,
-          image: '🌿',
-          vegetarian: true,
-        },
+    included: [
+      'Menu Planning & Customization',
+      'Setup & Table Arrangements',
+      'Professional Staff Service',
+      'Equipment & Utensils',
+      'Cleanup & Disposal',
+      'Beverage Service',
+    ],
+    occasions: ['Weddings', 'Birthdays', 'Corporate Events', 'House Parties', 'Anniversaries'],
+    menu: {
+      starters: [
+        { name: 'Paneer Tikka', desc: 'Grilled cottage cheese with Indian spices', type: 'veg', price: '₹120' },
+        { name: 'Chicken Lollipop', desc: 'Crispy fried chicken appetizer', type: 'non-veg', price: '₹150' },
+        { name: 'Spring Rolls', desc: 'Vegetable-filled golden rolls', type: 'veg', price: '₹100' },
+        { name: 'Fish Pakora', desc: 'Deep-fried fish with gram flour batter', type: 'non-veg', price: '₹160' },
+        { name: 'Tandoori Mushroom', desc: 'Marinated & grilled mushrooms', type: 'veg', price: '₹130' },
+        { name: 'Shrimp Tempura', desc: 'Battered & fried shrimp', type: 'non-veg', price: '₹180' },
+      ],
+      mains: [
+        { name: 'Butter Chicken', desc: 'Creamy tomato-based chicken curry', type: 'non-veg', price: '₹280' },
+        { name: 'Paneer Butter Masala', desc: 'Rich cottage cheese in tomato gravy', type: 'veg', price: '₹240' },
+        { name: 'Biryani', desc: 'Fragrant rice with meat or vegetables', type: 'both', price: '₹320' },
+        { name: 'Dal Makhani', desc: 'Creamy lentil preparation', type: 'veg', price: '₹200' },
+        { name: 'Rogan Josh', desc: 'Aromatic meat curry with spices', type: 'non-veg', price: '₹300' },
+        { name: 'Chole Bhature', desc: 'Fried bread with chickpea curry', type: 'veg', price: '₹180' },
+      ],
+      desserts: [
+        { name: 'Gulab Jamun', desc: 'Milk solids in sugar syrup', type: 'veg', price: '₹60' },
+        { name: 'Kheer', desc: 'Rice pudding with nuts', type: 'veg', price: '₹80' },
+        { name: 'Ice Cream', desc: 'Various flavors available', type: 'veg', price: '₹100' },
+        { name: 'Rasmalai', desc: 'Soft cheese discs in sweet cream', type: 'veg', price: '₹90' },
+      ],
+      beverages: [
+        { name: 'Mango Lassi', desc: 'Yogurt-based mango drink', type: 'veg', price: '₹80' },
+        { name: 'Fresh Lemonade', desc: 'Homemade fresh lemonade', type: 'veg', price: '₹50' },
+        { name: 'Iced Tea', desc: 'Refreshing chilled tea', type: 'veg', price: '₹40' },
+        { name: 'Soft Beverages', desc: 'Assorted sodas & juices', type: 'veg', price: '₹60' },
       ],
     },
-    {
-      id: 'maincourse',
-      name: 'Main Course',
-      description: 'Select 3-4 main dishes for your event',
-      minItems: 3,
-      maxItems: 4,
-      price: 350,
-      items: [
-        {
-          id: 'main-1',
-          name: 'Biryani - Chicken',
-          description: 'Fragrant basmati rice with chicken',
-          price: 350,
-          category: 'Main Course',
-          servings: 3,
-          image: '🍚',
-          vegetarian: false,
-        },
-        {
-          id: 'main-2',
-          name: 'Dal Makhani',
-          description: 'Creamy lentil curry',
-          price: 300,
-          category: 'Main Course',
-          servings: 3,
-          image: '🍲',
-          vegetarian: true,
-        },
-        {
-          id: 'main-3',
-          name: 'Butter Chicken',
-          description: 'Tender chicken in rich tomato gravy',
-          price: 400,
-          category: 'Main Course',
-          servings: 3,
-          image: '🍛',
-          vegetarian: false,
-        },
-        {
-          id: 'main-4',
-          name: 'Paneer Butter Masala',
-          description: 'Cottage cheese in creamy sauce',
-          price: 350,
-          category: 'Main Course',
-          servings: 3,
-          image: '🍛',
-          vegetarian: true,
-        },
-        {
-          id: 'main-5',
-          name: 'Lamb Rogan Josh',
-          description: 'Aromatic lamb curry',
-          price: 450,
-          category: 'Main Course',
-          servings: 3,
-          image: '🍖',
-          vegetarian: false,
-        },
-      ],
-    },
-    {
-      id: 'bread',
-      name: 'Breads',
-      description: 'Select 2-3 bread items',
-      minItems: 2,
-      maxItems: 3,
-      price: 80,
-      items: [
-        {
-          id: 'bread-1',
-          name: 'Naan',
-          description: 'Traditional oven baked bread',
-          price: 80,
-          category: 'Breads',
-          servings: 1,
-          image: '🍞',
-          vegetarian: true,
-        },
-        {
-          id: 'bread-2',
-          name: 'Garlic Naan',
-          description: 'Naan with garlic butter',
-          price: 100,
-          category: 'Breads',
-          servings: 1,
-          image: '🍞',
-          vegetarian: true,
-        },
-        {
-          id: 'bread-3',
-          name: 'Roti',
-          description: 'Whole wheat bread',
-          price: 50,
-          category: 'Breads',
-          servings: 1,
-          image: '🥖',
-          vegetarian: true,
-        },
-      ],
-    },
-    {
-      id: 'desserts',
-      name: 'Desserts',
-      description: 'Select 1-2 dessert options',
-      minItems: 1,
-      maxItems: 2,
-      price: 200,
-      items: [
-        {
-          id: 'des-1',
-          name: 'Gulab Jamun',
-          description: 'Sweet fried dumplings in syrup',
-          price: 200,
-          category: 'Desserts',
-          servings: 4,
-          image: '🍮',
-          vegetarian: true,
-        },
-        {
-          id: 'des-2',
-          name: 'Kheer',
-          description: 'Rice pudding with nuts',
-          price: 180,
-          category: 'Desserts',
-          servings: 4,
-          image: '🍶',
-          vegetarian: true,
-        },
-        {
-          id: 'des-3',
-          name: 'Ice Cream',
-          description: 'Assorted ice cream flavors',
-          price: 150,
-          category: 'Desserts',
-          servings: 4,
-          image: '🍨',
-          vegetarian: true,
-        },
-      ],
-    },
+    packages: [
+      { name: 'Starter', people: '50-100', price: '₹25,000 - ₹35,000', items: 'Starters + Mains + Dessert' },
+      { name: 'Standard', people: '100-250', price: '₹50,000 - ₹90,000', items: 'Extended Menu + Beverages' },
+      { name: 'Premium', people: '250-500', price: '₹120,000 - ₹200,000', items: 'Full Customization + Staff' },
+    ],
+    yearsInBusiness: 8,
+    bookedThisMonth: 45,
+    verified: true,
+    images: [
+      'https://images.unsplash.com/photo-1555939594-58d7cb561e1f?w=800&h=600&fit=crop',
+      'https://images.unsplash.com/photo-1504674900436-24658a62558b?w=800&h=600&fit=crop',
+      'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&h=600&fit=crop',
+    ],
+  },
+];
+
+const MenuDrawer = ({ isOpen, onClose, menu, serviceTitle, onGetQuote }: any) => {
+  const [activeCategory, setActiveCategory] = useState('starters');
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+
+  const categories = [
+    { id: 'starters', label: '🥘 Starters', count: menu.starters.length },
+    { id: 'mains', label: '🍛 Main Course', count: menu.mains.length },
+    { id: 'desserts', label: '🍰 Desserts', count: menu.desserts.length },
+    { id: 'beverages', label: '🥤 Beverages', count: menu.beverages.length },
   ];
 
-  const reviews: Review[] = [
-    {
-      id: 1,
-      author: 'Rajesh Kumar',
-      rating: 5,
-      date: '2 weeks ago',
-      comment: 'Excellent service! Food was delicious and presentation was amazing. Highly recommended!',
-      event: 'Wedding Reception',
-      timestamp: Date.now() - 14 * 24 * 60 * 60 * 1000,
-    },
-    {
-      id: 2,
-      author: 'Priya Singh',
-      rating: 5,
-      date: '1 month ago',
-      comment: 'Perfect for our corporate event. Professional staff and great coordination.',
-      event: 'Corporate Event',
-      timestamp: Date.now() - 30 * 24 * 60 * 60 * 1000,
-    },
-    {
-      id: 3,
-      author: 'Amit Patel',
-      rating: 4,
-      date: '1.5 months ago',
-      comment: 'Good food quality but slight delay in delivery. Overall satisfied.',
-      event: 'Birthday Party',
-      timestamp: Date.now() - 45 * 24 * 60 * 60 * 1000,
-    },
-    {
-      id: 4,
-      author: 'Neha Sharma',
-      rating: 5,
-      date: '2 months ago',
-      comment: 'Amazing taste and very professional team. Will definitely book again!',
-      event: 'Anniversary Dinner',
-      timestamp: Date.now() - 60 * 24 * 60 * 60 * 1000,
-    },
-    {
-      id: 5,
-      author: 'Vikram Singh',
-      rating: 3,
-      date: '2.5 months ago',
-      comment: 'Food was average. Service could have been better.',
-      event: 'Private Party',
-      timestamp: Date.now() - 75 * 24 * 60 * 60 * 1000,
-    },
-  ];
+  const currentItems = menu[activeCategory as keyof typeof menu] || [];
 
-  // Add social links data
-  const socialLinks: CatererSocial[] = [
-    { platform: 'Instagram', url: '#', icon: '📷', followers: '12.5K' },
-    { platform: 'Facebook', url: '#', icon: '👍', followers: '8.3K' },
-    { platform: 'YouTube', url: '#', icon: '▶️', followers: '5.2K' },
-    { platform: 'TikTok', url: '#', icon: '🎵', followers: '3.8K' },
-  ];
-
-  // Add stories data
-  const stories: CatererStory[] = [
-    { id: 'story-1', image: '🍛', title: 'Wedding Menu', timestamp: '2h ago' },
-    { id: 'story-2', image: '🎂', title: 'Birthday Bash', timestamp: '5h ago' },
-    { id: 'story-3', image: '🍜', title: 'Corporate Event', timestamp: '1d ago' },
-    { id: 'story-4', image: '🍱', title: 'Plating Art', timestamp: '2d ago' },
-    { id: 'story-5', image: '👨‍🍳', title: 'Chef Team', timestamp: '3d ago' },
-    { id: 'story-6', image: '🎉', title: 'Recent Event', timestamp: '4d ago' },
-  ];
-
-  // Sort reviews
-  const getSortedReviews = (): Review[] => {
-    const sorted = [...reviews];
-    switch (reviewSort) {
-      case 'newest':
-        return sorted.sort((a, b) => b.timestamp - a.timestamp);
-      case 'oldest':
-        return sorted.sort((a, b) => a.timestamp - b.timestamp);
-      case 'highest':
-        return sorted.sort((a, b) => b.rating - a.rating);
-      case 'lowest':
-        return sorted.sort((a, b) => a.rating - b.rating);
-      default:
-        return sorted;
-    }
-  };
-
-  // Get selected address details
-  const getSelectedAddress = (): UserAddress | null => {
-    return userData.addresses.find((addr) => addr.id === bookingOptions.selectedAddressId) || null;
-  };
-
-  // Calculations
-  const cartSubtotal = cart.reduce((sum, item) => sum + item.categoryPrice * item.quantity, 0);
-  const platformFee = cartSubtotal * 0.05;
-  const tax = (cartSubtotal + platformFee) * 0.18;
-  const additionalServicesCost = calculateAdditionalServices();
-
-  function calculateAdditionalServices(): number {
-    let cost = 0;
-    if (bookingOptions.additionalServices.serveFood) cost += bookingOptions.guests * 50;
-    if (bookingOptions.additionalServices.decoration) cost += 5000;
-    if (bookingOptions.additionalServices.cleanup) cost += 2000;
-    if (bookingOptions.additionalServices.beverageService) cost += bookingOptions.guests * 100;
-    return cost;
-  }
-
-  const finalTotal = cartSubtotal + platformFee + tax + additionalServicesCost;
-  const packageMultiplier = bookingOptions.packageType === 'premium' ? 1.25 : bookingOptions.packageType === 'deluxe' ? 1.5 : 1;
-  const finalTotalWithPackage = finalTotal * packageMultiplier;
-
-  // Functions
-  const toggleItemSelection = (categoryId: string, item: MenuItem) => {
-    setSelectedItemsPerCategory((prev) => {
-      const current = prev[categoryId] || [];
-      const category = menuCategories.find((c) => c.id === categoryId);
-      if (!category) return prev;
-
-      const isSelected = current.some((i) => i.id === item.id);
-      if (isSelected) {
-        return {
-          ...prev,
-          [categoryId]: current.filter((i) => i.id !== item.id),
-        };
-      }
-
-      if (current.length < category.maxItems) {
-        return {
-          ...prev,
-          [categoryId]: [...current, item],
-        };
-      }
-
-      return prev;
-    });
-  };
-
-  const addCategoryToCart = (categoryId: string) => {
-    const category = menuCategories.find((c) => c.id === categoryId);
-    const selectedItems = selectedItemsPerCategory[categoryId] || [];
-
-    if (!category || selectedItems.length < category.minItems) {
-      alert(`Please select at least ${category?.minItems} items from ${category?.name}`);
-      return;
-    }
-
-    const existingCartItem = cart.find((c) => c.categoryId === categoryId);
-    if (existingCartItem) {
-      setCart((prev) =>
-        prev.map((c) =>
-          c.categoryId === categoryId
-            ? { ...c, quantity: c.quantity + 1 }
-            : c
-        )
-      );
-    } else {
-      setCart((prev) => [
-        ...prev,
-        {
-          categoryId,
-          categoryName: category.name,
-          selectedItems,
-          categoryPrice: category.price,
-          quantity: 1,
-        },
-      ]);
-    }
-
-    setSelectedItemsPerCategory((prev) => ({
-      ...prev,
-      [categoryId]: [],
-    }));
-    setExpandedCategory(null);
-  };
-
-  const removeFromCart = (categoryId: string) => {
-    setCart((prev) => prev.filter((c) => c.categoryId !== categoryId));
-  };
-
-  const updateCartQuantity = (categoryId: string, quantity: number) => {
-    if (quantity <= 0) {
-      removeFromCart(categoryId);
-      return;
-    }
-    setCart((prev) =>
-      prev.map((c) =>
-        c.categoryId === categoryId ? { ...c, quantity } : c
-      )
+  const toggleItemSelection = (itemName: string) => {
+    setSelectedItems((prev) =>
+      prev.includes(itemName) ? prev.filter((i) => i !== itemName) : [...prev, itemName]
     );
   };
 
-  const closeBookingModal = () => {
-    setShowBookingModal(false);
-    setCheckoutStep('menu');
-    setCart([]);
-    setSelectedItemsPerCategory({});
-    setAddressType('existing');
-    setBookingOptions({
-      guests: 50,
-      date: '',
-      time: '12:00',
-      packageType: 'basic',
-      sampleMenu: '',
-      staffRequired: 0,
-      userName: userData.name,
-      userContact: userData.phone,
-      selectedAddressId: 'addr-1',
-      customAddress: '',
-      additionalServices: {
-        serveFood: false,
-        decoration: false,
-        cleanup: false,
-        beverageService: false,
-      },
-    });
-  };
+  if (!isOpen) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-indigo-50">
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          zIndex: 49,
+          animation: 'fadeIn 0.3s ease-out',
+        }}
+      />
+
+      {/* Drawer */}
+      <div
+        style={{
+          position: 'fixed',
+          right: 0,
+          top: 0,
+          bottom: 0,
+          width: '100%',
+          maxWidth: '600px',
+          backgroundColor: 'white',
+          boxShadow: '-4px 0 20px rgba(0, 0, 0, 0.15)',
+          zIndex: 50,
+          display: 'flex',
+          flexDirection: 'column',
+          animation: 'slideInRight 0.3s ease-out',
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            padding: '1.5rem',
+            borderBottom: '1px solid #e5e7eb',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            backgroundColor: 'white',
+            position: 'sticky',
+            top: 0,
+            zIndex: 51,
+          }}
+        >
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#111827', margin: 0 }}>
+            🍽️ Full Menu
+          </h2>
+          <button
+            onClick={onClose}
+            style={{
+              backgroundColor: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '0.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <XMarkIcon style={{ width: '24px', height: '24px', color: '#1e293b' }} />
+          </button>
+        </div>
+
+        {/* Category Tabs */}
+        <div
+          style={{
+            display: 'flex',
+            gap: '0.75rem',
+            padding: '1rem 1.5rem',
+            borderBottom: '1px solid #e5e7eb',
+            overflowX: 'auto',
+            backgroundColor: '#f9fafb',
+          }}
+        >
+          {categories.map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => setActiveCategory(cat.id)}
+              style={{
+                padding: '0.65rem 1rem',
+                backgroundColor: activeCategory === cat.id ? '#ede9fe' : 'transparent',
+                color: activeCategory === cat.id ? '#667eea' : '#6b7280',
+                border: activeCategory === cat.id ? '1px solid #ddd6fe' : '1px solid #e5e7eb',
+                borderRadius: '0.5rem',
+                fontWeight: '600',
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={(e) => {
+                if (activeCategory !== cat.id) {
+                  e.currentTarget.style.backgroundColor = '#f3f4f6';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeCategory !== cat.id) {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }
+              }}
+            >
+              {cat.label} <span style={{ fontSize: '0.7rem', opacity: 0.7, marginLeft: '0.25rem' }}>({cat.count})</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Menu Items */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {currentItems.map((item: any, idx: number) => (
+              <div
+                key={idx}
+                onClick={() => toggleItemSelection(item.name)}
+                style={{
+                  padding: '1rem',
+                  border: selectedItems.includes(item.name) ? '2px solid #667eea' : '1px solid #e5e7eb',
+                  borderRadius: '0.75rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  backgroundColor: selectedItems.includes(item.name) ? '#ede9fe' : 'white',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                {/* Checkbox + Name */}
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                  <div
+                    style={{
+                      width: '20px',
+                      height: '20px',
+                      borderRadius: '0.4rem',
+                      border: '2px solid ' + (selectedItems.includes(item.name) ? '#667eea' : '#d1d5db'),
+                      backgroundColor: selectedItems.includes(item.name) ? '#667eea' : 'transparent',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      marginTop: '2px',
+                    }}
+                  >
+                    {selectedItems.includes(item.name) && (
+                      <span style={{ color: 'white', fontWeight: 'bold', fontSize: '0.85rem' }}>✓</span>
+                    )}
+                  </div>
+
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontWeight: '700', color: '#111827', margin: '0 0 0.25rem 0', fontSize: '0.95rem' }}>
+                      {item.name}
+                    </p>
+                    <p style={{ fontSize: '0.8rem', color: '#6b7280', margin: 0 }}>
+                      {item.desc}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Tags & Price */}
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginLeft: '28px', flexWrap: 'wrap' }}>
+                  <span
+                    style={{
+                      fontSize: '0.7rem',
+                      padding: '0.3rem 0.6rem',
+                      backgroundColor: item.type === 'veg' ? '#dcfce7' : item.type === 'non-veg' ? '#fee2e2' : '#fef3c7',
+                      color: item.type === 'veg' ? '#16a34a' : item.type === 'non-veg' ? '#dc2626' : '#b45309',
+                      borderRadius: '0.3rem',
+                      fontWeight: '700',
+                      border: '1px solid ' + (item.type === 'veg' ? '#bbf7d0' : item.type === 'non-veg' ? '#fecaca' : '#fcd34d'),
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                    }}
+                  >
+                    {item.type === 'veg' ? '🌱 Veg' : item.type === 'non-veg' ? '🍖 Non-Veg' : '🌱🍖 Both'}
+                  </span>
+                  {item.price && (
+                    <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#667eea', marginLeft: 'auto' }}>
+                      {item.price}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Footer CTA */}
+        <div
+          style={{
+            padding: '1.5rem',
+            borderTop: '1px solid #e5e7eb',
+            backgroundColor: 'white',
+            display: 'flex',
+            gap: '1rem',
+            position: 'sticky',
+            bottom: 0,
+          }}
+        >
+          <button
+            onClick={onClose}
+            style={{
+              flex: 1,
+              backgroundColor: 'transparent',
+              color: '#667eea',
+              border: '2px solid #667eea',
+              padding: '0.875rem',
+              borderRadius: '0.5rem',
+              fontWeight: '700',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#ede9fe';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+          >
+            Back
+          </button>
+
+          <button
+            onClick={() => {
+              onGetQuote();
+              onClose();
+            }}
+            style={{
+              flex: 1,
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              border: 'none',
+              padding: '0.875rem',
+              borderRadius: '0.5rem',
+              fontWeight: '700',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 4px 12px rgba(102, 126, 234, 0.2)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.3)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.2)';
+            }}
+          >
+            Get Quote
+            <span style={{ marginLeft: '0.5rem' }}>→</span>
+          </button>
+        </div>
+      </div>
+
       <style>{`
-        * {
-          margin: 0;
-          padding: 0;
-          box-sizing: border-box;
-        }
-
-        html, body {
-          font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
-        }
-
-        .container {
-          max-width: 1400px;
-          margin: 0 auto;
-          padding: 0 16px;
-        }
-
-        /* Header Navigation */
-        .header-nav {
-          background: white;
-          border-bottom: 1px solid #e5e7eb;
-          padding: 16px 0;
-          position: sticky;
-          top: 0;
-          z-index: 40;
-          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-        }
-
-        .nav-content {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-        }
-
-        .nav-back {
-          background: none;
-          border: none;
-          color: #4f46e5;
-          cursor: pointer;
-          font-weight: 600;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          transition: color 0.2s ease;
-        }
-
-        .nav-back:hover {
-          color: #7c3aed;
-        }
-
-        /* Enhanced Hero Section */
-        .hero-section {
-          background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-          color: white;
-          padding: 48px 0;
-          margin-bottom: 32px;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .hero-section::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          right: 0;
-          width: 400px;
-          height: 400px;
-          background: rgba(255, 255, 255, 0.1);
-          border-radius: 50%;
-          transform: translate(100px, -100px);
-        }
-
-        .hero-section::after {
-          content: '';
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          width: 300px;
-          height: 300px;
-          background: rgba(255, 255, 255, 0.05);
-          border-radius: 50%;
-          transform: translate(-50px, 50px);
-        }
-
-        .hero-content {
-          display: grid;
-          grid-template-columns: 1.5fr 1fr;
-          gap: 48px;
-          align-items: center;
-          position: relative;
-          z-index: 1;
-        }
-
-        @media (max-width: 1024px) {
-          .hero-content {
-            grid-template-columns: 1fr;
-            gap: 32px;
-          }
-        }
-
-        .hero-info h1 {
-          font-size: 42px;
-          font-weight: 800;
-          margin-bottom: 16px;
-          letter-spacing: -0.5px;
-        }
-
-        .hero-icon {
-          font-size: 100px;
-          margin-bottom: 16px;
-          filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.2));
-        }
-
-        .hero-meta {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-          margin-bottom: 24px;
-          font-size: 16px;
-        }
-
-        .meta-row {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          background: rgba(255, 255, 255, 0.15);
-          padding: 12px 16px;
-          border-radius: 8px;
-          backdrop-filter: blur(10px);
-          transition: all 0.3s ease;
-        }
-
-        .meta-row:hover {
-          background: rgba(255, 255, 255, 0.25);
-          transform: translateX(4px);
-        }
-
-        .meta-row strong {
-          font-weight: 700;
-          min-width: 120px;
-        }
-
-        .hero-description {
-          font-size: 16px;
-          line-height: 1.8;
-          opacity: 0.98;
-          margin-bottom: 32px;
-          background: rgba(255, 255, 255, 0.1);
-          padding: 16px;
-          border-radius: 8px;
-          backdrop-filter: blur(10px);
-        }
-
-        .highlights-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 12px;
-          margin-bottom: 24px;
-        }
-
-        @media (max-width: 768px) {
-          .highlights-grid {
-            grid-template-columns: repeat(2, 1fr);
-          }
-        }
-
-        .highlight-badge {
-          background: rgba(255, 255, 255, 0.2);
-          padding: 10px 14px;
-          border-radius: 8px;
-          font-size: 13px;
-          font-weight: 700;
-          backdrop-filter: blur(10px);
-          border: 1px solid rgba(255, 255, 255, 0.3);
-          transition: all 0.3s ease;
-          text-align: center;
-        }
-
-        .highlight-badge:hover {
-          background: rgba(255, 255, 255, 0.3);
-          transform: translateY(-2px);
-          box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-        }
-
-        .cta-button {
-          background: white;
-          color: #4f46e5;
-          border: none;
-          padding: 14px 32px;
-          border-radius: 8px;
-          font-weight: 800;
-          font-size: 16px;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-        }
-
-        .cta-button:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3);
-        }
-
-        /* Hero Right Section - Social & Stories */
-        .hero-right {
-          display: flex;
-          flex-direction: column;
-          gap: 32px;
-        }
-
-        /* Social Links */
-        .social-section {
-          background: rgba(255, 255, 255, 0.15);
-          backdrop-filter: blur(10px);
-          border-radius: 16px;
-          padding: 24px;
-          border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-
-        .social-title {
-          font-size: 14px;
-          font-weight: 700;
-          text-transform: uppercase;
-          opacity: 0.9;
-          margin-bottom: 16px;
-          letter-spacing: 1px;
-        }
-
-        .social-links {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 12px;
-        }
-
-        .social-link {
-          background: rgba(255, 255, 255, 0.1);
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          border-radius: 12px;
-          padding: 12px;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          text-align: center;
-          text-decoration: none;
-          color: white;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .social-link:hover {
-          background: rgba(255, 255, 255, 0.25);
-          border-color: rgba(255, 255, 255, 0.4);
-          transform: translateY(-4px);
-          box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-        }
-
-        .social-icon {
-          font-size: 24px;
-        }
-
-        .social-info {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-        }
-
-        .social-platform {
-          font-size: 11px;
-          font-weight: 600;
-          text-transform: uppercase;
-          opacity: 0.8;
-        }
-
-        .social-followers {
-          font-size: 13px;
-          font-weight: 700;
-        }
-
-        /* Stories Section */
-        .stories-section {
-          background: rgba(255, 255, 255, 0.15);
-          backdrop-filter: blur(10px);
-          border-radius: 16px;
-          padding: 24px;
-          border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-
-        .stories-title {
-          font-size: 14px;
-          font-weight: 700;
-          text-transform: uppercase;
-          opacity: 0.9;
-          margin-bottom: 16px;
-          letter-spacing: 1px;
-        }
-
-        .stories-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 10px;
-        }
-
-        @media (max-width: 1024px) {
-          .stories-grid {
-            grid-template-columns: repeat(6, 1fr);
-          }
-        }
-
-        @media (max-width: 768px) {
-          .stories-grid {
-            grid-template-columns: repeat(4, 1fr);
-          }
-        }
-
-        .story-thumbnail {
-          aspect-ratio: 1;
-          border-radius: 12px;
-          background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.05));
-          border: 2px solid rgba(255, 255, 255, 0.3);
-          cursor: pointer;
-          transition: all 0.3s ease;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 32px;
-          position: relative;
-          overflow: hidden;
-          group: 'story';
-        }
-
-        .story-thumbnail::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background: rgba(0, 0, 0, 0);
-          transition: background 0.3s ease;
-        }
-
-        .story-thumbnail:hover::before {
-          background: rgba(0, 0, 0, 0.2);
-        }
-
-        .story-thumbnail:hover {
-          border-color: rgba(255, 255, 255, 0.6);
-          transform: scale(1.08);
-          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-        }
-
-        .story-content {
-          position: relative;
-          z-index: 2;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 4px;
-        }
-
-        .story-icon {
-          filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
-        }
-
-        .story-label {
-          font-size: 9px;
-          font-weight: 700;
-          text-align: center;
-          opacity: 0.9;
-          line-height: 1.2;
-        }
-
-        /* Story Modal */
-        .story-modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.9);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 2000;
-          padding: 16px;
-          backdrop-filter: blur(4px);
-        }
-
-        .story-modal-content {
-          background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
-          border-radius: 16px;
-          width: 100%;
-          max-width: 500px;
-          overflow: hidden;
-          box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
-          animation: slideUp 0.3s ease;
-        }
-
-        @keyframes slideUp {
+        @keyframes slideInRight {
           from {
-            opacity: 0;
-            transform: translateY(20px);
+            transform: translateX(100%);
           }
           to {
-            opacity: 1;
-            transform: translateY(0);
+            transform: translateX(0);
           }
-        }
-
-        .story-modal-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 16px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .story-modal-title {
-          font-weight: 700;
-          color: white;
-          font-size: 16px;
-        }
-
-        .story-modal-close {
-          background: none;
-          border: none;
-          color: white;
-          cursor: pointer;
-          font-size: 24px;
-          transition: opacity 0.2s ease;
-        }
-
-        .story-modal-close:hover {
-          opacity: 0.7;
-        }
-
-        .story-modal-body {
-          padding: 32px;
-          text-align: center;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 16px;
-        }
-
-        .story-modal-icon {
-          font-size: 80px;
-          filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
-        }
-
-        .story-modal-text {
-          color: white;
-          font-size: 18px;
-          font-weight: 700;
-          line-height: 1.6;
-        }
-
-        .story-modal-timestamp {
-          color: rgba(255, 255, 255, 0.6);
-          font-size: 13px;
-          font-weight: 600;
-        }
-
-        .story-modal-action {
-          background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-          color: white;
-          border: none;
-          padding: 12px 24px;
-          border-radius: 8px;
-          font-weight: 700;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          margin-top: 16px;
-          width: 100%;
-        }
-
-        .story-modal-action:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 20px rgba(79, 70, 229, 0.3);
-        }
-
-        /* Tabs */
-        .tabs-container {
-          background: white;
-          border-bottom: 1px solid #e5e7eb;
-          margin-bottom: 32px;
-          border-radius: 12px 12px 0 0;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-          overflow-x: auto;
-        }
-
-        .tabs {
-          display: flex;
-          gap: 0;
-        }
-
-        .tab {
-          background: none;
-          border: none;
-          padding: 16px 24px;
-          font-size: 15px;
-          font-weight: 600;
-          color: #6b7280;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          border-bottom: 3px solid transparent;
-          position: relative;
-          white-space: nowrap;
-        }
-
-        .tab:hover {
-          color: #4f46e5;
-          background: #f9fafb;
-        }
-
-        .tab.active {
-          color: #4f46e5;
-          border-bottom-color: #4f46e5;
-        }
-
-        /* Tab Content */
-        .tab-content {
-          background: white;
-          padding: 32px;
-          border-radius: 0 0 12px 12px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-
-        /* Overview Tab */
-        .overview-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-          gap: 24px;
-          margin-bottom: 32px;
-        }
-
-        .overview-card {
-          background: #f9fafb;
-          border: 1px solid #e5e7eb;
-          border-radius: 12px;
-          padding: 24px;
-        }
-
-        .card-title {
-          font-size: 16px;
-          font-weight: 700;
-          color: #111827;
-          margin-bottom: 16px;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .card-content {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-
-        .card-item {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 14px;
-          color: #6b7280;
-        }
-
-        .card-item-label {
-          font-weight: 600;
-          color: #111827;
-        }
-
-        /* Menu Tab */
-        .menu-section {
-          margin-bottom: 32px;
-        }
-
-        .category-container {
-          margin-bottom: 24px;
-        }
-
-        .category-header {
-          background: #f9fafb;
-          border: 2px solid #e5e7eb;
-          border-radius: 12px;
-          padding: 20px;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-
-        .category-header:hover {
-          border-color: #4f46e5;
-          background: white;
-        }
-
-        .category-header.expanded {
-          border-color: #4f46e5;
-          background: #f0f4ff;
-        }
-
-        .category-info {
-          flex: 1;
-        }
-
-        .category-name {
-          font-size: 18px;
-          font-weight: 700;
-          color: #111827;
-          margin-bottom: 4px;
-        }
-
-        .category-description {
-          font-size: 13px;
-          color: #6b7280;
-        }
-
-        .category-price {
-          font-size: 16px;
-          font-weight: 700;
-          color: #4f46e5;
-          margin-left: 16px;
-          min-width: 80px;
-          text-align: right;
-        }
-
-        .expand-icon {
-          margin-left: 12px;
-          color: #4f46e5;
-          transition: transform 0.3s ease;
-        }
-
-        .category-expanded {
-          border: 2px solid #4f46e5;
-          border-top: none;
-          border-radius: 0 0 12px 12px;
-          padding: 20px;
-          background: white;
-        }
-
-        .items-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-          gap: 12px;
-          margin-bottom: 20px;
-        }
-
-        .item-card {
-          border: 2px solid #e5e7eb;
-          border-radius: 8px;
-          padding: 12px;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          position: relative;
-        }
-
-        .item-card:hover {
-          border-color: #4f46e5;
-          box-shadow: 0 4px 12px rgba(79, 70, 229, 0.1);
-        }
-
-        .item-card.selected {
-          border-color: #4f46e5;
-          background: #f0f4ff;
-        }
-
-        .item-checkbox {
-          position: absolute;
-          top: 8px;
-          right: 8px;
-          width: 20px;
-          height: 20px;
-          border: 2px solid #e5e7eb;
-          border-radius: 4px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: white;
-          transition: all 0.2s ease;
-        }
-
-        .item-card.selected .item-checkbox {
-          background: #4f46e5;
-          border-color: #4f46e5;
-          color: white;
-        }
-
-        .item-icon {
-          font-size: 28px;
-          margin-bottom: 8px;
-        }
-
-        .item-name {
-          font-size: 14px;
-          font-weight: 700;
-          color: #111827;
-          margin-bottom: 2px;
-        }
-
-        .item-description {
-          font-size: 11px;
-          color: #6b7280;
-          margin-bottom: 8px;
-          line-height: 1.3;
-        }
-
-        .item-footer {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          font-size: 12px;
-        }
-
-        .item-price {
-          font-weight: 700;
-          color: #4f46e5;
-        }
-
-        .veg-badge {
-          background: #dcfce7;
-          color: #15803d;
-          padding: 2px 6px;
-          border-radius: 3px;
-          font-weight: 600;
-          font-size: 10px;
-        }
-
-        .selection-info {
-          background: #f0f4ff;
-          border: 1px solid #c7d2fe;
-          border-radius: 8px;
-          padding: 12px;
-          margin-bottom: 16px;
-          font-size: 13px;
-          color: #4f46e5;
-        }
-
-        .add-category-btn {
-          width: 100%;
-          background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-          color: white;
-          border: none;
-          padding: 12px;
-          border-radius: 8px;
-          font-weight: 700;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          font-size: 14px;
-        }
-
-        .add-category-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
-        }
-
-        .add-category-btn:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-          transform: none;
-        }
-
-        /* Reviews Tab */
-        .reviews-controls {
-          display: flex;
-          gap: 12px;
-          margin-bottom: 24px;
-          flex-wrap: wrap;
-          align-items: center;
-        }
-
-        .control-group {
-          display: flex;
-          gap: 8px;
-          align-items: center;
-        }
-
-        .control-label {
-          font-weight: 600;
-          color: #111827;
-          font-size: 13px;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-
-        .control-select {
-          padding: 8px 12px;
-          border: 2px solid #e5e7eb;
-          border-radius: 6px;
-          font-size: 13px;
-          cursor: pointer;
-          background: white;
-          color: #111827;
-          font-weight: 600;
-          transition: all 0.2s ease;
-        }
-
-        .control-select:hover {
-          border-color: #4f46e5;
-        }
-
-        .control-select:focus {
-          outline: none;
-          border-color: #4f46e5;
-          box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-        }
-
-        .reviews-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-          gap: 20px;
-        }
-
-        .reviews-list {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-
-        .review-card {
-          background: #f9fafb;
-          border: 1px solid #e5e7eb;
-          border-radius: 12px;
-          padding: 20px;
-          transition: all 0.2s ease;
-        }
-
-        .review-card:hover {
-          box-shadow: 0 4px 12px rgba(79, 70, 229, 0.1);
-          border-color: #4f46e5;
-        }
-
-        .review-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: start;
-          margin-bottom: 12px;
-        }
-
-        .review-author {
-          font-weight: 700;
-          color: #111827;
-        }
-
-        .review-meta {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 12px;
-          color: #6b7280;
-        }
-
-        .stars {
-          display: flex;
-          gap: 4px;
-          color: #fbbf24;
-          font-size: 14px;
-        }
-
-        .review-event {
-          background: #e0e7ff;
-          color: #4f46e5;
-          display: inline-block;
-          padding: 4px 8px;
-          border-radius: 4px;
-          font-size: 12px;
-          font-weight: 600;
-          margin-bottom: 12px;
-        }
-
-        .review-comment {
-          color: #4b5563;
-          line-height: 1.6;
-          font-size: 14px;
-        }
-
-        /* Location Tab */
-        .location-grid {
-          display: grid;
-          grid-template-columns: 2fr 1fr;
-          gap: 24px;
-          margin-bottom: 24px;
-        }
-
-        @media (max-width: 768px) {
-          .location-grid {
-            grid-template-columns: 1fr;
-          }
-        }
-
-        .map-container {
-          background: #e5e7eb;
-          border-radius: 12px;
-          height: 400px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 48px;
-          color: #9ca3af;
-        }
-
-        .location-info-card {
-          background: #f9fafb;
-          border: 1px solid #e5e7eb;
-          border-radius: 12px;
-          padding: 24px;
-        }
-
-        .location-info-item {
-          display: flex;
-          gap: 12px;
-          margin-bottom: 16px;
-          padding-bottom: 16px;
-          border-bottom: 1px solid #e5e7eb;
-        }
-
-        .location-info-item:last-child {
-          border-bottom: none;
-          margin-bottom: 0;
-          padding-bottom: 0;
-        }
-
-        .location-icon {
-          font-size: 20px;
-          flex-shrink: 0;
-        }
-
-        .location-content {
-          flex: 1;
-        }
-
-        .location-label {
-          font-weight: 600;
-          color: #6b7280;
-          font-size: 12px;
-          text-transform: uppercase;
-          margin-bottom: 4px;
-        }
-
-        .location-value {
-          color: #111827;
-          font-size: 14px;
-          font-weight: 500;
-        }
-
-        .location-link {
-          color: #4f46e5;
-          text-decoration: none;
-          font-weight: 600;
-        }
-
-        .location-link:hover {
-          text-decoration: underline;
-        }
-
-        /* Booking Modal */
-        .modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.6);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 1000;
-          padding: 16px;
-          backdrop-filter: blur(4px);
-        }
-
-        .modal-content {
-          background: white;
-          border-radius: 16px;
-          padding: 0;
-          max-width: 900px;
-          width: 100%;
-          max-height: 90vh;
-          overflow: hidden;
-          display: flex;
-          flex-direction: column;
-          box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
-        }
-
-        .modal-header {
-          background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-          color: white;
-          padding: 24px 32px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          border-bottom: 1px solid #e5e7eb;
-        }
-
-        .modal-title {
-          font-size: 20px;
-          font-weight: 700;
-        }
-
-        .modal-close {
-          background: none;
-          border: none;
-          color: white;
-          cursor: pointer;
-          font-size: 24px;
-          transition: opacity 0.2s ease;
-        }
-
-        .modal-close:hover {
-          opacity: 0.8;
-        }
-
-        .modal-body {
-          flex: 1;
-          overflow-y: auto;
-          padding: 32px;
-        }
-
-        /* Step Indicator */
-        .step-indicator {
-          display: flex;
-          justify-content: center;
-          gap: 12px;
-          margin-bottom: 32px;
-          flex-wrap: wrap;
-        }
-
-        .step-badge {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 8px 16px;
-          background: white;
-          border: 2px solid #e5e7eb;
-          border-radius: 9999px;
-          font-size: 13px;
-          font-weight: 600;
-          color: #6b7280;
-          transition: all 0.3s ease;
-        }
-
-        .step-badge.active {
-          background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-          color: white;
-          border-color: #4f46e5;
-        }
-
-        .step-badge.completed {
-          background: #dcfce7;
-          color: #15803d;
-          border-color: #15803d;
-        }
-
-        /* Checkout Sections */
-        .checkout-section {
-          display: none;
-        }
-
-        .checkout-section.active {
-          display: block;
-          animation: fadeIn 0.3s ease;
         }
 
         @keyframes fadeIn {
           from {
             opacity: 0;
-            transform: translateY(10px);
           }
           to {
             opacity: 1;
-            transform: translateY(0);
           }
         }
 
-        .form-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 20px;
-          margin-bottom: 24px;
-        }
-
-        .form-group {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-
-        .form-label {
-          font-weight: 600;
-          color: #111827;
-          font-size: 13px;
-        }
-
-        .form-input, .form-select {
-          padding: 10px;
-          border: 2px solid #e5e7eb;
-          border-radius: 8px;
-          font-size: 13px;
-          transition: all 0.2s ease;
-          font-family: inherit;
-        }
-
-        .form-input:focus, .form-select:focus {
-          outline: none;
-          border-color: #4f46e5;
-          box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-        }
-
-        /* Address Selection */
-        .address-type-selector {
-          display: flex;
-          gap: 12px;
-          margin-bottom: 24px;
-        }
-
-        .address-type-btn {
-          flex: 1;
-          padding: 12px;
-          border: 2px solid #e5e7eb;
-          border-radius: 8px;
-          background: white;
-          cursor: pointer;
-          font-weight: 600;
-          transition: all 0.2s ease;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-        }
-
-        .address-type-btn:hover {
-          border-color: #4f46e5;
-          background: #f0f4ff;
-        }
-
-        .address-type-btn.active {
-          border-color: #4f46e5;
-          background: linear-gradient(135deg, #f0f4ff 0%, #faf5ff 100%);
-          color: #4f46e5;
-        }
-
-        .address-cards {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-          gap: 12px;
-          margin-bottom: 24px;
-        }
-
-        .address-card {
-          padding: 16px;
-          border: 2px solid #e5e7eb;
-          border-radius: 8px;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          background: white;
-          position: relative;
-        }
-
-        .address-card:hover {
-          border-color: #4f46e5;
-          background: #f0f4ff;
-        }
-
-        .address-card.active {
-          border-color: #4f46e5;
-          background: linear-gradient(135deg, #f0f4ff 0%, #faf5ff 100%);
-          box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
-        }
-
-        .address-card-radio {
-          position: absolute;
-          top: 12px;
-          right: 12px;
-          width: 20px;
-          height: 20px;
-          border: 2px solid #e5e7eb;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: white;
-          transition: all 0.2s ease;
-        }
-
-        .address-card.active .address-card-radio {
-          background: #4f46e5;
-          border-color: #4f46e5;
-          color: white;
-        }
-
-        .address-label {
-          display: inline-block;
-          background: #e0e7ff;
-          color: #4f46e5;
-          padding: 2px 8px;
-          border-radius: 3px;
-          font-size: 11px;
-          font-weight: 600;
-          margin-bottom: 8px;
-        }
-
-        .address-text {
-          font-size: 14px;
-          font-weight: 600;
-          color: #111827;
-          margin-bottom: 4px;
-        }
-
-        .address-details {
-          font-size: 12px;
-          color: #6b7280;
-          line-height: 1.4;
-        }
-
-        .package-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-          gap: 12px;
-          margin-bottom: 24px;
-        }
-
-        .package-card {
-          padding: 16px;
-          border: 2px solid #e5e7eb;
-          border-radius: 8px;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          background: white;
-          text-align: center;
-        }
-
-        .package-card:hover {
-          border-color: #4f46e5;
-          background: #f0f4ff;
-        }
-
-        .package-card.active {
-          border-color: #4f46e5;
-          background: linear-gradient(135deg, #f0f4ff 0%, #faf5ff 100%);
-        }
-
-        .package-name {
-          font-weight: 700;
-          font-size: 14px;
-          color: #111827;
-          margin-bottom: 6px;
-        }
-
-        .package-multiplier {
-          font-size: 12px;
-          color: #6b7280;
-        }
-
-        .services-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 12px;
-        }
-
-        .service-checkbox {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 12px;
-          background: #f9fafb;
-          border: 2px solid #e5e7eb;
-          border-radius: 8px;
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
-
-        .service-checkbox:hover {
-          border-color: #4f46e5;
-          background: white;
-        }
-
-        .service-checkbox input {
-          width: 18px;
-          height: 18px;
-          cursor: pointer;
-        }
-
-        .service-label {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-          cursor: pointer;
-        }
-
-        .service-name {
-          font-weight: 600;
-          color: #111827;
-          font-size: 13px;
-        }
-
-        .service-price {
-          font-size: 11px;
-          color: #4f46e5;
-          font-weight: 600;
-        }
-
-        /* Cart Summary */
-        .cart-summary {
-          background: #f9fafb;
-          border-radius: 8px;
-          padding: 16px;
-          margin-bottom: 24px;
-        }
-
-        .summary-item {
-          display: flex;
-          justify-content: space-between;
-          padding: 8px 0;
-          font-size: 13px;
-          border-bottom: 1px solid #e5e7eb;
-        }
-
-        .summary-item.total {
-          border-bottom: 2px solid #e5e7eb;
-          padding-top: 12px;
-          font-weight: 700;
-          font-size: 15px;
-          color: #111827;
-        }
-
-        .summary-value {
-          font-weight: 600;
-          color: #4f46e5;
-        }
-
-        /* Payment Methods */
-        .payment-methods {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-          gap: 12px;
-          margin-bottom: 24px;
-        }
-
-        .payment-method {
-          padding: 16px;
-          border: 2px solid #e5e7eb;
-          border-radius: 8px;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          text-align: center;
-          background: white;
-        }
-
-        .payment-method:hover {
-          border-color: #4f46e5;
-          background: #f0f4ff;
-        }
-
-        .payment-method.active {
-          border-color: #4f46e5;
-          background: #f0f4ff;
-        }
-
-        .payment-icon {
-          font-size: 32px;
-          margin-bottom: 8px;
-        }
-
-        .payment-name {
-          font-weight: 700;
-          font-size: 14px;
-          color: #111827;
-        }
-
-        /* Confirmation */
-        .confirmation-box {
-          text-align: center;
-          padding: 48px 24px;
-        }
-
-        .confirmation-icon {
-          font-size: 80px;
-          margin-bottom: 16px;
-        }
-
-        .confirmation-title {
-          font-size: 28px;
-          font-weight: 700;
-          color: #111827;
-          margin-bottom: 8px;
-        }
-
-        .confirmation-message {
-          font-size: 14px;
-          color: #6b7280;
-          margin-bottom: 32px;
-        }
-
-        .booking-details {
-          background: #f9fafb;
-          border-radius: 12px;
-          padding: 24px;
-          margin-bottom: 24px;
-          text-align: left;
-        }
-
-        .details-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-          gap: 20px;
-        }
-
-        .detail-item {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-
-        .detail-label {
-          font-size: 12px;
-          color: #6b7280;
-          font-weight: 600;
-          text-transform: uppercase;
-        }
-
-        .detail-value {
-          font-size: 16px;
-          color: #111827;
-          font-weight: 700;
-        }
-
-        /* Buttons */
-        .button-group {
-          display: flex;
-          gap: 12px;
-          margin-top: 24px;
-        }
-
-        .btn-primary {
-          flex: 1;
-          background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-          color: white;
-          border: none;
-          padding: 12px 24px;
-          border-radius: 8px;
-          font-weight: 700;
-          font-size: 14px;
-          cursor: pointer;
-          transition: all 0.3s ease;
-        }
-
-        .btn-primary:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 20px rgba(79, 70, 229, 0.3);
-        }
-
-        .btn-primary:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-          transform: none;
-        }
-
-        .btn-secondary {
-          flex: 1;
-          background: white;
-          color: #4f46e5;
-          border: 2px solid #4f46e5;
-          padding: 10px 24px;
-          border-radius: 8px;
-          font-weight: 700;
-          font-size: 14px;
-          cursor: pointer;
-          transition: all 0.3s ease;
-        }
-
-        .btn-secondary:hover {
-          background: #f0f4ff;
-        }
-
-        .btn-full {
-          width: 100%;
-        }
-
-        .info-section {
-          background: #f0f4ff;
-          border: 1px solid #c7d2fe;
-          border-radius: 8px;
-          padding: 16px;
-          margin-bottom: 24px;
-        }
-
-        .info-title {
-          font-weight: 700;
-          color: #4f46e5;
-          font-size: 14px;
-          margin-bottom: 12px;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .info-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 12px;
-        }
-
-        .info-item {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-        }
-
-        .info-label {
-          font-size: 11px;
-          color: #4f46e5;
-          font-weight: 600;
-          text-transform: uppercase;
-        }
-
-        .info-value {
-          font-size: 13px;
-          color: #111827;
-          font-weight: 600;
-        }
-
-        @media (max-width: 768px) {
-          .hero-content {
-            grid-template-columns: 1fr;
-          }
-
-          .highlights-grid {
-            grid-template-columns: repeat(2, 1fr);
-          }
-
-          .items-grid {
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-          }
-
-          .modal-body {
-            padding: 16px;
-          }
-
-          .reviews-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .reviews-controls {
-            flex-direction: column;
-            align-items: flex-start;
-          }
-
-          .control-group {
-            width: 100%;
-          }
-
-          .control-select {
-            width: 100%;
-          }
-
-          .address-cards {
-            grid-template-columns: 1fr;
+        @media (max-width: 640px) {
+          div[style*="maxWidth: 600px"] {
+            max-width: 100% !important;
           }
         }
       `}</style>
+    </>
+  );
+};
 
-      {/* Header Navigation */}
-      <div className="header-nav">
-        <div className="container">
-          <div className="nav-content">
-            <button className="nav-back" onClick={() => window.history.back()}>
-              <ArrowLeft size={18} />
-              Back
+const CateringDetailPage = () => {
+  const params = useParams();
+  const router = useRouter();
+  const cateringId = params.id as string;
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [selectedImageIdx, setSelectedImageIdx] = useState(0);
+  const [isMenuDrawerOpen, setIsMenuDrawerOpen] = useState(false);
+
+  const service = useMemo(
+    () => ALL_CATERING_SERVICES.find(s => s.id === parseInt(cateringId)),
+    [cateringId]
+  );
+
+  if (!service) {
+    return (
+      <div style={{ backgroundColor: '#f9fafb', minHeight: '100vh', padding: '2rem' }}>
+        <div style={{ textAlign: 'center', maxWidth: '1200px', margin: '0 auto' }}>
+          <h1 style={{ color: '#1e293b', marginBottom: '1rem', fontSize: 'clamp(24px, 8vw, 40px)' }}>
+            Service Not Found
+          </h1>
+          <Link href="/caterers">
+            <button
+              style={{
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                border: 'none',
+                padding: '0.875rem 1.75rem',
+                borderRadius: '0.75rem',
+                fontWeight: '700',
+                cursor: 'pointer',
+                fontSize: '1rem',
+                transition: 'all 0.3s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              Back to Caterers
+            </button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: service.title,
+        text: `Check out ${service.title}`,
+        url: window.location.href,
+      });
+    }
+  };
+
+  const handleGetQuote = () => {
+    router.push(`/quote?serviceId=${service.id}`);
+  };
+
+  return (
+    <div style={{ backgroundColor: '#f9fafb', minHeight: '100vh' }}>
+      {/* MENU DRAWER */}
+      <MenuDrawer
+        isOpen={isMenuDrawerOpen}
+        onClose={() => setIsMenuDrawerOpen(false)}
+        menu={service.menu}
+        serviceTitle={service.title}
+        onGetQuote={handleGetQuote}
+      />
+
+      {/* STICKY HEADER */}
+      <div
+        style={{
+          backgroundColor: 'white',
+          borderBottom: '1px solid #e5e7eb',
+          padding: '1rem 2rem',
+          position: 'sticky',
+          top: 0,
+          zIndex: 40,
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+        }}
+      >
+        <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <button
+            onClick={() => router.back()}
+            style={{
+              backgroundColor: 'transparent',
+              border: '1px solid #e5e7eb',
+              color: '#1e293b',
+              padding: '0.5rem 1rem',
+              borderRadius: '0.5rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              fontWeight: '600',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#f1f5f9';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+          >
+            <ArrowLeftIcon style={{ width: '16px', height: '16px' }} />
+            Back
+          </button>
+
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <button
+              onClick={() => setIsFavorite(!isFavorite)}
+              style={{
+                background: isFavorite ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'transparent',
+                color: isFavorite ? 'white' : '#1e293b',
+                border: isFavorite ? 'none' : '1px solid #e5e7eb',
+                padding: '0.5rem 1rem',
+                borderRadius: '0.5rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                fontWeight: '600',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                if (!isFavorite) e.currentTarget.style.backgroundColor = '#f1f5f9';
+              }}
+              onMouseLeave={(e) => {
+                if (!isFavorite) e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              <HeartIcon style={{ width: '16px', height: '16px', fill: isFavorite ? 'white' : 'none' }} />
+              {isFavorite ? 'Saved' : 'Save'}
+            </button>
+
+            <button
+              onClick={handleShare}
+              style={{
+                backgroundColor: 'transparent',
+                border: '1px solid #e5e7eb',
+                color: '#1e293b',
+                padding: '0.5rem 1rem',
+                borderRadius: '0.5rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                fontWeight: '600',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f1f5f9';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              <ShareIcon style={{ width: '16px', height: '16px' }} />
+              Share
             </button>
           </div>
         </div>
       </div>
 
-      {/* Enhanced Hero Section */}
-      <div className="hero-section">
-        <div className="container">
-          <div className="hero-content">
-            {/* Left Side */}
-            <div>
-              <div className="hero-info">
-                <div className="hero-icon">{catererData.image}</div>
-                <h1>{catererData.name}</h1>
-                <div className="hero-meta">
-                  <div className="meta-row">
-                    <strong>⭐ Rating</strong>
-                    <span>{catererData.rating} ({catererData.reviews} reviews)</span>
-                  </div>
-                  <div className="meta-row">
-                    <strong>📍 Location</strong>
-                    <span>{catererData.location}</span>
-                  </div>
-                  <div className="meta-row">
-                    <strong>⏱️ Response</strong>
-                    <span>{catererData.responseTime}</span>
-                  </div>
-                  <div className="meta-row">
-                    <strong>👥 Capacity</strong>
-                    <span>{catererData.minGuests} - {catererData.maxGuests} guests</span>
-                  </div>
-                </div>
-              </div>
-              <p className="hero-description">{catererData.description}</p>
-              <div className="highlights-grid">
-                {catererData.highlights.slice(0, 6).map((highlight, idx) => (
-                  <div key={idx} className="highlight-badge">{highlight}</div>
-                ))}
-              </div>
-              <button 
-                className="cta-button"
-                onClick={() => {
-                  setBookingOptions({
-                    ...bookingOptions,
-                    userName: userData.name,
-                    userContact: userData.phone,
-                  });
-                  setShowBookingModal(true);
+      {/* MAIN CONTENT */}
+      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '2rem' }}>
+        {/* TOP SECTION - Image + Info + CTA */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+            gap: '2rem',
+            marginBottom: '3rem',
+            backgroundColor: 'white',
+            borderRadius: '1.25rem',
+            padding: '2rem',
+            border: '1px solid #e5e7eb',
+          }}
+        >
+          {/* LEFT - Image Gallery */}
+          <div>
+            <div
+              style={{
+                position: 'relative',
+                borderRadius: '1rem',
+                overflow: 'hidden',
+                backgroundColor: '#f3f4f6',
+                marginBottom: '1rem',
+                height: '300px',
+                width: '100%',
+              }}
+            >
+              <img
+                src={service.images[selectedImageIdx]}
+                alt={service.title}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  transition: 'transform 0.3s ease',
                 }}
-              >
-                <ShoppingCart size={20} />
-                Book Now
-              </button>
-            </div>
+              />
 
-            {/* Right Side - Social & Stories */}
-            <div className="hero-right">
-              {/* Social Links */}
-              <div className="social-section">
-                <div className="social-title">🌐 Follow Us</div>
-                <div className="social-links">
-                  {socialLinks.map((social, idx) => (
-                    <a
-                      key={idx}
-                      href={social.url}
-                      className="social-link"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <div className="social-icon">{social.icon}</div>
-                      <div className="social-info">
-                        <div className="social-platform">{social.platform}</div>
-                        <div className="social-followers">{social.followers}</div>
-                      </div>
-                    </a>
-                  ))}
-                </div>
-              </div>
-
-              {/* Stories */}
-              <div className="stories-section">
-                <div className="stories-title">📸 Stories</div>
-                <div className="stories-grid">
-                  {stories.map((story) => (
-                    <div
-                      key={story.id}
-                      className="story-thumbnail"
-                      onClick={() => setActiveStory(story.id)}
-                      title={`${story.title} - ${story.timestamp}`}
-                    >
-                      <div className="story-content">
-                        <div className="story-icon">{story.image}</div>
-                        <div className="story-label">{story.title}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Story Modal */}
-      {activeStory && (
-        <div className="story-modal-overlay" onClick={() => setActiveStory(null)}>
-          <div className="story-modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="story-modal-header">
-              <div className="story-modal-title">
-                {stories.find(s => s.id === activeStory)?.title}
-              </div>
-              <button className="story-modal-close" onClick={() => setActiveStory(null)}>
-                ×
-              </button>
-            </div>
-            <div className="story-modal-body">
-              <div className="story-modal-icon">
-                {stories.find(s => s.id === activeStory)?.image}
-              </div>
-              <div className="story-modal-text">
-                {stories.find(s => s.id === activeStory)?.title}
-              </div>
-              <div className="story-modal-timestamp">
-                {stories.find(s => s.id === activeStory)?.timestamp}
-              </div>
-              <button className="story-modal-action">View Full Story</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Tabs */}
-      <div className="container">
-        <div className="tabs-container">
-          <div className="tabs">
-            <button
-              className={`tab ${activeTab === 'overview' ? 'active' : ''}`}
-              onClick={() => setActiveTab('overview')}
-            >
-              Overview
-            </button>
-            <button
-              className={`tab ${activeTab === 'menu' ? 'active' : ''}`}
-              onClick={() => setActiveTab('menu')}
-            >
-              Menu
-            </button>
-            <button
-              className={`tab ${activeTab === 'reviews' ? 'active' : ''}`}
-              onClick={() => setActiveTab('reviews')}
-            >
-              Reviews
-            </button>
-            <button
-              className={`tab ${activeTab === 'location' ? 'active' : ''}`}
-              onClick={() => setActiveTab('location')}
-            >
-              Location
-            </button>
-            <button
-              className={`tab ${activeTab === 'gallery' ? 'active' : ''}`}
-              onClick={() => setActiveTab('gallery')}
-            >
-              Gallery
-            </button>
-          </div>
-        </div>
-
-        {/* Tab Content */}
-        <div className="tab-content">
-          {/* Overview Tab */}
-          {activeTab === 'overview' && (
-            <div>
-              <div className="overview-grid">
-                <div className="overview-card">
-                  <div className="card-title">
-                    <Utensils size={20} />
-                    Specialties
-                  </div>
-                  <div className="card-content">
-                    {catererData.availableFor.map((item, idx) => (
-                      <div key={idx} className="card-item">
-                        <span style={{ fontSize: '16px' }}>✓</span>
-                        <span>{item}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="overview-card">
-                  <div className="card-title">
-                    <Users size={20} />
-                    Capacity
-                  </div>
-                  <div className="card-content">
-                    <div className="card-item">
-                      <span className="card-item-label">Min Guests:</span>
-                      <span>{catererData.minGuests}</span>
-                    </div>
-                    <div className="card-item">
-                      <span className="card-item-label">Max Guests:</span>
-                      <span>{catererData.maxGuests}</span>
-                    </div>
-                    <div className="card-item">
-                      <span className="card-item-label">Delivery Range:</span>
-                      <span>{catererData.deliveryRange}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="overview-card">
-                  <div className="card-title">
-                    <Clock size={20} />
-                    Service Info
-                  </div>
-                  <div className="card-content">
-                    <div className="card-item">
-                      <span className="card-item-label">Experience:</span>
-                      <span>{catererData.experience}</span>
-                    </div>
-                    <div className="card-item">
-                      <span className="card-item-label">Cuisine:</span>
-                      <span>{catererData.cuisine}</span>
-                    </div>
-                    <div className="card-item">
-                      <span className="card-item-label">Response Time:</span>
-                      <span>{catererData.responseTime}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Menu Tab */}
-          {activeTab === 'menu' && (
-            <div>
-              <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '24px' }}>
-                Explore our diverse menu options. Customize your selection during booking.
-              </p>
-              {menuCategories.map((category) => (
-                <div key={category.id} className="category-container">
-                  <div className="category-header">
-                    <div className="category-info">
-                      <div className="category-name">{category.name}</div>
-                      <div className="category-description">{category.description}</div>
-                    </div>
-                    <div className="category-price">₹{category.price}</div>
-                  </div>
-                  <div className="category-expanded">
-                    <div className="items-grid">
-                      {category.items.map((item) => (
-                        <div key={item.id} className="item-card">
-                          <div className="item-icon">{item.image}</div>
-                          <div className="item-name">{item.name}</div>
-                          <div className="item-description">{item.description}</div>
-                          <div className="item-footer">
-                            <span className="item-price">₹{item.price}</span>
-                            {item.vegetarian && <span className="veg-badge">VEG</span>}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Reviews Tab */}
-          {activeTab === 'reviews' && (
-            <div>
-              <div className="reviews-controls">
-                <div className="control-group">
-                  <label className="control-label">
-                    <Filter size={16} />
-                    Sort By:
-                  </label>
-                  <select
-                    className="control-select"
-                    value={reviewSort}
-                    onChange={(e) => setReviewSort(e.target.value as ReviewSort)}
-                  >
-                    <option value="newest">Newest First</option>
-                    <option value="oldest">Oldest First</option>
-                    <option value="highest">Highest Rating</option>
-                    <option value="lowest">Lowest Rating</option>
-                  </select>
-                </div>
-
-                <div className="control-group">
-                  <label className="control-label">Display:</label>
-                  <select
-                    className="control-select"
-                    value={reviewDisplay}
-                    onChange={(e) => setReviewDisplay(e.target.value as ReviewDisplay)}
-                  >
-                    <option value="grid">Grid View</option>
-                    <option value="list">List View</option>
-                  </select>
-                </div>
-              </div>
-
-              {reviewDisplay === 'grid' ? (
-                <div className="reviews-grid">
-                  {getSortedReviews().map((review) => (
-                    <div key={review.id} className="review-card">
-                      <div className="review-header">
-                        <div>
-                          <div className="review-author">{review.author}</div>
-                          <div className="stars">
-                            {[...Array(5)].map((_, i) => (
-                              <span key={i}>{i < review.rating ? '★' : '☆'}</span>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="review-meta" style={{ marginBottom: '12px' }}>
-                        <span>{review.date}</span>
-                      </div>
-                      <div className="review-event">{review.event}</div>
-                      <div className="review-comment">{review.comment}</div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="reviews-list">
-                  {getSortedReviews().map((review) => (
-                    <div key={review.id} className="review-card">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
-                        <div>
-                          <div className="review-author">{review.author}</div>
-                          <div className="review-meta">
-                            <span>{review.date}</span>
-                          </div>
-                        </div>
-                        <div className="stars">
-                          {[...Array(5)].map((_, i) => (
-                            <span key={i}>{i < review.rating ? '★' : '☆'}</span>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="review-event">{review.event}</div>
-                      <div className="review-comment">{review.comment}</div>
-                    </div>
-                  ))}
+              {/* Verified Badge */}
+              {service.verified && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '12px',
+                    left: '12px',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    padding: '0.5rem 1rem',
+                    borderRadius: '0.5rem',
+                    fontSize: '0.85rem',
+                    fontWeight: '700',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+                  }}
+                >
+                  <CheckCircleIcon style={{ width: '16px', height: '16px' }} />
+                  Verified
                 </div>
               )}
             </div>
-          )}
 
-          {/* Location Tab */}
-          {activeTab === 'location' && (
-            <div>
-              <div className="location-grid">
-                <div className="map-container">
-                  📍 Map Integration Coming Soon
-                </div>
-                <div className="location-info-card">
-                  <div className="location-info-item">
-                    <div className="location-icon">📍</div>
-                    <div className="location-content">
-                      <div className="location-label">Address</div>
-                      <div className="location-value">{catererData.address}</div>
-                    </div>
-                  </div>
-
-                  <div className="location-info-item">
-                    <div className="location-icon">📱</div>
-                    <div className="location-content">
-                      <div className="location-label">Phone</div>
-                      <div className="location-value">
-                        <a href={`tel:${catererData.phone}`} className="location-link">{catererData.phone}</a>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="location-info-item">
-                    <div className="location-icon">✉️</div>
-                    <div className="location-content">
-                      <div className="location-label">Email</div>
-                      <div className="location-value">
-                        <a href={`mailto:${catererData.email}`} className="location-link">{catererData.email}</a>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="location-info-item">
-                    <div className="location-icon">🕐</div>
-                    <div className="location-content">
-                      <div className="location-label">Operating Hours</div>
-                      <div className="location-value">{catererData.operatingHours}</div>
-                    </div>
-                  </div>
-
-                  <div className="location-info-item">
-                    <div className="location-icon">🚗</div>
-                    <div className="location-content">
-                      <div className="location-label">Delivery Range</div>
-                      <div className="location-value">Within {catererData.deliveryRange}</div>
-                    </div>
-                  </div>
-
-                  <div className="location-info-item">
-                    <div className="location-icon">📌</div>
-                    <div className="location-content">
-                      <div className="location-label">Coordinates</div>
-                      <div className="location-value">
-                        {catererData.latitude.toFixed(4)}, {catererData.longitude.toFixed(4)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            {/* Thumbnails */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
+              {service.images.map((img, idx) => (
+                <img
+                  key={idx}
+                  src={img}
+                  alt={`Gallery ${idx}`}
+                  onClick={() => setSelectedImageIdx(idx)}
+                  style={{
+                    width: '100%',
+                    height: '80px',
+                    objectFit: 'cover',
+                    borderRadius: '0.5rem',
+                    cursor: 'pointer',
+                    border: selectedImageIdx === idx ? '2px solid #667eea' : '2px solid transparent',
+                    transition: 'all 0.2s ease',
+                    opacity: selectedImageIdx === idx ? 1 : 0.6,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.opacity = '1';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (selectedImageIdx !== idx) e.currentTarget.style.opacity = '0.6';
+                  }}
+                />
+              ))}
             </div>
-          )}
+          </div>
 
-          {/* Gallery Tab */}
-          {activeTab === 'gallery' && (
-            <div style={{ textAlign: 'center', padding: '48px 24px' }}>
-              <div style={{ fontSize: '64px', marginBottom: '16px' }}>📸</div>
-              <p style={{ fontSize: '16px', color: '#6b7280' }}>Gallery coming soon</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Booking Modal */}
-      {showBookingModal && (
-        <div className="modal-overlay" onClick={(e) => {
-          if (e.target === e.currentTarget) closeBookingModal();
-        }}>
-          <div className="modal-content">
-            <div className="modal-header">
-              <div className="modal-title">
-                {checkoutStep === 'menu' && '📋 Build Your Menu'}
-                {checkoutStep === 'details' && '👤 Booking Details'}
-                {checkoutStep === 'booking' && '📅 Event Details'}
-                {checkoutStep === 'payment' && '💳 Payment'}
-                {checkoutStep === 'confirmation' && '✅ Confirmed'}
-              </div>
-              <button className="modal-close" onClick={closeBookingModal}>×</button>
+          {/* RIGHT - Details */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            {/* Cuisine & Service Type Tags */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+              {service.cuisine.map((c, idx) => (
+                <span
+                  key={idx}
+                  style={{
+                    fontSize: '0.8rem',
+                    padding: '0.4rem 0.75rem',
+                    backgroundColor: '#ede9fe',
+                    color: '#667eea',
+                    borderRadius: '0.5rem',
+                    fontWeight: '600',
+                    border: '1px solid #ddd6fe',
+                  }}
+                >
+                  {c}
+                </span>
+              ))}
             </div>
 
-            <div className="modal-body">
-              {/* Step Indicator */}
-              <div className="step-indicator">
-                <div className={`step-badge ${checkoutStep === 'menu' ? 'active' : checkoutStep !== 'menu' ? 'completed' : ''}`}>
-                  <span>1</span> Menu
-                </div>
-                <div className={`step-badge ${checkoutStep === 'details' ? 'active' : ['booking', 'payment', 'confirmation'].includes(checkoutStep) ? 'completed' : ''}`}>
-                  <span>2</span> Details
-                </div>
-                <div className={`step-badge ${checkoutStep === 'booking' ? 'active' : ['payment', 'confirmation'].includes(checkoutStep) ? 'completed' : ''}`}>
-                  <span>3</span> Booking
-                </div>
-                <div className={`step-badge ${checkoutStep === 'payment' ? 'active' : checkoutStep === 'confirmation' ? 'completed' : ''}`}>
-                  <span>4</span> Payment
-                </div>
-                <div className={`step-badge ${checkoutStep === 'confirmation' ? 'active' : ''}`}>
-                  <span>5</span> Confirmed
-                </div>
+            {/* Name */}
+            <h1
+              style={{
+                fontSize: 'clamp(24px, 8vw, 36px)',
+                fontWeight: '900',
+                color: '#111827',
+                margin: 0,
+                lineHeight: '1.2',
+              }}
+            >
+              {service.title}
+            </h1>
+
+            {/* Rating */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', gap: '0.25rem' }}>
+                {[...Array(5)].map((_, i) => (
+                  <span key={i} style={{ fontSize: '1.2rem', opacity: i < Math.floor(service.rating) ? 1 : 0.3 }}>
+                    ⭐
+                  </span>
+                ))}
               </div>
+              <span style={{ fontSize: '1rem', fontWeight: '800', color: '#111827' }}>
+                {service.rating}/5
+              </span>
+              <span style={{ fontSize: '0.9rem', color: '#6b7280' }}>
+                ({service.reviews} reviews)
+              </span>
+            </div>
 
-              {/* Menu Selection */}
-              <div className={`checkout-section ${checkoutStep === 'menu' ? 'active' : ''}`}>
-                {menuCategories.map((category) => {
-                  const selectedItems = selectedItemsPerCategory[category.id] || [];
-                  const isExpanded = expandedCategory === category.id;
+            {/* Location */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#667eea', fontWeight: '600' }}>
+              <MapPinIcon style={{ width: '18px', height: '18px' }} />
+              {service.location}
+            </div>
 
-                  return (
-                    <div key={category.id} className="category-container">
-                      <div
-                        className={`category-header ${isExpanded ? 'expanded' : ''}`}
-                        onClick={() => setExpandedCategory(isExpanded ? null : category.id)}
-                      >
-                        <div className="category-info">
-                          <div className="category-name">{category.name}</div>
-                          <div className="category-description">{category.description}</div>
-                        </div>
-                        <div className="category-price">₹{category.price}</div>
-                        <div className="expand-icon">
-                          {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                        </div>
-                      </div>
+            {/* Trust Indicators */}
+            <div style={{ fontSize: '0.9rem', color: '#6b7280', display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+              <span>✅ {service.yearsInBusiness} years in business</span>
+              <span>📊 Booked {service.bookedThisMonth}+ times this month</span>
+            </div>
 
-                      {isExpanded && (
-                        <div className="category-expanded">
-                          <div className="selection-info">
-                            Selected: {selectedItems.length} / {category.maxItems} ({category.minItems} min)
-                          </div>
+            {/* PRICING BOX */}
+            <div
+              style={{
+                backgroundColor: '#ede9fe',
+                border: '2px solid #667eea',
+                borderRadius: '1rem',
+                padding: '1.5rem',
+                marginTop: '1rem',
+              }}
+            >
+              <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: 0, fontWeight: '700', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+                Starting From
+              </p>
+              <p style={{ fontSize: '2rem', fontWeight: '900', color: '#667eea', margin: 0, marginBottom: '0.5rem' }}>
+                ₹{service.pricePerPerson}
+              </p>
+              <p style={{ fontSize: '0.9rem', color: '#6b7280', margin: 0, fontWeight: '600' }}>
+                per person • {service.minGuests}-{service.maxGuests} guests
+              </p>
+            </div>
 
-                          <div className="items-grid">
-                            {category.items.map((item) => {
-                              const isSelected = selectedItems.some((i) => i.id === item.id);
-                              return (
-                                <div
-                                  key={item.id}
-                                  className={`item-card ${isSelected ? 'selected' : ''}`}
-                                  onClick={() => toggleItemSelection(category.id, item)}
-                                >
-                                  <div className="item-checkbox">
-                                    {isSelected && <Check size={16} />}
-                                  </div>
-                                  <div className="item-icon">{item.image}</div>
-                                  <div className="item-name">{item.name}</div>
-                                  <div className="item-description">{item.description}</div>
-                                  <div className="item-footer">
-                                    <span className="item-price">₹{item.price}</span>
-                                    {item.vegetarian && <span className="veg-badge">VEG</span>}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
+            {/* CTA BUTTONS */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+              <button
+                onClick={handleGetQuote}
+                style={{
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  border: 'none',
+                  padding: '1rem',
+                  borderRadius: '0.75rem',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  fontSize: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.2)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.35)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.2)';
+                }}
+              >
+                Get Quote
+                <ArrowRightIcon style={{ width: '18px', height: '18px' }} />
+              </button>
 
-                          <button
-                            className="add-category-btn"
-                            onClick={() => addCategoryToCart(category.id)}
-                            disabled={selectedItems.length < category.minItems}
-                          >
-                            Add {category.name} to Cart
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-
-                {cart.length > 0 && (
-                  <>
-                    <div className="cart-summary" style={{ marginTop: '32px' }}>
-                      <div style={{ marginBottom: '12px', fontWeight: '700', fontSize: '14px' }}>Your Cart</div>
-                      {cart.map((item) => (
-                        <div key={item.categoryId} className="summary-item" style={{ borderBottom: '1px solid #e5e7eb' }}>
-                          <span>{item.categoryName} (x{item.quantity})</span>
-                          <span className="summary-value">₹{(item.categoryPrice * item.quantity).toLocaleString()}</span>
-                        </div>
-                      ))}
-                      <div className="summary-item total">
-                        <span>Total:</span>
-                        <span className="summary-value">₹{Math.round(finalTotal).toLocaleString()}</span>
-                      </div>
-                    </div>
-
-                    <div className="button-group">
-                      <button className="btn-secondary" onClick={() => setCart([])}>Clear</button>
-                      <button
-                        className="btn-primary"
-                        onClick={() => setCheckoutStep('details')}
-                        disabled={cart.length === 0}
-                      >
-                        Continue
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* Booking Details */}
-              <div className={`checkout-section ${checkoutStep === 'details' ? 'active' : ''}`}>
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label className="form-label">Your Name</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={bookingOptions.userName}
-                      onChange={(e) => setBookingOptions({ ...bookingOptions, userName: e.target.value })}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Contact Number</label>
-                    <input
-                      type="tel"
-                      className="form-input"
-                      value={bookingOptions.userContact}
-                      onChange={(e) => setBookingOptions({ ...bookingOptions, userContact: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <div className="address-type-selector">
-                  <button
-                    className={`address-type-btn ${addressType === 'existing' ? 'active' : ''}`}
-                    onClick={() => setAddressType('existing')}
-                  >
-                    <MapPin size={16} />
-                    Select Address
-                  </button>
-                  <button
-                    className={`address-type-btn ${addressType === 'custom' ? 'active' : ''}`}
-                    onClick={() => setAddressType('custom')}
-                  >
-                    <Plus size={16} />
-                    Add New Address
-                  </button>
-                </div>
-
-                {addressType === 'existing' && (
-                  <div className="address-cards">
-                    {userData.addresses.map((address) => (
-                      <div
-                        key={address.id}
-                        className={`address-card ${bookingOptions.selectedAddressId === address.id ? 'active' : ''}`}
-                        onClick={() => setBookingOptions({ ...bookingOptions, selectedAddressId: address.id })}
-                      >
-                        <div className="address-card-radio">
-                          {bookingOptions.selectedAddressId === address.id && <Check size={16} />}
-                        </div>
-                        <div className="address-label">{address.label}</div>
-                        <div className="address-text">{address.address}</div>
-                        <div className="address-details">
-                          {address.city}, {address.state} - {address.zipCode}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {addressType === 'custom' && (
-                  <div className="form-group">
-                    <label className="form-label">Custom Address</label>
-                    <textarea
-                      className="form-input"
-                      rows={3}
-                      value={bookingOptions.customAddress}
-                      onChange={(e) => setBookingOptions({ ...bookingOptions, customAddress: e.target.value })}
-                    />
-                  </div>
-                )}
-
-                <div className="button-group">
-                  <button className="btn-secondary" onClick={() => setCheckoutStep('menu')}>← Back</button>
-                  <button
-                    className="btn-primary"
-                    onClick={() => setCheckoutStep('booking')}
-                    disabled={!bookingOptions.userName || !bookingOptions.userContact || (addressType === 'custom' && !bookingOptions.customAddress)}
-                  >
-                    Continue
-                  </button>
-                </div>
-              </div>
-
-              {/* Event Details */}
-              <div className={`checkout-section ${checkoutStep === 'booking' ? 'active' : ''}`}>
-                <div style={{ marginBottom: '24px' }}>
-                  <div className="form-label" style={{ marginBottom: '12px' }}>Select Your Package</div>
-                  <div className="package-grid">
-                    {[
-                      { type: 'basic' as const, multiplier: 1 },
-                      { type: 'premium' as const, multiplier: 1.25 },
-                      { type: 'deluxe' as const, multiplier: 1.5 },
-                    ].map((pkg) => (
-                      <div
-                        key={pkg.type}
-                        className={`package-card ${bookingOptions.packageType === pkg.type ? 'active' : ''}`}
-                        onClick={() => setBookingOptions({ ...bookingOptions, packageType: pkg.type })}
-                      >
-                        <div className="package-name">{pkg.type.charAt(0).toUpperCase() + pkg.type.slice(1)}</div>
-                        <div className="package-multiplier">{pkg.multiplier}x</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label className="form-label">Number of Guests</label>
-                    <input
-                      type="number"
-                      className="form-input"
-                      min={catererData.minGuests}
-                      max={catererData.maxGuests}
-                      value={bookingOptions.guests}
-                      onChange={(e) => setBookingOptions({ ...bookingOptions, guests: parseInt(e.target.value) || 0 })}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Event Date</label>
-                    <input
-                      type="date"
-                      className="form-input"
-                      value={bookingOptions.date}
-                      onChange={(e) => setBookingOptions({ ...bookingOptions, date: e.target.value })}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Event Time</label>
-                    <input
-                      type="time"
-                      className="form-input"
-                      value={bookingOptions.time}
-                      onChange={(e) => setBookingOptions({ ...bookingOptions, time: e.target.value })}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Menu Type</label>
-                    <select
-                      className="form-select"
-                      value={bookingOptions.sampleMenu}
-                      onChange={(e) => setBookingOptions({ ...bookingOptions, sampleMenu: e.target.value })}
-                    >
-                      <option value="">Select Type</option>
-                      <option value="vegetarian">Vegetarian</option>
-                      <option value="nonveg">Non-Vegetarian</option>
-                      <option value="mixed">Mixed</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Serving Staff</label>
-                    <input
-                      type="number"
-                      className="form-input"
-                      min="0"
-                      value={bookingOptions.staffRequired}
-                      onChange={(e) => setBookingOptions({ ...bookingOptions, staffRequired: parseInt(e.target.value) || 0 })}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ marginTop: '24px', marginBottom: '24px' }}>
-                  <div className="form-label" style={{ marginBottom: '12px' }}>Additional Services</div>
-                  <div className="services-grid">
-                    {[
-                      { key: 'serveFood' as const, label: 'Serving & Setup', price: `₹${bookingOptions.guests * 50}` },
-                      { key: 'decoration' as const, label: 'Decoration', price: '₹5,000' },
-                      { key: 'cleanup' as const, label: 'Cleanup', price: '₹2,000' },
-                      { key: 'beverageService' as const, label: 'Beverage Service', price: `₹${bookingOptions.guests * 100}` },
-                    ].map((service) => (
-                      <label key={service.key} className="service-checkbox">
-                        <input
-                          type="checkbox"
-                          checked={bookingOptions.additionalServices[service.key]}
-                          onChange={(e) => setBookingOptions({
-                            ...bookingOptions,
-                            additionalServices: {
-                              ...bookingOptions.additionalServices,
-                              [service.key]: e.target.checked,
-                            },
-                          })}
-                        />
-                        <div className="service-label">
-                          <span className="service-name">{service.label}</span>
-                          <span className="service-price">{service.price}</span>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="cart-summary">
-                  <div className="summary-item">
-                    <span>Menu Subtotal:</span>
-                    <span className="summary-value">₹{cartSubtotal.toLocaleString()}</span>
-                  </div>
-                  <div className="summary-item">
-                    <span>Platform Fee (5%):</span>
-                    <span className="summary-value">₹{Math.round(platformFee).toLocaleString()}</span>
-                  </div>
-                  <div className="summary-item">
-                    <span>Tax (18%):</span>
-                    <span className="summary-value">₹{Math.round(tax).toLocaleString()}</span>
-                  </div>
-                  {additionalServicesCost > 0 && (
-                    <div className="summary-item">
-                      <span>Services:</span>
-                      <span className="summary-value">₹{Math.round(additionalServicesCost).toLocaleString()}</span>
-                    </div>
-                  )}
-                  <div className="summary-item total">
-                    <span>Total:</span>
-                    <span className="summary-value">₹{Math.round(finalTotalWithPackage).toLocaleString()}</span>
-                  </div>
-                </div>
-
-                <div className="button-group">
-                  <button className="btn-secondary" onClick={() => setCheckoutStep('details')}>← Back</button>
-                  <button
-                    className="btn-primary"
-                    onClick={() => setCheckoutStep('payment')}
-                    disabled={!bookingOptions.date || !bookingOptions.sampleMenu}
-                  >
-                    Continue to Payment
-                  </button>
-                </div>
-              </div>
-
-              {/* Payment */}
-              <div className={`checkout-section ${checkoutStep === 'payment' ? 'active' : ''}`}>
-                <div className="form-label" style={{ marginBottom: '12px' }}>Select Payment Method</div>
-                <div className="payment-methods">
-                  {[
-                    { id: 'card', name: 'Card', icon: '💳' },
-                    { id: 'upi', name: 'UPI', icon: '📱' },
-                    { id: 'netbanking', name: 'Net Banking', icon: '🏦' },
-                    { id: 'wallet', name: 'Wallet', icon: '👛' },
-                  ].map((method) => (
-                    <div key={method.id} className="payment-method active">
-                      <div className="payment-icon">{method.icon}</div>
-                      <div className="payment-name">{method.name}</div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="cart-summary">
-                  <div style={{ marginBottom: '12px', fontWeight: '700' }}>Order Summary</div>
-                  <div className="summary-item">
-                    <span>Menu Items:</span>
-                    <span className="summary-value">₹{cartSubtotal.toLocaleString()}</span>
-                  </div>
-                  <div className="summary-item">
-                    <span>Fees & Taxes:</span>
-                    <span className="summary-value">₹{Math.round(platformFee + tax).toLocaleString()}</span>
-                  </div>
-                  {additionalServicesCost > 0 && (
-                    <div className="summary-item">
-                      <span>Services:</span>
-                      <span className="summary-value">₹{Math.round(additionalServicesCost).toLocaleString()}</span>
-                    </div>
-                  )}
-                  <div className="summary-item total">
-                    <span>Amount to Pay:</span>
-                    <span className="summary-value">₹{Math.round(finalTotalWithPackage).toLocaleString()}</span>
-                  </div>
-                </div>
-
-                <div className="button-group">
-                  <button className="btn-secondary" onClick={() => setCheckoutStep('booking')}>← Back</button>
-                  <button className="btn-primary" onClick={() => setCheckoutStep('confirmation')}>Pay & Confirm</button>
-                </div>
-              </div>
-
-              {/* Confirmation */}
-              <div className={`checkout-section ${checkoutStep === 'confirmation' ? 'active' : ''}`}>
-                <div className="confirmation-box">
-                  <div className="confirmation-icon">✅</div>
-                  <div className="confirmation-title">Booking Confirmed!</div>
-                  <div className="confirmation-message">
-                    Your catering booking has been successfully confirmed. The caterer will contact you within 2 hours.
-                  </div>
-
-                  <div className="booking-details">
-                    <div className="details-grid">
-                      <div className="detail-item">
-                        <div className="detail-label">Booking ID</div>
-                        <div className="detail-value">#BK{Math.random().toString(36).substr(2, 9).toUpperCase()}</div>
-                      </div>
-                      <div className="detail-item">
-                        <div className="detail-label">Date & Time</div>
-                        <div className="detail-value">{bookingOptions.date} at {bookingOptions.time}</div>
-                      </div>
-                      <div className="detail-item">
-                        <div className="detail-label">Guests</div>
-                        <div className="detail-value">{bookingOptions.guests} people</div>
-                      </div>
-                      <div className="detail-item">
-                        <div className="detail-label">Total Amount</div>
-                        <div className="detail-value" style={{ color: '#4f46e5' }}>
-                          ₹{Math.round(finalTotalWithPackage).toLocaleString()}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="button-group">
-                    <button className="btn-secondary btn-full" onClick={closeBookingModal}>Close</button>
-                  </div>
-                </div>
-              </div>
+              <button
+                onClick={() => setIsMenuDrawerOpen(true)}
+                style={{
+                  backgroundColor: 'white',
+                  color: '#667eea',
+                  border: '2px solid #667eea',
+                  padding: '1rem',
+                  borderRadius: '0.75rem',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  fontSize: '1rem',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#ede9fe';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'white';
+                }}
+              >
+                View Menu
+              </button>
             </div>
           </div>
         </div>
-      )}
+
+        {/* HIGHLIGHTS SECTION */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+            gap: '1.5rem',
+            marginBottom: '3rem',
+          }}
+        >
+          {service.highlights.map((highlight, idx) => (
+            <div
+              key={idx}
+              style={{
+                backgroundColor: 'white',
+                padding: '1.5rem',
+                borderRadius: '1rem',
+                border: '1px solid #e5e7eb',
+                textAlign: 'center',
+                transition: 'all 0.3s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>{highlight.icon}</div>
+              <p style={{ fontSize: '0.9rem', fontWeight: '600', color: '#111827', margin: 0 }}>
+                {highlight.text}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* ABOUT SECTION */}
+        <div
+          style={{
+            backgroundColor: 'white',
+            borderRadius: '1rem',
+            padding: '2rem',
+            marginBottom: '2rem',
+            border: '1px solid #e5e7eb',
+          }}
+        >
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#111827', margin: '0 0 1rem 0' }}>
+            About This Caterer
+          </h2>
+          <p style={{ fontSize: '1rem', lineHeight: '1.6', color: '#475569', margin: 0 }}>
+            {service.description}
+          </p>
+        </div>
+
+        {/* WHAT'S INCLUDED */}
+        <div
+          style={{
+            backgroundColor: 'white',
+            borderRadius: '1rem',
+            padding: '2rem',
+            marginBottom: '2rem',
+            border: '1px solid #e5e7eb',
+          }}
+        >
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#111827', margin: '0 0 1.5rem 0', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <CheckCircleIcon style={{ width: '24px', height: '24px', color: '#667eea' }} />
+            What's Included
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+            {service.included.map((item, idx) => (
+              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#475569' }}>
+                <span style={{ color: '#667eea', fontWeight: '800' }}>✓</span>
+                <span style={{ fontWeight: '600' }}>{item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* PERFECT FOR */}
+        <div
+          style={{
+            backgroundColor: 'white',
+            borderRadius: '1rem',
+            padding: '2rem',
+            marginBottom: '2rem',
+            border: '1px solid #e5e7eb',
+          }}
+        >
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#111827', margin: '0 0 1.5rem 0' }}>
+            🎉 Perfect For
+          </h2>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+            {service.occasions.map((occasion, idx) => (
+              <span
+                key={idx}
+                style={{
+                  padding: '0.65rem 1.25rem',
+                  backgroundColor: '#ede9fe',
+                  color: '#667eea',
+                  borderRadius: '9999px',
+                  fontWeight: '600',
+                  fontSize: '0.9rem',
+                  border: '1px solid #ddd6fe',
+                }}
+              >
+                {occasion}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* PACKAGES */}
+        <div
+          style={{
+            backgroundColor: 'white',
+            borderRadius: '1rem',
+            padding: '2rem',
+            marginBottom: '2rem',
+            border: '1px solid #e5e7eb',
+          }}
+        >
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#111827', margin: '0 0 1.5rem 0' }}>
+            📦 Package Options
+          </h2>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem' }}>
+            {service.packages.map((pkg, idx) => (
+              <div
+                key={idx}
+                style={{
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '1rem',
+                  padding: '1.5rem',
+                  transition: 'all 0.3s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = '#667eea';
+                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = '#e5e7eb';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#111827', margin: '0 0 0.5rem 0' }}>
+                  {pkg.name}
+                </h3>
+                <p style={{ fontSize: '0.9rem', color: '#6b7280', margin: '0 0 1rem 0', fontWeight: '600' }}>
+                  👥 {pkg.people} guests
+                </p>
+                <p style={{ fontSize: '1.5rem', fontWeight: '900', color: '#667eea', margin: '1rem 0' }}>
+                  {pkg.price}
+                </p>
+                <p style={{ fontSize: '0.85rem', color: '#475569', margin: '1rem 0', fontWeight: '600' }}>
+                  ✓ {pkg.items}
+                </p>
+                <button
+                  style={{
+                    width: '100%',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    border: 'none',
+                    padding: '0.75rem',
+                    borderRadius: '0.5rem',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    marginTop: '1rem',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  Select Package
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* FINAL CTA */}
+        <div
+          style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+            borderRadius: '1.5rem',
+            padding: '3rem 2rem',
+            color: 'white',
+            textAlign: 'center',
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            style={{
+              position: 'absolute',
+              top: '-50px',
+              right: '-50px',
+              width: '300px',
+              height: '300px',
+              backgroundColor: 'rgba(255, 255, 255, 0.08)',
+              borderRadius: '50%',
+            }}
+          />
+
+          <div style={{ position: 'relative', zIndex: 10 }}>
+            <h2 style={{ fontSize: '2rem', fontWeight: '900', margin: '0 0 1rem 0' }}>
+              Ready to Book {service.title}?
+            </h2>
+            <p style={{ fontSize: '1.1rem', margin: '0 0 2rem 0', opacity: 0.95 }}>
+              Get a custom quote for your event today.
+            </p>
+            <button
+              onClick={handleGetQuote}
+              style={{
+                backgroundColor: 'white',
+                color: '#667eea',
+                border: 'none',
+                padding: '1rem 2.5rem',
+                borderRadius: '0.75rem',
+                fontWeight: '700',
+                cursor: 'pointer',
+                fontSize: '1rem',
+                transition: 'all 0.3s ease',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              Get Quote Now
+              <ArrowRightIcon style={{ width: '18px', height: '18px' }} />
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
-}
+};
+
+export default CateringDetailPage;

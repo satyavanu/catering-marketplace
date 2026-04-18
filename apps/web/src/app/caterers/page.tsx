@@ -1,773 +1,821 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { ChevronDown, Search, MapPin, Users, Calendar, DollarSign, Star, Heart, ArrowRight, Filter, X } from 'lucide-react';
 import Link from 'next/link';
 
-interface Cater {
-  id: number;
-  name: string;
-  cuisine: string;
-  image: string;
-  rating: number;
-  reviews: number;
-  pricePerPerson: number;
-  specialties: string[];
-  availability: string;
-  country: string;
-  eventTypes: string[];
-}
+const CateringPage = () => {
+  const [favorites, setFavorites] = useState<number[]>([]);
+  const [location, setLocation] = useState('');
+  const [eventType, setEventType] = useState('');
+  const [guestCount, setGuestCount] = useState('');
+  const [activeQuickFilter, setActiveQuickFilter] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState('relevance');
+  const [showFilters, setShowFilters] = useState(false);
+  const [isSticky, setIsSticky] = useState(false);
+  const searchBarRef = useRef<HTMLDivElement>(null);
 
-const allCaters: Cater[] = [
-  // United States
-  {
-    id: 1,
-    name: 'Elegant Events Catering',
-    cuisine: 'French & International',
-    image: '👨‍🍳',
-    rating: 4.8,
-    reviews: 128,
-    pricePerPerson: 45,
-    specialties: ['Weddings', 'Corporate Events'],
-    availability: 'Year-round',
-    country: 'United States',
-    eventTypes: ['Wedding', 'Corporate', 'Private Dinner'],
-  },
-  {
-    id: 2,
-    name: 'Grill Master BBQ',
-    cuisine: 'American BBQ',
-    image: '🔥',
-    rating: 4.5,
-    reviews: 87,
-    pricePerPerson: 30,
-    specialties: ['Parties', 'Outdoor Events'],
-    availability: 'Seasonal',
-    country: 'United States',
-    eventTypes: ['Birthday', 'Party', 'Corporate'],
-  },
-  {
-    id: 3,
-    name: 'New York Gastro',
-    cuisine: 'Contemporary American',
-    image: '🍽️',
-    rating: 4.7,
-    reviews: 156,
-    pricePerPerson: 55,
-    specialties: ['Fine Dining', 'Corporate Events'],
-    availability: 'Year-round',
-    country: 'United States',
-    eventTypes: ['Corporate', 'Private Dinner', 'Wedding'],
-  },
-  // Canada
-  {
-    id: 4,
-    name: 'Toronto Fine Dining',
-    cuisine: 'Canadian & French',
-    image: '🍴',
-    rating: 4.6,
-    reviews: 102,
-    pricePerPerson: 50,
-    specialties: ['Weddings', 'Gala Events'],
-    availability: 'Year-round',
-    country: 'Canada',
-    eventTypes: ['Wedding', 'Corporate', 'Gala'],
-  },
-  {
-    id: 5,
-    name: 'Vancouver Fusion Kitchen',
-    cuisine: 'Asian Fusion',
-    image: '🥢',
-    rating: 4.7,
-    reviews: 118,
-    pricePerPerson: 42,
-    specialties: ['Fusion', 'Private Events'],
-    availability: 'Year-round',
-    country: 'Canada',
-    eventTypes: ['Private Dinner', 'Corporate', 'Birthday'],
-  },
-  // United Kingdom
-  {
-    id: 6,
-    name: 'Spice Route Kitchen',
-    cuisine: 'Indian & Asian Fusion',
-    image: '🍜',
-    rating: 4.6,
-    reviews: 95,
-    pricePerPerson: 35,
-    specialties: ['Weddings', 'Parties'],
-    availability: 'Weekdays & Weekends',
-    country: 'United Kingdom',
-    eventTypes: ['Wedding', 'Birthday', 'Party'],
-  },
-  {
-    id: 7,
-    name: 'London Luxe Catering',
-    cuisine: 'British & European',
-    image: '🎩',
-    rating: 4.8,
-    reviews: 134,
-    pricePerPerson: 60,
-    specialties: ['Royal Events', 'Corporate'],
-    availability: 'Year-round',
-    country: 'United Kingdom',
-    eventTypes: ['Wedding', 'Corporate', 'Gala'],
-  },
-  // France
-  {
-    id: 8,
-    name: 'Maison Nouvelle Paris',
-    cuisine: 'French Cuisine',
-    image: '🥐',
-    rating: 4.9,
-    reviews: 187,
-    pricePerPerson: 65,
-    specialties: ['Fine Dining', 'Michelin Style'],
-    availability: 'Year-round',
-    country: 'France',
-    eventTypes: ['Wedding', 'Corporate', 'Private Dinner'],
-  },
-  {
-    id: 9,
-    name: 'Provence Kitchen',
-    cuisine: 'Mediterranean French',
-    image: '🍷',
-    rating: 4.7,
-    reviews: 141,
-    pricePerPerson: 48,
-    specialties: ['Regional French', 'Wine Pairing'],
-    availability: 'Year-round',
-    country: 'France',
-    eventTypes: ['Private Dinner', 'Wedding', 'Corporate'],
-  },
-  // Germany
-  {
-    id: 10,
-    name: 'Berlin Fest Catering',
-    cuisine: 'German & European',
-    image: '🍖',
-    rating: 4.5,
-    reviews: 76,
-    pricePerPerson: 38,
-    specialties: ['Traditional', 'Large Events'],
-    availability: 'Year-round',
-    country: 'Germany',
-    eventTypes: ['Corporate', 'Party', 'Birthday'],
-  },
-  // Italy
-  {
-    id: 11,
-    name: 'Milano Bella Italia',
-    cuisine: 'Italian',
-    image: '🍝',
-    rating: 4.8,
-    reviews: 165,
-    pricePerPerson: 52,
-    specialties: ['Pasta, Risotto', 'Wine Dinners'],
-    availability: 'Year-round',
-    country: 'Italy',
-    eventTypes: ['Wedding', 'Private Dinner', 'Corporate'],
-  },
-  // Spain
-  {
-    id: 12,
-    name: 'Barcelona Tapas House',
-    cuisine: 'Spanish Tapas',
-    image: '🥘',
-    rating: 4.6,
-    reviews: 112,
-    pricePerPerson: 40,
-    specialties: ['Tapas', 'Paella', 'Spanish Events'],
-    availability: 'Year-round',
-    country: 'Spain',
-    eventTypes: ['Party', 'Corporate', 'Private Dinner'],
-  },
-  // Australia
-  {
-    id: 13,
-    name: 'Mediterranean Bites',
-    cuisine: 'Mediterranean & Greek',
-    image: '🥗',
-    rating: 4.7,
-    reviews: 110,
-    pricePerPerson: 40,
-    specialties: ['Corporate', 'Private Events'],
-    availability: 'Year-round',
-    country: 'Australia',
-    eventTypes: ['Corporate', 'Private Dinner', 'Wedding'],
-  },
-  {
-    id: 14,
-    name: 'Sydney Modern Kitchen',
-    cuisine: 'Modern Australian',
-    image: '🍤',
-    rating: 4.7,
-    reviews: 128,
-    pricePerPerson: 45,
-    specialties: ['Seafood', 'Modern Cuisine'],
-    availability: 'Year-round',
-    country: 'Australia',
-    eventTypes: ['Wedding', 'Corporate', 'Private Dinner'],
-  },
-  // Japan
-  {
-    id: 15,
-    name: 'Tokyo Street Kitchen',
-    cuisine: 'Japanese',
-    image: '🍱',
-    rating: 4.9,
-    reviews: 142,
-    pricePerPerson: 50,
-    specialties: ['Sushi', 'Kaiseki', 'Private Dinners'],
-    availability: 'Year-round',
-    country: 'Japan',
-    eventTypes: ['Private Dinner', 'Corporate'],
-  },
-  // India
-  {
-    id: 16,
-    name: 'Mumbai Royal Catering',
-    cuisine: 'North Indian',
-    image: '🌶️',
-    rating: 4.7,
-    reviews: 134,
-    pricePerPerson: 28,
-    specialties: ['Weddings', 'Traditional Indian'],
-    availability: 'Year-round',
-    country: 'India',
-    eventTypes: ['Wedding', 'Corporate', 'Party'],
-  },
-  {
-    id: 17,
-    name: 'Bangalore South Indian Kitchen',
-    cuisine: 'South Indian',
-    image: '🥘',
-    rating: 4.6,
-    reviews: 108,
-    pricePerPerson: 22,
-    specialties: ['Vegetarian', 'Dosa', 'Catering'],
-    availability: 'Year-round',
-    country: 'India',
-    eventTypes: ['Corporate', 'Birthday', 'Party'],
-  },
-  {
-    id: 18,
-    name: 'Delhi Spice Masters',
-    cuisine: 'Multi-Cuisine Indian',
-    image: '🍛',
-    rating: 4.8,
-    reviews: 156,
-    pricePerPerson: 32,
-    specialties: ['All Indian', 'Large Events'],
-    availability: 'Year-round',
-    country: 'India',
-    eventTypes: ['Wedding', 'Corporate', 'Private Dinner'],
-  },
-  // Sri Lanka
-  {
-    id: 19,
-    name: 'Colombo Spice Kitchen',
-    cuisine: 'Sri Lankan',
-    image: '🥛',
-    rating: 4.6,
-    reviews: 89,
-    pricePerPerson: 25,
-    specialties: ['Traditional', 'Curry Houses'],
-    availability: 'Year-round',
-    country: 'Sri Lanka',
-    eventTypes: ['Wedding', 'Corporate', 'Party'],
-  },
-  {
-    id: 20,
-    name: 'Kandy Heritage Catering',
-    cuisine: 'Traditional Sri Lankan',
-    image: '🍲',
-    rating: 4.5,
-    reviews: 76,
-    pricePerPerson: 23,
-    specialties: ['Authentic', 'Large Groups'],
-    availability: 'Year-round',
-    country: 'Sri Lanka',
-    eventTypes: ['Corporate', 'Party', 'Birthday'],
-  },
-  // UAE (GCC)
-  {
-    id: 21,
-    name: 'Dubai Premium Catering',
-    cuisine: 'Arabic & International',
-    image: '🏆',
-    rating: 4.8,
-    reviews: 178,
-    pricePerPerson: 55,
-    specialties: ['Luxury Events', 'Arabic Cuisine'],
-    availability: 'Year-round',
-    country: 'United Arab Emirates',
-    eventTypes: ['Wedding', 'Corporate', 'Gala'],
-  },
-  {
-    id: 22,
-    name: 'Abu Dhabi Feast',
-    cuisine: 'Middle Eastern',
-    image: '🍗',
-    rating: 4.6,
-    reviews: 112,
-    pricePerPerson: 45,
-    specialties: ['Traditional', 'Mezze'],
-    availability: 'Year-round',
-    country: 'United Arab Emirates',
-    eventTypes: ['Corporate', 'Private Dinner', 'Wedding'],
-  },
-  // Saudi Arabia (GCC)
-  {
-    id: 23,
-    name: 'Riyadh Royal Kitchen',
-    cuisine: 'Saudi Arabian',
-    image: '👑',
-    rating: 4.7,
-    reviews: 145,
-    pricePerPerson: 48,
-    specialties: ['Traditional', 'Large Gatherings'],
-    availability: 'Year-round',
-    country: 'Saudi Arabia',
-    eventTypes: ['Wedding', 'Corporate', 'Private Dinner'],
-  },
-  // Qatar (GCC)
-  {
-    id: 24,
-    name: 'Doha Gourmet Catering',
-    cuisine: 'Middle Eastern & International',
-    image: '✨',
-    rating: 4.8,
-    reviews: 134,
-    pricePerPerson: 52,
-    specialties: ['Luxury', 'Corporate Events'],
-    availability: 'Year-round',
-    country: 'Qatar',
-    eventTypes: ['Corporate', 'Wedding', 'Gala'],
-  },
-  // Singapore
-  {
-    id: 25,
-    name: 'Singapore Culinary Hub',
-    cuisine: 'Asian Fusion',
-    image: '🍜',
-    rating: 4.7,
-    reviews: 129,
-    pricePerPerson: 48,
-    specialties: ['Fusion', 'Multicultural'],
-    availability: 'Year-round',
-    country: 'Singapore',
-    eventTypes: ['Corporate', 'Private Dinner', 'Party'],
-  },
-  // Thailand
-  {
-    id: 26,
-    name: 'Bangkok Street Feast',
-    cuisine: 'Thai',
-    image: '🌶️',
-    rating: 4.6,
-    reviews: 98,
-    pricePerPerson: 30,
-    specialties: ['Thai Cuisine', 'Street Food'],
-    availability: 'Year-round',
-    country: 'Thailand',
-    eventTypes: ['Party', 'Corporate', 'Private Dinner'],
-  },
-  // Netherlands
-  {
-    id: 27,
-    name: 'Amsterdam Modern Kitchen',
-    cuisine: 'Dutch & European',
-    image: '🧅',
-    rating: 4.5,
-    reviews: 85,
-    pricePerPerson: 42,
-    specialties: ['Modern', 'Cheese & Wine'],
-    availability: 'Year-round',
-    country: 'Netherlands',
-    eventTypes: ['Corporate', 'Private Dinner', 'Party'],
-  },
-];
+  // Handle sticky scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      if (searchBarRef.current) {
+        setIsSticky(window.scrollY > 0);
+      }
+    };
 
-const countries = [
-  'All Countries',
-  'United States',
-  'Canada',
-  'United Kingdom',
-  'France',
-  'Germany',
-  'Italy',
-  'Spain',
-  'Netherlands',
-  'Australia',
-  'Japan',
-  'Singapore',
-  'Thailand',
-  'India',
-  'Sri Lanka',
-  'United Arab Emirates',
-  'Saudi Arabia',
-  'Qatar',
-];
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
-const cuisines = [
-  'All Cuisines',
-  'French & International',
-  'American BBQ',
-  'Contemporary American',
-  'Canadian & French',
-  'Asian Fusion',
-  'Indian & Asian Fusion',
-  'British & European',
-  'French Cuisine',
-  'Mediterranean French',
-  'German & European',
-  'Italian',
-  'Spanish Tapas',
-  'Mediterranean & Greek',
-  'Modern Australian',
-  'Japanese',
-  'North Indian',
-  'South Indian',
-  'Multi-Cuisine Indian',
-  'Sri Lankan',
-  'Traditional Sri Lankan',
-  'Arabic & International',
-  'Middle Eastern',
-  'Saudi Arabian',
-  'Thai',
-  'Dutch & European',
-];
-
-const eventTypes = ['All Events', 'Wedding', 'Corporate', 'Birthday', 'Private Dinner', 'Party', 'Gala'];
-
-const AllCaterersPage = () => {
-  const [filterType, setFilterType] = useState('all');
-  const [selectedFilter, setSelectedFilter] = useState('All Countries');
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const getFilterOptions = () => {
-    if (filterType === 'country') return countries;
-    if (filterType === 'cuisine') return cuisines;
-    return eventTypes;
+  const toggleFavorite = (id: number) => {
+    setFavorites((prev) =>
+      prev.includes(id) ? prev.filter((fav) => fav !== id) : [...prev, id]
+    );
   };
 
-  const getFilteredCaters = () => {
-    let filtered = allCaters;
+  const cateringServices = [
+    {
+      id: 1,
+      name: 'Elegant Events Catering',
+      location: 'Hyderabad',
+      image: 'https://images.unsplash.com/photo-1555939594-58d7cb561341?w=500&h=300&fit=crop',
+      rating: 4.8,
+      reviews: 128,
+      pricePerPerson: 550,
+      priceRange: '₹500 - ₹700/plate',
+      cuisine: ['French', 'International', 'European'],
+      minOrder: 50,
+      maxOrder: 500,
+      vegNonVeg: 'Both',
+      occasion: 'Wedding',
+      isVegetarian: false,
+      isTopRated: true,
+    },
+    {
+      id: 2,
+      name: 'Spice Route Kitchen',
+      location: 'Hyderabad',
+      image: 'https://images.unsplash.com/photo-1504674900436-24658a62558b?w=500&h=300&fit=crop',
+      rating: 4.6,
+      reviews: 95,
+      pricePerPerson: 450,
+      priceRange: '₹400 - ₹600/plate',
+      cuisine: ['Indian', 'North Indian', 'Asian Fusion'],
+      minOrder: 30,
+      maxOrder: 400,
+      vegNonVeg: 'Both',
+      occasion: 'Corporate',
+      isVegetarian: false,
+      isTopRated: false,
+    },
+    {
+      id: 3,
+      name: 'Pure Veg Delights',
+      location: 'Hyderabad',
+      image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&h=300&fit=crop',
+      rating: 4.9,
+      reviews: 156,
+      pricePerPerson: 280,
+      priceRange: '₹250 - ₹350/plate',
+      cuisine: ['South Indian', 'Vegetarian', 'Jain'],
+      minOrder: 20,
+      maxOrder: 300,
+      vegNonVeg: 'Veg',
+      occasion: 'Wedding',
+      isVegetarian: true,
+      isTopRated: true,
+    },
+    {
+      id: 4,
+      name: 'Mediterranean Bites',
+      location: 'Hyderabad',
+      image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=500&h=300&fit=crop',
+      rating: 4.7,
+      reviews: 110,
+      pricePerPerson: 500,
+      priceRange: '₹450 - ₹650/plate',
+      cuisine: ['Mediterranean', 'Greek', 'Italian'],
+      minOrder: 40,
+      maxOrder: 500,
+      vegNonVeg: 'Both',
+      occasion: 'Corporate',
+      isVegetarian: false,
+      isTopRated: true,
+    },
+    {
+      id: 5,
+      name: 'Royal Feast Catering',
+      location: 'Hyderabad',
+      image: 'https://images.unsplash.com/photo-1585937421612-70a19fb6930b?w=500&h=300&fit=crop',
+      rating: 4.9,
+      reviews: 156,
+      pricePerPerson: 520,
+      priceRange: '₹480 - ₹700/plate',
+      cuisine: ['Mughlai', 'Biryani', 'Indian'],
+      minOrder: 50,
+      maxOrder: 1000,
+      vegNonVeg: 'Both',
+      occasion: 'Wedding',
+      isVegetarian: false,
+      isTopRated: true,
+    },
+    {
+      id: 6,
+      name: 'Quick Bites Catering',
+      location: 'Hyderabad',
+      image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500&h=300&fit=crop',
+      rating: 4.4,
+      reviews: 78,
+      pricePerPerson: 250,
+      priceRange: '₹200 - ₹300/plate',
+      cuisine: ['Street Food', 'Indian', 'Casual'],
+      minOrder: 10,
+      maxOrder: 200,
+      vegNonVeg: 'Both',
+      occasion: 'Birthday',
+      isVegetarian: false,
+      isTopRated: false,
+    },
+  ];
 
-    if (filterType === 'country' && selectedFilter !== 'All Countries') {
-      filtered = filtered.filter((c) => c.country === selectedFilter);
-    } else if (filterType === 'cuisine' && selectedFilter !== 'All Cuisines') {
-      filtered = filtered.filter((c) => c.cuisine === selectedFilter);
-    } else if (filterType === 'event' && selectedFilter !== 'All Events') {
-      filtered = filtered.filter((c) => c.eventTypes.includes(selectedFilter));
-    }
+  const quickFilters = [
+    { label: 'Under ₹300', value: 'under-300' },
+    { label: 'Pure Veg', value: 'veg' },
+    { label: 'Top Rated', value: 'toprated' },
+  ];
 
-    if (searchQuery) {
-      filtered = filtered.filter((c) =>
-        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.cuisine.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
+  const filteredServices = cateringServices.filter((service) => {
+    if (activeQuickFilter === 'under-300' && service.pricePerPerson > 300) return false;
+    if (activeQuickFilter === 'veg' && !service.isVegetarian) return false;
+    if (activeQuickFilter === 'toprated' && !service.isTopRated) return false;
+    return true;
+  });
 
-    return filtered;
-  };
+  const sortedServices = [...filteredServices].sort((a, b) => {
+    if (sortBy === 'price') return a.pricePerPerson - b.pricePerPerson;
+    if (sortBy === 'rating') return b.rating - a.rating;
+    return 0;
+  });
 
-  const filteredCaters = getFilteredCaters();
-  const filterOptions = getFilterOptions();
-
-  return (
-    <main style={{ backgroundColor: '#f9fafb', minHeight: '100vh' }}>
-      {/* Header */}
+  const CatererCard = ({ item }: { item: typeof cateringServices[0] }) => (
+    <div
+      style={{
+        backgroundColor: 'white',
+        borderRadius: '1.25rem',
+        overflow: 'hidden',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+        border: '1px solid #e5e7eb',
+        transition: 'all 0.3s ease',
+        cursor: 'pointer',
+        position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.boxShadow = '0 16px 32px rgba(102, 126, 234, 0.15)';
+        e.currentTarget.style.transform = 'translateY(-8px)';
+        e.currentTarget.style.borderColor = '#667eea';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08)';
+        e.currentTarget.style.transform = 'translateY(0)';
+        e.currentTarget.style.borderColor = '#e5e7eb';
+      }}
+    >
+      {/* Image Container */}
       <div
         style={{
-          backgroundColor: '#f97316',
-          color: 'white',
-          paddingTop: '4rem',
-          paddingBottom: '2rem',
-          marginBottom: '2rem',
+          position: 'relative',
+          width: '100%',
+          height: '220px',
+          overflow: 'hidden',
+          backgroundColor: '#f3f4f6',
         }}
       >
-        <div className="max-w-7xl px-4">
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '1rem' }}>
-            Find Your Perfect Caterer
-          </h1>
-          <p style={{ fontSize: '1rem', opacity: 0.9 }}>
-            Browse {allCaters.length}+ catering services across 19 countries
-          </p>
-        </div>
-      </div>
+        <img
+          src={item.image}
+          alt={item.name}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            transition: 'transform 0.3s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'scale(1.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+        />
 
-      <div className="max-w-7xl px-4" style={{ marginBottom: '4rem' }}>
-        {/* Search Bar */}
-        <div style={{ marginBottom: '2rem' }}>
-          <input
-            type="text"
-            placeholder="Search caterers by name or cuisine..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+        {/* Top Rated Badge */}
+        {item.isTopRated && (
+          <div
             style={{
-              width: '100%',
-              padding: '1rem',
-              border: '1px solid #e5e7eb',
-              borderRadius: '0.75rem',
-              fontSize: '1rem',
-              color: '#111827',
+              position: 'absolute',
+              top: '12px',
+              left: '12px',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              padding: '6px 12px',
+              borderRadius: '8px',
+              fontSize: '12px',
+              fontWeight: '700',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              zIndex: 10,
+              boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+            }}
+          >
+            <Star size={14} fill="white" />
+            Top Rated
+          </div>
+        )}
+
+        {/* Favorite Button */}
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            toggleFavorite(item.id);
+          }}
+          style={{
+            position: 'absolute',
+            top: '12px',
+            right: '12px',
+            backgroundColor: 'white',
+            border: 'none',
+            width: '44px',
+            height: '44px',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.12)',
+            zIndex: 10,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'scale(1.15)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+        >
+          <Heart
+            size={22}
+            style={{
+              color: favorites.includes(item.id) ? '#667eea' : '#cbd5e1',
+              fill: favorites.includes(item.id) ? '#667eea' : 'none',
+              transition: 'all 0.2s ease',
             }}
           />
+        </button>
+
+        {/* Price Tag */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '12px',
+            left: '12px',
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            color: 'white',
+            padding: '8px 12px',
+            borderRadius: '8px',
+            fontSize: '13px',
+            fontWeight: '700',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+          }}
+        >
+          <DollarSign size={14} />
+          {item.pricePerPerson}/person
+        </div>
+      </div>
+
+      {/* Content Container */}
+      <div style={{ padding: '1.5rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        {/* Name */}
+        <div>
+          <h3
+            style={{
+              fontSize: '1.1rem',
+              fontWeight: '800',
+              color: '#111827',
+              margin: 0,
+              marginBottom: '0.5rem',
+              lineHeight: '1.3',
+            }}
+          >
+            {item.name}
+          </h3>
+
+          {/* Rating */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              marginBottom: '0.75rem',
+            }}
+          >
+            <Star size={18} fill="#fbbf24" color="#fbbf24" />
+            <span style={{ fontSize: '1rem', fontWeight: '700', color: '#111827' }}>
+              {item.rating}
+            </span>
+            <span style={{ fontSize: '0.85rem', color: '#6b7280' }}>
+              ({item.reviews} reviews)
+            </span>
+          </div>
         </div>
 
-        {/* Filter Tabs */}
-        <div style={{ marginBottom: '2rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-          <button
-            onClick={() => {
-              setFilterType('all');
-              setSelectedFilter('All Countries');
-            }}
-            style={{
-              padding: '0.75rem 1.5rem',
-              backgroundColor: filterType === 'all' ? '#f97316' : 'white',
-              color: filterType === 'all' ? 'white' : '#111827',
-              border: filterType === 'all' ? 'none' : '1px solid #e5e7eb',
-              borderRadius: '0.5rem',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.3s',
-              fontSize: '0.875rem',
-            }}
-          >
-            All Caterers
-          </button>
-          <button
-            onClick={() => {
-              setFilterType('country');
-              setSelectedFilter('All Countries');
-            }}
-            style={{
-              padding: '0.75rem 1.5rem',
-              backgroundColor: filterType === 'country' ? '#f97316' : 'white',
-              color: filterType === 'country' ? 'white' : '#111827',
-              border: filterType === 'country' ? 'none' : '1px solid #e5e7eb',
-              borderRadius: '0.5rem',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.3s',
-              fontSize: '0.875rem',
-            }}
-          >
-            By Country
-          </button>
-          <button
-            onClick={() => {
-              setFilterType('cuisine');
-              setSelectedFilter('All Cuisines');
-            }}
-            style={{
-              padding: '0.75rem 1.5rem',
-              backgroundColor: filterType === 'cuisine' ? '#f97316' : 'white',
-              color: filterType === 'cuisine' ? 'white' : '#111827',
-              border: filterType === 'cuisine' ? 'none' : '1px solid #e5e7eb',
-              borderRadius: '0.5rem',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.3s',
-              fontSize: '0.875rem',
-            }}
-          >
-            By Cuisine
-          </button>
-          <button
-            onClick={() => {
-              setFilterType('event');
-              setSelectedFilter('All Events');
-            }}
-            style={{
-              padding: '0.75rem 1.5rem',
-              backgroundColor: filterType === 'event' ? '#f97316' : 'white',
-              color: filterType === 'event' ? 'white' : '#111827',
-              border: filterType === 'event' ? 'none' : '1px solid #e5e7eb',
-              borderRadius: '0.5rem',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.3s',
-              fontSize: '0.875rem',
-            }}
-          >
-            By Event Type
-          </button>
+        {/* Location */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            color: '#667eea',
+            fontSize: '0.95rem',
+            fontWeight: '600',
+          }}
+        >
+          <MapPin size={16} strokeWidth={2.5} />
+          {item.location}
         </div>
 
-        {/* Filter Options */}
-        {filterType !== 'all' && (
-          <div style={{ marginBottom: '2rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap', maxHeight: '120px', overflowY: 'auto', paddingRight: '0.5rem' }}>
-            {filterOptions.map((option) => (
-              <button
-                key={option}
-                onClick={() => setSelectedFilter(option)}
+        {/* Price Range */}
+        <div>
+          <p
+            style={{
+              fontSize: '0.75rem',
+              color: '#6b7280',
+              margin: 0,
+              fontWeight: '700',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              marginBottom: '0.35rem',
+            }}
+          >
+            💰 Price Range
+          </p>
+          <p style={{ fontSize: '1rem', fontWeight: '800', color: '#667eea', margin: 0 }}>
+            {item.priceRange}
+          </p>
+        </div>
+
+        {/* Cuisine Tags */}
+        <div>
+          <p
+            style={{
+              fontSize: '0.75rem',
+              color: '#6b7280',
+              margin: 0,
+              fontWeight: '700',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              marginBottom: '0.5rem',
+            }}
+          >
+            🍛 Cuisine
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+            {item.cuisine.slice(0, 2).map((c, idx) => (
+              <span
+                key={idx}
                 style={{
-                  padding: '0.5rem 1rem',
-                  backgroundColor: selectedFilter === option ? '#fbbf24' : '#f3f4f6',
-                  color: selectedFilter === option ? '#92400e' : '#6b7280',
-                  border: selectedFilter === option ? 'none' : '1px solid #e5e7eb',
-                  borderRadius: '9999px',
-                  fontWeight: selectedFilter === option ? '600' : '500',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s',
-                  fontSize: '0.875rem',
-                  whiteSpace: 'nowrap',
+                  fontSize: '0.8rem',
+                  color: '#667eea',
+                  padding: '0.4rem 0.75rem',
+                  backgroundColor: '#ede9fe',
+                  borderRadius: '0.5rem',
+                  fontWeight: '600',
+                  border: '1px solid #ddd6fe',
                 }}
               >
-                {option}
-              </button>
+                {c}
+              </span>
             ))}
+            {item.cuisine.length > 2 && (
+              <span
+                style={{
+                  fontSize: '0.8rem',
+                  color: '#667eea',
+                  padding: '0.4rem 0.75rem',
+                  backgroundColor: '#ede9fe',
+                  borderRadius: '0.5rem',
+                  fontWeight: '600',
+                  border: '1px solid #ddd6fe',
+                }}
+              >
+                +{item.cuisine.length - 2}
+              </span>
+            )}
           </div>
-        )}
-
-        {/* Results Count */}
-        <div style={{ marginBottom: '1.5rem', color: '#6b7280', fontSize: '0.875rem' }}>
-          Showing {filteredCaters.length} of {allCaters.length} caterers
-          {selectedFilter !== 'All Countries' && selectedFilter !== 'All Cuisines' && selectedFilter !== 'All Events' && (
-            <span style={{ fontWeight: '600', color: '#f97316' }}>
-              {' '}· Filtered by: <strong>{selectedFilter}</strong>
-            </span>
-          )}
         </div>
 
-        {/* Caterers Grid */}
-        {filteredCaters.length > 0 ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
-            {filteredCaters.map((cater) => (
-              <Link key={cater.id} href={`/caters/${cater.id}`} style={{ textDecoration: 'none' }}>
-                <div
-                  style={{
-                    backgroundColor: 'white',
-                    borderRadius: '0.75rem',
-                    overflow: 'hidden',
-                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-                    transition: 'all 0.3s',
-                    border: '1px solid #e5e7eb',
-                    height: '100%',
-                    cursor: 'pointer',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.1)';
-                    e.currentTarget.style.transform = 'translateY(-4px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }}
-                >
-                  {/* Image */}
-                  <div
-                    style={{
-                      width: '100%',
-                      height: '180px',
-                      backgroundColor: '#f3f4f6',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '3.5rem',
-                      borderBottom: '1px solid #e5e7eb',
-                    }}
-                  >
-                    {cater.image}
-                  </div>
-
-                  {/* Content */}
-                  <div style={{ padding: '1.5rem' }}>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 'bold', color: '#111827', marginBottom: '0.25rem' }}>
-                      {cater.name}
-                    </h3>
-                    <p style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.75rem' }}>
-                      {cater.cuisine}
-                    </p>
-
-                    {/* Rating */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                      <span style={{ color: '#fbbf24', fontSize: '0.875rem' }}>
-                        {'★'.repeat(Math.floor(cater.rating))} {cater.rating}
-                      </span>
-                      <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>({cater.reviews})</span>
-                    </div>
-
-                    {/* Price & Location */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid #e5e7eb' }}>
-                      <div>
-                        <p style={{ fontSize: '0.75rem', color: '#9ca3af' }}>From</p>
-                        <p style={{ fontSize: '1.125rem', fontWeight: 'bold', color: '#f97316' }}>
-                          ${cater.pricePerPerson}
-                        </p>
-                      </div>
-                      <p style={{ fontSize: '0.75rem', color: '#6b7280', textAlign: 'right' }}>
-                        📍 {cater.country}
-                      </p>
-                    </div>
-
-                    {/* Event Types */}
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                      {cater.eventTypes.slice(0, 2).map((type, idx) => (
-                        <span
-                          key={idx}
-                          style={{
-                            fontSize: '0.7rem',
-                            backgroundColor: '#fef3c7',
-                            color: '#92400e',
-                            padding: '0.25rem 0.5rem',
-                            borderRadius: '0.25rem',
-                            fontWeight: '500',
-                          }}
-                        >
-                          {type}
-                        </span>
-                      ))}
-                      {cater.eventTypes.length > 2 && (
-                        <span
-                          style={{
-                            fontSize: '0.7rem',
-                            backgroundColor: '#f3f4f6',
-                            color: '#6b7280',
-                            padding: '0.25rem 0.5rem',
-                            borderRadius: '0.25rem',
-                          }}
-                        >
-                          +{cater.eventTypes.length - 2}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            ))}
+        {/* Min Order & Capacity */}
+        <div
+          style={{
+            display: 'flex',
+            gap: '1rem',
+            fontSize: '0.9rem',
+            color: '#6b7280',
+            paddingTop: '0.75rem',
+            borderTop: '1px solid #e5e7eb',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <Users size={14} />
+            <span>Min: {item.minOrder}</span>
           </div>
-        ) : (
-          <div style={{ textAlign: 'center', padding: '3rem', backgroundColor: 'white', borderRadius: '0.75rem' }}>
-            <p style={{ fontSize: '1.125rem', color: '#6b7280', marginBottom: '1rem' }}>
-              No caterers found matching your criteria.
-            </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <Users size={14} />
+            <span>Max: {item.maxOrder}</span>
+          </div>
+        </div>
+
+        {/* CTA Button */}
+        <button
+          onClick={() => (window.location.href = `/caterers/${item.id}`)}
+          style={{
+            width: '100%',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            border: 'none',
+            padding: '1rem',
+            borderRadius: '0.75rem',
+            fontSize: '0.95rem',
+            fontWeight: '700',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem',
+            marginTop: 'auto',
+            boxShadow: '0 4px 12px rgba(102, 126, 234, 0.2)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.35)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.2)';
+          }}
+        >
+          View Profile
+          <ArrowRight size={18} strokeWidth={2.5} />
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{ backgroundColor: '#f9fafb', minHeight: '100vh' }}>
+      {/* STICKY SEARCH BAR */}
+      <div
+        ref={searchBarRef}
+        style={{
+          position: isSticky ? 'fixed' : 'relative',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 40,
+          backgroundColor: 'white',
+          borderBottom: isSticky ? '1px solid #e5e7eb' : 'none',
+          boxShadow: isSticky ? '0 4px 12px rgba(0, 0, 0, 0.08)' : 'none',
+          transition: 'all 0.3s ease',
+          padding: isSticky ? '1rem 2rem' : '2rem',
+        }}
+      >
+        <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: isSticky ? 'repeat(4, 1fr)' : 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '1rem',
+              alignItems: 'center',
+            }}
+          >
+            {/* Location */}
+            <div style={{ position: 'relative' }}>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '0.75rem',
+                  fontWeight: '700',
+                  color: '#6b7280',
+                  marginBottom: '0.35rem',
+                  textTransform: 'uppercase',
+                }}
+              >
+                📍 Location
+              </label>
+              <input
+                type="text"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="City or area"
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '0.5rem',
+                  fontSize: '0.95rem',
+                  fontWeight: '500',
+                  transition: 'all 0.2s ease',
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = '#667eea';
+                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = '#e5e7eb';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              />
+            </div>
+
+            {/* Event Type */}
+            <div style={{ position: 'relative' }}>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '0.75rem',
+                  fontWeight: '700',
+                  color: '#6b7280',
+                  marginBottom: '0.35rem',
+                  textTransform: 'uppercase',
+                }}
+              >
+                🎉 Event Type
+              </label>
+              <select
+                value={eventType}
+                onChange={(e) => setEventType(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '0.5rem',
+                  fontSize: '0.95rem',
+                  fontWeight: '500',
+                  appearance: 'none',
+                  backgroundColor: 'white',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = '#667eea';
+                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = '#e5e7eb';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                <option value="">All Events</option>
+                <option value="wedding">Wedding</option>
+                <option value="corporate">Corporate</option>
+                <option value="birthday">Birthday</option>
+                <option value="anniversary">Anniversary</option>
+              </select>
+              <ChevronDown
+                size={18}
+                style={{
+                  position: 'absolute',
+                  right: '0.75rem',
+                  top: isSticky ? '2.25rem' : '2.35rem',
+                  pointerEvents: 'none',
+                  color: '#9ca3af',
+                }}
+              />
+            </div>
+
+            {/* Guest Count */}
+            <div style={{ position: 'relative' }}>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '0.75rem',
+                  fontWeight: '700',
+                  color: '#6b7280',
+                  marginBottom: '0.35rem',
+                  textTransform: 'uppercase',
+                }}
+              >
+                👥 Guests
+              </label>
+              <input
+                type="number"
+                value={guestCount}
+                onChange={(e) => setGuestCount(e.target.value)}
+                placeholder="Number of guests"
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid #e5e7eb',
+                  borderRadius: '0.5rem',
+                  fontSize: '0.95rem',
+                  fontWeight: '500',
+                  transition: 'all 0.2s ease',
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = '#667eea';
+                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = '#e5e7eb';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              />
+            </div>
+
+            {/* Search Button */}
             <button
-              onClick={() => {
-                setFilterType('all');
-                setSelectedFilter('All Countries');
-                setSearchQuery('');
-              }}
               style={{
-                padding: '0.75rem 1.5rem',
-                backgroundColor: '#f97316',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                 color: 'white',
                 border: 'none',
+                padding: '0.75rem 1.5rem',
                 borderRadius: '0.5rem',
-                fontWeight: '600',
+                fontWeight: '700',
                 cursor: 'pointer',
-                fontSize: '0.875rem',
+                transition: 'all 0.3s ease',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                fontSize: '0.95rem',
+                marginTop: isSticky ? '0' : '1.75rem',
+                height: isSticky ? '2.5rem' : 'auto',
+                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.2)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.2)';
               }}
             >
-              View All Caterers
+              <Search size={18} strokeWidth={2.5} />
+              Search
             </button>
+          </div>
+        </div>
+      </div>
+
+      {/* QUICK FILTERS */}
+      <div
+        style={{
+          maxWidth: '1400px',
+          margin: '0 auto',
+          padding: '1.5rem 2rem',
+          backgroundColor: '#ffffff',
+          borderBottom: '1px solid #e5e7eb',
+        }}
+      >
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#6b7280', textTransform: 'uppercase' }}>
+            Quick Filters:
+          </span>
+          {quickFilters.map((filter) => (
+            <button
+              key={filter.value}
+              onClick={() =>
+                setActiveQuickFilter(activeQuickFilter === filter.value ? null : filter.value)
+              }
+              style={{
+                padding: '0.65rem 1.25rem',
+                background: activeQuickFilter === filter.value 
+                  ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                  : '#f3f4f6',
+                color: activeQuickFilter === filter.value ? 'white' : '#111827',
+                border: activeQuickFilter === filter.value 
+                  ? 'none' 
+                  : '1px solid #e5e7eb',
+                borderRadius: '9999px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                fontSize: '0.85rem',
+                boxShadow: activeQuickFilter === filter.value 
+                  ? '0 4px 12px rgba(102, 126, 234, 0.3)' 
+                  : 'none',
+              }}
+              onMouseEnter={(e) => {
+                if (activeQuickFilter !== filter.value) {
+                  e.currentTarget.style.backgroundColor = '#e5e7eb';
+                } else {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.4)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeQuickFilter !== filter.value) {
+                  e.currentTarget.style.backgroundColor = '#f3f4f6';
+                } else {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
+                }
+              }}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* RESULTS COUNT + SORT */}
+      <div
+        style={{
+          maxWidth: '1400px',
+          margin: '0 auto',
+          padding: '1.5rem 2rem',
+          backgroundColor: '#ffffff',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          borderBottom: '1px solid #e5e7eb',
+          flexWrap: 'wrap',
+          gap: '1rem',
+        }}
+      >
+        <p style={{ margin: 0, fontWeight: '700', color: '#111827' }}>
+          <span style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', fontSize: '1.2rem', fontWeight: '800' }}>
+            {sortedServices.length}
+          </span>
+          {' '}Caterers found in Hyderabad
+        </p>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#6b7280' }}>Sort by:</span>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            style={{
+              padding: '0.65rem 1rem',
+              border: '1px solid #e5e7eb',
+              borderRadius: '0.5rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              backgroundColor: 'white',
+              appearance: 'none',
+              transition: 'all 0.2s ease',
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = '#667eea';
+              e.currentTarget.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = '#e5e7eb';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
+          >
+            <option value="relevance">Relevance</option>
+            <option value="price">Price (Low to High)</option>
+            <option value="rating">Rating (High to Low)</option>
+          </select>
+        </div>
+      </div>
+
+      {/* CATERER CARDS GRID */}
+      <div
+        style={{
+          maxWidth: '1400px',
+          margin: '0 auto',
+          padding: '2rem',
+        }}
+      >
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+            gap: '2rem',
+          }}
+        >
+          {sortedServices.map((service) => (
+            <CatererCard key={service.id} item={service} />
+          ))}
+        </div>
+
+        {sortedServices.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '3rem 2rem', color: '#6b7280' }}>
+            <p style={{ fontSize: '1.1rem', fontWeight: '600' }}>No caterers found</p>
+            <p>Try adjusting your filters or search criteria</p>
           </div>
         )}
       </div>
-    </main>
+    </div>
   );
 };
 
-export default AllCaterersPage;
+export default CateringPage;

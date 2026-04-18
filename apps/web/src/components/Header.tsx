@@ -24,7 +24,7 @@ const Header = () => {
 
   const navLinks = [
     { label: 'Home', href: '/' },
-    { label: 'Find Caterers ', href: '/catering' },
+    { label: 'Find Caterers ', href: '/caterers' },
     { label: 'Meal Plans', href: '/meals' },
   ];
 

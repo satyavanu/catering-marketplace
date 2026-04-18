@@ -98,6 +98,7 @@ const MealPlans = () => {
                 margin: '0 auto 2rem',
                 fontWeight: '500',
                 opacity: 0.95,
+                color: 'rgba(255, 255, 255, 0.9)',
               }}
             >
               Explore weekly & monthly meal plans from home chefs.
