@@ -507,62 +507,71 @@ export const authOptions: NextAuthOptions = {
 
           console.log('OTP Verification Result:', otpVerification);
 
-          if (!otpVerification.success || !otpVerification.data?.verified) {
+          if (!otpVerification.success) {
             throw new Error(
               otpVerification.message || 'Invalid OTP. Please try again.'
             );
           }
 
-          // ✅ Access nested data object
-          const userData = otpVerification?.data || {};
+          // ✅ FIX: Extract data.data just like email-otp
+          const userData = otpVerification.data?.data || {};
 
-          // If no role found, default to 'customer' and mark onboarding as completed
-          const userRole = userData.role || ('customer' as UserRole);
-          const onboardingStatus = 'completed';
+          console.log("Phone verify - userData extracted:", userData);
+          console.log("Phone verify - Tokens in userData:", {
+            access_token: userData.access_token ? 'SET' : 'EMPTY',
+            refresh_token: userData.refresh_token ? 'SET' : 'EMPTY',
+            expires_in: userData.expires_in,
+          });
 
-          // Get permissions for the role
-          const userPermissions =
-            userData.permissions || rolePermissions[userRole] || [];
+          // If no role found, default to 'customer'
+          const userRole = userData.role || 'customer' as UserRole;
+          
+          // Determine onboarding status from backend
+          const onboardingStatus = userData.onboarding_status || 'pending';
 
-          const termsAccepted = userData.terms_accepted ?? false;
-          const privacyAccepted = userData.privacy_accepted ?? false;
-          const marketingEmail = userData.marketing_email ?? false;
-          const marketingSms = userData.marketing_sms ?? false;
-          const marketingPush = userData.marketing_push ?? false;
-          const marketingWhatsapp = userData.marketing_whatsapp ?? false;
-          const consentsProvided = userData.consents_provided ?? false;
-
-
-
-          return {
+          const returnUser = {
             id: userData.user_id || `phone-${Date.now()}`,
             email: userData.email || '',
-            name: userData.name || 'User',
+            name: userData.name || '',
             image: userData.image || '',
-            phone: credentials.phone,
+            phone: credentials.phone || '',
             role: userRole,
-            permissions: userPermissions,
-            isVerified: userData.email_verified || true,
+            permissions:
+              userData.permissions || rolePermissions[userRole] || [],
+            isVerified: userData.phone_verified || false,
             status: userData.status || 'active',
             onboarding: {
               status: onboardingStatus as OnboardingStatus,
               selectedRole: userRole,
-              completedAt: new Date(),
+              completedAt: onboardingStatus === 'completed' ? new Date() : undefined,
             },
-            isOnboardingCompleted: true,
-            // ✅ Access tokens from userData (nested data)
+            isOnboardingCompleted: onboardingStatus === 'completed',
+            // ✅ Access tokens correctly from userData
             accessToken: userData.access_token || '',
             refreshToken: userData.refresh_token || '',
-            tokenExpiresIn: userData.expires_in || 3600,
-            // ✅ Include consents in the returned user object
-            termsAccepted,
-            privacyAccepted,
-            marketingEmail,
-            marketingSms,
-            marketingPush,
-            marketingWhatsapp,
-            consentsProvided,
+            tokenExpiresIn: userData.expires_in || 900,
+            tokenType: userData.token_type || 'Bearer',
+            // Store consent flags
+            termsAccepted: userData.terms_accepted ?? false,
+            privacyAccepted: userData.privacy_accepted ?? false,
+            marketingEmail: userData.marketing_email ?? false,
+            marketingSms: userData.marketing_sms ?? false,
+            marketingPush: userData.marketing_push ?? false,
+            marketingWhatsapp: userData.marketing_whatsapp ?? false,
+            consentsProvided: userData.consents_provided ?? false,
           };
+
+          console.log("Phone - Return object before sending:", {
+            id: returnUser.id,
+            phone: returnUser.phone,
+            role: returnUser.role,
+            accessToken: returnUser.accessToken ? 'SET' : 'EMPTY',
+            refreshToken: returnUser.refreshToken ? 'SET' : 'EMPTY',
+            tokenExpiresIn: returnUser.tokenExpiresIn,
+            isOnboardingCompleted: returnUser.isOnboardingCompleted,
+          });
+
+          return returnUser;
         } catch (error: any) {
           console.error('Phone OTP authorization error:', error);
           throw new Error(
