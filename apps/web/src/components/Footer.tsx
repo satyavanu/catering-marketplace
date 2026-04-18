@@ -278,7 +278,7 @@ const Footer = () => {
               </a>
 
               <a
-                href="https://play.google.com/store/apps/details?id=com.caterhub.app"
+                href="https://play.google.com/store/apps/details?id=com.droooly.app"
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -433,7 +433,7 @@ const Footer = () => {
                 color: '#f97316',
               }}
             >
-              🍽️ CaterHub
+              
             </h3>
             <p
               style={{
@@ -977,9 +977,9 @@ const Footer = () => {
             {
               icon: '📧',
               label: 'Email Support',
-              contact: 'info@caterhub.com',
+              contact: 'info@droooly.com',
               subtext: 'Response time: 2 hours',
-              href: 'mailto:info@caterhub.com',
+              href: 'mailto:info@droooly.com',
             },
             {
               icon: '📱',
@@ -1058,7 +1058,7 @@ const Footer = () => {
               minWidth: '200px',
             }}
           >
-            © {currentYear} CaterHub. All rights reserved.
+            {currentYear} All rights reserved.
           </p>
 
           <div

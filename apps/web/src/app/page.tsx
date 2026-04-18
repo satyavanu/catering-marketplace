@@ -7,15 +7,15 @@ import LatestCaters from '@/components/LatestCaters';
 import CustomerReviews from '@/components/CustomerReviews';
 import HowItWorks from '@/components/HowItWorks';
 import SocialProof from '@/components/SocialProof';
+import MealPlans from '@/components/MealPlans';
 
 export default function HomePage() {
   return (
     <main>
       <HeroSection />
-      <SocialProof />
-      <HowItWorks />
-      <CategoryTabs />
       <LatestCaters />
+      <MealPlans />
+      <SocialProof />
     </main>
   );
 }

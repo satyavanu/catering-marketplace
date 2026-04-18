@@ -1,9 +1,28 @@
 'use client';
 
 import React from 'react';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Utensils, Calendar, Home } from 'lucide-react';
+import Link from 'next/link';
 
-const SocialProof = () => {
+const MealPlans = () => {
+  const features = [
+    {
+      icon: <Calendar size={28} />,
+      title: 'Weekly Plans',
+      description: 'Customized meals delivered every week',
+    },
+    {
+      icon: <Utensils size={28} />,
+      title: 'Healthy Options',
+      description: 'Nutritious meals tailored to your diet',
+    },
+    {
+      icon: <Home size={28} />,
+      title: 'Local Chefs',
+      description: 'Fresh meals from home chefs near you',
+    },
+  ];
+
   return (
     <section
       style={{
@@ -17,12 +36,9 @@ const SocialProof = () => {
           maxWidth: '1200px',
           margin: '0 auto',
           padding: '0 32px',
-          textAlign: 'center',
-          position: 'relative',
-          overflow: 'hidden',
         }}
       >
-        {/* CTA Section */}
+        {/* Main Content */}
         <div
           style={{
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
@@ -31,6 +47,8 @@ const SocialProof = () => {
             color: 'white',
             position: 'relative',
             overflow: 'hidden',
+            textAlign: 'center',
+            marginBottom: '4rem',
           }}
         >
           {/* Decorative Elements */}
@@ -70,7 +88,7 @@ const SocialProof = () => {
                 textShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
               }}
             >
-              Ready to Plan Your Event?
+              🍱 Looking for Daily Meals?
             </h2>
             <p
               style={{
@@ -80,16 +98,16 @@ const SocialProof = () => {
                 margin: '0 auto 2rem',
                 fontWeight: '500',
                 opacity: 0.95,
-                color: 'rgba(255, 255, 255, 0.9)',
               }}
             >
-              Find the perfect caterer for your occasion today.
+              Explore weekly & monthly meal plans from home chefs.
             </p>
-            <button
-              onClick={() => {
-                window.location.href = '/search';
-              }}
+            <Link
+              href="/meals"
               style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.75rem',
                 padding: 'clamp(0.875rem, 2vw, 1.125rem) clamp(2rem, 5vw, 3rem)',
                 backgroundColor: 'white',
                 color: '#667eea',
@@ -100,9 +118,7 @@ const SocialProof = () => {
                 fontSize: 'clamp(0.95rem, 2vw, 1.1rem)',
                 transition: 'all 0.3s ease',
                 boxShadow: '0 12px 30px rgba(0, 0, 0, 0.25)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.75rem',
+                textDecoration: 'none',
                 fontFamily: 'inherit',
               }}
               onMouseEnter={(e) => {
@@ -114,10 +130,70 @@ const SocialProof = () => {
                 e.currentTarget.style.boxShadow = '0 12px 30px rgba(0, 0, 0, 0.25)';
               }}
             >
-              Find Caterers
+              View Meal Plans
               <ArrowRight size={20} strokeWidth={2.5} />
-            </button>
+            </Link>
           </div>
+        </div>
+
+        {/* Features Grid */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+            gap: '2rem',
+          }}
+        >
+          {features.map((feature, index) => (
+            <div
+              key={index}
+              style={{
+                textAlign: 'center',
+                padding: '2rem',
+                backgroundColor: '#f9fafb',
+                borderRadius: '1rem',
+                border: '1px solid #e5e7eb',
+                transition: 'all 0.3s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-8px)';
+                e.currentTarget.style.boxShadow = '0 12px 30px rgba(102, 126, 234, 0.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '70px',
+                  height: '70px',
+                  backgroundColor: '#ede9fe',
+                  borderRadius: '0.75rem',
+                  color: '#667eea',
+                  marginBottom: '1.5rem',
+                }}
+              >
+                {feature.icon}
+              </div>
+              <h3
+                style={{
+                  fontSize: '1.125rem',
+                  fontWeight: '700',
+                  color: '#111827',
+                  marginBottom: '0.75rem',
+                }}
+              >
+                {feature.title}
+              </h3>
+              <p style={{ color: '#6b7280', fontSize: '0.95rem', lineHeight: '1.6', margin: 0 }}>
+                {feature.description}
+              </p>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -141,4 +217,4 @@ const SocialProof = () => {
   );
 };
 
-export default SocialProof;
+export default MealPlans;

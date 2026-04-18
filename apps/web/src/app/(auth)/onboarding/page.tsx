@@ -5,60 +5,72 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { sendOtpApi, verifyOtpApi } from '@catering-marketplace/query-client';
 import {
-  ChefHat,
-  Users,
   Mail,
-  Phone,
   ArrowRight,
   Check,
-  MapPin,
-  FileText,
-  DollarSign,
   Shield,
   CreditCard,
   Clock,
   AlertCircle,
   Utensils,
+  Loader,
+  Plus,
+  Trash2,
+  ChevronDown,
 } from 'lucide-react';
-import { TermsAndCommunications } from './components/TermsAndCommunications';
 
-type UserRole = 'customer' | 'caterer';
 type OnboardingStep =
-  | 'role-select'
   | 'phone-verification'
-  | 'profile'
-  | 'address'
+  | 'basic-profile'
   | 'business-details'
-  | 'kyc-compliance'
-  | 'payment-setup'
-  | 'operations-availability'
-  | 'cancellation-policies'
-  | 'service-details'
-  | 'complete';
+  | 'kyc-payments'
+  | 'menu-setup'
+  | 'packages'
+  | 'completion';
 
-type ServiceRadius = 'city-wide' | 'specific-radius';
-type EventType =
-  | 'wedding'
-  | 'corporate'
-  | 'birthday'
-  | 'anniversary'
-  | 'engagement'
-  | 'other';
-type ServiceType =
-  | 'full-service'
-  | 'buffet'
-  | 'plated'
-  | 'cocktail'
-  | 'dessert';
+type BusinessType = 'home-chef' | 'small-caterer' | 'catering-service';
+type ServiceAreaType = 'city' | 'locality' | 'pincode';
+type DietType = 'veg' | 'non-veg' | 'both';
+type MenuItem = {
+  id: string;
+  name: string;
+  category: string;
+  price: number;
+  description: string;
+};
+
+type Package = {
+  id: string;
+  name: string;
+  numberOfPeople: number;
+  items: string[];
+  price: number;
+};
+
+interface ServiceArea {
+  type: ServiceAreaType;
+  value: string;
+}
+
+interface BankDetails {
+  BANK: string;
+  ADDRESS: string;
+  CENTRE: string;
+  CITY: string;
+  MICR: string;
+  NEFT: boolean;
+  RTGS: boolean;
+  IMPS: boolean;
+  UPI: boolean;
+}
 
 export default function OnboardingPage() {
   const router = useRouter();
   const { data: session, status, update: updateSession } = useSession();
-  const [selectedRole, setSelectedRole] = useState<UserRole>('customer');
   const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [onboardingStep, setOnboardingStep] =
-    useState<OnboardingStep>('role-select');
+    useState<OnboardingStep>('phone-verification');
 
   // Phone Verification
   const [phone, setPhone] = useState('');
@@ -71,72 +83,52 @@ export default function OnboardingPage() {
   const [error, setError] = useState('');
   const [isRedirecting, setIsRedirecting] = useState(false);
 
-  // Profile fields
+  // Step 2: Basic Profile
   const [fullName, setFullName] = useState(session?.user?.name || '');
   const [businessName, setBusinessName] = useState('');
-  const [businessDescription, setBusinessDescription] = useState('');
+  const [businessType, setBusinessType] = useState<BusinessType>('small-caterer');
+  const [serviceAreas, setServiceAreas] = useState<ServiceArea[]>([]);
+  const [newAreaType, setNewAreaType] = useState<ServiceAreaType>('city');
+  const [newAreaValue, setNewAreaValue] = useState('');
 
-  // Address fields
-  const [street, setStreet] = useState('');
-  const [city, setCity] = useState('');
-  const [state, setState] = useState('');
-  const [zipCode, setZipCode] = useState('');
-  const [country, setCountry] = useState('India');
+  // Step 3: Business Details
+  const [yearsInBusiness, setYearsInBusiness] = useState('');
+  const [cuisines, setCuisines] = useState<string[]>([]);
+  const [dietType, setDietType] = useState<DietType>('both');
+  const [capacity, setCapacity] = useState('');
+  const [baseLocation, setBaseLocation] = useState('');
 
-  // Business Details
-  const [cuisineType, setCuisineType] = useState('');
-  const [yearsOfExperience, setYearsOfExperience] = useState('');
-  const [teamSize, setTeamSize] = useState('');
-
-  // KYC & Compliance
+  // Step 4: KYC & Payments
   const [panNumber, setPanNumber] = useState('');
   const [panFile, setPanFile] = useState<File | null>(null);
-  const [aadharNumber, setAadharNumber] = useState('');
-  const [aadharFront, setAadharFront] = useState<File | null>(null);
-  const [aadharBack, setAadharBack] = useState<File | null>(null);
-  const [fssaiNumber, setFssaiNumber] = useState('');
-  const [fssaiFile, setFssaiFile] = useState<File | null>(null);
-  const [gstNumber, setGstNumber] = useState('');
-  const [gstFile, setGstFile] = useState<File | null>(null);
-
-  // Payment Setup
-  const [accountNumber, setAccountNumber] = useState('');
   const [ifscCode, setIfscCode] = useState('');
-  const [upiId, setUpiId] = useState('');
-  const [bankName, setBankName] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
   const [accountHolderName, setAccountHolderName] = useState('');
+  const [upiId, setUpiId] = useState('');
+  const [bankDetails, setBankDetails] = useState<BankDetails | null>(null);
+  const [isValidatingIFSC, setIsValidatingIFSC] = useState(false);
+  const [ifscError, setIfscError] = useState('');
+  const ifscTimeoutRef = useRef<NodeJS.Timeout>();
 
-  // Operations Availability
-  const [kitchenType, setKitchenType] = useState('');
-  const [operatingDays, setOperatingDays] = useState<string[]>([]);
-  const [operatingHoursStart, setOperatingHoursStart] = useState('09:00');
-  const [operatingHoursEnd, setOperatingHoursEnd] = useState('22:00');
+  // Step 5: Menu Setup
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [newMenuItem, setNewMenuItem] = useState<Partial<MenuItem>>({
+    name: '',
+    category: 'starter',
+    price: 0,
+    description: '',
+  });
+  const [menuAddedCount, setMenuAddedCount] = useState(0);
 
-  // Cancellation Policies
-  const [cancellationPolicySummary, setCancellationPolicySummary] =
-    useState('');
-  const [advanceNoticeRequired, setAdvanceNoticeRequired] = useState('7');
+  // Step 6: Packages
+  const [packages, setPackages] = useState<Package[]>([]);
+  const [newPackage, setNewPackage] = useState<Partial<Package>>({
+    name: '',
+    numberOfPeople: 10,
+    items: [],
+    price: 0,
+  });
 
-  // Service Details
-  const [selectedEventTypes, setSelectedEventTypes] = useState<EventType[]>([]);
-  const [selectedServiceTypes, setSelectedServiceTypes] = useState<
-    ServiceType[]
-  >([]);
-  const [minGuests, setMinGuests] = useState('');
-  const [maxGuests, setMaxGuests] = useState('');
-  const [priceRangeMin, setPriceRangeMin] = useState('');
-  const [priceRangeMax, setPriceRangeMax] = useState('');
-  const [serviceRadius, setServiceRadius] =
-    useState<ServiceRadius>('city-wide');
-  const [serviceRadius_km, setServiceRadius_km] = useState('');
-
-  const [agreeTerms, setAgreeTerms] = useState(false);
-  const [agreePrivacy, setAgreePrivacy] = useState(false);
-  const [emailMarketing, setEmailMarketing] = useState(false);
-  const [smsMarketing, setSmsMarketing] = useState(false);
-  const [pushNotifications, setPushNotifications] = useState(false);
-
-  // Track if initial redirect check has been done
   const initialRedirectChecked = useRef(false);
 
   const COUNTRY_CODES = [
@@ -145,131 +137,59 @@ export default function OnboardingPage() {
     { code: '+91', country: 'India' },
     { code: '+86', country: 'China' },
     { code: '+81', country: 'Japan' },
-    { code: '+33', country: 'France' },
-    { code: '+49', country: 'Germany' },
-    { code: '+39', country: 'Italy' },
   ];
 
-  const CUISINE_TYPES = [
-    'Indian',
-    'Chinese',
-    'Italian',
-    'Continental',
-    'North Indian',
+  const CUISINES = [
     'South Indian',
+    'North Indian',
+    'Chinese',
+    'Continental',
+    'Italian',
     'Mughlai',
-    'Asian Fusion',
-    'Multi-Cuisine',
+    'Desserts',
+    'Bakery',
+    'Fusion',
     'Other',
   ];
 
-  const KITCHEN_TYPES = [
-    'Commercial Kitchen',
-    'Home Kitchen',
-    'Cloud Kitchen',
-    'Central Commissary',
-    'Rented Space',
+  const MENU_CATEGORIES = [
+    'Starter',
+    'Main Course',
+    'Dessert',
+    'Beverage',
+    'Sides',
+    'Other',
   ];
 
-  const DAYS_OF_WEEK = [
-    'Monday',
-    'Tuesday',
-    'Wednesday',
-    'Thursday',
-    'Friday',
-    'Saturday',
-    'Sunday',
-  ];
-
-  const EVENT_TYPES: { value: EventType; label: string }[] = [
-    { value: 'wedding', label: 'Wedding' },
-    { value: 'corporate', label: 'Corporate Events' },
-    { value: 'birthday', label: 'Birthday Party' },
-    { value: 'anniversary', label: 'Anniversary' },
-    { value: 'engagement', label: 'Engagement' },
-    { value: 'other', label: 'Other Events' },
-  ];
-
-  const SERVICE_TYPES: { value: ServiceType; label: string }[] = [
-    { value: 'full-service', label: 'Full Service (Setup & Service)' },
-    { value: 'buffet', label: 'Buffet Service' },
-    { value: 'plated', label: 'Plated Dinner' },
-    { value: 'cocktail', label: 'Cocktail Service' },
-    { value: 'dessert', label: 'Dessert & Bakery' },
+  const onboardingSteps: OnboardingStep[] = [
+    'phone-verification',
+    'basic-profile',
+    'business-details',
+    'kyc-payments',
+    'menu-setup',
+    'packages',
+    'completion',
   ];
 
   const getStepNumber = (): string => {
-    if (selectedRole === 'customer') {
-      const customerSteps: OnboardingStep[] = [
-        'role-select',
-        'phone-verification',
-        'profile',
-        'complete',
-      ];
-      return `${customerSteps.indexOf(onboardingStep) + 1} of ${customerSteps.length}`;
-    } else {
-      const catererSteps: OnboardingStep[] = [
-        'role-select',
-        'phone-verification',
-        'profile',
-        'address',
-        'business-details',
-        'kyc-compliance',
-        'payment-setup',
-        'operations-availability',
-        'cancellation-policies',
-        'service-details',
-        'complete',
-      ];
-      return `${catererSteps.indexOf(onboardingStep) + 1} of ${catererSteps.length}`;
-    }
+    const currentIndex = onboardingSteps.indexOf(onboardingStep);
+    return `${currentIndex + 1} of ${onboardingSteps.length}`;
   };
 
   const getProgressPercentage = (): number => {
-    if (selectedRole === 'customer') {
-      const customerSteps: OnboardingStep[] = [
-        'role-select',
-        'phone-verification',
-        'profile',
-        'complete',
-      ];
-      return (
-        ((customerSteps.indexOf(onboardingStep) + 1) / customerSteps.length) *
-        100
-      );
-    } else {
-      const catererSteps: OnboardingStep[] = [
-        'role-select',
-        'phone-verification',
-        'profile',
-        'address',
-        'business-details',
-        'kyc-compliance',
-        'payment-setup',
-        'operations-availability',
-        'cancellation-policies',
-        'service-details',
-        'complete',
-      ];
-      return (
-        ((catererSteps.indexOf(onboardingStep) + 1) / catererSteps.length) * 100
-      );
-    }
+    const currentIndex = onboardingSteps.indexOf(onboardingStep);
+    return ((currentIndex + 1) / onboardingSteps.length) * 100;
   };
 
-  // Resend timer countdown
+  // Resend timer
   useEffect(() => {
     let interval: NodeJS.Timeout;
-
     if (resendTimer > 0) {
       interval = setInterval(() => {
         setResendTimer((prev) => prev - 1);
       }, 1000);
     }
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
+    return () => clearInterval(interval);
   }, [resendTimer]);
 
   // Initial mount
@@ -284,51 +204,70 @@ export default function OnboardingPage() {
     }
   }, [status, mounted, router]);
 
-  // Redirect if onboarding already completed
-  useEffect(() => {
-    if (initialRedirectChecked.current) {
+  // IFSC validation
+  const fetchIFSCDetails = async (code: string) => {
+    if (!code || code.length < 4) {
+      setBankDetails(null);
+      setIfscError('');
       return;
     }
 
-    if (status === 'loading' || !mounted || !session?.user) {
-      return;
+    setIsValidatingIFSC(true);
+    setIfscError('');
+
+    if (ifscTimeoutRef.current) {
+      clearTimeout(ifscTimeoutRef.current);
     }
 
-    initialRedirectChecked.current = true;
-
-    if (
-      session.user.role &&
-      session.user.isOnboardingCompleted &&
-      !isRedirecting
-    ) {
-      console.log(
-        `User already onboarded with role: ${session.user.role}, redirecting to dashboard`
+    try {
+      const response = await fetch(
+        `https://ifsc.razorpay.com/${code.toUpperCase()}`
       );
-      setIsRedirecting(true);
-      router.push(`/${session.user.role}/dashboard`);
-    }
-  }, [session, status, mounted, isRedirecting, router]);
 
-  const handleRoleSelect = (role: UserRole) => {
-    if (!agreeTerms || !agreePrivacy) {
-      setError(
-        'Please accept Terms & Conditions and Privacy Policy to continue'
-      );
-      return;
-    }
+      if (!response.ok) {
+        setIfscError('IFSC code not found. Please check and try again.');
+        setBankDetails(null);
+        setIsValidatingIFSC(false);
+        return;
+      }
 
-    setSelectedRole(role);
-    setFullName(session?.user?.name || '');
-    // Move to phone verification step
-    setOnboardingStep('phone-verification');
-    setError('');
-    setPhone('');
-    setOtp('');
-    setOtpSent(false);
-    setPhoneVerified(false);
-    setResendCount(0);
+      const data: BankDetails = await response.json();
+
+      if (data.BANK && data.CENTRE && data.CITY) {
+        setBankDetails(data);
+        setIfscError('');
+      } else {
+        setIfscError('Invalid IFSC code response. Please try again.');
+        setBankDetails(null);
+      }
+    } catch (err) {
+      console.error('Error fetching IFSC details:', err);
+      setIfscError('Failed to validate IFSC code. Please try again.');
+      setBankDetails(null);
+    } finally {
+      setIsValidatingIFSC(false);
+    }
   };
 
+  const handleIfscChange = (value: string) => {
+    const uppercaseValue = value.toUpperCase();
+    setIfscCode(uppercaseValue);
+
+    if (ifscTimeoutRef.current) {
+      clearTimeout(ifscTimeoutRef.current);
+    }
+
+    if (uppercaseValue.length >= 4) {
+      ifscTimeoutRef.current = setTimeout(() => {
+        fetchIFSCDetails(uppercaseValue);
+      }, 500);
+    } else {
+      setBankDetails(null);
+      setIfscError('');
+    }
+  };
+
+  // OTP Handlers
   const handleSendPhoneOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -347,10 +286,7 @@ export default function OnboardingPage() {
     }
 
     try {
-      const payload = {
-        phone: `${countryCode}${phone}`,
-      };
-
+      const payload = { phone: `${countryCode}${phone}` };
       const result = await sendOtpApi(payload);
 
       if (!result.success) {
@@ -388,22 +324,17 @@ export default function OnboardingPage() {
         otp,
       });
 
-      console.log('Satya', result);
-
       if (!result.success || !result?.data?.phone_verified) {
         setError(result.message || 'Invalid OTP. Please try again.');
         setIsLoading(false);
         return;
       }
 
-      // Mark phone as verified
       setPhoneVerified(true);
       setOtpSent(false);
       setOtp('');
       setError('');
-
-      // Move to profile step
-      setOnboardingStep('profile');
+      setOnboardingStep('basic-profile');
     } catch (err) {
       console.error('Error verifying OTP:', err);
       setError('Failed to verify OTP. Please try again.');
@@ -412,43 +343,14 @@ export default function OnboardingPage() {
     }
   };
 
-  const handleProfileSubmit = async (e: React.FormEvent) => {
+  // Step 2: Basic Profile Submit
+  const handleBasicProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
-    if (!fullName.trim()) {
-      setError('Full name is required');
-      setIsLoading(false);
-      return;
-    }
-
-    if (selectedRole === 'caterer' && !businessName.trim()) {
-      setError('Business name is required');
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      if (selectedRole === 'caterer') {
-        setOnboardingStep('address');
-      } else {
-        setOnboardingStep('complete');
-      }
-    } catch (err) {
-      setError('Failed to save profile. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleAddressSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
-
-    if (!street.trim() || !city.trim() || !state.trim() || !zipCode.trim()) {
-      setError('All address fields are required');
+    if (!fullName.trim() || !businessName.trim()) {
+      setError('Full name and business name are required');
       setIsLoading(false);
       return;
     }
@@ -456,25 +358,48 @@ export default function OnboardingPage() {
     try {
       setOnboardingStep('business-details');
     } catch (err) {
-      setError('Failed to save address. Please try again.');
+      setError('Failed to save profile. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Add Service Area
+  const addServiceArea = () => {
+    if (!newAreaValue.trim()) {
+      setError('Please enter a service area');
+      return;
+    }
+
+    const newArea: ServiceArea = {
+      type: newAreaType,
+      value: newAreaValue,
+    };
+
+    setServiceAreas([...serviceAreas, newArea]);
+    setNewAreaValue('');
+    setError('');
+  };
+
+  // Remove Service Area
+  const removeServiceArea = (index: number) => {
+    setServiceAreas(serviceAreas.filter((_, i) => i !== index));
+  };
+
+  // Step 3: Business Details Submit
   const handleBusinessDetailsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
-    if (!cuisineType || !yearsOfExperience || !teamSize) {
-      setError('All fields are required');
+    if (!yearsInBusiness || cuisines.length === 0 || !capacity.trim()) {
+      setError('Please fill in all required fields');
       setIsLoading(false);
       return;
     }
 
     try {
-      setOnboardingStep('kyc-compliance');
+      setOnboardingStep('kyc-payments');
     } catch (err) {
       setError('Failed to save business details. Please try again.');
     } finally {
@@ -482,31 +407,25 @@ export default function OnboardingPage() {
     }
   };
 
-  const handleKycComplianceSubmit = async (e: React.FormEvent) => {
+  // Step 4: KYC Skip or Continue
+  const handleKycSkip = () => {
+    setOnboardingStep('menu-setup');
+  };
+
+  const handleKycSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
-    if (!panNumber.trim()) {
-      setError('PAN number is required');
-      setIsLoading(false);
-      return;
-    }
-
-    if (!panFile) {
-      setError('PAN certificate document is required');
-      setIsLoading(false);
-      return;
-    }
-
-    if (!/^[A-Z0-9]{10}$/.test(panNumber.toUpperCase())) {
-      setError('Please enter a valid 10-character PAN number');
+    // Allow partial KYC - either PAN or UPI ID
+    if (!panNumber.trim() && !upiId.trim()) {
+      setError('Please provide either PAN number or UPI ID');
       setIsLoading(false);
       return;
     }
 
     try {
-      setOnboardingStep('payment-setup');
+      setOnboardingStep('menu-setup');
     } catch (err) {
       setError('Failed to save KYC details. Please try again.');
     } finally {
@@ -514,136 +433,125 @@ export default function OnboardingPage() {
     }
   };
 
-  const handlePaymentSetupSubmit = async (e: React.FormEvent) => {
+  // Add Menu Item
+  const addMenuItem = () => {
+    if (
+      !newMenuItem.name?.trim() ||
+      !newMenuItem.category ||
+      !newMenuItem.price
+    ) {
+      setError('Please fill in all menu item fields');
+      return;
+    }
+
+    const menuItem: MenuItem = {
+      id: Date.now().toString(),
+      name: newMenuItem.name || '',
+      category: newMenuItem.category || 'starter',
+      price: newMenuItem.price || 0,
+      description: newMenuItem.description || '',
+    };
+
+    setMenuItems([...menuItems, menuItem]);
+    setNewMenuItem({ name: '', category: 'starter', price: 0, description: '' });
+    setMenuAddedCount(menuAddedCount + 1);
+    setError('');
+  };
+
+  // Remove Menu Item
+  const removeMenuItem = (id: string) => {
+    setMenuItems(menuItems.filter((item) => item.id !== id));
+  };
+
+  // Step 5: Menu Setup Skip or Continue
+  const handleMenuSkip = () => {
+    setOnboardingStep('packages');
+  };
+
+  const handleMenuSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
-    if (!accountNumber.trim() || !ifscCode.trim() || !upiId.trim()) {
-      setError('Account number, IFSC code, and UPI ID are required');
-      setIsLoading(false);
-      return;
-    }
-
-    if (!bankName.trim() || !accountHolderName.trim()) {
-      setError('Bank name and account holder name are required');
+    if (menuItems.length === 0) {
+      setError('Please add at least one menu item');
       setIsLoading(false);
       return;
     }
 
     try {
-      setOnboardingStep('operations-availability');
+      setOnboardingStep('packages');
     } catch (err) {
-      setError('Failed to save payment details. Please try again.');
+      setError('Failed to save menu items. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleOperationsAvailabilitySubmit = async (e: React.FormEvent) => {
+  // Add Package
+  const addPackage = () => {
+    if (
+      !newPackage.name?.trim() ||
+      !newPackage.numberOfPeople ||
+      !newPackage.price
+    ) {
+      setError('Please fill in all package fields');
+      return;
+    }
+
+    const pkg: Package = {
+      id: Date.now().toString(),
+      name: newPackage.name || '',
+      numberOfPeople: newPackage.numberOfPeople || 10,
+      items: newPackage.items || [],
+      price: newPackage.price || 0,
+    };
+
+    setPackages([...packages, pkg]);
+    setNewPackage({ name: '', numberOfPeople: 10, items: [], price: 0 });
+    setError('');
+  };
+
+  // Remove Package
+  const removePackage = (id: string) => {
+    setPackages(packages.filter((pkg) => pkg.id !== id));
+  };
+
+  // Step 6: Packages Skip or Continue
+  const handlePackagesSkip = () => {
+    setOnboardingStep('completion');
+  };
+
+  const handlePackagesSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
-    if (!kitchenType) {
-      setError('Please select a kitchen type');
-      setIsLoading(false);
-      return;
-    }
-
-    if (operatingDays.length === 0) {
-      setError('Please select at least one operating day');
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      setOnboardingStep('cancellation-policies');
+      setOnboardingStep('completion');
     } catch (err) {
-      setError('Failed to save operations details. Please try again.');
+      setError('Failed to save packages. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleCancellationPoliciesSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
-
-    if (!cancellationPolicySummary.trim() || !advanceNoticeRequired) {
-      setError('Please provide cancellation policy details');
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      setOnboardingStep('service-details');
-    } catch (err) {
-      setError('Failed to save cancellation policies. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleServiceDetailsSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
-
-    if (selectedEventTypes.length === 0 || selectedServiceTypes.length === 0) {
-      setError('Please select at least one event type and service type');
-      setIsLoading(false);
-      return;
-    }
-
-    if (!minGuests || !maxGuests || !priceRangeMin || !priceRangeMax) {
-      setError('Please fill in all guest and price range fields');
-      setIsLoading(false);
-      return;
-    }
-
-    if (serviceRadius === 'specific-radius' && !serviceRadius_km) {
-      setError('Please enter service radius in kilometers');
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      setOnboardingStep('complete');
-    } catch (err) {
-      setError('Failed to save service details. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // Complete Onboarding
   const handleCompleteOnboarding = async () => {
     setIsLoading(true);
-
-    if (!selectedRole) {
-      setError('Please select a role');
-      setIsLoading(false);
-      return;
-    }
 
     try {
       await updateSession({
         ...session,
         user: {
           ...session?.user,
-          role: selectedRole,
+          role: 'caterer',
           isOnboardingCompleted: true,
-          isOnboardingPending: false,
-          onboarding: {
-            status: 'completed',
-            selectedRole: selectedRole,
-          },
         },
       });
 
       setIsRedirecting(true);
-      router.push(`/${selectedRole}/dashboard`);
+      router.push('/caterer/dashboard');
     } catch (err) {
       console.error('Error completing onboarding:', err);
       setError('Failed to complete onboarding. Please try again.');
@@ -656,17 +564,12 @@ export default function OnboardingPage() {
       <div style={styles.loadingContainer}>
         <div style={styles.loadingSpinner} />
         <p style={styles.loadingText}>Loading...</p>
-        <style>{`
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
+        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
-  if (!session?.user) {
+  if (!session?.user && onboardingStep !== 'phone-verification') {
     return null;
   }
 
@@ -675,408 +578,16 @@ export default function OnboardingPage() {
       <div style={styles.loadingContainer}>
         <div style={styles.loadingSpinner} />
         <p style={styles.loadingText}>Redirecting to dashboard...</p>
-        <style>{`
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
+        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
-  // Step 1: Role Selection with Phone Verification
-  if (
-    onboardingStep === 'role-select' ||
-    onboardingStep === 'phone-verification'
-  ) {
+  // Step 1: Phone Verification
+  if (onboardingStep === 'phone-verification') {
     return (
       <div style={styles.container}>
-        <style>{`
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
-        <div style={styles.content}>
-          <div style={styles.progressContainer}>
-            <div
-              style={{
-                ...styles.progressBar,
-                width: `${getProgressPercentage()}%`,
-              }}
-            />
-          </div>
-
-          <div style={styles.stepIndicator}>
-            <span style={styles.stepNumber}>{getStepNumber()}</span>
-            <span style={styles.stepDot}>●</span>
-          </div>
-
-          {onboardingStep === 'role-select' ? (
-            <>
-              <div style={styles.header}>
-                <h1 style={styles.title}>Welcome to CaterHub! 👋</h1>
-                <p style={styles.subtitle}>
-                  Choose how you want to use CaterHub
-                </p>
-              </div>
-
-              <TermsAndCommunications/>
-            </>
-          ) : (
-            <>
-              <div style={styles.header}>
-                <h1 style={styles.title}>Verify Your Phone</h1>
-                <p style={styles.subtitle}>
-                  {selectedRole === 'caterer'
-                    ? 'We need to verify your business phone number'
-                    : 'Complete your profile setup'}
-                </p>
-              </div>
-
-              <div style={styles.userInfoBox}>
-                <div style={styles.userInfoItem}>
-                  <Mail size={18} color="#667eea" />
-                  <div>
-                    <p style={styles.userInfoLabel}>Email (Verified)</p>
-                    <p style={styles.userInfoValue}>{session.user.email}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div style={styles.verificationForm}>
-                {!otpSent ? (
-                  <form onSubmit={handleSendPhoneOtp}>
-                    <div style={styles.formGroup}>
-                      <label style={styles.label}>
-                        {selectedRole === 'caterer'
-                          ? 'Business Phone Number'
-                          : 'Phone Number'}
-                      </label>
-                      <div style={styles.phoneInputGroup}>
-                        <select
-                          value={countryCode}
-                          onChange={(e) => setCountryCode(e.target.value)}
-                          style={styles.countryCodeSelect}
-                          disabled={isLoading}
-                        >
-                          {COUNTRY_CODES.map((cc) => (
-                            <option key={cc.code} value={cc.code}>
-                              {cc.code}
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          type="tel"
-                          value={phone}
-                          onChange={(e) =>
-                            setPhone(e.target.value.replace(/[^\d]/g, ''))
-                          }
-                          placeholder="10 digits"
-                          style={styles.input}
-                          maxLength={15}
-                          disabled={isLoading}
-                        />
-                      </div>
-                      <p style={styles.helpText}>
-                        Enter phone number without country code
-                      </p>
-                    </div>
-
-                    {error && <div style={styles.errorMessage}>{error}</div>}
-
-                    <button
-                      type="submit"
-                      disabled={isLoading || !phone}
-                      style={{
-                        ...styles.submitButton,
-                        opacity: isLoading || !phone ? 0.6 : 1,
-                        cursor: isLoading || !phone ? 'not-allowed' : 'pointer',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isLoading && phone) {
-                          e.currentTarget.style.backgroundColor = '#ea580c';
-                          e.currentTarget.style.transform = 'translateY(-2px)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#f97316';
-                        e.currentTarget.style.transform = 'translateY(0)';
-                      }}
-                    >
-                      {isLoading ? 'Sending OTP...' : 'Send OTP'}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setOnboardingStep('role-select')}
-                      style={styles.backButton}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#f0f4ff';
-                        e.currentTarget.style.borderColor = '#667eea';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                        e.currentTarget.style.borderColor = '#d1d5db';
-                      }}
-                    >
-                      Back
-                    </button>
-                  </form>
-                ) : (
-                  <form onSubmit={handleVerifyPhoneOtp}>
-                    {!phoneVerified && (
-                      <>
-                        <div style={styles.formGroup}>
-                          <label style={styles.label}>Enter OTP</label>
-                          <p style={styles.otpSentText}>
-                            We've sent a verification code to {countryCode}{' '}
-                            {phone}
-                          </p>
-                          <input
-                            type="text"
-                            value={otp}
-                            onChange={(e) => {
-                              const value = e.target.value
-                                .replace(/[^\d]/g, '')
-                                .slice(0, 6);
-                              setOtp(value);
-                            }}
-                            placeholder="000000"
-                            style={{
-                              ...styles.input,
-                              fontSize: '1.5rem',
-                              letterSpacing: '0.25rem',
-                              textAlign: 'center',
-                              fontWeight: 'bold',
-                            }}
-                            maxLength={6}
-                            disabled={isLoading}
-                          />
-                        </div>
-
-                        {error && (
-                          <div
-                            style={{
-                              ...styles.errorMessage,
-                              backgroundColor: error.includes('remaining')
-                                ? '#dbeafe'
-                                : '#fee2e2',
-                              color: error.includes('remaining')
-                                ? '#1e40af'
-                                : '#991b1b',
-                              border: `1px solid ${
-                                error.includes('remaining')
-                                  ? '#bfdbfe'
-                                  : '#fecaca'
-                              }`,
-                            }}
-                          >
-                            {error}
-                          </div>
-                        )}
-
-                        <button
-                          type="submit"
-                          disabled={isLoading || otp.length !== 6}
-                          style={{
-                            ...styles.submitButton,
-                            opacity: isLoading || otp.length !== 6 ? 0.6 : 1,
-                            cursor:
-                              isLoading || otp.length !== 6
-                                ? 'not-allowed'
-                                : 'pointer',
-                          }}
-                          onMouseEnter={(e) => {
-                            if (!isLoading && otp.length === 6) {
-                              e.currentTarget.style.backgroundColor = '#ea580c';
-                              e.currentTarget.style.transform =
-                                'translateY(-2px)';
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = '#f97316';
-                            e.currentTarget.style.transform = 'translateY(0)';
-                          }}
-                        >
-                          {isLoading ? 'Verifying...' : 'Verify OTP'}
-                        </button>
-
-                        {/* Resend Section */}
-                        <div
-                          style={{
-                            padding: '1rem',
-                            backgroundColor: '#f0fdf4',
-                            border: '1px solid #dcfce7',
-                            borderRadius: '0.5rem',
-                            textAlign: 'center',
-                            marginTop: '1rem',
-                          }}
-                        >
-                          {resendTimer > 0 ? (
-                            <p
-                              style={{
-                                color: '#15803d',
-                                fontSize: '0.875rem',
-                                margin: '0 0 0.75rem 0',
-                              }}
-                            >
-                              Resend OTP in{' '}
-                              <span style={{ fontWeight: '600' }}>
-                                {resendTimer}s
-                              </span>
-                            </p>
-                          ) : (
-                            <p
-                              style={{
-                                color: '#6b7280',
-                                fontSize: '0.875rem',
-                                margin: '0 0 0.75rem 0',
-                              }}
-                            >
-                              Didn't receive OTP?
-                            </p>
-                          )}
-
-                          <button
-                            type="button"
-                            onClick={handleSendPhoneOtp}
-                            disabled={
-                              resendTimer > 0 || resendCount >= 3 || isLoading
-                            }
-                            style={{
-                              padding: '0.5rem 1rem',
-                              backgroundColor:
-                                resendTimer > 0 || resendCount >= 3
-                                  ? '#d1d5db'
-                                  : '#10b981',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '0.375rem',
-                              fontWeight: '600',
-                              fontSize: '0.875rem',
-                              cursor:
-                                resendTimer > 0 || resendCount >= 3
-                                  ? 'not-allowed'
-                                  : 'pointer',
-                              transition: 'all 0.3s ease',
-                            }}
-                            onMouseEnter={(e) => {
-                              if (resendTimer === 0 && resendCount < 3) {
-                                e.currentTarget.style.backgroundColor =
-                                  '#059669';
-                                e.currentTarget.style.transform =
-                                  'translateY(-2px)';
-                                e.currentTarget.style.boxShadow =
-                                  '0 4px 12px rgba(16, 185, 129, 0.3)';
-                              }
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor =
-                                resendTimer > 0 || resendCount >= 3
-                                  ? '#d1d5db'
-                                  : '#10b981';
-                              e.currentTarget.style.transform = 'translateY(0)';
-                              e.currentTarget.style.boxShadow = 'none';
-                            }}
-                          >
-                            {resendTimer > 0
-                              ? `Resend (${resendTimer}s)`
-                              : 'Resend OTP'}
-                          </button>
-
-                          <p
-                            style={{
-                              fontSize: '0.7rem',
-                              color: '#9ca3af',
-                              margin: '0.75rem 0 0 0',
-                            }}
-                          >
-                            {resendCount}/3 attempts used
-                          </p>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setOtpSent(false);
-                            setOtp('');
-                            setError('');
-                          }}
-                          disabled={isLoading}
-                          style={styles.backButton}
-                          onMouseEnter={(e) => {
-                            if (!isLoading) {
-                              e.currentTarget.style.backgroundColor = '#f0f4ff';
-                              e.currentTarget.style.borderColor = '#667eea';
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor =
-                              'transparent';
-                            e.currentTarget.style.borderColor = '#d1d5db';
-                          }}
-                        >
-                          Change Phone Number
-                        </button>
-                      </>
-                    )}
-
-                    {phoneVerified && (
-                      <div style={styles.successVerificationBox}>
-                        <div style={styles.checkmarkIcon}>✓</div>
-                        <h3 style={styles.verificationTitle}>
-                          Phone Verified!
-                        </h3>
-                        <p style={styles.verificationText}>
-                          {countryCode} {phone}
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => setOnboardingStep('profile')}
-                          style={{
-                            ...styles.ctaButton,
-                            marginTop: '1.5rem',
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = '#ea580c';
-                            e.currentTarget.style.transform =
-                              'translateY(-2px)';
-                            e.currentTarget.style.boxShadow =
-                              '0 8px 16px rgba(249, 115, 22, 0.3)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = '#f97316';
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = 'none';
-                          }}
-                        >
-                          Continue to Profile
-                          <ArrowRight size={20} />
-                        </button>
-                      </div>
-                    )}
-                  </form>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // Step 2: Profile Setup
-  if (onboardingStep === 'profile') {
-    return (
-      <div style={styles.container}>
-        <style>{`
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
+        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
         <div style={styles.content}>
           <div style={styles.progressContainer}>
             <div
@@ -1093,26 +604,167 @@ export default function OnboardingPage() {
           </div>
 
           <div style={styles.header}>
-            <h1 style={styles.title}>
-              {selectedRole === 'caterer'
-                ? 'Business Information'
-                : 'Complete Your Profile'}
-            </h1>
-            <p style={styles.subtitle}>
-              {selectedRole === 'caterer'
-                ? 'Tell us about your catering business'
-                : 'Help us personalize your experience'}
-            </p>
+            <h1 style={styles.title}>Welcome to Droooly</h1>
+            <p style={styles.subtitle}>Start selling your delicious food today</p>
           </div>
 
-          <div style={styles.verificationBadge}>
-            <Check size={16} color="#10b981" />
-            <span style={{ color: '#10b981', fontWeight: '600' }}>
-              Phone Verified: {countryCode} {phone}
-            </span>
+          <form onSubmit={handleSendPhoneOtp} style={styles.profileForm}>
+            {!otpSent ? (
+              <>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Phone Number *</label>
+                  <div style={styles.phoneInputGroup}>
+                    <select
+                      value={countryCode}
+                      onChange={(e) => setCountryCode(e.target.value)}
+                      style={styles.countryCodeSelect}
+                      disabled={isLoading}
+                    >
+                      {COUNTRY_CODES.map((cc) => (
+                        <option key={cc.code} value={cc.code}>
+                          {cc.code}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value.replace(/[^\d]/g, ''))}
+                      placeholder="10-digit phone number"
+                      style={styles.input}
+                      disabled={isLoading}
+                      maxLength={10}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {error && <div style={styles.errorMessage}>{error}</div>}
+
+                <button
+                  type="submit"
+                  disabled={isLoading || !phone || phone.length < 10}
+                  style={{
+                    ...styles.submitButton,
+                    opacity: isLoading || !phone || phone.length < 10 ? 0.6 : 1,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isLoading && phone && phone.length >= 10) {
+                      e.currentTarget.style.backgroundColor = '#ea580c';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#f97316';
+                  }}
+                >
+                  {isLoading ? 'Sending OTP...' : 'Send OTP'}
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Enter OTP *</label>
+                  <input
+                    type="text"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/[^\d]/g, ''))}
+                    placeholder="6-digit OTP"
+                    style={styles.input}
+                    disabled={isLoading}
+                    maxLength={6}
+                    required
+                  />
+                  <p style={styles.otpSentText}>
+                    OTP sent to {countryCode} {phone}
+                  </p>
+                </div>
+
+                {error && <div style={styles.errorMessage}>{error}</div>}
+
+                <button
+                  type="button"
+                  onClick={handleVerifyPhoneOtp}
+                  disabled={isLoading || !otp || otp.length !== 6}
+                  style={{
+                    ...styles.submitButton,
+                    opacity: isLoading || !otp || otp.length !== 6 ? 0.6 : 1,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isLoading && otp && otp.length === 6) {
+                      e.currentTarget.style.backgroundColor = '#ea580c';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#f97316';
+                  }}
+                >
+                  {isLoading ? 'Verifying...' : 'Verify OTP'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOtpSent(false);
+                    setOtp('');
+                    setError('');
+                  }}
+                  disabled={isLoading}
+                  style={styles.backButton}
+                >
+                  Change Phone Number
+                </button>
+
+                {resendTimer > 0 ? (
+                  <p style={styles.helpText}>
+                    Resend OTP in {resendTimer} seconds
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleSendPhoneOtp(new Event('submit') as any)}
+                    disabled={isLoading || resendCount >= 3}
+                    style={{
+                      ...styles.resendButton,
+                      opacity: isLoading || resendCount >= 3 ? 0.6 : 1,
+                    }}
+                  >
+                    Resend OTP
+                  </button>
+                )}
+              </>
+            )}
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 2: Basic Profile
+  if (onboardingStep === 'basic-profile') {
+    return (
+      <div style={styles.container}>
+        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+        <div style={styles.content}>
+          <div style={styles.progressContainer}>
+            <div
+              style={{
+                ...styles.progressBar,
+                width: `${getProgressPercentage()}%`,
+              }}
+            />
           </div>
 
-          <form onSubmit={handleProfileSubmit} style={styles.profileForm}>
+          <div style={styles.stepIndicator}>
+            <span style={styles.stepNumber}>{getStepNumber()}</span>
+            <span style={styles.stepDot}>●</span>
+          </div>
+
+          <div style={styles.header}>
+            <h1 style={styles.title}>Basic Profile</h1>
+            <p style={styles.subtitle}>Tell us about your catering business</p>
+          </div>
+
+          <form onSubmit={handleBasicProfileSubmit} style={styles.profileForm}>
             <div style={styles.formGroup}>
               <label style={styles.label}>Full Name *</label>
               <input
@@ -1126,193 +778,80 @@ export default function OnboardingPage() {
               />
             </div>
 
-            {selectedRole === 'caterer' && (
-              <>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Business Name *</label>
-                  <input
-                    type="text"
-                    value={businessName}
-                    onChange={(e) => setBusinessName(e.target.value)}
-                    placeholder="Your catering business name"
-                    style={styles.input}
-                    disabled={isLoading}
-                    required
-                  />
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Business Description</label>
-                  <textarea
-                    value={businessDescription}
-                    onChange={(e) => setBusinessDescription(e.target.value)}
-                    placeholder="Brief description of your catering services"
-                    style={{
-                      ...styles.input,
-                      minHeight: '100px',
-                      resize: 'vertical',
-                    }}
-                    disabled={isLoading}
-                    rows={4}
-                  />
-                  <p style={styles.helpText}>
-                    Share what makes your business special
-                  </p>
-                </div>
-              </>
-            )}
-
-            {error && <div style={styles.errorMessage}>{error}</div>}
-
-            <button
-              type="submit"
-              disabled={
-                isLoading ||
-                !fullName.trim() ||
-                (selectedRole === 'caterer' && !businessName.trim())
-              }
-              style={{
-                ...styles.submitButton,
-                opacity:
-                  isLoading ||
-                  !fullName.trim() ||
-                  (selectedRole === 'caterer' && !businessName.trim())
-                    ? 0.6
-                    : 1,
-              }}
-              onMouseEnter={(e) => {
-                if (!isLoading && fullName.trim()) {
-                  e.currentTarget.style.backgroundColor = '#ea580c';
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#f97316';
-              }}
-            >
-              {isLoading ? 'Saving...' : 'Continue'}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setOnboardingStep('phone-verification')}
-              disabled={isLoading}
-              style={styles.backButton}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#f0f4ff';
-                e.currentTarget.style.borderColor = '#667eea';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.borderColor = '#d1d5db';
-              }}
-            >
-              Back
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
-  // Step 3: Address (Caterer Only)
-  if (onboardingStep === 'address') {
-    return (
-      <div style={styles.container}>
-        <style>{`
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
-        <div style={styles.content}>
-          <div style={styles.progressContainer}>
-            <div
-              style={{
-                ...styles.progressBar,
-                width: `${getProgressPercentage()}%`,
-              }}
-            />
-          </div>
-
-          <div style={styles.stepIndicator}>
-            <span style={styles.stepNumber}>{getStepNumber()}</span>
-            <span style={styles.stepDot}>●</span>
-          </div>
-
-          <div style={styles.header}>
-            <h1 style={styles.title}>Business Address</h1>
-            <p style={styles.subtitle}>
-              Where is your catering kitchen located?
-            </p>
-          </div>
-
-          <form onSubmit={handleAddressSubmit} style={styles.profileForm}>
             <div style={styles.formGroup}>
-              <label style={styles.label}>Street Address *</label>
+              <label style={styles.label}>Business Name *</label>
               <input
                 type="text"
-                value={street}
-                onChange={(e) => setStreet(e.target.value)}
-                placeholder="Street address"
+                value={businessName}
+                onChange={(e) => setBusinessName(e.target.value)}
+                placeholder="Your catering business name"
                 style={styles.input}
                 disabled={isLoading}
                 required
               />
             </div>
 
-            <div style={styles.formRow}>
-              <div style={{ ...styles.formGroup, flex: 1 }}>
-                <label style={styles.label}>City *</label>
-                <input
-                  type="text"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  placeholder="City"
-                  style={styles.input}
-                  disabled={isLoading}
-                  required
-                />
-              </div>
-
-              <div style={{ ...styles.formGroup, flex: 1 }}>
-                <label style={styles.label}>State *</label>
-                <input
-                  type="text"
-                  value={state}
-                  onChange={(e) => setState(e.target.value)}
-                  placeholder="State"
-                  style={styles.input}
-                  disabled={isLoading}
-                  required
-                />
-              </div>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Business Type *</label>
+              <select
+                value={businessType}
+                onChange={(e) => setBusinessType(e.target.value as BusinessType)}
+                style={styles.input}
+                disabled={isLoading}
+                required
+              >
+                <option value="home-chef">Home Chef</option>
+                <option value="small-caterer">Small Caterer</option>
+                <option value="catering-service">Catering Service</option>
+              </select>
             </div>
 
-            <div style={styles.formRow}>
-              <div style={{ ...styles.formGroup, flex: 1 }}>
-                <label style={styles.label}>Zip Code *</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Service Areas</label>
+              <div style={styles.serviceAreaGroup}>
+                <select
+                  value={newAreaType}
+                  onChange={(e) => setNewAreaType(e.target.value as ServiceAreaType)}
+                  style={{ ...styles.input, flex: 0.5 }}
+                  disabled={isLoading}
+                >
+                  <option value="city">City</option>
+                  <option value="locality">Locality</option>
+                  <option value="pincode">Pincode</option>
+                </select>
                 <input
                   type="text"
-                  value={zipCode}
-                  onChange={(e) => setZipCode(e.target.value)}
-                  placeholder="Zip code"
-                  style={styles.input}
+                  value={newAreaValue}
+                  onChange={(e) => setNewAreaValue(e.target.value)}
+                  placeholder="Enter area name"
+                  style={{ ...styles.input, flex: 1 }}
                   disabled={isLoading}
-                  required
                 />
+                <button
+                  type="button"
+                  onClick={addServiceArea}
+                  disabled={isLoading || !newAreaValue.trim()}
+                  style={{ ...styles.addButton }}
+                >
+                  <Plus size={18} />
+                </button>
               </div>
 
-              <div style={{ ...styles.formGroup, flex: 1 }}>
-                <label style={styles.label}>Country *</label>
-                <input
-                  type="text"
-                  value={country}
-                  onChange={(e) => setCountry(e.target.value)}
-                  placeholder="Country"
-                  style={styles.input}
-                  disabled={isLoading}
-                  required
-                />
+              <div style={styles.tagContainer}>
+                {serviceAreas.map((area, index) => (
+                  <div key={index} style={styles.tag}>
+                    <span>
+                      {area.type}: {area.value}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeServiceArea(index)}
+                      style={styles.tagRemove}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -1320,19 +859,13 @@ export default function OnboardingPage() {
 
             <button
               type="submit"
-              disabled={
-                isLoading ||
-                !street.trim() ||
-                !city.trim() ||
-                !state.trim() ||
-                !zipCode.trim()
-              }
+              disabled={isLoading || !fullName.trim() || !businessName.trim()}
               style={{
                 ...styles.submitButton,
-                opacity: isLoading || !street.trim() ? 0.6 : 1,
+                opacity: isLoading || !fullName.trim() || !businessName.trim() ? 0.6 : 1,
               }}
               onMouseEnter={(e) => {
-                if (!isLoading) {
+                if (!isLoading && fullName.trim() && businessName.trim()) {
                   e.currentTarget.style.backgroundColor = '#ea580c';
                 }
               }}
@@ -1342,31 +875,17 @@ export default function OnboardingPage() {
             >
               {isLoading ? 'Saving...' : 'Continue'}
             </button>
-
-            <button
-              type="button"
-              onClick={() => setOnboardingStep('profile')}
-              disabled={isLoading}
-              style={styles.backButton}
-            >
-              Back
-            </button>
           </form>
         </div>
       </div>
     );
   }
 
-  // Step 4: Business Details (Caterer Only)
+  // Step 3: Business Details
   if (onboardingStep === 'business-details') {
     return (
       <div style={styles.container}>
-        <style>{`
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
+        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
         <div style={styles.content}>
           <div style={styles.progressContainer}>
             <div
@@ -1384,54 +903,82 @@ export default function OnboardingPage() {
 
           <div style={styles.header}>
             <h1 style={styles.title}>Business Details</h1>
-            <p style={styles.subtitle}>
-              Tell us more about your catering services
-            </p>
+            <p style={styles.subtitle}>Tell us more about your specializations</p>
           </div>
 
-          <form
-            onSubmit={handleBusinessDetailsSubmit}
-            style={styles.profileForm}
-          >
+          <form onSubmit={handleBusinessDetailsSubmit} style={styles.profileForm}>
             <div style={styles.formGroup}>
-              <label style={styles.label}>Cuisine Type *</label>
+              <label style={styles.label}>Years in Business *</label>
               <select
-                value={cuisineType}
-                onChange={(e) => setCuisineType(e.target.value)}
+                value={yearsInBusiness}
+                onChange={(e) => setYearsInBusiness(e.target.value)}
                 style={styles.input}
                 disabled={isLoading}
                 required
               >
-                <option value="">Select cuisine type</option>
-                {CUISINE_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
+                <option value="">Select years</option>
+                <option value="less-than-1">Less than 1 year</option>
+                <option value="1-3">1-3 years</option>
+                <option value="3-5">3-5 years</option>
+                <option value="5-10">5-10 years</option>
+                <option value="more-than-10">More than 10 years</option>
               </select>
             </div>
 
             <div style={styles.formGroup}>
-              <label style={styles.label}>Years of Experience *</label>
-              <input
-                type="number"
-                value={yearsOfExperience}
-                onChange={(e) => setYearsOfExperience(e.target.value)}
-                placeholder="Years of experience"
-                style={styles.input}
-                disabled={isLoading}
-                min="0"
-                required
-              />
+              <label style={styles.label}>Cuisines / Specializations *</label>
+              <div style={styles.checkboxGroup}>
+                {CUISINES.map((cuisine) => (
+                  <label key={cuisine} style={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={cuisines.includes(cuisine)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setCuisines([...cuisines, cuisine]);
+                        } else {
+                          setCuisines(cuisines.filter((c) => c !== cuisine));
+                        }
+                      }}
+                      style={styles.checkbox}
+                      disabled={isLoading}
+                    />
+                    {cuisine}
+                  </label>
+                ))}
+              </div>
             </div>
 
             <div style={styles.formGroup}>
-              <label style={styles.label}>Team Size *</label>
+              <label style={styles.label}>Diet Type *</label>
+              <div style={styles.radioGroup}>
+                {[
+                  { value: 'veg', label: 'Vegetarian' },
+                  { value: 'non-veg', label: 'Non-Vegetarian' },
+                  { value: 'both', label: 'Both' },
+                ].map((diet) => (
+                  <label key={diet.value} style={styles.radioLabel}>
+                    <input
+                      type="radio"
+                      value={diet.value}
+                      checked={dietType === diet.value}
+                      onChange={(e) => setDietType(e.target.value as DietType)}
+                      disabled={isLoading}
+                      style={styles.radioInput}
+                    />
+                    {diet.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Approx Capacity (people) *</label>
               <input
                 type="number"
-                value={teamSize}
-                onChange={(e) => setTeamSize(e.target.value)}
-                placeholder="Number of team members"
+                value={capacity}
+                onChange={(e) => setCapacity(e.target.value)}
+                placeholder="e.g., 50, 100, 500"
                 style={styles.input}
                 disabled={isLoading}
                 min="1"
@@ -1439,19 +986,29 @@ export default function OnboardingPage() {
               />
             </div>
 
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Base Location</label>
+              <input
+                type="text"
+                value={baseLocation}
+                onChange={(e) => setBaseLocation(e.target.value)}
+                placeholder="e.g., Hyderabad, Mumbai"
+                style={styles.input}
+                disabled={isLoading}
+              />
+            </div>
+
             {error && <div style={styles.errorMessage}>{error}</div>}
 
             <button
               type="submit"
-              disabled={
-                isLoading || !cuisineType || !yearsOfExperience || !teamSize
-              }
+              disabled={isLoading || !yearsInBusiness || cuisines.length === 0 || !capacity.trim()}
               style={{
                 ...styles.submitButton,
-                opacity: isLoading || !cuisineType ? 0.6 : 1,
+                opacity: isLoading || !yearsInBusiness ? 0.6 : 1,
               }}
               onMouseEnter={(e) => {
-                if (!isLoading) {
+                if (!isLoading && yearsInBusiness) {
                   e.currentTarget.style.backgroundColor = '#ea580c';
                 }
               }}
@@ -1464,7 +1021,7 @@ export default function OnboardingPage() {
 
             <button
               type="button"
-              onClick={() => setOnboardingStep('address')}
+              onClick={() => setOnboardingStep('basic-profile')}
               disabled={isLoading}
               style={styles.backButton}
             >
@@ -1476,16 +1033,11 @@ export default function OnboardingPage() {
     );
   }
 
-  // Step 5: KYC & Compliance (Caterer Only)
-  if (onboardingStep === 'kyc-compliance') {
+  // Step 4: KYC & Payments
+  if (onboardingStep === 'kyc-payments') {
     return (
       <div style={styles.container}>
-        <style>{`
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
+        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
         <div style={styles.content}>
           <div style={styles.progressContainer}>
             <div
@@ -1507,39 +1059,40 @@ export default function OnboardingPage() {
                 size={32}
                 style={{ marginRight: '0.5rem', display: 'inline' }}
               />
-              KYC & Compliance
+              KYC & Payments
             </h1>
-            <p style={styles.subtitle}>
-              Verify your business credentials for trust and compliance
-            </p>
+            <p style={styles.subtitle}>Complete KYC to receive payments</p>
           </div>
 
-          <form onSubmit={handleKycComplianceSubmit} style={styles.profileForm}>
-            {/* PAN Card - Required */}
-            <div style={styles.complianceSection}>
-              <h3 style={styles.sectionTitle}>
-                <span style={styles.requiredBadge}>Required</span>
-                PAN Number
-              </h3>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>PAN Number (10 characters) *</label>
-                <input
-                  type="text"
-                  value={panNumber}
-                  onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
-                  placeholder="e.g., AAAAA1234B"
-                  style={styles.input}
-                  disabled={isLoading}
-                  maxLength={10}
-                  required
-                />
-                <p style={styles.helpText}>
-                  Enter your 10-character PAN number (e.g., AAAAA1234B)
-                </p>
-              </div>
+          <form onSubmit={handleKycSubmit} style={styles.profileForm}>
+            <div style={styles.infoBox}>
+              <AlertCircle
+                size={20}
+                color="#0284c7"
+                style={{ marginRight: '0.75rem' }}
+              />
+              <p style={{ margin: 0, fontSize: '0.875rem', color: '#0c4a6e' }}>
+                You can skip this for now and complete later
+              </p>
+            </div>
 
+            <div style={styles.formGroup}>
+              <label style={styles.label}>PAN Number (Optional)</label>
+              <input
+                type="text"
+                value={panNumber}
+                onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
+                placeholder="e.g., AAAAA1234B"
+                style={styles.input}
+                disabled={isLoading}
+                maxLength={10}
+              />
+              <p style={styles.helpText}>10-character PAN number</p>
+            </div>
+
+            {panNumber && (
               <div style={styles.formGroup}>
-                <label style={styles.label}>Upload PAN Certificate *</label>
+                <label style={styles.label}>Upload PAN Certificate</label>
                 <div style={styles.fileInputWrapper}>
                   <input
                     type="file"
@@ -1547,177 +1100,132 @@ export default function OnboardingPage() {
                     style={styles.fileInput}
                     disabled={isLoading}
                     accept=".pdf,.jpg,.jpeg,.png"
-                    required
                   />
                   <p style={styles.helpText}>PDF, JPG, or PNG (Max 5MB)</p>
                 </div>
                 {panFile && <p style={styles.fileName}>✓ {panFile.name}</p>}
               </div>
+            )}
+
+            <div style={styles.divider} />
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Account Holder Name (Optional)</label>
+              <input
+                type="text"
+                value={accountHolderName}
+                onChange={(e) => setAccountHolderName(e.target.value)}
+                placeholder="Name as per bank account"
+                style={styles.input}
+                disabled={isLoading}
+              />
             </div>
 
-            {/* Aadhar Card - Optional */}
-            <div style={styles.complianceSection}>
-              <h3 style={styles.sectionTitle}>
-                <span style={styles.optionalBadge}>Optional</span>
-                Aadhar Card
-              </h3>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Aadhar Number (12 digits)</label>
-                <input
-                  type="text"
-                  value={aadharNumber}
-                  onChange={(e) =>
-                    setAadharNumber(e.target.value.replace(/[^\d]/g, ''))
-                  }
-                  placeholder="e.g., 1234 5678 9012"
-                  style={styles.input}
-                  disabled={isLoading}
-                  maxLength={12}
-                />
-                <p style={styles.helpText}>
-                  Enter your 12-digit Aadhar number (digits only)
-                </p>
-              </div>
-
-              {aadharNumber && (
-                <>
-                  <div style={styles.formRow}>
-                    <div style={{ ...styles.formGroup, flex: 1 }}>
-                      <label style={styles.label}>Aadhar Front</label>
-                      <div style={styles.fileInputWrapper}>
-                        <input
-                          type="file"
-                          onChange={(e) =>
-                            setAadharFront(e.target.files?.[0] || null)
-                          }
-                          style={styles.fileInput}
-                          disabled={isLoading}
-                          accept=".pdf,.jpg,.jpeg,.png"
-                        />
-                        <p style={styles.helpText}>Front side (Max 5MB)</p>
-                      </div>
-                      {aadharFront && (
-                        <p style={styles.fileName}>✓ {aadharFront.name}</p>
-                      )}
-                    </div>
-
-                    <div style={{ ...styles.formGroup, flex: 1 }}>
-                      <label style={styles.label}>Aadhar Back</label>
-                      <div style={styles.fileInputWrapper}>
-                        <input
-                          type="file"
-                          onChange={(e) =>
-                            setAadharBack(e.target.files?.[0] || null)
-                          }
-                          style={styles.fileInput}
-                          disabled={isLoading}
-                          accept=".pdf,.jpg,.jpeg,.png"
-                        />
-                        <p style={styles.helpText}>Back side (Max 5MB)</p>
-                      </div>
-                      {aadharBack && (
-                        <p style={styles.fileName}>✓ {aadharBack.name}</p>
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Account Number (Optional)</label>
+              <input
+                type="text"
+                value={accountNumber}
+                onChange={(e) =>
+                  setAccountNumber(e.target.value.replace(/[^\d]/g, ''))
+                }
+                placeholder="Your account number"
+                style={styles.input}
+                disabled={isLoading}
+              />
             </div>
 
-            {/* FSSAI License - Optional */}
-            <div style={styles.complianceSection}>
-              <h3 style={styles.sectionTitle}>
-                <span style={styles.optionalBadge}>Optional</span>
-                FSSAI License
-              </h3>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>FSSAI License Number</label>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>IFSC Code (Optional)</label>
+              <div style={{ position: 'relative' }}>
                 <input
                   type="text"
-                  value={fssaiNumber}
-                  onChange={(e) => setFssaiNumber(e.target.value.toUpperCase())}
-                  placeholder="e.g., 10213022000001"
+                  value={ifscCode}
+                  onChange={(e) => handleIfscChange(e.target.value)}
+                  placeholder="e.g., SBIN0001234"
                   style={styles.input}
                   disabled={isLoading}
+                  maxLength={11}
                 />
-                <p style={styles.helpText}>
-                  Your FSSAI license number (if applicable)
-                </p>
-              </div>
-
-              {fssaiNumber && (
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Upload FSSAI Certificate</label>
-                  <div style={styles.fileInputWrapper}>
-                    <input
-                      type="file"
-                      onChange={(e) =>
-                        setFssaiFile(e.target.files?.[0] || null)
-                      }
-                      style={styles.fileInput}
-                      disabled={isLoading}
-                      accept=".pdf,.jpg,.jpeg,.png"
+                {isValidatingIFSC && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      right: '1rem',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                    }}
+                  >
+                    <Loader
+                      size={18}
+                      color="#f97316"
+                      style={{ animation: 'spin 1s linear infinite' }}
                     />
-                    <p style={styles.helpText}>PDF, JPG, or PNG (Max 5MB)</p>
                   </div>
-                  {fssaiFile && (
-                    <p style={styles.fileName}>✓ {fssaiFile.name}</p>
-                  )}
+                )}
+              </div>
+              <p style={styles.helpText}>11-character IFSC code</p>
+
+              {bankDetails && (
+                <div style={styles.bankDetailsBox}>
+                  <div style={styles.bankDetailsRow}>
+                    <span style={styles.bankDetailsLabel}>Bank:</span>
+                    <span style={styles.bankDetailsValue}>
+                      {bankDetails.BANK}
+                    </span>
+                  </div>
+                  <div style={styles.bankDetailsRow}>
+                    <span style={styles.bankDetailsLabel}>Branch:</span>
+                    <span style={styles.bankDetailsValue}>
+                      {bankDetails.CENTRE}
+                    </span>
+                  </div>
+                  <div style={styles.bankDetailsRow}>
+                    <span style={styles.bankDetailsLabel}>City:</span>
+                    <span style={styles.bankDetailsValue}>
+                      {bankDetails.CITY}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {ifscError && (
+                <div
+                  style={{
+                    ...styles.errorMessage,
+                    marginTop: '0.75rem',
+                    marginBottom: 0,
+                  }}
+                >
+                  {ifscError}
                 </div>
               )}
             </div>
 
-            {/* GST - Optional */}
-            <div style={styles.complianceSection}>
-              <h3 style={styles.sectionTitle}>
-                <span style={styles.optionalBadge}>Optional</span>
-                GST Details
-              </h3>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>GST Number (15 digits)</label>
-                <input
-                  type="text"
-                  value={gstNumber}
-                  onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
-                  placeholder="e.g., 18AABCU9603R1Z5"
-                  style={styles.input}
-                  disabled={isLoading}
-                  maxLength={15}
-                />
-                <p style={styles.helpText}>
-                  Enter your 15-digit GST number (if applicable)
-                </p>
-              </div>
-
-              {gstNumber && (
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Upload GST Certificate</label>
-                  <div style={styles.fileInputWrapper}>
-                    <input
-                      type="file"
-                      onChange={(e) => setGstFile(e.target.files?.[0] || null)}
-                      style={styles.fileInput}
-                      disabled={isLoading}
-                      accept=".pdf,.jpg,.jpeg,.png"
-                    />
-                    <p style={styles.helpText}>PDF, JPG, or PNG (Max 5MB)</p>
-                  </div>
-                  {gstFile && <p style={styles.fileName}>✓ {gstFile.name}</p>}
-                </div>
-              )}
+            <div style={styles.formGroup}>
+              <label style={styles.label}>UPI ID (Optional)</label>
+              <input
+                type="text"
+                value={upiId}
+                onChange={(e) => setUpiId(e.target.value)}
+                placeholder="e.g., yourname@upi"
+                style={styles.input}
+                disabled={isLoading}
+              />
+              <p style={styles.helpText}>For quick payments</p>
             </div>
 
             {error && <div style={styles.errorMessage}>{error}</div>}
 
             <button
               type="submit"
-              disabled={isLoading || !panNumber.trim() || !panFile}
+              disabled={isLoading}
               style={{
                 ...styles.submitButton,
-                opacity: isLoading || !panNumber.trim() || !panFile ? 0.6 : 1,
+                opacity: isLoading ? 0.6 : 1,
               }}
               onMouseEnter={(e) => {
-                if (!isLoading && panNumber.trim() && panFile) {
+                if (!isLoading) {
                   e.currentTarget.style.backgroundColor = '#ea580c';
                 }
               }}
@@ -1725,7 +1233,16 @@ export default function OnboardingPage() {
                 e.currentTarget.style.backgroundColor = '#f97316';
               }}
             >
-              {isLoading ? 'Verifying...' : 'Continue'}
+              {isLoading ? 'Saving...' : 'Continue'}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleKycSkip}
+              disabled={isLoading}
+              style={styles.skipButton}
+            >
+              Skip for Now
             </button>
 
             <button
@@ -1742,451 +1259,11 @@ export default function OnboardingPage() {
     );
   }
 
-  // Step 6: Payment Setup
-  if (onboardingStep === 'payment-setup') {
+  // Step 5: Menu Setup
+  if (onboardingStep === 'menu-setup') {
     return (
       <div style={styles.container}>
-        <style>{`
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
-        <div style={styles.content}>
-          <div style={styles.progressContainer}>
-            <div
-              style={{
-                ...styles.progressBar,
-                width: `${getProgressPercentage()}%`,
-              }}
-            />
-          </div>
-
-          <div style={styles.stepIndicator}>
-            <span style={styles.stepNumber}>{getStepNumber()}</span>
-            <span style={styles.stepDot}>●</span>
-          </div>
-
-          <div style={styles.header}>
-            <h1 style={styles.title}>
-              <CreditCard
-                size={32}
-                style={{ marginRight: '0.5rem', display: 'inline' }}
-              />
-              Payment Setup
-            </h1>
-            <p style={styles.subtitle}>
-              Add your bank details for easy payments
-            </p>
-          </div>
-
-          <form onSubmit={handlePaymentSetupSubmit} style={styles.profileForm}>
-            <div style={styles.infoBox}>
-              <AlertCircle
-                size={20}
-                color="#0284c7"
-                style={{ marginRight: '0.75rem' }}
-              />
-              <p style={{ margin: 0, fontSize: '0.875rem', color: '#0c4a6e' }}>
-                Your payment details are secured and encrypted
-              </p>
-            </div>
-
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Bank Name *</label>
-              <input
-                type="text"
-                value={bankName}
-                onChange={(e) => setBankName(e.target.value)}
-                placeholder="e.g., State Bank of India"
-                style={styles.input}
-                disabled={isLoading}
-                required
-              />
-            </div>
-
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Account Holder Name *</label>
-              <input
-                type="text"
-                value={accountHolderName}
-                onChange={(e) => setAccountHolderName(e.target.value)}
-                placeholder="Name as per bank account"
-                style={styles.input}
-                disabled={isLoading}
-                required
-              />
-            </div>
-
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Account Number *</label>
-              <input
-                type="text"
-                value={accountNumber}
-                onChange={(e) =>
-                  setAccountNumber(e.target.value.replace(/[^\d]/g, ''))
-                }
-                placeholder="Your account number"
-                style={styles.input}
-                disabled={isLoading}
-                required
-              />
-            </div>
-
-            <div style={styles.formGroup}>
-              <label style={styles.label}>IFSC Code *</label>
-              <input
-                type="text"
-                value={ifscCode}
-                onChange={(e) => setIfscCode(e.target.value.toUpperCase())}
-                placeholder="e.g., SBIN0001234"
-                style={styles.input}
-                disabled={isLoading}
-                maxLength={11}
-                required
-              />
-              <p style={styles.helpText}>11-character IFSC code</p>
-            </div>
-
-            <div style={styles.formGroup}>
-              <label style={styles.label}>UPI ID *</label>
-              <input
-                type="text"
-                value={upiId}
-                onChange={(e) => setUpiId(e.target.value)}
-                placeholder="e.g., yourname@upi"
-                style={styles.input}
-                disabled={isLoading}
-                required
-              />
-              <p style={styles.helpText}>For receiving quick payments</p>
-            </div>
-
-            {error && <div style={styles.errorMessage}>{error}</div>}
-
-            <button
-              type="submit"
-              disabled={
-                isLoading ||
-                !accountNumber.trim() ||
-                !ifscCode.trim() ||
-                !upiId.trim()
-              }
-              style={{
-                ...styles.submitButton,
-                opacity: isLoading || !accountNumber.trim() ? 0.6 : 1,
-              }}
-              onMouseEnter={(e) => {
-                if (!isLoading && accountNumber.trim()) {
-                  e.currentTarget.style.backgroundColor = '#ea580c';
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#f97316';
-              }}
-            >
-              {isLoading ? 'Saving...' : 'Continue'}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setOnboardingStep('kyc-compliance')}
-              disabled={isLoading}
-              style={styles.backButton}
-            >
-              Back
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
-  // Step 7: Operations Availability
-  if (onboardingStep === 'operations-availability') {
-    return (
-      <div style={styles.container}>
-        <style>{`
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
-        <div style={styles.content}>
-          <div style={styles.progressContainer}>
-            <div
-              style={{
-                ...styles.progressBar,
-                width: `${getProgressPercentage()}%`,
-              }}
-            />
-          </div>
-
-          <div style={styles.stepIndicator}>
-            <span style={styles.stepNumber}>{getStepNumber()}</span>
-            <span style={styles.stepDot}>●</span>
-          </div>
-
-          <div style={styles.header}>
-            <h1 style={styles.title}>
-              <Clock
-                size={32}
-                style={{ marginRight: '0.5rem', display: 'inline' }}
-              />
-              Operations Availability
-            </h1>
-            <p style={styles.subtitle}>
-              Set your kitchen type and operating hours
-            </p>
-          </div>
-
-          <form
-            onSubmit={handleOperationsAvailabilitySubmit}
-            style={styles.profileForm}
-          >
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Kitchen Type *</label>
-              <select
-                value={kitchenType}
-                onChange={(e) => setKitchenType(e.target.value)}
-                style={styles.input}
-                disabled={isLoading}
-                required
-              >
-                <option value="">Select kitchen type</option>
-                {KITCHEN_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Operating Days *</label>
-              <div style={styles.checkboxGroup}>
-                {DAYS_OF_WEEK.map((day) => (
-                  <label key={day} style={styles.checkboxLabel}>
-                    <input
-                      type="checkbox"
-                      checked={operatingDays.includes(day)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setOperatingDays([...operatingDays, day]);
-                        } else {
-                          setOperatingDays(
-                            operatingDays.filter((d) => d !== day)
-                          );
-                        }
-                      }}
-                      style={styles.checkbox}
-                      disabled={isLoading}
-                    />
-                    {day}
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div style={styles.formRow}>
-              <div style={{ ...styles.formGroup, flex: 1 }}>
-                <label style={styles.label}>Operating Hours Start *</label>
-                <input
-                  type="time"
-                  value={operatingHoursStart}
-                  onChange={(e) => setOperatingHoursStart(e.target.value)}
-                  style={styles.input}
-                  disabled={isLoading}
-                  required
-                />
-              </div>
-
-              <div style={{ ...styles.formGroup, flex: 1 }}>
-                <label style={styles.label}>Operating Hours End *</label>
-                <input
-                  type="time"
-                  value={operatingHoursEnd}
-                  onChange={(e) => setOperatingHoursEnd(e.target.value)}
-                  style={styles.input}
-                  disabled={isLoading}
-                  required
-                />
-              </div>
-            </div>
-
-            {error && <div style={styles.errorMessage}>{error}</div>}
-
-            <button
-              type="submit"
-              disabled={isLoading || !kitchenType || operatingDays.length === 0}
-              style={{
-                ...styles.submitButton,
-                opacity: isLoading || !kitchenType ? 0.6 : 1,
-              }}
-              onMouseEnter={(e) => {
-                if (!isLoading && kitchenType) {
-                  e.currentTarget.style.backgroundColor = '#ea580c';
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#f97316';
-              }}
-            >
-              {isLoading ? 'Saving...' : 'Continue'}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setOnboardingStep('payment-setup')}
-              disabled={isLoading}
-              style={styles.backButton}
-            >
-              Back
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
-  // Step 8: Cancellation Policies
-  if (onboardingStep === 'cancellation-policies') {
-    return (
-      <div style={styles.container}>
-        <style>{`
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
-        <div style={styles.content}>
-          <div style={styles.progressContainer}>
-            <div
-              style={{
-                ...styles.progressBar,
-                width: `${getProgressPercentage()}%`,
-              }}
-            />
-          </div>
-
-          <div style={styles.stepIndicator}>
-            <span style={styles.stepNumber}>{getStepNumber()}</span>
-            <span style={styles.stepDot}>●</span>
-          </div>
-
-          <div style={styles.header}>
-            <h1 style={styles.title}>
-              <AlertCircle
-                size={32}
-                style={{ marginRight: '0.5rem', display: 'inline' }}
-              />
-              Cancellation Policies
-            </h1>
-            <p style={styles.subtitle}>
-              Define your cancellation and refund policies
-            </p>
-          </div>
-
-          <form
-            onSubmit={handleCancellationPoliciesSubmit}
-            style={styles.profileForm}
-          >
-            <div style={styles.infoBox}>
-              <AlertCircle
-                size={20}
-                color="#dc2626"
-                style={{ marginRight: '0.75rem' }}
-              />
-              <p style={{ margin: 0, fontSize: '0.875rem', color: '#7f1d1d' }}>
-                Clear policies build trust with your customers
-              </p>
-            </div>
-
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Cancellation Policy Summary *</label>
-              <textarea
-                value={cancellationPolicySummary}
-                onChange={(e) => setCancellationPolicySummary(e.target.value)}
-                placeholder="Describe your cancellation and refund policies (e.g., 100% refund if cancelled 30 days before event, 50% refund if cancelled 15 days before, no refund if cancelled less than 15 days before)"
-                style={{
-                  ...styles.input,
-                  minHeight: '120px',
-                  resize: 'vertical',
-                }}
-                disabled={isLoading}
-                rows={5}
-                required
-              />
-              <p style={styles.helpText}>
-                Be clear about refund amounts and timelines
-              </p>
-            </div>
-
-            <div style={styles.formGroup}>
-              <label style={styles.label}>
-                Advance Notice Required (Days) *
-              </label>
-              <input
-                type="number"
-                value={advanceNoticeRequired}
-                onChange={(e) => setAdvanceNoticeRequired(e.target.value)}
-                placeholder="Minimum days notice required for cancellation"
-                style={styles.input}
-                disabled={isLoading}
-                min="1"
-                required
-              />
-              <p style={styles.helpText}>
-                Minimum notice period for cancellations
-              </p>
-            </div>
-
-            {error && <div style={styles.errorMessage}>{error}</div>}
-
-            <button
-              type="submit"
-              disabled={isLoading || !cancellationPolicySummary.trim()}
-              style={{
-                ...styles.submitButton,
-                opacity:
-                  isLoading || !cancellationPolicySummary.trim() ? 0.6 : 1,
-              }}
-              onMouseEnter={(e) => {
-                if (!isLoading && cancellationPolicySummary.trim()) {
-                  e.currentTarget.style.backgroundColor = '#ea580c';
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#f97316';
-              }}
-            >
-              {isLoading ? 'Saving...' : 'Continue'}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setOnboardingStep('operations-availability')}
-              disabled={isLoading}
-              style={styles.backButton}
-            >
-              Back
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
-  // Step 9: Service Details
-  if (onboardingStep === 'service-details') {
-    return (
-      <div style={styles.container}>
-        <style>{`
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
+        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
         <div style={styles.content}>
           <div style={styles.progressContainer}>
             <div
@@ -2208,219 +1285,178 @@ export default function OnboardingPage() {
                 size={32}
                 style={{ marginRight: '0.5rem', display: 'inline' }}
               />
-              Service Details
+              Menu Setup
             </h1>
             <p style={styles.subtitle}>
-              Describe your catering services and pricing
+              Add your signature dishes {menuItems.length > 0 && `(${menuItems.length} items added)`}
             </p>
           </div>
 
-          <form
-            onSubmit={handleServiceDetailsSubmit}
-            style={styles.profileForm}
-          >
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Event Types You Can Cater *</label>
-              <div style={styles.checkboxGroup}>
-                {EVENT_TYPES.map((event) => (
-                  <label key={event.value} style={styles.checkboxLabel}>
-                    <input
-                      type="checkbox"
-                      checked={selectedEventTypes.includes(event.value)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedEventTypes([
-                            ...selectedEventTypes,
-                            event.value,
-                          ]);
-                        } else {
-                          setSelectedEventTypes(
-                            selectedEventTypes.filter(
-                              (et) => et !== event.value
-                            )
-                          );
-                        }
-                      }}
-                      style={styles.checkbox}
-                      disabled={isLoading}
-                    />
-                    {event.label}
-                  </label>
-                ))}
-              </div>
+          <form onSubmit={handleMenuSubmit} style={styles.profileForm}>
+            <div style={styles.infoBox}>
+              <AlertCircle
+                size={20}
+                color="#0284c7"
+                style={{ marginRight: '0.75rem' }}
+              />
+              <p style={{ margin: 0, fontSize: '0.875rem', color: '#0c4a6e' }}>
+                Add at least 1 item to get started
+              </p>
             </div>
 
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Service Types Offered *</label>
-              <div style={styles.checkboxGroup}>
-                {SERVICE_TYPES.map((service) => (
-                  <label key={service.value} style={styles.checkboxLabel}>
-                    <input
-                      type="checkbox"
-                      checked={selectedServiceTypes.includes(service.value)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedServiceTypes([
-                            ...selectedServiceTypes,
-                            service.value,
-                          ]);
-                        } else {
-                          setSelectedServiceTypes(
-                            selectedServiceTypes.filter(
-                              (st) => st !== service.value
-                            )
-                          );
-                        }
-                      }}
-                      style={styles.checkbox}
-                      disabled={isLoading}
-                    />
-                    {service.label}
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div style={styles.formRow}>
-              <div style={{ ...styles.formGroup, flex: 1 }}>
-                <label style={styles.label}>Minimum Guests *</label>
-                <input
-                  type="number"
-                  value={minGuests}
-                  onChange={(e) => setMinGuests(e.target.value)}
-                  placeholder="Minimum guests"
-                  style={styles.input}
-                  disabled={isLoading}
-                  min="1"
-                  required
-                />
-              </div>
-
-              <div style={{ ...styles.formGroup, flex: 1 }}>
-                <label style={styles.label}>Maximum Guests *</label>
-                <input
-                  type="number"
-                  value={maxGuests}
-                  onChange={(e) => setMaxGuests(e.target.value)}
-                  placeholder="Maximum guests"
-                  style={styles.input}
-                  disabled={isLoading}
-                  min="1"
-                  required
-                />
-              </div>
-            </div>
-
-            <div style={styles.formRow}>
-              <div style={{ ...styles.formGroup, flex: 1 }}>
-                <label style={styles.label}>
-                  Price Range - Min (₹/person) *
-                </label>
-                <input
-                  type="number"
-                  value={priceRangeMin}
-                  onChange={(e) => setPriceRangeMin(e.target.value)}
-                  placeholder="Minimum price per person"
-                  style={styles.input}
-                  disabled={isLoading}
-                  min="0"
-                  required
-                />
-              </div>
-
-              <div style={{ ...styles.formGroup, flex: 1 }}>
-                <label style={styles.label}>
-                  Price Range - Max (₹/person) *
-                </label>
-                <input
-                  type="number"
-                  value={priceRangeMax}
-                  onChange={(e) => setPriceRangeMax(e.target.value)}
-                  placeholder="Maximum price per person"
-                  style={styles.input}
-                  disabled={isLoading}
-                  min="0"
-                  required
-                />
-              </div>
-            </div>
-
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Service Radius *</label>
-              <div style={styles.radioGroup}>
-                <label style={styles.radioLabel}>
-                  <input
-                    type="radio"
-                    value="city-wide"
-                    checked={serviceRadius === 'city-wide'}
-                    onChange={(e) =>
-                      setServiceRadius(e.target.value as ServiceRadius)
-                    }
-                    disabled={isLoading}
-                    style={styles.radioInput}
-                  />
-                  City-wide Service
-                </label>
-                <label style={styles.radioLabel}>
-                  <input
-                    type="radio"
-                    value="specific-radius"
-                    checked={serviceRadius === 'specific-radius'}
-                    onChange={(e) =>
-                      setServiceRadius(e.target.value as ServiceRadius)
-                    }
-                    disabled={isLoading}
-                    style={styles.radioInput}
-                  />
-                  Specific Radius
-                </label>
-              </div>
-            </div>
-
-            {serviceRadius === 'specific-radius' && (
+            <div style={styles.menuForm}>
               <div style={styles.formGroup}>
-                <label style={styles.label}>Service Radius (km) *</label>
+                <label style={styles.label}>Dish Name *</label>
                 <input
-                  type="number"
-                  value={serviceRadius_km}
-                  onChange={(e) => setServiceRadius_km(e.target.value)}
-                  placeholder="e.g., 15"
+                  type="text"
+                  value={newMenuItem.name || ''}
+                  onChange={(e) =>
+                    setNewMenuItem({ ...newMenuItem, name: e.target.value })
+                  }
+                  placeholder="e.g., Biryani"
                   style={styles.input}
                   disabled={isLoading}
-                  min="1"
                   required
                 />
+              </div>
+
+              <div style={styles.formRow}>
+                <div style={{ ...styles.formGroup, flex: 1 }}>
+                  <label style={styles.label}>Category *</label>
+                  <select
+                    value={newMenuItem.category || 'starter'}
+                    onChange={(e) =>
+                      setNewMenuItem({ ...newMenuItem, category: e.target.value })
+                    }
+                    style={styles.input}
+                    disabled={isLoading}
+                    required
+                  >
+                    {MENU_CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat.toLowerCase()}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ ...styles.formGroup, flex: 1 }}>
+                  <label style={styles.label}>Price (₹) *</label>
+                  <input
+                    type="number"
+                    value={newMenuItem.price || ''}
+                    onChange={(e) =>
+                      setNewMenuItem({
+                        ...newMenuItem,
+                        price: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    placeholder="e.g., 250"
+                    style={styles.input}
+                    disabled={isLoading}
+                    min="0"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Description (Optional)</label>
+                <textarea
+                  value={newMenuItem.description || ''}
+                  onChange={(e) =>
+                    setNewMenuItem({ ...newMenuItem, description: e.target.value })
+                  }
+                  placeholder="e.g., Aromatic basmati with tender mutton"
+                  style={{
+                    ...styles.input,
+                    minHeight: '80px',
+                    resize: 'vertical',
+                  }}
+                  disabled={isLoading}
+                  rows={3}
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={addMenuItem}
+                disabled={
+                  isLoading ||
+                  !newMenuItem.name?.trim() ||
+                  !newMenuItem.price
+                }
+                style={{
+                  ...styles.addButton,
+                  width: '100%',
+                  marginBottom: '1.5rem',
+                }}
+              >
+                <Plus size={18} /> Add Dish
+              </button>
+            </div>
+
+            {menuItems.length > 0 && (
+              <div style={styles.itemsList}>
+                {menuItems.map((item) => (
+                  <div key={item.id} style={styles.listItem}>
+                    <div style={styles.itemContent}>
+                      <h4 style={styles.itemName}>{item.name}</h4>
+                      <p style={styles.itemCategory}>{item.category}</p>
+                      {item.description && (
+                        <p style={styles.itemDescription}>{item.description}</p>
+                      )}
+                    </div>
+                    <div style={styles.itemPrice}>₹{item.price}</div>
+                    <button
+                      type="button"
+                      onClick={() => removeMenuItem(item.id)}
+                      style={styles.deleteButton}
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
 
             {error && <div style={styles.errorMessage}>{error}</div>}
 
-            <button
-              type="submit"
-              disabled={
-                isLoading ||
-                selectedEventTypes.length === 0 ||
-                selectedServiceTypes.length === 0
-              }
-              style={{
-                ...styles.submitButton,
-                opacity: isLoading || selectedEventTypes.length === 0 ? 0.6 : 1,
-              }}
-              onMouseEnter={(e) => {
-                if (!isLoading && selectedEventTypes.length > 0) {
-                  e.currentTarget.style.backgroundColor = '#ea580c';
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#f97316';
-              }}
-            >
-              {isLoading ? 'Saving...' : 'Continue'}
-            </button>
+            {menuItems.length > 0 ? (
+              <button
+                type="submit"
+                disabled={isLoading}
+                style={{
+                  ...styles.submitButton,
+                  opacity: isLoading ? 0.6 : 1,
+                }}
+                onMouseEnter={(e) => {
+                  if (!isLoading) {
+                    e.currentTarget.style.backgroundColor = '#ea580c';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f97316';
+                }}
+              >
+                {isLoading ? 'Saving...' : 'Continue'}
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={handleMenuSkip}
+                  disabled={isLoading}
+                  style={styles.skipButton}
+                >
+                  Skip for Now
+                </button>
+              </>
+            )}
 
             <button
               type="button"
-              onClick={() => setOnboardingStep('cancellation-policies')}
+              onClick={() => setOnboardingStep('kyc-payments')}
               disabled={isLoading}
               style={styles.backButton}
             >
@@ -2432,16 +1468,186 @@ export default function OnboardingPage() {
     );
   }
 
-  // Step 10: Complete
-  if (onboardingStep === 'complete') {
+  // Step 6: Packages
+  if (onboardingStep === 'packages') {
     return (
       <div style={styles.container}>
-        <style>{`
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
+        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+        <div style={styles.content}>
+          <div style={styles.progressContainer}>
+            <div
+              style={{
+                ...styles.progressBar,
+                width: `${getProgressPercentage()}%`,
+              }}
+            />
+          </div>
+
+          <div style={styles.stepIndicator}>
+            <span style={styles.stepNumber}>{getStepNumber()}</span>
+            <span style={styles.stepDot}>●</span>
+          </div>
+
+          <div style={styles.header}>
+            <h1 style={styles.title}>Create Packages</h1>
+            <p style={styles.subtitle}>Bundle your dishes into packages</p>
+          </div>
+
+          <form onSubmit={handlePackagesSubmit} style={styles.profileForm}>
+            <div style={styles.infoBox}>
+              <AlertCircle
+                size={20}
+                color="#0284c7"
+                style={{ marginRight: '0.75rem' }}
+              />
+              <p style={{ margin: 0, fontSize: '0.875rem', color: '#0c4a6e' }}>
+                Packages are optional - you can skip this for now
+              </p>
+            </div>
+
+            <div style={styles.menuForm}>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Package Name</label>
+                <input
+                  type="text"
+                  value={newPackage.name || ''}
+                  onChange={(e) =>
+                    setNewPackage({ ...newPackage, name: e.target.value })
+                  }
+                  placeholder="e.g., Wedding Package"
+                  style={styles.input}
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div style={styles.formRow}>
+                <div style={{ ...styles.formGroup, flex: 1 }}>
+                  <label style={styles.label}>Number of People</label>
+                  <input
+                    type="number"
+                    value={newPackage.numberOfPeople || 10}
+                    onChange={(e) =>
+                      setNewPackage({
+                        ...newPackage,
+                        numberOfPeople: parseInt(e.target.value) || 10,
+                      })
+                    }
+                    style={styles.input}
+                    disabled={isLoading}
+                    min="1"
+                  />
+                </div>
+
+                <div style={{ ...styles.formGroup, flex: 1 }}>
+                  <label style={styles.label}>Price (₹)</label>
+                  <input
+                    type="number"
+                    value={newPackage.price || ''}
+                    onChange={(e) =>
+                      setNewPackage({
+                        ...newPackage,
+                        price: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    placeholder="e.g., 500"
+                    style={styles.input}
+                    disabled={isLoading}
+                    min="0"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={addPackage}
+                disabled={
+                  isLoading ||
+                  !newPackage.name?.trim() ||
+                  !newPackage.numberOfPeople ||
+                  !newPackage.price
+                }
+                style={{
+                  ...styles.addButton,
+                  width: '100%',
+                  marginBottom: '1.5rem',
+                }}
+              >
+                <Plus size={18} /> Add Package
+              </button>
+            </div>
+
+            {packages.length > 0 && (
+              <div style={styles.itemsList}>
+                {packages.map((pkg) => (
+                  <div key={pkg.id} style={styles.listItem}>
+                    <div style={styles.itemContent}>
+                      <h4 style={styles.itemName}>{pkg.name}</h4>
+                      <p style={styles.itemCategory}>
+                        {pkg.numberOfPeople} people
+                      </p>
+                    </div>
+                    <div style={styles.itemPrice}>₹{pkg.price}</div>
+                    <button
+                      type="button"
+                      onClick={() => removePackage(pkg.id)}
+                      style={styles.deleteButton}
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {error && <div style={styles.errorMessage}>{error}</div>}
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              style={{
+                ...styles.submitButton,
+                opacity: isLoading ? 0.6 : 1,
+              }}
+              onMouseEnter={(e) => {
+                if (!isLoading) {
+                  e.currentTarget.style.backgroundColor = '#ea580c';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#f97316';
+              }}
+            >
+              {isLoading ? 'Saving...' : 'Complete Setup'}
+            </button>
+
+            <button
+              type="button"
+              onClick={handlePackagesSkip}
+              disabled={isLoading}
+              style={styles.skipButton}
+            >
+              Skip for Now
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setOnboardingStep('menu-setup')}
+              disabled={isLoading}
+              style={styles.backButton}
+            >
+              Back
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 7: Completion
+  if (onboardingStep === 'completion') {
+    return (
+      <div style={styles.container}>
+        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
         <div style={styles.content}>
           <div style={styles.progressContainer}>
             <div style={{ ...styles.progressBar, width: '100%' }} />
@@ -2454,95 +1660,88 @@ export default function OnboardingPage() {
 
           <div style={styles.completeContainer}>
             <div style={styles.successIcon}>✓</div>
-            <h1 style={styles.title}>All Set! 🎉</h1>
+            <h1 style={styles.title}>You're All Set! 🎉</h1>
             <p style={styles.subtitle}>
-              {selectedRole === 'caterer'
-                ? "Your complete catering business profile is ready. Let's get you started!"
-                : 'Welcome to CaterHub! Ready to explore amazing catering options?'}
+              Your profile is live. Complete the checklist to maximize visibility
             </p>
 
-            <div style={styles.summaryBox}>
-              <div style={styles.summaryItem}>
-                <span style={styles.summaryLabel}>Name</span>
-                <span style={styles.summaryValue}>{fullName}</span>
+            <div style={styles.completionChecklist}>
+              <div style={styles.checklistItem}>
+                <div style={styles.checklistDone}>✓</div>
+                <div>
+                  <h4 style={styles.checklistTitle}>Profile Created</h4>
+                  <p style={styles.checklistText}>Your caterer profile is live</p>
+                </div>
               </div>
 
-              <div style={styles.summaryItem}>
-                <span style={styles.summaryLabel}>Email</span>
-                <span style={styles.summaryValue}>{session.user.email}</span>
+              <div style={styles.checklistItem}>
+                {menuItems.length > 0 ? (
+                  <>
+                    <div style={styles.checklistDone}>✓</div>
+                    <div>
+                      <h4 style={styles.checklistTitle}>Menu Items Added</h4>
+                      <p style={styles.checklistText}>
+                        {menuItems.length} items added
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={styles.checklistPending}>⏳</div>
+                    <div>
+                      <h4 style={styles.checklistTitle}>Add Menu Items</h4>
+                      <p style={styles.checklistText}>
+                        Add 3+ items to appear in search
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
 
-              <div style={styles.summaryItem}>
-                <span style={styles.summaryLabel}>Phone</span>
-                <span style={styles.summaryValue}>
-                  {countryCode} {phone}
-                </span>
+              <div style={styles.checklistItem}>
+                {panNumber || upiId ? (
+                  <>
+                    <div style={styles.checklistDone}>✓</div>
+                    <div>
+                      <h4 style={styles.checklistTitle}>KYC Started</h4>
+                      <p style={styles.checklistText}>Complete to receive payments</p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={styles.checklistPending}>⏳</div>
+                    <div>
+                      <h4 style={styles.checklistTitle}>Complete KYC</h4>
+                      <p style={styles.checklistText}>
+                        Add PAN/UPI to receive payments
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
 
-              {selectedRole === 'caterer' && (
-                <>
-                  <div style={styles.summaryItem}>
-                    <span style={styles.summaryLabel}>Business</span>
-                    <span style={styles.summaryValue}>{businessName}</span>
-                  </div>
-
-                  <div style={styles.summaryItem}>
-                    <span style={styles.summaryLabel}>Cuisine</span>
-                    <span style={styles.summaryValue}>{cuisineType}</span>
-                  </div>
-
-                  <div style={styles.summaryItem}>
-                    <span style={styles.summaryLabel}>Kitchen Type</span>
-                    <span style={styles.summaryValue}>{kitchenType}</span>
-                  </div>
-
-                  <div style={styles.summaryItem}>
-                    <span style={styles.summaryLabel}>Guest Range</span>
-                    <span style={styles.summaryValue}>
-                      {minGuests} - {maxGuests} guests
-                    </span>
-                  </div>
-
-                  <div style={styles.summaryItem}>
-                    <span style={styles.summaryLabel}>Price Range</span>
-                    <span style={styles.summaryValue}>
-                      ₹{priceRangeMin} - ₹{priceRangeMax}/person
-                    </span>
-                  </div>
-
-                  <div style={styles.summaryItem}>
-                    <span style={styles.summaryLabel}>Service Radius</span>
-                    <span style={styles.summaryValue}>
-                      {serviceRadius === 'city-wide'
-                        ? 'City-wide'
-                        : `${serviceRadius_km} km`}
-                    </span>
-                  </div>
-
-                  <div style={styles.summaryItem}>
-                    <span style={styles.summaryLabel}>UPI ID</span>
-                    <span style={styles.summaryValue}>{upiId}</span>
-                  </div>
-                </>
-              )}
-
-              <div style={styles.summaryItem}>
-                <span style={styles.summaryLabel}>Role</span>
-                <span
-                  style={{
-                    ...styles.summaryValue,
-                    textTransform: 'capitalize',
-                    backgroundColor:
-                      selectedRole === 'caterer' ? '#fff7ed' : '#f0f4ff',
-                    padding: '0.5rem 1rem',
-                    borderRadius: '0.5rem',
-                    color: selectedRole === 'caterer' ? '#f97316' : '#667eea',
-                    fontWeight: 'bold',
-                    display: 'inline-block',
-                  }}
-                >
-                  {selectedRole === 'caterer' ? 'Caterer' : 'Customer'}
-                </span>
+              <div style={styles.checklistItem}>
+                {packages.length > 0 ? (
+                  <>
+                    <div style={styles.checklistDone}>✓</div>
+                    <div>
+                      <h4 style={styles.checklistTitle}>Packages Created</h4>
+                      <p style={styles.checklistText}>
+                        {packages.length} package(s) created
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={styles.checklistPending}>⏳</div>
+                    <div>
+                      <h4 style={styles.checklistTitle}>Create Packages</h4>
+                      <p style={styles.checklistText}>
+                        Bundle dishes for better conversions
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
@@ -2570,9 +1769,7 @@ export default function OnboardingPage() {
                 e.currentTarget.style.boxShadow = 'none';
               }}
             >
-              {isLoading
-                ? 'Completing setup...'
-                : `Go to ${selectedRole === 'caterer' ? 'Caterer' : 'Customer'} Dashboard`}
+              {isLoading ? 'Starting...' : 'Go to Dashboard'}
               <ArrowRight size={20} />
             </button>
           </div>
@@ -2584,7 +1781,8 @@ export default function OnboardingPage() {
   return null;
 }
 
-const styles = {
+// Styles
+const styles: { [key: string]: React.CSSProperties } = {
   container: {
     minHeight: '100vh',
     background:
@@ -2678,116 +1876,6 @@ const styles = {
     margin: 0,
     lineHeight: '1.5',
   } as React.CSSProperties,
-  userInfoBox: {
-    backgroundColor: '#f9fafb',
-    border: '1px solid #e5e7eb',
-    borderRadius: '1rem',
-    padding: '1.5rem',
-    marginBottom: '2rem',
-  } as React.CSSProperties,
-  userInfoTitle: {
-    fontSize: '0.75rem',
-    fontWeight: '600',
-    color: '#6b7280',
-    textTransform: 'uppercase' as const,
-    margin: '0 0 1rem 0',
-    letterSpacing: '0.05em',
-  } as React.CSSProperties,
-  userInfoGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr',
-    gap: '1rem',
-  } as React.CSSProperties,
-  userInfoItem: {
-    display: 'flex',
-    gap: '0.75rem',
-    alignItems: 'flex-start',
-  } as React.CSSProperties,
-  userInfoLabel: {
-    fontSize: '0.75rem',
-    fontWeight: '600',
-    color: '#6b7280',
-    margin: 0,
-  } as React.CSSProperties,
-  userInfoValue: {
-    fontSize: '0.875rem',
-    fontWeight: '600',
-    color: '#111827',
-    margin: '0.25rem 0 0 0',
-    wordBreak: 'break-all' as const,
-  } as React.CSSProperties,
-  rolesContainer: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-    gap: '1.5rem',
-    marginBottom: '2rem',
-  } as React.CSSProperties,
-  roleCard: {
-    border: '2px solid #e5e7eb',
-    borderRadius: '1rem',
-    padding: '2rem 1.5rem',
-    textAlign: 'center' as const,
-    backgroundColor: 'white',
-    transition: 'all 0.3s ease',
-    position: 'relative' as const,
-    cursor: 'pointer',
-  } as React.CSSProperties,
-  roleIconContainer: {
-    display: 'flex',
-    justifyContent: 'center',
-    marginBottom: '1rem',
-  } as React.CSSProperties,
-  roleTitle: {
-    fontSize: 'clamp(1rem, 2vw, 1.25rem)',
-    fontWeight: 'bold',
-    color: '#111827',
-    margin: '0 0 0.5rem 0',
-  } as React.CSSProperties,
-  roleDescription: {
-    fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
-    color: '#6b7280',
-    margin: '0 0 1rem 0',
-    lineHeight: '1.5',
-  } as React.CSSProperties,
-  roleFeatures: {
-    listStyle: 'none',
-    margin: '0 0 1rem 0',
-    padding: 0,
-    textAlign: 'left' as const,
-    fontSize: '0.875rem',
-    color: '#6b7280',
-  } as React.CSSProperties,
-  selectedBadge: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    padding: '0.5rem 1rem',
-    backgroundColor: '#dbeafe',
-    color: '#1e40af',
-    borderRadius: '0.5rem',
-    fontSize: '0.875rem',
-    fontWeight: '600',
-    marginTop: '1rem',
-  } as React.CSSProperties,
-  ctaButton: {
-    width: '100%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '0.75rem',
-    padding: 'clamp(0.75rem, 2vw, 1rem) 2rem',
-    backgroundColor: '#f97316',
-    color: 'white',
-    border: 'none',
-    borderRadius: '0.75rem',
-    fontSize: 'clamp(0.875rem, 2vw, 1rem)',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.3s ease',
-  } as React.CSSProperties,
-  verificationForm: {
-    marginTop: '2rem',
-  } as React.CSSProperties,
   profileForm: {
     marginTop: '2rem',
   } as React.CSSProperties,
@@ -2832,61 +1920,37 @@ const styles = {
     cursor: 'pointer',
     fontFamily: 'inherit',
   } as React.CSSProperties,
-  complianceSection: {
-    backgroundColor: '#f9fafb',
-    border: '1px solid #e5e7eb',
-    borderRadius: '1rem',
-    padding: '1.5rem',
-    marginBottom: '2rem',
+  serviceAreaGroup: {
+    display: 'grid',
+    gridTemplateColumns: '100px 1fr 50px',
+    gap: '0.75rem',
+    alignItems: 'flex-start',
   } as React.CSSProperties,
-  sectionTitle: {
-    fontSize: '1rem',
-    fontWeight: '600',
-    color: '#111827',
-    margin: '0 0 1rem 0',
+  tagContainer: {
     display: 'flex',
+    flexWrap: 'wrap' as const,
+    gap: '0.5rem',
+    marginTop: '0.75rem',
+  } as React.CSSProperties,
+  tag: {
+    display: 'inline-flex',
     alignItems: 'center',
     gap: '0.5rem',
-  } as React.CSSProperties,
-  requiredBadge: {
-    display: 'inline-block',
-    padding: '0.25rem 0.75rem',
-    backgroundColor: '#fee2e2',
-    color: '#991b1b',
-    borderRadius: '0.25rem',
-    fontSize: '0.75rem',
-    fontWeight: '600',
-  } as React.CSSProperties,
-  optionalBadge: {
-    display: 'inline-block',
-    padding: '0.25rem 0.75rem',
-    backgroundColor: '#dbeafe',
-    color: '#1e40af',
-    borderRadius: '0.25rem',
-    fontSize: '0.75rem',
-    fontWeight: '600',
-  } as React.CSSProperties,
-  fileInputWrapper: {
-    border: '2px dashed #d1d5db',
+    padding: '0.5rem 0.75rem',
+    backgroundColor: '#f0fdf4',
+    border: '1px solid #dcfce7',
     borderRadius: '0.5rem',
-    padding: '1.5rem',
-    textAlign: 'center' as const,
-    backgroundColor: '#fafafa',
-  } as React.CSSProperties,
-  fileInput: {
-    width: '100%',
-    cursor: 'pointer',
-  } as React.CSSProperties,
-  fileName: {
     fontSize: '0.875rem',
-    color: '#10b981',
-    marginTop: '0.5rem',
-    fontWeight: '600',
+    color: '#15803d',
   } as React.CSSProperties,
-  otpSentText: {
-    fontSize: '0.75rem',
-    color: '#6b7280',
-    margin: '0.5rem 0 1rem 0',
+  tagRemove: {
+    background: 'none',
+    border: 'none',
+    color: '#dc2626',
+    cursor: 'pointer',
+    fontSize: '1.25rem',
+    padding: 0,
+    lineHeight: 1,
   } as React.CSSProperties,
   helpText: {
     fontSize: '0.75rem',
@@ -2915,6 +1979,20 @@ const styles = {
     marginBottom: '1rem',
     cursor: 'pointer',
   } as React.CSSProperties,
+  skipButton: {
+    width: '100%',
+    padding: '0.875rem 1.5rem',
+    backgroundColor: '#f3f4f6',
+    color: '#6b7280',
+    border: '1px solid #d1d5db',
+    borderRadius: '0.5rem',
+    fontSize: '0.875rem',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    marginBottom: '1rem',
+    fontFamily: 'inherit',
+  } as React.CSSProperties,
   backButton: {
     width: '100%',
     padding: '0.875rem 1.5rem',
@@ -2928,47 +2006,19 @@ const styles = {
     transition: 'all 0.3s ease',
     fontFamily: 'inherit',
   } as React.CSSProperties,
-  completeContainer: {
-    textAlign: 'center' as const,
-  } as React.CSSProperties,
-  successIcon: {
-    fontSize: '4rem',
-    marginBottom: '1rem',
-    display: 'inline-flex',
-    width: '80px',
-    height: '80px',
-    backgroundColor: '#dcfce7',
-    borderRadius: '50%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: '#10b981',
-    fontWeight: 'bold',
-  } as React.CSSProperties,
-  summaryBox: {
-    backgroundColor: '#f9fafb',
-    border: '1px solid #e5e7eb',
-    borderRadius: '1rem',
-    padding: '1.5rem',
-    marginTop: '2rem',
-    marginBottom: '2rem',
-    textAlign: 'left' as const,
-  } as React.CSSProperties,
-  summaryItem: {
+  addButton: {
+    padding: '0.75rem 1.5rem',
+    backgroundColor: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '0.5rem',
+    fontSize: '0.875rem',
+    fontWeight: '600',
+    cursor: 'pointer',
     display: 'flex',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingBottom: '1rem',
-    borderBottom: '1px solid #e5e7eb',
-  } as React.CSSProperties,
-  summaryLabel: {
-    fontSize: '0.875rem',
-    fontWeight: '600',
-    color: '#6b7280',
-  } as React.CSSProperties,
-  summaryValue: {
-    fontSize: '0.875rem',
-    fontWeight: '600',
-    color: '#111827',
+    gap: '0.5rem',
+    transition: 'all 0.3s ease',
   } as React.CSSProperties,
   infoBox: {
     display: 'flex',
@@ -3016,130 +2066,218 @@ const styles = {
     height: '18px',
     cursor: 'pointer',
   } as React.CSSProperties,
-
-  termsSection: {
-    marginTop: '2rem',
+  fileInputWrapper: {
+    border: '2px dashed #d1d5db',
+    borderRadius: '0.5rem',
     padding: '1.5rem',
+    textAlign: 'center' as const,
+    backgroundColor: '#fafafa',
+  } as React.CSSProperties,
+  fileInput: {
+    width: '100%',
+    cursor: 'pointer',
+  } as React.CSSProperties,
+  fileName: {
+    fontSize: '0.875rem',
+    color: '#10b981',
+    marginTop: '0.5rem',
+    fontWeight: '600',
+  } as React.CSSProperties,
+  otpSentText: {
+    fontSize: '0.75rem',
+    color: '#6b7280',
+    margin: '0.5rem 0 1rem 0',
+  } as React.CSSProperties,
+  resendButton: {
+    width: '100%',
+    padding: '0.875rem 1.5rem',
+    backgroundColor: '#667eea',
+    color: 'white',
+    border: 'none',
+    borderRadius: '0.5rem',
+    fontSize: '0.875rem',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    fontFamily: 'inherit',
+  } as React.CSSProperties,
+  bankDetailsBox: {
+    backgroundColor: '#f0fdf4',
+    border: '1px solid #dcfce7',
+    borderRadius: '0.5rem',
+    padding: '1rem',
+    marginTop: '0.75rem',
+  } as React.CSSProperties,
+  bankDetailsRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingBottom: '0.75rem',
+    borderBottom: '1px solid #dcfce7',
+  } as React.CSSProperties,
+  bankDetailsLabel: {
+    fontSize: '0.875rem',
+    fontWeight: '600',
+    color: '#4b5563',
+    minWidth: '80px',
+  } as React.CSSProperties,
+  bankDetailsValue: {
+    fontSize: '0.875rem',
+    fontWeight: '500',
+    color: '#15803d',
+    textAlign: 'right' as const,
+    flex: 1,
+    paddingLeft: '0.5rem',
+  } as React.CSSProperties,
+  divider: {
+    height: '1px',
+    backgroundColor: '#e5e7eb',
+    margin: '1.5rem 0',
+  } as React.CSSProperties,
+  menuForm: {
     backgroundColor: '#f9fafb',
     border: '1px solid #e5e7eb',
     borderRadius: '1rem',
+    padding: '1.5rem',
+    marginBottom: '1.5rem',
   } as React.CSSProperties,
-  termsSectionTitle: {
-    fontSize: '0.875rem',
-    fontWeight: '600',
-    color: '#1f2937',
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.05em',
-    margin: '0 0 1rem 0',
-  } as React.CSSProperties,
-  termsContainer: {
+  itemsList: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: '1rem',
+    gap: '0.75rem',
+    marginBottom: '1.5rem',
   } as React.CSSProperties,
-  termItem: {
-    display: 'flex',
-    alignItems: 'flex-start',
-  } as React.CSSProperties,
-  termCheckboxLabel: {
+  listItem: {
     display: 'flex',
     alignItems: 'center',
-    gap: '0.75rem',
-    fontSize: '0.875rem',
-    color: '#374151',
-    cursor: 'pointer',
-    fontWeight: '500',
-    lineHeight: '1.5',
-  } as React.CSSProperties,
-  termCheckbox: {
-    width: '20px',
-    height: '20px',
-    cursor: 'pointer',
-    flexShrink: 0,
-  } as React.CSSProperties,
-  required: {
-    color: '#dc2626',
-    fontWeight: 'bold',
-  } as React.CSSProperties,
-  link: {
-    color: '#667eea',
-    textDecoration: 'none',
-    fontWeight: '600',
-    borderBottom: '1px solid #667eea',
-  } as React.CSSProperties,
-  marketingSection: {
-    marginTop: '1.5rem',
-    padding: '1.5rem',
-    backgroundColor: '#f0f9ff',
-    border: '1px solid #bfdbfe',
-    borderRadius: '1rem',
-  } as React.CSSProperties,
-  marketingSectionTitle: {
-    fontSize: '1rem',
-    fontWeight: '700',
-    color: '#0c4a6e',
-    margin: '0 0 0.5rem 0',
-  } as React.CSSProperties,
-  marketingDescription: {
-    fontSize: '0.875rem',
-    color: '#0c4a6e',
-    margin: '0 0 1rem 0',
-  } as React.CSSProperties,
-  marketingOptionsContainer: {
-    display: 'grid',
-    gridTemplateColumns: '1fr',
     gap: '1rem',
-    marginBottom: '1rem',
-  } as React.CSSProperties,
-  marketingOption: {
     padding: '1rem',
-    backgroundColor: 'white',
-    border: '1px solid #bfdbfe',
-    borderRadius: '0.75rem',
-    transition: 'all 0.2s ease',
+    backgroundColor: '#f3f4f6',
+    borderRadius: '0.5rem',
+    border: '1px solid #e5e7eb',
   } as React.CSSProperties,
-  marketingCheckboxLabel: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: '0.75rem',
+  itemContent: {
+    flex: 1,
+  } as React.CSSProperties,
+  itemName: {
+    margin: 0,
+    fontSize: '0.875rem',
+    fontWeight: '600',
+    color: '#111827',
+  } as React.CSSProperties,
+  itemCategory: {
+    margin: '0.25rem 0 0 0',
+    fontSize: '0.75rem',
+    color: '#6b7280',
+  } as React.CSSProperties,
+  itemDescription: {
+    margin: '0.5rem 0 0 0',
+    fontSize: '0.75rem',
+    color: '#6b7280',
+    lineHeight: '1.3',
+  } as React.CSSProperties,
+  itemPrice: {
+    fontSize: '0.875rem',
+    fontWeight: '600',
+    color: '#f97316',
+    minWidth: '60px',
+    textAlign: 'right' as const,
+  } as React.CSSProperties,
+  deleteButton: {
+    padding: '0.5rem',
+    backgroundColor: '#fee2e2',
+    color: '#dc2626',
+    border: 'none',
+    borderRadius: '0.5rem',
     cursor: 'pointer',
-    width: '100%',
-  } as React.CSSProperties,
-  marketingCheckbox: {
-    width: '20px',
-    height: '20px',
-    cursor: 'pointer',
-    marginTop: '0.25rem',
-    flexShrink: 0,
-  } as React.CSSProperties,
-  marketingOptionContent: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: '0.75rem',
-    width: '100%',
-  } as React.CSSProperties,
-  marketingIcon: {
-    fontSize: '1.5rem',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: '24px',
+    transition: 'all 0.3s ease',
   } as React.CSSProperties,
-  marketingOptionTitle: {
+  completeContainer: {
+    textAlign: 'center' as const,
+  } as React.CSSProperties,
+  successIcon: {
+    fontSize: '4rem',
+    marginBottom: '1rem',
+    display: 'inline-flex',
+    width: '80px',
+    height: '80px',
+    backgroundColor: '#dcfce7',
+    borderRadius: '50%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#10b981',
+    fontWeight: 'bold',
+  } as React.CSSProperties,
+  completionChecklist: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '1rem',
+    textAlign: 'left' as const,
+    marginTop: '2rem',
+    marginBottom: '2rem',
+  } as React.CSSProperties,
+  checklistItem: {
+    display: 'flex',
+    gap: '1rem',
+    padding: '1rem',
+    backgroundColor: '#f9fafb',
+    border: '1px solid #e5e7eb',
+    borderRadius: '0.75rem',
+  } as React.CSSProperties,
+  checklistDone: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '32px',
+    height: '32px',
+    backgroundColor: '#dcfce7',
+    color: '#10b981',
+    borderRadius: '50%',
+    fontWeight: 'bold',
+    fontSize: '0.875rem',
+    flexShrink: 0,
+  } as React.CSSProperties,
+  checklistPending: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '32px',
+    height: '32px',
+    backgroundColor: '#fef3c7',
+    color: '#f59e0b',
+    borderRadius: '50%',
+    fontWeight: 'bold',
+    fontSize: '0.875rem',
+    flexShrink: 0,
+  } as React.CSSProperties,
+  checklistTitle: {
+    margin: 0,
     fontSize: '0.875rem',
     fontWeight: '600',
-    color: '#1f2937',
-    margin: '0 0 0.25rem 0',
+    color: '#111827',
   } as React.CSSProperties,
-  marketingOptionDescription: {
+  checklistText: {
+    margin: '0.25rem 0 0 0',
     fontSize: '0.75rem',
     color: '#6b7280',
-    margin: 0,
   } as React.CSSProperties,
-  marketingFooter: {
-    fontSize: '0.75rem',
-    color: '#6b7280',
-    margin: '0.75rem 0 0 0',
-    fontStyle: 'italic',
+  ctaButton: {
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '0.75rem',
+    padding: 'clamp(0.75rem, 2vw, 1rem) 2rem',
+    backgroundColor: '#f97316',
+    color: 'white',
+    border: 'none',
+    borderRadius: '0.75rem',
+    fontSize: 'clamp(0.875rem, 2vw, 1rem)',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
   } as React.CSSProperties,
 };

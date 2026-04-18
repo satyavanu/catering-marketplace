@@ -23,11 +23,9 @@ const Header = () => {
   const { data: session, status } = useSession();
 
   const navLinks = [
-    { label: 'Explore', href: '/' },
-    { label: 'Catering', href: '/catering' },
+    { label: 'Home', href: '/' },
+    { label: 'Find Caterers ', href: '/catering' },
     { label: 'Meal Plans', href: '/meals' },
-    { label: 'Packages', href: '/meals' },
-    { label: 'For Caterers', href: '/meals' },
   ];
 
   // Close profile menu when clicking outside
@@ -603,34 +601,15 @@ const Header = () => {
               flexShrink: 0,
             }}
           >
-            <div
+            <img
+              src="/logo.png"
+              alt="Droooly"
               style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '10px',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontSize: '20px',
-                fontWeight: 'bold',
+                height: '110px',
+                width: '180px',
               }}
-            >
-              🍽️
-            </div>
-            <span
-              style={{
-                fontSize: '18px',
-                fontWeight: '700',
-                color: '#1e293b',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              CaterHub
-            </span>
+            />
           </Link>
-
           {/* Desktop Navigation Menu */}
           <nav className="desktop-nav">
             {navLinks.map((link) => (
@@ -643,7 +622,7 @@ const Header = () => {
             {status === 'authenticated' ? (
               <>
                 <Link
-                  href="/become-caterer"
+                  href="/become-a-caterer"
                   style={{
                     fontSize: '13px',
                     fontWeight: '600',

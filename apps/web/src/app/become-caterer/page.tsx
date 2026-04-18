@@ -1,185 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { ArrowRight, TrendingUp, Settings, CreditCard, Zap } from 'lucide-react';
 
 export default function BecomeCatererPage() {
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
-
-  const stats = [
-    { label: 'Active Caterers', value: '5,000+', icon: '👨‍🍳' },
-    { label: 'Monthly Bookings', value: '50,000+', icon: '📅' },
-    { label: 'Revenue Generated', value: '$25M+', icon: '💰' },
-    { label: 'Avg Satisfaction', value: '4.8/5', icon: '⭐' },
-  ];
-
-  const benefits = [
-    {
-      icon: '📈',
-      title: 'Grow Your Orders',
-      description: 'Reach thousands of customers actively looking for catering services in your area',
-    },
-    {
-      icon: '🎯',
-      title: 'Easy Management',
-      description: 'Manage menus, pricing, bookings and payments from one simple dashboard',
-    },
-    {
-      icon: '💳',
-      title: 'Secure Payments',
-      description: 'Get paid on time with our reliable and secure payment system',
-    },
-    {
-      icon: '📊',
-      title: 'Analytics & Insights',
-      description: 'Track your performance with detailed analytics and customer insights',
-    },
-    {
-      icon: '🤝',
-      title: '24/7 Support',
-      description: 'Our dedicated support team is always ready to help you succeed',
-    },
-    {
-      icon: '⭐',
-      title: 'Build Your Reputation',
-      description: 'Showcase your work with reviews, ratings and portfolio showcase',
-    },
-  ];
-
-  const allFeatures = [
-    'Basic listing',
-    'Profile management',
-    'Order management',
-    'Email support',
-    'Analytics',
-    'Commission rate',
-    'Featured listing',
-    'Unlimited orders',
-    'Priority support',
-    'Marketing tools',
-    'Custom branding',
-    'Dedicated manager',
-    'API access',
-    'Advanced analytics',
-  ];
-
-  const plans = [
-    {
-      id: 'starter',
-      name: 'Starter',
-      monthlyPrice: 0,
-      annualPrice: 0,
-      period: '/month',
-      description: 'Perfect for new caterers',
-      features: [
-        { name: 'Basic listing', included: true },
-        { name: 'Profile management', included: true },
-        { name: 'Order management', included: true },
-        { name: 'Email support', included: true },
-        { name: 'Analytics', included: true },
-        { name: 'Commission rate', value: '12%', included: true },
-        { name: 'Featured listing', included: false },
-        { name: 'Unlimited orders', included: false },
-        { name: 'Priority support', included: false },
-        { name: 'Marketing tools', included: false },
-        { name: 'Custom branding', included: false },
-        { name: 'Dedicated manager', included: false },
-        { name: 'API access', included: false },
-        { name: 'Advanced analytics', included: false },
-      ],
-      cta: 'Get Started Free',
-      badge: 'Free Forever',
-    },
-    {
-      id: 'pro',
-      name: 'Professional',
-      monthlyPrice: 999,
-      annualPrice: 9990,
-      period: '/month',
-      description: 'For growing catering businesses',
-      features: [
-        { name: 'Basic listing', included: true },
-        { name: 'Profile management', included: true },
-        { name: 'Order management', included: true },
-        { name: 'Email support', included: true },
-        { name: 'Analytics', included: true },
-        { name: 'Commission rate', value: '7%', included: true },
-        { name: 'Featured listing', included: true },
-        { name: 'Unlimited orders', included: true },
-        { name: 'Priority support', included: true },
-        { name: 'Marketing tools', included: true },
-        { name: 'Custom branding', included: false },
-        { name: 'Dedicated manager', included: false },
-        { name: 'API access', included: false },
-        { name: 'Advanced analytics', included: true },
-      ],
-      cta: 'Start Free Trial',
-      badge: 'Most Popular',
-      savings: '17%',
-      highlighted: true,
-    },
-    {
-      id: 'premium',
-      name: 'Premium',
-      monthlyPrice: 1999,
-      annualPrice: 19990,
-      period: '/month',
-      description: 'For high-volume operations',
-      features: [
-        { name: 'Basic listing', included: true },
-        { name: 'Profile management', included: true },
-        { name: 'Order management', included: true },
-        { name: 'Email support', included: true },
-        { name: 'Analytics', included: true },
-        { name: 'Commission rate', value: '3%', included: true },
-        { name: 'Featured listing', included: true },
-        { name: 'Unlimited orders', included: true },
-        { name: 'Priority support', included: true },
-        { name: 'Marketing tools', included: true },
-        { name: 'Custom branding', included: true },
-        { name: 'Dedicated manager', included: true },
-        { name: 'API access', included: true },
-        { name: 'Advanced analytics', included: true },
-      ],
-      cta: 'Start Free Trial',
-      badge: 'For Scale',
-    },
-  ];
-
-  const faqs = [
-    {
-      q: 'How do I become a caterer on the platform?',
-      a: 'Simply sign up with your business details, complete your profile with photos and menu items, verify your business license, and you\'re ready to start receiving orders!',
-    },
-    {
-      q: 'How do payments work?',
-      a: 'Payments are processed securely after each order. We use encrypted payment gateways and transfer earnings to your bank account within 24-48 hours. You can withdraw anytime.',
-    },
-    {
-      q: 'Can I upgrade my plan later?',
-      a: 'Yes! You can upgrade, downgrade or cancel your plan anytime. Changes take effect immediately with pro-rata adjustments.',
-    },
-    {
-      q: 'What commission does CaterHub charge?',
-      a: 'Commission varies by plan: Starter (12%), Professional (7%), Premium (3%). This covers payment processing, platform maintenance, and customer support.',
-    },
-    {
-      q: 'How long is the verification process?',
-      a: 'Usually 2-3 business days. We verify your business license, food safety certifications, and background information to ensure quality and trust.',
-    },
-    {
-      q: 'Can I have multiple locations?',
-      a: 'Yes! Professional and Premium plans support multiple locations. Contact our sales team for enterprise solutions.',
-    },
-  ];
-
-  const getDisplayPrice = (plan: any) => {
-    if (plan.monthlyPrice === 0) return 'Free';
-    return billingCycle === 'monthly' ? `₹${plan.monthlyPrice}` : `₹${Math.round(plan.annualPrice / 12)}`;
-  };
-
-  const handleSignup = (planId: string) => {
-    // Open signup in a new tab/window
-    window.open(`http://localhost:3002/signup?plan=${planId}`, '_blank');
+  const handleStartSelling = () => {
+    window.location.href = '/onboarding';
   };
 
   return (
@@ -199,605 +25,313 @@ export default function BecomeCatererPage() {
         .hero-section {
           position: relative;
           width: 100%;
-          background: linear-gradient(135deg, #4f46e5 0%, #a855f7 50%, #ec4899 100%);
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
           color: white;
-          padding: 96px 32px;
+          padding: clamp(60px, 12vw, 120px) 32px;
           overflow: hidden;
         }
 
         .hero-section::before {
           content: '';
           position: absolute;
-          top: 0;
-          right: 0;
-          width: 384px;
-          height: 384px;
+          top: -50%;
+          right: -10%;
+          width: 500px;
+          height: 500px;
           background: white;
           border-radius: 50%;
           filter: blur(120px);
-          opacity: 0.1;
+          opacity: 0.15;
         }
 
         .hero-section::after {
           content: '';
           position: absolute;
-          bottom: 0;
-          left: 0;
-          width: 384px;
-          height: 384px;
+          bottom: -50%;
+          left: -10%;
+          width: 500px;
+          height: 500px;
           background: white;
           border-radius: 50%;
           filter: blur(120px);
-          opacity: 0.1;
+          opacity: 0.15;
         }
 
         .hero-container {
-          max-width: 1280px;
+          max-width: 900px;
           margin: 0 auto;
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 48px;
-          align-items: center;
+          text-align: center;
           position: relative;
           z-index: 10;
         }
 
-        @media (min-width: 1024px) {
-          .hero-container {
-            grid-template-columns: 1fr 1fr;
-          }
-        }
-
-        .hero-content h1 {
-          font-size: 48px;
-          font-weight: 700;
-          margin-bottom: 32px;
+        .hero-container h1 {
+          font-size: clamp(32px, 8vw, 56px);
+          font-weight: 800;
+          margin-bottom: 24px;
           line-height: 1.2;
+          letter-spacing: -0.5px;
         }
 
-        @media (min-width: 1024px) {
-          .hero-content h1 {
-            font-size: 56px;
-          }
-        }
-
-        .gradient-text {
-          background: linear-gradient(to right, #fef08a, #fbcfe8);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-        }
-
-        .hero-content p {
-          font-size: 18px;
-          color: #c7d2fe;
-          margin-bottom: 40px;
+        .hero-container p {
+          font-size: clamp(16px, 3vw, 20px);
+          color: rgba(255, 255, 255, 0.95);
+          margin-bottom: 32px;
           line-height: 1.6;
+          max-width: 700px;
+          margin-left: auto;
+          margin-right: auto;
         }
 
-        .cta-buttons {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
+        .hero-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          background: rgba(255, 255, 255, 0.15);
+          backdrop-filter: blur(12px);
+          padding: 12px 20px;
+          border-radius: 9999px;
+          margin-bottom: 32px;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          font-size: 14px;
+          font-weight: 600;
         }
 
-        @media (min-width: 640px) {
-          .cta-buttons {
-            flex-direction: row;
-          }
+        .hero-badge span {
+          font-size: 18px;
         }
 
         .btn-primary {
           background: white;
-          color: #4f46e5;
-          padding: 16px 32px;
+          color: #667eea;
+          padding: clamp(12px, 2vw, 16px) clamp(24px, 4vw, 40px);
           border-radius: 8px;
           font-weight: 700;
-          font-size: 18px;
+          font-size: clamp(14px, 2vw, 18px);
           border: none;
           cursor: pointer;
-          box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
           transition: all 0.3s ease;
           text-decoration: none;
-          display: inline-block;
-          text-align: center;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          font-family: 'system-ui', '-apple-system', 'sans-serif';
         }
 
         .btn-primary:hover {
           background: #f3f4f6;
-          transform: scale(1.05);
-          box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+          transform: translateY(-4px);
+          box-shadow: 0 15px 40px rgba(0, 0, 0, 0.25);
         }
 
-        .btn-secondary {
-          border: 2px solid white;
-          color: white;
-          background: transparent;
-          padding: 16px 32px;
-          border-radius: 8px;
-          font-weight: 700;
-          font-size: 18px;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          text-decoration: none;
-          display: inline-block;
-          text-align: center;
+        .btn-primary:active {
+          transform: translateY(-2px);
         }
 
-        .btn-secondary:hover {
-          background: white;
-          color: #4f46e5;
-          transform: scale(1.05);
-        }
-
-        /* Stats Section */
-        .stats-section {
+        /* Social Proof Section */
+        .social-proof {
           width: 100%;
-          background: linear-gradient(to right, #f9fafb, #e0e7ff);
-          padding: 64px 32px;
+          background: linear-gradient(to right, #f9fafb, #f3f0ff);
+          padding: 60px 32px;
           border-top: 1px solid #e5e7eb;
           border-bottom: 1px solid #e5e7eb;
         }
 
-        .stats-container {
-          max-width: 1280px;
+        .proof-container {
+          max-width: 900px;
           margin: 0 auto;
           display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 32px;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: clamp(32px, 5vw, 48px);
         }
 
-        @media (min-width: 768px) {
-          .stats-container {
-            grid-template-columns: repeat(4, 1fr);
-          }
-        }
-
-        .stat-item {
+        .proof-item {
           text-align: center;
         }
 
-        .stat-icon {
-          font-size: 48px;
-          margin-bottom: 16px;
+        .proof-icon {
+          font-size: clamp(32px, 6vw, 48px);
+          margin-bottom: 12px;
         }
 
-        .stat-value {
-          font-size: 32px;
+        .proof-value {
+          font-size: clamp(20px, 4vw, 28px);
           font-weight: 700;
-          color: #4f46e5;
+          color: #667eea;
           margin-bottom: 8px;
         }
 
-        .stat-label {
+        .proof-label {
           color: #4b5563;
           font-weight: 500;
-          font-size: 12px;
+          font-size: clamp(12px, 2vw, 14px);
         }
 
-        /* Benefits Section */
-        .benefits-section {
+        /* Why Join Section */
+        .why-section {
           width: 100%;
-          padding: 80px 32px;
+          padding: clamp(60px, 10vw, 100px) 32px;
+          background: white;
+        }
+
+        .section-container {
+          max-width: 1200px;
+          margin: 0 auto;
         }
 
         .section-title {
-          font-size: 36px;
-          font-weight: 700;
+          font-size: clamp(28px, 6vw, 44px);
+          font-weight: 800;
           color: #111827;
           text-align: center;
-          margin-bottom: 24px;
-        }
-
-        @media (min-width: 768px) {
-          .section-title {
-            font-size: 44px;
-          }
+          margin-bottom: 16px;
+          letter-spacing: -0.5px;
         }
 
         .section-subtitle {
-          font-size: 18px;
+          font-size: clamp(14px, 2vw, 16px);
           color: #4b5563;
           text-align: center;
-          max-width: 672px;
-          margin: 0 auto 64px;
+          max-width: 600px;
+          margin: 0 auto 60px;
+          line-height: 1.6;
         }
 
         .benefits-grid {
-          max-width: 1280px;
-          margin: 0 auto;
           display: grid;
-          grid-template-columns: 1fr;
-          gap: 32px;
-        }
-
-        @media (min-width: 768px) {
-          .benefits-grid {
-            grid-template-columns: repeat(2, 1fr);
-          }
-        }
-
-        @media (min-width: 1024px) {
-          .benefits-grid {
-            grid-template-columns: repeat(3, 1fr);
-          }
+          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+          gap: clamp(24px, 4vw, 32px);
         }
 
         .benefit-card {
           background: white;
           border-radius: 16px;
-          padding: 32px;
-          border: 1px solid #f3f4f6;
-          box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+          padding: clamp(24px, 4vw, 32px);
+          border: 1px solid #e5e7eb;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
           transition: all 0.3s ease;
+          text-align: center;
         }
 
         .benefit-card:hover {
-          box-shadow: 0 20px 25px rgba(0,0,0,0.1);
+          box-shadow: 0 12px 24px rgba(102, 126, 234, 0.15);
           transform: translateY(-8px);
+          border-color: #667eea;
         }
 
-        .benefit-icon {
-          font-size: 44px;
-          margin-bottom: 24px;
-          display: inline-block;
-        }
-
-        .benefit-card:hover .benefit-icon {
-          transform: scale(1.25);
-          transition: transform 0.3s ease;
+        .benefit-icon-wrapper {
+          width: 56px;
+          height: 56px;
+          background: linear-gradient(135deg, #667eea, #764ba2);
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0 auto 16px;
+          color: white;
+          font-size: 28px;
         }
 
         .benefit-title {
-          font-size: 20px;
+          font-size: clamp(16px, 2vw, 18px);
           font-weight: 700;
           color: #111827;
-          margin-bottom: 16px;
+          margin-bottom: 12px;
         }
 
         .benefit-description {
           color: #4b5563;
           line-height: 1.6;
-          font-size: 14px;
+          font-size: clamp(13px, 2vw, 14px);
         }
 
-        /* Pricing Section */
-        .pricing-section {
+        /* How It Works Section */
+        .how-section {
           width: 100%;
           background: linear-gradient(to bottom, #f9fafb, white);
-          padding: 80px 32px;
+          padding: clamp(60px, 10vw, 100px) 32px;
+          border-top: 1px solid #e5e7eb;
         }
 
-        .billing-toggle {
-          display: inline-flex;
-          align-items: center;
-          background: #f3f4f6;
-          border-radius: 9999px;
-          padding: 4px;
-          margin-bottom: 48px;
-        }
-
-        .toggle-btn {
-          padding: 12px 24px;
-          border-radius: 9999px;
-          border: none;
-          font-weight: 600;
-          font-size: 14px;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          background: transparent;
-          color: #4b5563;
-        }
-
-        .toggle-btn.active {
-          background: white;
-          color: #4f46e5;
-          box-shadow: 0 3px 10px rgba(0,0,0,0.1);
-        }
-
-        .toggle-badge {
-          background: #dcfce7;
-          color: #15803d;
-          font-size: 12px;
-          font-weight: 700;
-          padding: 4px 8px;
-          border-radius: 9999px;
-          margin-left: 8px;
-        }
-
-        /* Pricing Table */
-        .table-wrapper {
-          overflow-x: auto;
-          box-shadow: 0 20px 25px rgba(0,0,0,0.1);
-          border-radius: 16px;
-          border: 1px solid #e5e7eb;
-        }
-
-        .pricing-table {
-          width: 100%;
-          border-collapse: collapse;
-        }
-
-        .pricing-table thead {
-          background: linear-gradient(to right, #f3f4f6, #e8ddf0);
-          border-bottom: 2px solid #e5e7eb;
-        }
-
-        .pricing-table th {
-          padding: 24px;
-          text-align: center;
-          font-weight: 700;
-          color: #111827;
-          border-left: 1px solid #e5e7eb;
-        }
-
-        .pricing-table th:first-child {
-          border-left: none;
-          text-align: left;
-        }
-
-        .pricing-table th.highlighted {
-          background: linear-gradient(to bottom, #e0e7ff, #f3e8ff);
-        }
-
-        .plan-header {
-          text-align: center;
-        }
-
-        .plan-badge {
-          font-size: 12px;
-          font-weight: 700;
-          padding: 6px 12px;
-          border-radius: 9999px;
-          margin-bottom: 12px;
-          display: inline-block;
-        }
-
-        .plan-badge-popular {
-          background: linear-gradient(to right, #fbbf24, #f97316);
-          color: #111827;
-        }
-
-        .plan-badge-standard {
-          background: #e5e7eb;
-          color: #374151;
-        }
-
-        .plan-name {
-          font-size: 20px;
-          font-weight: 700;
-          color: #111827;
-        }
-
-        .plan-description {
-          font-size: 12px;
-          color: #4b5563;
-          margin-top: 8px;
-        }
-
-        .pricing-table tbody tr {
-          border-bottom: 1px solid #e5e7eb;
-          background: white;
-          transition: background 0.2s ease;
-        }
-
-        .pricing-table tbody tr:nth-child(odd) {
-          background: white;
-        }
-
-        .pricing-table tbody tr:nth-child(even) {
-          background: #f9fafb;
-        }
-
-        .pricing-table tbody tr:hover {
-          background: #f0f4ff;
-        }
-
-        .pricing-table td {
-          padding: 16px 24px;
-          text-align: center;
-          border-left: 1px solid #e5e7eb;
-          color: #111827;
-        }
-
-        .pricing-table td:first-child {
-          text-align: left;
-          border-left: none;
-          font-weight: 500;
-          color: #111827;
-        }
-
-        .price-value {
-          font-size: 32px;
-          font-weight: 700;
-          color: #4f46e5;
-        }
-
-        .price-period {
-          font-size: 14px;
-          color: #4b5563;
-          margin-top: 4px;
-        }
-
-        .price-annual {
-          font-size: 12px;
-          color: #9ca3af;
-          margin-top: 8px;
-        }
-
-        .btn-signup {
-          padding: 12px 32px;
-          border-radius: 8px;
-          font-weight: 700;
-          border: none;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          text-decoration: none;
-          display: inline-block;
-          font-size: 14px;
-        }
-
-        .btn-signup-primary {
-          background: linear-gradient(to right, #4f46e5, #a855f7);
-          color: white;
-          box-shadow: 0 10px 15px rgba(79, 70, 229, 0.3);
-        }
-
-        .btn-signup-primary:hover {
-          box-shadow: 0 15px 25px rgba(79, 70, 229, 0.4);
-          transform: scale(1.05);
-        }
-
-        .btn-signup-secondary {
-          background: #f3f4f6;
-          color: #111827;
-        }
-
-        .btn-signup-secondary:hover {
-          background: #e5e7eb;
-        }
-
-        .check-mark {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 24px;
-          height: 24px;
-          border-radius: 50%;
-          background: #dcfce7;
-          color: #16a34a;
-          font-weight: 700;
-          font-size: 14px;
-        }
-
-        .cross-mark {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 24px;
-          height: 24px;
-          border-radius: 50%;
-          background: #e5e7eb;
-          color: #9ca3af;
-          font-weight: 700;
-        }
-
-        .feature-value {
-          margin-left: 8px;
-          font-weight: 600;
-          color: #111827;
-        }
-
-        /* FAQ Section */
-        .faq-section {
-          width: 100%;
-          background: white;
-          padding: 80px 32px;
-        }
-
-        .faq-container {
-          max-width: 1280px;
+        .steps-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+          gap: clamp(32px, 5vw, 48px);
+          max-width: 1000px;
           margin: 0 auto;
         }
 
-        .faq-intro {
-          max-width: 768px;
-          margin-bottom: 64px;
+        .step-card {
+          text-align: center;
+          position: relative;
         }
 
-        .faq-intro h2 {
-          font-size: 36px;
+        .step-number {
+          width: 56px;
+          height: 56px;
+          background: linear-gradient(135deg, #667eea, #764ba2);
+          color: white;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           font-weight: 700;
-          color: #111827;
-          margin-bottom: 16px;
+          font-size: 24px;
+          margin: 0 auto 20px;
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
         }
 
-        .faq-intro p {
-          font-size: 18px;
-          color: #4b5563;
-          line-height: 1.6;
-        }
-
-        .faq-link {
-          color: #4f46e5;
-          font-weight: 600;
-          text-decoration: none;
-        }
-
-        .faq-link:hover {
-          color: #4338ca;
-        }
-
-        .faq-grid {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 32px;
-        }
-
-        @media (min-width: 768px) {
-          .faq-grid {
-            grid-template-columns: repeat(2, 1fr);
-          }
-        }
-
-        @media (min-width: 1024px) {
-          .faq-grid {
-            grid-template-columns: repeat(3, 1fr);
-          }
-        }
-
-        .faq-card {
-          background: white;
-          border: 1px solid #e5e7eb;
-          border-radius: 12px;
-          padding: 32px;
-          transition: all 0.2s ease;
-        }
-
-        .faq-card:hover {
-          box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-          border-color: #4f46e5;
-        }
-
-        .faq-question {
-          font-size: 16px;
+        .step-title {
+          font-size: clamp(16px, 2vw, 18px);
           font-weight: 700;
           color: #111827;
           margin-bottom: 12px;
-          line-height: 1.4;
         }
 
-        .faq-answer {
-          font-size: 14px;
+        .step-description {
           color: #4b5563;
           line-height: 1.6;
+          font-size: clamp(13px, 2vw, 14px);
         }
 
-        /* CTA Section */
-        .cta-section {
+        @media (min-width: 768px) {
+          .step-card:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 28px;
+            right: -24px;
+            width: 48px;
+            height: 2px;
+            background: linear-gradient(to right, #667eea, transparent);
+          }
+        }
+
+        /* Final CTA Section */
+        .final-cta {
           position: relative;
           width: 100%;
-          background: linear-gradient(to right, #4f46e5, #a855f7, #ec4899);
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
           color: white;
-          padding: 80px 32px;
+          padding: clamp(60px, 12vw, 100px) 32px;
           overflow: hidden;
         }
 
-        .cta-section::before {
+        .final-cta::before {
           content: '';
           position: absolute;
-          top: 0;
-          right: 0;
-          width: 384px;
-          height: 384px;
+          top: -50%;
+          right: -10%;
+          width: 500px;
+          height: 500px;
           background: white;
           border-radius: 50%;
           filter: blur(120px);
-          opacity: 0.1;
+          opacity: 0.15;
         }
 
         .cta-content {
-          max-width: 896px;
+          max-width: 700px;
           margin: 0 auto;
           text-align: center;
           position: relative;
@@ -805,381 +339,191 @@ export default function BecomeCatererPage() {
         }
 
         .cta-content h2 {
-          font-size: 36px;
-          font-weight: 700;
-          margin-bottom: 24px;
+          font-size: clamp(28px, 7vw, 48px);
+          font-weight: 800;
+          margin-bottom: 20px;
           line-height: 1.2;
-        }
-
-        @media (min-width: 1024px) {
-          .cta-content h2 {
-            font-size: 48px;
-          }
+          letter-spacing: -0.5px;
         }
 
         .cta-content p {
-          font-size: 18px;
-          color: #c7d2fe;
-          margin-bottom: 48px;
+          font-size: clamp(14px, 2vw, 18px);
+          color: rgba(255, 255, 255, 0.95);
+          margin-bottom: 40px;
           line-height: 1.6;
         }
 
-        .cta-buttons {
-          display: flex;
-          flex-direction: column;
-          gap: 24px;
-          justify-content: center;
-        }
+        /* Responsive */
+        @media (max-width: 768px) {
+          .hero-section {
+            padding: 60px 20px;
+          }
 
-        @media (min-width: 640px) {
-          .cta-buttons {
-            flex-direction: row;
+          .benefit-card {
+            text-align: center;
+          }
+
+          .step-card::after {
+            display: none !important;
           }
         }
 
-        .cta-footer {
-          color: #c7d2fe;
-          margin-top: 32px;
-          font-size: 14px;
+        /* Animations */
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .animate-fadeInUp {
+          animation: fadeInUp 0.6s ease-out;
         }
       `}</style>
 
       {/* Hero Section */}
-      <section className="hero-section">
+      <section className="hero-section animate-fadeInUp">
         <div className="hero-container">
-          <div className="hero-content">
-            <div style={{ display: 'inline-block', background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(12px)', padding: '8px 16px', borderRadius: '9999px', marginBottom: '24px', border: '1px solid rgba(255,255,255,0.3)' }}>
-              <span style={{ fontSize: '14px', fontWeight: '600' }}>✨ Join 5000+ Successful Caterers</span>
-            </div>
-            <h1>Grow Your Catering <span className="gradient-text">Business</span></h1>
-            <p>Join the fastest-growing catering marketplace. Scale your business, reach unlimited customers, and increase revenue by up to 300%.</p>
-            <div className="cta-buttons">
-              <button 
-                className="btn-primary"
-                onClick={() => handleSignup('starter')}
-              >
-                Get Started Free
-              </button>
-              <button className="btn-secondary">Watch Demo</button>
-            </div>
+          <div className="hero-badge">
+            <span>✨</span>
+            <span>Join 5000+ Successful Caterers</span>
+          </div>
+
+          <h1>Grow Your Catering Business with Droooly</h1>
+
+          <p>
+            Get discovered by customers, manage your orders, and grow your catering business — all in one place.
+          </p>
+
+          <div style={{ marginBottom: '24px', fontSize: '14px', color: 'rgba(255,255,255,0.9)', fontWeight: '500' }}>
+            ✅ Free to join. No upfront cost.
+          </div>
+
+          <button className="btn-primary" onClick={handleStartSelling}>
+            Start Selling
+            <ArrowRight size={20} />
+          </button>
+        </div>
+      </section>
+
+      {/* Social Proof Section */}
+      <section className="social-proof">
+        <div className="proof-container">
+          <div className="proof-item">
+            <div className="proof-icon">🎉</div>
+            <div className="proof-value">5000+</div>
+            <div className="proof-label">Events Served</div>
+          </div>
+          <div className="proof-item">
+            <div className="proof-icon">📦</div>
+            <div className="proof-value">1000+</div>
+            <div className="proof-label">Monthly Bookings</div>
+          </div>
+          <div className="proof-item">
+            <div className="proof-icon">⭐</div>
+            <div className="proof-value">4.8/5</div>
+            <div className="proof-label">Trusted by Caterers</div>
           </div>
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="stats-section">
-        <div className="stats-container">
-          {stats.map((stat, idx) => (
-            <div key={idx} className="stat-item">
-              <div className="stat-icon">{stat.icon}</div>
-              <div className="stat-value">{stat.value}</div>
-              <div className="stat-label">{stat.label}</div>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* Why Join Section */}
+      <section className="why-section">
+        <div className="section-container">
+          <h2 className="section-title">Why Join Droooly?</h2>
+          <p className="section-subtitle">
+            Everything you need to grow your catering business
+          </p>
 
-      {/* Onboarding Section */}
-      <section style={{ width: '100%', background: 'linear-gradient(to bottom, white, #f9fafb)', padding: '80px 32px', borderTop: '1px solid #e5e7eb' }}>
-        <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
-          <h2 className="section-title">Get Started: It Only Takes 10 Minutes</h2>
-          <p className="section-subtitle">Everything you need to know before joining CaterHub</p>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '48px', alignItems: 'center' }} className="@media (min-width: 1024px)">
-            {/* Left Side - Requirements */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
-              {/* Documents Section */}
-              <div style={{ background: 'white', borderRadius: '16px', padding: '32px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px rgba(0,0,0,0.07)' }}>
-                <h3 style={{ fontSize: '20px', fontWeight: '700', color: '#111827', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ fontSize: '28px' }}>📋</span>
-                  Documents Required
-                </h3>
-                <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <li style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', color: '#4b5563', fontSize: '14px' }}>
-                    <span style={{ color: '#16a34a', fontWeight: '700', marginTop: '2px' }}>✓</span>
-                    <div>
-                      <div style={{ fontWeight: '600', color: '#111827' }}>Business Registration</div>
-                      <div style={{ fontSize: '12px', marginTop: '4px' }}>FSSAI license, GST registration, or business license</div>
-                    </div>
-                  </li>
-                  <li style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', color: '#4b5563', fontSize: '14px' }}>
-                    <span style={{ color: '#16a34a', fontWeight: '700', marginTop: '2px' }}>✓</span>
-                    <div>
-                      <div style={{ fontWeight: '600', color: '#111827' }}>Bank Account Details</div>
-                      <div style={{ fontSize: '12px', marginTop: '4px' }}>For secure payment settlements</div>
-                    </div>
-                  </li>
-                  <li style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', color: '#4b5563', fontSize: '14px' }}>
-                    <span style={{ color: '#16a34a', fontWeight: '700', marginTop: '2px' }}>✓</span>
-                    <div>
-                      <div style={{ fontWeight: '600', color: '#111827' }}>Identity Proof</div>
-                      <div style={{ fontSize: '12px', marginTop: '4px' }}>Aadhaar, PAN, or Passport</div>
-                    </div>
-                  </li>
-                  <li style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', color: '#4b5563', fontSize: '14px' }}>
-                    <span style={{ color: '#16a34a', fontWeight: '700', marginTop: '2px' }}>✓</span>
-                    <div>
-                      <div style={{ fontWeight: '600', color: '#111827' }}>Address Proof</div>
-                      <div style={{ fontSize: '12px', marginTop: '4px' }}>Utility bill or rental agreement</div>
-                    </div>
-                  </li>
-                </ul>
+          <div className="benefits-grid">
+            <div className="benefit-card">
+              <div className="benefit-icon-wrapper">
+                <TrendingUp size={28} />
               </div>
-
-              {/* Profile Section */}
-              <div style={{ background: 'white', borderRadius: '16px', padding: '32px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px rgba(0,0,0,0.07)' }}>
-                <h3 style={{ fontSize: '20px', fontWeight: '700', color: '#111827', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ fontSize: '28px' }}>🍽️</span>
-                  Profile Information
-                </h3>
-                <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <li style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', color: '#4b5563', fontSize: '14px' }}>
-                    <span style={{ color: '#16a34a', fontWeight: '700', marginTop: '2px' }}>✓</span>
-                    <div>
-                      <div style={{ fontWeight: '600', color: '#111827' }}>Business Name & Details</div>
-                      <div style={{ fontSize: '12px', marginTop: '4px' }}>Your catering business name and contact info</div>
-                    </div>
-                  </li>
-                  <li style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', color: '#4b5563', fontSize: '14px' }}>
-                    <span style={{ color: '#16a34a', fontWeight: '700', marginTop: '2px' }}>✓</span>
-                    <div>
-                      <div style={{ fontWeight: '600', color: '#111827' }}>Menu & Pricing</div>
-                      <div style={{ fontSize: '12px', marginTop: '4px' }}>Create your initial menu with dishes and prices</div>
-                    </div>
-                  </li>
-                  <li style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', color: '#4b5563', fontSize: '14px' }}>
-                    <span style={{ color: '#16a34a', fontWeight: '700', marginTop: '2px' }}>✓</span>
-                    <div>
-                      <div style={{ fontWeight: '600', color: '#111827' }}>Professional Photos</div>
-                      <div style={{ fontSize: '12px', marginTop: '4px' }}>High-quality images of your dishes & kitchen</div>
-                    </div>
-                  </li>
-                  <li style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', color: '#4b5563', fontSize: '14px' }}>
-                    <span style={{ color: '#16a34a', fontWeight: '700', marginTop: '2px' }}>✓</span>
-                    <div>
-                      <div style={{ fontWeight: '600', color: '#111827' }}>Operating Areas</div>
-                      <div style={{ fontSize: '12px', marginTop: '4px' }}>Service locations and delivery areas</div>
-                    </div>
-                  </li>
-                </ul>
-              </div>
+              <h3 className="benefit-title">📈 Get More Orders</h3>
+              <p className="benefit-description">
+                Reach new customers in your area and grow your business exponentially.
+              </p>
             </div>
 
-            {/* Timeline & Info Box */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
-              {/* Timeline Box */}
-              <div style={{ background: 'linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%)', borderRadius: '16px', padding: '32px', border: '1px solid #c7d2fe' }}>
-                <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#111827', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ fontSize: '24px' }}>⏱️</span>
-                  Verification Timeline
-                </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  <div style={{ display: 'flex', gap: '16px' }}>
-                    <div style={{ background: '#4f46e5', color: 'white', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', flexShrink: 0 }}>1</div>
-                    <div>
-                      <div style={{ fontWeight: '600', color: '#111827' }}>Submit Documents</div>
-                      <div style={{ fontSize: '12px', color: '#4b5563', marginTop: '4px' }}>5-10 minutes</div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: '16px' }}>
-                    <div style={{ background: '#4f46e5', color: 'white', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', flexShrink: 0 }}>2</div>
-                    <div>
-                      <div style={{ fontWeight: '600', color: '#111827' }}>Document Verification</div>
-                      <div style={{ fontSize: '12px', color: '#4b5563', marginTop: '4px' }}>24-48 hours</div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: '16px' }}>
-                    <div style={{ background: '#4f46e5', color: 'white', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', flexShrink: 0 }}>3</div>
-                    <div>
-                      <div style={{ fontWeight: '600', color: '#111827' }}>Account Activation</div>
-                      <div style={{ fontSize: '12px', color: '#4b5563', marginTop: '4px' }}>Instant once approved</div>
-                    </div>
-                  </div>
-                </div>
+            <div className="benefit-card">
+              <div className="benefit-icon-wrapper">
+                <Settings size={28} />
               </div>
+              <h3 className="benefit-title">⚙️ Manage Everything Easily</h3>
+              <p className="benefit-description">
+                Create menus, packages, and handle bookings in one intuitive place.
+              </p>
+            </div>
 
-              {/* Info Box */}
-              <div style={{ background: '#eff6ff', borderRadius: '16px', padding: '24px', border: '1px solid #93c5fd', display: 'flex', gap: '16px' }}>
-                <span style={{ fontSize: '24px', flexShrink: 0 }}>ℹ️</span>
-                <div>
-                  <div style={{ fontWeight: '600', color: '#1e40af', marginBottom: '8px' }}>Need Help?</div>
-                  <div style={{ fontSize: '14px', color: '#1e3a8a' }}>
-                    Our onboarding team is available 24/7 to help you through the process. <a href="mailto:support@caterhub.com" style={{ color: '#4f46e5', fontWeight: '600', textDecoration: 'none' }}>Contact support</a> anytime.
-                  </div>
-                </div>
+            <div className="benefit-card">
+              <div className="benefit-icon-wrapper">
+                <CreditCard size={28} />
               </div>
+              <h3 className="benefit-title">💸 Receive Direct Payments</h3>
+              <p className="benefit-description">
+                Secure and seamless payment handling with fast settlements.
+              </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Benefits Section */}
-      <section className="benefits-section">
-        <h2 className="section-title">Why Join CaterHub?</h2>
-        <p className="section-subtitle">Everything you need to scale your catering business and reach unlimited customers</p>
-        <div className="benefits-grid">
-          {benefits.map((benefit, idx) => (
-            <div key={idx} className="benefit-card">
-              <div className="benefit-icon">{benefit.icon}</div>
-              <h3 className="benefit-title">{benefit.title}</h3>
-              <p className="benefit-description">{benefit.description}</p>
+      {/* How It Works Section */}
+      <section className="how-section">
+        <div className="section-container">
+          <h2 className="section-title">How It Works</h2>
+          <p className="section-subtitle">
+            Get started in just 3 simple steps
+          </p>
+
+          <div className="steps-grid">
+            <div className="step-card">
+              <div className="step-number">1</div>
+              <h3 className="step-title">Create Your Profile</h3>
+              <p className="step-description">
+                Sign up and set up your catering profile in minutes. No forms, just what you need.
+              </p>
             </div>
-          ))}
-        </div>
-      </section>
 
-      {/* Pricing Section */}
-      <section className="pricing-section">
-        <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
-          <h2 className="section-title">Simple, Transparent Pricing</h2>
-          <p className="section-subtitle">Choose the perfect plan for your business. Scale as you grow.</p>
+            <div className="step-card">
+              <div className="step-number">2</div>
+              <h3 className="step-title">Add Menu & Packages</h3>
+              <p className="step-description">
+                Showcase your offerings with menus and custom packages for different events.
+              </p>
+            </div>
 
-          <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-            <div className="billing-toggle">
-              <button
-                className={`toggle-btn ${billingCycle === 'monthly' ? 'active' : ''}`}
-                onClick={() => setBillingCycle('monthly')}
-              >
-                Monthly
-              </button>
-              <button
-                className={`toggle-btn ${billingCycle === 'annual' ? 'active' : ''}`}
-                onClick={() => setBillingCycle('annual')}
-              >
-                Annual
-                <span className="toggle-badge">Save 17%</span>
-              </button>
+            <div className="step-card">
+              <div className="step-number">3</div>
+              <h3 className="step-title">Start Receiving Orders</h3>
+              <p className="step-description">
+                Get booking requests and grow your business. Manage everything from one dashboard.
+              </p>
             </div>
           </div>
-
-          {/* Pricing Table */}
-          <div className="table-wrapper">
-            <table className="pricing-table">
-              <thead>
-                <tr>
-                  <th>Features</th>
-                  {plans.map((plan) => (
-                    <th key={plan.id} className={plan.highlighted ? 'highlighted' : ''}>
-                      <div className="plan-header">
-                        {plan.badge && (
-                          <div className={`plan-badge ${plan.highlighted ? 'plan-badge-popular' : 'plan-badge-standard'}`}>
-                            {plan.badge}
-                          </div>
-                        )}
-                        <div className="plan-name">{plan.name}</div>
-                        <div className="plan-description">{plan.description}</div>
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {/* Price Row */}
-                <tr>
-                  <td style={{ fontWeight: '600' }}>Price</td>
-                  {plans.map((plan) => (
-                    <td key={plan.id}>
-                      <div className="price-value">{getDisplayPrice(plan)}</div>
-                      <div className="price-period">{plan.period}</div>
-                      {billingCycle === 'annual' && plan.monthlyPrice > 0 && (
-                        <div className="price-annual">Billed ₹{plan.annualPrice} annually</div>
-                      )}
-                    </td>
-                  ))}
-                </tr>
-
-                {/* CTA Row */}
-                <tr>
-                  <td></td>
-                  {plans.map((plan) => (
-                    <td key={plan.id}>
-                      <button
-                        className={`btn-signup ${plan.highlighted ? 'btn-signup-primary' : 'btn-signup-secondary'}`}
-                        onClick={() => handleSignup(plan.id)}
-                      >
-                        {plan.cta}
-                      </button>
-                    </td>
-                  ))}
-                </tr>
-
-                {/* Feature Rows */}
-                {allFeatures.map((featureName, featureIdx) => {
-                  const featureData = plans.map(plan =>
-                    plan.features.find(f => f.name === featureName)
-                  );
-
-                  return (
-                    <tr key={featureIdx}>
-                      <td>{featureName}</td>
-                      {featureData.map((feature, planIdx) => (
-                        <td key={planIdx}>
-                          {feature ? (
-                            feature.included ? (
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                                <span className="check-mark">✓</span>
-                                {feature.value && <span className="feature-value">{feature.value}</span>}
-                              </div>
-                            ) : (
-                              <span className="cross-mark">✗</span>
-                            )
-                          ) : (
-                            <span className="cross-mark">—</span>
-                          )}
-                        </td>
-                      ))}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          <div style={{ textAlign: 'center', marginTop: '48px' }}>
-            <p style={{ color: '#4b5563', fontWeight: '600', marginBottom: '16px' }}>
-              All plans include 14-day free trial • No credit card required • Cancel anytime
-            </p>
-          </div>
         </div>
       </section>
 
-      {/* FAQ Section */}
-      <section className="faq-section">
-        <div className="faq-container">
-          <div className="faq-intro">
-            <h2>Frequently asked questions</h2>
-            <p>
-              Have a different question and can't find the answer you're looking for? Reach out to our support team by <a href="mailto:support@caterhub.com" className="faq-link">sending us an email</a> and we'll get back to you as soon as we can.
-            </p>
-          </div>
-
-          <div className="faq-grid">
-            {faqs.map((faq, idx) => (
-              <div key={idx} className="faq-card">
-                <h3 className="faq-question">{faq.q}</h3>
-                <p className="faq-answer">{faq.a}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Final CTA */}
-      <section className="cta-section">
+      {/* Final CTA Section */}
+      <section className="final-cta">
         <div className="cta-content">
-          <h2>Ready to Transform Your Business?</h2>
-          <p>Join thousands of successful caterers earning more with CaterHub. Start your free trial today.</p>
-          <div className="cta-buttons">
-            <button 
-              className="btn-primary"
-              onClick={() => handleSignup('pro')}
-            >
-              Start Free Trial
-            </button>
-            <button className="btn-secondary">Schedule Demo</button>
-          </div>
-          <div className="cta-footer">
-            ✓ No credit card required • ✓ 14-day free trial • ✓ Cancel anytime
+          <h2>Ready to Start Getting Orders?</h2>
+          <p>
+            Join Droooly today and take your catering business to the next level.
+          </p>
+
+          <button className="btn-primary" onClick={handleStartSelling}>
+            Start Selling
+            <ArrowRight size={20} />
+          </button>
+
+          <div style={{ marginTop: '24px', fontSize: '12px', color: 'rgba(255,255,255,0.85)', fontWeight: '500' }}>
+            ✓ No credit card required • ✓ Free forever • ✓ Get started in minutes
           </div>
         </div>
       </section>

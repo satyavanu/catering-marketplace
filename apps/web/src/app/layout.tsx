@@ -5,7 +5,7 @@ import { Providers } from './providers';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'CaterHub - Find & Book Catering Services',
+  title: 'Droooly - Find & Book Catering Services',
   description: 'Discover and book trusted catering services for your events',
   icons: {
     icon: '/favicon.ico',

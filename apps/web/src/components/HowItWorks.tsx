@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { CheckCircle, Users, Heart, Shield, Clock, Zap } from 'lucide-react';
+import { CheckCircle, Shield, Clock, Heart, Zap } from 'lucide-react';
 
 const HowItWorks = () => {
   const [activeStep, setActiveStep] = useState(0);
@@ -9,29 +9,29 @@ const HowItWorks = () => {
   const steps = [
     {
       id: 1,
-      number: '1️⃣',
+      number: '1',
       title: 'Tell Us Your Event',
-      description: 'Share your event details - type, guest count, location, and budget in just 30 seconds.',
+      description: 'Enter your location, event type, and guest count.',
       details: [
-        'Select event type (Wedding, Corporate, Birthday, etc.)',
+        'Select your location',
+        'Choose event type',
         'Enter number of guests',
-        'Choose your location',
-        'Set your budget range',
+        'Set date & preferences',
       ],
-      icon: '📋',
+      icon: '📍',
       color: '#667eea',
       bgColor: '#ede9fe',
     },
     {
       id: 2,
-      number: '2️⃣',
+      number: '2',
       title: 'Compare Caterers',
-      description: 'Browse verified caterers, check menus, read reviews, and compare prices instantly.',
+      description: 'Browse menus, packages, and pricing.',
       details: [
-        'View detailed profiles & portfolios',
-        'Check real customer reviews & ratings',
-        'Compare pricing & menu options',
-        'See availability in real-time',
+        'View verified caterer profiles',
+        'Check menus & packages',
+        'Compare pricing instantly',
+        'Read customer reviews',
       ],
       icon: '🔍',
       color: '#ec4899',
@@ -39,14 +39,14 @@ const HowItWorks = () => {
     },
     {
       id: 3,
-      number: '3️⃣',
-      title: 'Book & Enjoy 🎉',
-      description: 'Confirm your booking, get instant confirmation, and relax while we handle the rest.',
+      number: '3',
+      title: 'Book & Enjoy',
+      description: 'Choose the best option and confirm your booking.',
       details: [
-        'Secure booking confirmation',
-        'Direct communication with caterer',
-        'Payment options (pay now or later)',
-        '24/7 customer support',
+        'Select your preferred caterer',
+        'Confirm booking details',
+        'Secure payment',
+        'Get instant confirmation',
       ],
       icon: '✨',
       color: '#10b981',
@@ -55,15 +55,31 @@ const HowItWorks = () => {
   ];
 
   const features = [
-    { icon: <Shield size={24} />, title: '100% Verified', description: 'All caterers are background checked' },
-    { icon: <Clock size={24} />, title: 'Fast Booking', description: 'Get confirmed in minutes' },
-    { icon: <Heart size={24} />, title: 'Best Value', description: 'Transparent pricing, no hidden costs' },
-    { icon: <Zap size={24} />, title: '24/7 Support', description: 'Always here to help' },
+    {
+      icon: <Shield size={24} />,
+      title: '100% Verified',
+      description: 'All caterers are background checked',
+    },
+    {
+      icon: <Clock size={24} />,
+      title: 'Fast Booking',
+      description: 'Get confirmed in minutes',
+    },
+    {
+      icon: <Heart size={24} />,
+      title: 'Best Value',
+      description: 'Transparent pricing, no hidden costs',
+    },
+    {
+      icon: <Zap size={24} />,
+      title: '24/7 Support',
+      description: 'Always here to help',
+    },
   ];
 
   return (
     <section style={{ paddingTop: '4rem', paddingBottom: '4rem', backgroundColor: '#f9fafb' }}>
-      <div className="max-w-7xl mx-auto px-4">
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 32px' }}>
         {/* Section Header */}
         <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
           <h2
@@ -120,7 +136,7 @@ const HowItWorks = () => {
                 <div
                   style={{
                     position: 'absolute',
-                    top: '100px',
+                    top: '120px',
                     left: 'calc(100% + 1rem)',
                     width: 'calc(100% + 2rem)',
                     height: '3px',
@@ -147,7 +163,7 @@ const HowItWorks = () => {
                   zIndex: 1,
                 }}
               >
-                {/* Step Number with Icon */}
+                {/* Step Number Circle with Icon */}
                 <div
                   style={{
                     display: 'flex',
@@ -158,8 +174,17 @@ const HowItWorks = () => {
                 >
                   <div
                     style={{
-                      fontSize: '2.5rem',
-                      lineHeight: '1',
+                      width: '60px',
+                      height: '60px',
+                      backgroundColor: step.bgColor,
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '2rem',
+                      fontWeight: '700',
+                      color: step.color,
+                      flexShrink: 0,
                     }}
                   >
                     {step.number}
@@ -167,14 +192,6 @@ const HowItWorks = () => {
                   <div
                     style={{
                       fontSize: '2.5rem',
-                      backgroundColor: step.bgColor,
-                      borderRadius: '0.75rem',
-                      padding: '0.5rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: '60px',
-                      height: '60px',
                     }}
                   >
                     {step.icon}
@@ -205,69 +222,70 @@ const HowItWorks = () => {
                   {step.description}
                 </p>
 
-                {/* Details List */}
-                <ul
-                  style={{
-                    listStyle: 'none',
-                    padding: 0,
-                    margin: 0,
-                    display: activeStep === index ? 'block' : 'none',
-                    animation: activeStep === index ? 'slideDown 0.3s ease-out' : 'none',
-                  }}
-                >
-                  {step.details.map((detail, idx) => (
-                    <li
-                      key={idx}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: '0.75rem',
-                        marginBottom: idx !== step.details.length - 1 ? '0.75rem' : 0,
-                        fontSize: '0.875rem',
-                        color: '#4b5563',
-                      }}
-                    >
-                      <CheckCircle
-                        size={18}
+                {/* Details List - Show on active step */}
+                {activeStep === index && (
+                  <ul
+                    style={{
+                      listStyle: 'none',
+                      padding: 0,
+                      margin: 0,
+                      animation: 'slideDown 0.3s ease-out',
+                    }}
+                  >
+                    {step.details.map((detail, idx) => (
+                      <li
+                        key={idx}
                         style={{
-                          color: step.color,
-                          flexShrink: 0,
-                          marginTop: '2px',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '0.75rem',
+                          marginBottom: idx !== step.details.length - 1 ? '0.75rem' : '1.5rem',
+                          fontSize: '0.875rem',
+                          color: '#4b5563',
                         }}
-                      />
-                      <span>{detail}</span>
-                    </li>
-                  ))}
-                </ul>
+                      >
+                        <CheckCircle
+                          size={18}
+                          style={{
+                            color: step.color,
+                            flexShrink: 0,
+                            marginTop: '2px',
+                          }}
+                        />
+                        <span>{detail}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
 
-                {/* Call to Action Button */}
-                <button
-                  style={{
-                    marginTop: activeStep === index ? '1.5rem' : '0',
-                    width: '100%',
-                    padding: '0.75rem 1rem',
-                    backgroundColor: step.color,
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '0.5rem',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    opacity: activeStep === index ? 1 : 0,
-                    display: activeStep === index ? 'block' : 'none',
-                    fontSize: '0.875rem',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'scale(1.05)';
-                    e.currentTarget.style.boxShadow = `0 4px 12px ${step.color}40`;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'scale(1)';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                >
-                  Learn More →
-                </button>
+                {/* CTA Button - Only show on active step */}
+                {activeStep === index && (
+                  <button
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem 1rem',
+                      backgroundColor: step.color,
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.5rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
+                      fontSize: '0.875rem',
+                      animation: 'slideDown 0.3s ease-out',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'scale(1.05)';
+                      e.currentTarget.style.boxShadow = `0 4px 12px ${step.color}40`;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    Learn More →
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -380,8 +398,7 @@ const HowItWorks = () => {
           style={{
             marginTop: '3rem',
             textAlign: 'center',
-            backgroundColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            backgroundImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             borderRadius: '1rem',
             padding: '2.5rem',
             color: 'white',
@@ -389,17 +406,20 @@ const HowItWorks = () => {
         >
           <h3
             style={{
-              fontSize: '1.75rem',
+              fontSize: 'clamp(1.5rem, 4vw, 1.875rem)',
               fontWeight: 'bold',
               marginBottom: '0.75rem',
             }}
           >
             Ready to Plan Your Event? 🎉
           </h3>
-          <p style={{ marginBottom: '1.5rem', opacity: 0.95 }}>
+          <p style={{ marginBottom: '1.5rem', opacity: 0.95, fontSize: '1rem' }}>
             Start getting catering quotes in less than a minute
           </p>
           <button
+            onClick={() => {
+              window.location.href = '/search';
+            }}
             style={{
               padding: '0.875rem 2.5rem',
               backgroundColor: '#f97316',
