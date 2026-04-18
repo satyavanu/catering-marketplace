@@ -12,23 +12,53 @@ import {
   Cog6ToothIcon,
   HeartIcon,
   CheckBadgeIcon,
+  MapPinIcon,
+  ChevronDownIcon,
 } from '@heroicons/react/24/outline';
- import { handleLogout} from "@catering-marketplace/auth"
+import { handleLogout } from "@catering-marketplace/auth"
+
+// Mock city data - Replace with actual DB call
+const AVAILABLE_CITIES = [
+  { id: 1, name: 'Mumbai', slug: 'mumbai', emoji: '🌊', state: 'Maharashtra', vendors: 45 },
+  { id: 2, name: 'Delhi', slug: 'delhi', emoji: '🏛️', state: 'Delhi', vendors: 52 },
+  { id: 3, name: 'Bangalore', slug: 'bangalore', emoji: '🏙️', state: 'Karnataka', vendors: 38 },
+  { id: 4, name: 'Hyderabad', slug: 'hyderabad', emoji: '🏞️', state: 'Telangana', vendors: 32 },
+  { id: 5, name: 'Pune', slug: 'pune', emoji: '⛰️', state: 'Maharashtra', vendors: 28 },
+  { id: 6, name: 'Chennai', slug: 'chennai', emoji: '🌴', state: 'Tamil Nadu', vendors: 25 },
+  { id: 7, name: 'Kolkata', slug: 'kolkata', emoji: '🎭', state: 'West Bengal', vendors: 22 },
+  { id: 8, name: 'Ahmedabad', slug: 'ahmedabad', emoji: '🕌', state: 'Gujarat', vendors: 18 },
+  { id: 9, name: 'Jaipur', slug: 'jaipur', emoji: '🏰', state: 'Rajasthan', vendors: 15 },
+  { id: 10, name: 'Chandigarh', slug: 'chandigarh', emoji: '🌃', state: 'Chandigarh', vendors: 12 },
+];
+
+interface City {
+  id: number;
+  name: string;
+  slug: string;
+  emoji: string;
+  state: string;
+  vendors: number;
+}
 
 const Header = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isCityModalOpen, setIsCityModalOpen] = useState(false);
+  const [selectedCity, setSelectedCity] = useState<City | null>(AVAILABLE_CITIES[0]); // Default to Mumbai
+  const [citySearchQuery, setCitySearchQuery] = useState('');
+  
   const profileMenuRef = useRef<HTMLDivElement>(null);
+  const cityButtonRef = useRef<HTMLButtonElement>(null);
   const { data: session, status } = useSession();
 
   const navLinks = [
     { label: 'Home', href: '/' },
-    { label: 'Find Caterers ', href: '/caterers' },
+    { label: 'Find Caterers', href: '/caterers' },
     { label: 'Meal Plans', href: '/meals' },
   ];
 
-  // Close profile menu when clicking outside
+  // Close menus when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -47,6 +77,20 @@ const Header = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isProfileMenuOpen]);
+
+  // Filter cities based on search
+  const filteredCities = AVAILABLE_CITIES.filter(city =>
+    city.name.toLowerCase().includes(citySearchQuery.toLowerCase()) ||
+    city.state.toLowerCase().includes(citySearchQuery.toLowerCase())
+  );
+
+  const handleCityChange = (city: City) => {
+    setSelectedCity(city);
+    setIsCityModalOpen(false);
+    setCitySearchQuery('');
+    // TODO: Update URL or trigger city change in parent component
+    // router.push(`?city=${city.slug}`);
+  };
 
   const NavLink = ({ href, label }: { href: string; label: string }) => (
     <Link
@@ -71,6 +115,312 @@ const Header = () => {
     >
       {label}
     </Link>
+  );
+
+  const CityButton = ({ isMobile = false }: { isMobile?: boolean }) => (
+    <button
+      ref={cityButtonRef}
+      onClick={() => setIsCityModalOpen(true)}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        backgroundColor: 'transparent',
+        border: '1px solid #e2e8f0',
+        cursor: 'pointer',
+        padding: isMobile ? '6px 10px' : '8px 12px',
+        borderRadius: '6px',
+        transition: 'all 0.2s ease',
+        fontSize: isMobile ? '12px' : '13px',
+        fontWeight: '500',
+        color: '#475569',
+        whiteSpace: 'nowrap',
+      }}
+      onMouseEnter={(e) => {
+        if (!isMobile) {
+          e.currentTarget.style.backgroundColor = '#f8fafc';
+          e.currentTarget.style.borderColor = '#cbd5e1';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!isMobile) {
+          e.currentTarget.style.backgroundColor = 'transparent';
+          e.currentTarget.style.borderColor = '#e2e8f0';
+        }
+      }}
+    >
+      <MapPinIcon style={{ width: isMobile ? '14px' : '16px', height: isMobile ? '14px' : '16px', flexShrink: 0 }} />
+      <span>{selectedCity?.emoji} {selectedCity?.name}</span>
+      <ChevronDownIcon
+        style={{
+          width: '14px',
+          height: '14px',
+          flexShrink: 0,
+        }}
+      />
+    </button>
+  );
+
+  const CityModal = () => (
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={() => setIsCityModalOpen(false)}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.4)',
+          zIndex: 999,
+          animation: 'fadeIn 0.2s ease-out',
+        }}
+      />
+
+      {/* Modal */}
+      <div
+        style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          backgroundColor: 'white',
+          borderRadius: '16px',
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.15)',
+          width: '90%',
+          maxWidth: '500px',
+          maxHeight: '80vh',
+          zIndex: 1000,
+          display: 'flex',
+          flexDirection: 'column',
+          animation: 'slideUp 0.3s ease-out',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            padding: '24px',
+            borderBottom: '1px solid #e2e8f0',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <div>
+            <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#1e293b', margin: 0 }}>
+              📍 Select Your City
+            </h2>
+            <p style={{ fontSize: '13px', color: '#64748b', margin: '6px 0 0 0' }}>
+              Choose where you want to order from
+            </p>
+          </div>
+          <button
+            onClick={() => setIsCityModalOpen(false)}
+            style={{
+              backgroundColor: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '8px',
+              borderRadius: '6px',
+              color: '#64748b',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s ease',
+              flexShrink: 0,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#f1f5f9';
+              e.currentTarget.style.color = '#1e293b';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = '#64748b';
+            }}
+          >
+            <XMarkIcon style={{ width: '20px', height: '20px' }} />
+          </button>
+        </div>
+
+        {/* Search Bar */}
+        <div style={{ padding: '16px 24px' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              backgroundColor: '#f8fafc',
+              borderRadius: '8px',
+              paddingLeft: '12px',
+              paddingRight: '12px',
+              height: '44px',
+              border: '1px solid #e2e8f0',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <MagnifyingGlassIcon
+              style={{
+                width: '18px',
+                height: '18px',
+                color: '#94a3b8',
+                flexShrink: 0,
+              }}
+            />
+            <input
+              type="text"
+              placeholder="Search city or state..."
+              value={citySearchQuery}
+              onChange={(e) => setCitySearchQuery(e.target.value)}
+              autoFocus
+              style={{
+                flex: 1,
+                border: 'none',
+                outline: 'none',
+                backgroundColor: 'transparent',
+                fontSize: '14px',
+                color: '#1e293b',
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Cities List */}
+        <div
+          style={{
+            flex: 1,
+            overflowY: 'auto',
+            padding: '0 24px',
+          }}
+        >
+          {filteredCities.length > 0 ? (
+            <div style={{ display: 'grid', gap: '8px', paddingBottom: '16px' }}>
+              {filteredCities.map((city) => (
+                <button
+                  key={city.id}
+                  onClick={() => handleCityChange(city)}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '14px 16px',
+                    backgroundColor: selectedCity?.id === city.id ? '#ede9fe' : '#f8fafc',
+                    border: selectedCity?.id === city.id ? '2px solid #667eea' : '1px solid #e2e8f0',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    textAlign: 'left',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (selectedCity?.id !== city.id) {
+                      e.currentTarget.style.backgroundColor = '#f1f5f9';
+                      e.currentTarget.style.borderColor = '#cbd5e1';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (selectedCity?.id !== city.id) {
+                      e.currentTarget.style.backgroundColor = '#f8fafc';
+                      e.currentTarget.style.borderColor = '#e2e8f0';
+                    }
+                  }}
+                >
+                  <span style={{ fontSize: '24px', flexShrink: 0 }}>{city.emoji}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: '14px',
+                        fontWeight: selectedCity?.id === city.id ? '700' : '600',
+                        color: selectedCity?.id === city.id ? '#667eea' : '#1e293b',
+                      }}
+                    >
+                      {city.name}
+                    </p>
+                    <p
+                      style={{
+                        margin: '4px 0 0 0',
+                        fontSize: '12px',
+                        color: '#94a3b8',
+                      }}
+                    >
+                      {city.state} • {city.vendors} vendors available
+                    </p>
+                  </div>
+                  {selectedCity?.id === city.id && (
+                    <div
+                      style={{
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        backgroundColor: '#667eea',
+                        flexShrink: 0,
+                        boxShadow: '0 0 8px rgba(102, 126, 234, 0.5)',
+                      }}
+                    />
+                  )}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+              <div style={{ fontSize: '48px', marginBottom: '12px' }}>🔍</div>
+              <p style={{ fontSize: '14px', color: '#94a3b8', margin: 0, fontWeight: '500' }}>
+                No cities found
+              </p>
+              <p style={{ fontSize: '12px', color: '#cbd5e1', margin: '4px 0 0 0' }}>
+                Try searching by city name or state
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer Info */}
+        {selectedCity && (
+          <div
+            style={{
+              padding: '16px 24px',
+              borderTop: '1px solid #e2e8f0',
+              backgroundColor: '#f8fafc',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+            }}
+          >
+            <div>
+              <p style={{ fontSize: '12px', color: '#64748b', margin: 0, fontWeight: '600' }}>
+                Selected
+              </p>
+              <p style={{ fontSize: '14px', color: '#1e293b', margin: '4px 0 0 0', fontWeight: '700' }}>
+                {selectedCity.emoji} {selectedCity.name}, {selectedCity.state}
+              </p>
+            </div>
+            <button
+              onClick={() => setIsCityModalOpen(false)}
+              style={{
+                backgroundColor: '#667eea',
+                color: 'white',
+                border: 'none',
+                padding: '10px 20px',
+                borderRadius: '8px',
+                fontWeight: '600',
+                fontSize: '13px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#764ba2';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#667eea';
+              }}
+            >
+              Confirm
+            </button>
+          </div>
+        )}
+      </div>
+    </>
   );
 
   const SearchBar = ({ isMobile = false }: { isMobile?: boolean }) => (
@@ -446,6 +796,26 @@ const Header = () => {
           }
         }
 
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translate(-50%, -48%);
+          }
+          to {
+            opacity: 1;
+            transform: translate(-50%, -50%);
+          }
+        }
+
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+
         @keyframes pulse {
           0%, 100% {
             opacity: 1;
@@ -585,7 +955,8 @@ const Header = () => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            height: '70px',
+            height: 'auto',
+            padding: '12px 0',
             gap: '16px',
           }}
         >
@@ -605,11 +976,12 @@ const Header = () => {
               src="/logo.png"
               alt="Droooly"
               style={{
-                height: '110px',
-                width: '180px',
+                height: '50px',
+                width: 'auto',
               }}
             />
           </Link>
+
           {/* Desktop Navigation Menu */}
           <nav className="desktop-nav">
             {navLinks.map((link) => (
@@ -617,8 +989,13 @@ const Header = () => {
             ))}
           </nav>
 
+          {/* City Selector - Desktop (between nav and search) */}
+          <div className="desktop-actions" style={{ gap: '8px', flex: 'initial' }}>
+            <CityButton />
+          </div>
+
           {/* Right Actions - Desktop Only */}
-          <div className="desktop-actions">
+          <div className="desktop-actions" style={{ gap: '12px' }}>
             {status === 'authenticated' ? (
               <>
                 <Link
@@ -711,7 +1088,7 @@ const Header = () => {
             )}
           </div>
 
-          {/* Mobile Header - Hamburger First, Then Logo, Avatar on Right */}
+          {/* Mobile Header - Hamburger First, Then Logo, City + Avatar on Right */}
           <div className="mobile-header">
             {/* Hamburger Menu Button */}
             <button
@@ -787,6 +1164,9 @@ const Header = () => {
               </span>
             </Link>
 
+            {/* City Selector - Mobile */}
+            <CityButton isMobile={true} />
+
             {/* Avatar on Right - Always visible when authenticated */}
             {status === 'authenticated' && <ProfileDropdown isMobile={true} />}
 
@@ -833,9 +1213,17 @@ const Header = () => {
           </div>
         </div>
 
-        {/* Mobile Menu - Navigation + Actions */}
+        {/* Mobile Menu - Navigation + City + Actions */}
         {isMobileMenuOpen && (
           <div className="mobile-menu">
+            {/* City Selector - Mobile Menu Full Width */}
+            <div style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0' }}>
+              <p style={{ fontSize: '11px', fontWeight: '700', color: '#475569', margin: '0 0 8px 0', textTransform: 'uppercase' }}>
+                📍 Service Area
+              </p>
+              <CityButton isMobile={true} />
+            </div>
+
             {/* Navigation Links */}
             <nav
               style={{
@@ -1034,6 +1422,9 @@ const Header = () => {
           </div>
         )}
       </div>
+
+      {/* City Modal */}
+      {isCityModalOpen && <CityModal />}
     </header>
   );
 };

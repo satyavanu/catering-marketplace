@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import MealPackagesPage from '../../../meals/page';
+import MealPackagesPage from '../../../meal-plans/page';
 
 export default function CityMealsPage() {
   const params = useParams();
