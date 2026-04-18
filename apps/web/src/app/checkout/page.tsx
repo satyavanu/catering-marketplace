@@ -13,6 +13,8 @@ import {
   CheckCircleIcon,
   ClockIcon,
   DocumentTextIcon,
+  SparklesIcon,
+  LockClosedIcon,
 } from '@heroicons/react/24/outline';
 
 type CheckoutStep = 'date' | 'user-info' | 'approval' | 'review' | 'payment' | 'confirmation';
@@ -205,6 +207,7 @@ export default function CheckoutPage() {
   const [deliveryDistance, setDeliveryDistance] = useState(5);
   const [approvalStatus, setApprovalStatus] = useState<'pending' | 'approved' | 'rejected'>('pending');
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   const [subscriptionData, setSubscriptionData] = useState({
     planId,
@@ -235,7 +238,7 @@ export default function CheckoutPage() {
     apartmentNumber: '',
   });
 
-  const [paymentMethod, setPaymentMethod] = useState('card');
+  const [paymentMethod, setPaymentMethod] = useState('razorpay');
   const [cardDetails, setCardDetails] = useState({
     cardNumber: '',
     cardName: '',
@@ -353,6 +356,70 @@ export default function CheckoutPage() {
     };
   };
 
+ 
+
+
+  const  handleCompletePayment= async () => {
+  try {
+    setIsProcessingPayment(true);
+
+    const res = await fetch("/api/create-order", {
+      method: "POST",
+    });
+
+    const data = await res.json();
+
+    if (!data.success) {
+      throw new Error("Failed to create order");
+    }
+
+    const options = {
+      key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+      amount: data.amount,
+      currency: "INR",
+      order_id: data.order_id,
+
+      name: "Droooly",
+      description: "Meal Plan Subscription",
+
+      handler: function (response: any) {
+        console.log("SUCCESS", response);
+
+        // ✅ Store order confirmation
+        const orderId = response.razorpay_order_id;
+        const orderDate = new Date().toLocaleDateString();
+
+        setOrderConfirmation({
+          orderId,
+          orderDate,
+          subscriptionStartDate: subscriptionData.startDate,
+        });
+
+        // 👉 move to success UI
+        setCheckoutStep("confirmation");
+      },
+
+      modal: {
+        ondismiss: function () {
+          console.log("Payment popup closed");
+          setIsProcessingPayment(false);
+        },
+      },
+    };
+
+    const rzp = new (window as any).Razorpay(options);
+    rzp.open();
+
+  } catch (error) {
+    console.error("Payment error:", error);
+    alert("Something went wrong. Please try again.");
+    setIsProcessingPayment(false);
+  }
+};
+
+
+
+
   const handleNextStep = () => {
     if (checkoutStep === 'date') {
       if (!subscriptionData.startDate) {
@@ -369,9 +436,7 @@ export default function CheckoutPage() {
         alert('Please fill in all required fields');
         return;
       }
-      // Move to approval step
       setCheckoutStep('approval');
-      // Simulate catering approval process
       setTimeout(() => {
         setApprovalStatus('approved');
       }, 2000);
@@ -385,29 +450,11 @@ export default function CheckoutPage() {
         return;
       }
       setCheckoutStep('payment');
-    } else if (checkoutStep === 'payment') {
-      if (paymentMethod === 'card') {
-        if (!cardDetails.cardNumber || !cardDetails.cardName || !cardDetails.expiryDate || !cardDetails.cvv) {
-          alert('Please fill in all card details');
-          return;
-        }
-      }
-      const orderId = `ORD-${Date.now()}`;
-      const orderDate = new Date().toLocaleDateString();
-      const subscriptionStartDate = subscriptionData.startDate;
-
-      setOrderConfirmation({
-        orderId,
-        orderDate,
-        subscriptionStartDate,
-      });
-      setCheckoutStep('confirmation');
     }
   };
 
   const handlePreviousStep = () => {
-    if (checkoutStep === 'confirmation') setCheckoutStep('payment');
-    else if (checkoutStep === 'payment') setCheckoutStep('review');
+    if (checkoutStep === 'payment') setCheckoutStep('review');
     else if (checkoutStep === 'review') setCheckoutStep('approval');
     else if (checkoutStep === 'approval') setCheckoutStep('user-info');
     else if (checkoutStep === 'user-info') setCheckoutStep('date');
@@ -417,17 +464,43 @@ export default function CheckoutPage() {
 
   return (
     <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh' }}>
+      <style>{`
+        @keyframes gradientShift {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+        
+        .gradient-btn {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          transition: all 0.3s ease;
+        }
+
+        .gradient-btn:hover:not(:disabled) {
+          transform: translateY(-2px);
+          box-shadow: 0 12px 24px rgba(102, 126, 234, 0.4);
+        }
+
+        .gradient-btn:active:not(:disabled) {
+          transform: translateY(0px);
+        }
+
+        .gradient-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+      `}</style>
+
       {/* Header */}
       <header style={{ backgroundColor: 'white', borderBottom: '1px solid #e2e8f0', position: 'sticky', top: 0, zIndex: 40 }}>
         <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <button
-            onClick={() => router.push('/meals')}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px', display: 'flex', alignItems: 'center', gap: '8px', color: '#2563eb', fontWeight: '600' }}
+            onClick={() => router.push('/meal-plans')}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px', display: 'flex', alignItems: 'center', gap: '8px', color: '#667eea', fontWeight: '600' }}
           >
             <ArrowLeftIcon style={{ width: '20px', height: '20px' }} />
             <span style={{ fontSize: '14px' }} className="hidden sm:inline">Back to Meals</span>
           </button>
-          <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#1e293b', textAlign: 'center', flex: 1 }}>Checkout</h1>
+          <h1 style={{ fontSize: '20px', fontWeight: '700', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', textAlign: 'center', flex: 1 }}>Secure Checkout</h1>
           <div style={{ width: '60px' }} />
         </div>
       </header>
@@ -473,18 +546,7 @@ export default function CheckoutPage() {
               )}
 
               {checkoutStep === 'payment' && (
-                <PaymentStep paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} cardDetails={cardDetails} setCardDetails={setCardDetails} />
-              )}
-
-              {checkoutStep === 'confirmation' && (
-                <ConfirmationStep
-                  orderConfirmation={orderConfirmation}
-                  subscriptionData={subscriptionData}
-                  userInfo={userInfo}
-                  calculateDaysPerWeek={calculateDaysPerWeek}
-                  pricingBreakdown={pricingBreakdown}
-                  currentPlan={currentPlan}
-                />
+                <PaymentStep pricingBreakdown={pricingBreakdown} />
               )}
 
               {/* Navigation Buttons */}
@@ -494,7 +556,7 @@ export default function CheckoutPage() {
                     <button
                       onClick={() => {
                         if (checkoutStep === 'date') {
-                          router.push('/meals');
+                          router.push('/meal-plans');
                         } else {
                           handlePreviousStep();
                         }
@@ -513,21 +575,31 @@ export default function CheckoutPage() {
                         alignItems: 'center',
                         justifyContent: 'center',
                         gap: '8px',
+                        transition: 'all 0.2s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLElement).style.backgroundColor = '#f8fafc';
+                        (e.currentTarget as HTMLElement).style.borderColor = '#cbd5e1';
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLElement).style.backgroundColor = 'white';
+                        (e.currentTarget as HTMLElement).style.borderColor = '#e2e8f0';
                       }}
                     >
                       <ArrowLeftIcon style={{ width: '16px', height: '16px' }} />
                       {checkoutStep === 'date' ? 'Back to Meals' : 'Back'}
                     </button>
                     <button
-                      onClick={handleNextStep}
+                      onClick={checkoutStep === 'payment' ? handleCompletePayment : handleNextStep}
+                      disabled={isProcessingPayment}
+                      className="gradient-btn"
                       style={{
                         flex: 1,
                         padding: '14px 16px',
                         borderRadius: '8px',
                         border: 'none',
-                        backgroundColor: '#2563eb',
                         color: 'white',
-                        cursor: 'pointer',
+                        cursor: isProcessingPayment ? 'not-allowed' : 'pointer',
                         fontWeight: '600',
                         fontSize: '14px',
                         display: 'flex',
@@ -536,33 +608,31 @@ export default function CheckoutPage() {
                         gap: '8px',
                       }}
                     >
-                      {checkoutStep === 'payment' ? 'Complete Payment' : 'Next Step'}
-                      <ArrowRightIcon style={{ width: '16px', height: '16px' }} />
+                      {isProcessingPayment ? (
+                        <>
+                          <div style={{
+                            width: '16px',
+                            height: '16px',
+                            border: '2px solid white',
+                            borderTop: '2px solid transparent',
+                            borderRadius: '50%',
+                            animation: 'spin 1s linear infinite',
+                          }} />
+                          Processing...
+                        </>
+                      ) : checkoutStep === 'payment' ? (
+                        <>
+                          <LockClosedIcon style={{ width: '16px', height: '16px' }} />
+                          Complete Payment
+                        </>
+                      ) : (
+                        <>
+                          Next Step
+                          <ArrowRightIcon style={{ width: '16px', height: '16px' }} />
+                        </>
+                      )}
                     </button>
                   </>
-                )}
-                {checkoutStep === 'confirmation' && (
-                  <button
-                    onClick={() => router.push('/meals')}
-                    style={{
-                      width: '100%',
-                      padding: '14px 16px',
-                      borderRadius: '8px',
-                      border: 'none',
-                      backgroundColor: '#2563eb',
-                      color: 'white',
-                      cursor: 'pointer',
-                      fontWeight: '600',
-                      fontSize: '14px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                    }}
-                  >
-                    Continue Shopping
-                    <ArrowRightIcon style={{ width: '16px', height: '16px' }} />
-                  </button>
                 )}
               </div>
             </div>
@@ -587,15 +657,14 @@ export default function CheckoutPage() {
 // Progress Indicator Component
 function ProgressIndicator({ currentStep, approvalStatus }: { currentStep: CheckoutStep, approvalStatus: 'pending' | 'approved' | 'rejected' }) {
   const steps = [
-    { id: 'date', label: 'Schedule' },
-    { id: 'user-info', label: 'Details' },
-    { id: 'approval', label: 'Approval' },
-    { id: 'review', label: 'Review' },
-    { id: 'payment', label: 'Payment' },
-    { id: 'confirmation', label: 'Confirmed' },
+    { id: 'date', label: 'Schedule', icon: '📅' },
+    { id: 'user-info', label: 'Details', icon: '👤' },
+    { id: 'approval', label: 'Approval', icon: '✓' },
+    { id: 'review', label: 'Review', icon: '📋' },
+    { id: 'payment', label: 'Payment', icon: '💳' },
   ];
 
-  const stepOrder = ['date', 'user-info', 'approval', 'review', 'payment', 'confirmation'];
+  const stepOrder = ['date', 'user-info', 'approval', 'review', 'payment'];
   const currentIndex = stepOrder.indexOf(currentStep);
 
   return (
@@ -605,21 +674,25 @@ function ProgressIndicator({ currentStep, approvalStatus }: { currentStep: Check
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <div
               style={{
-                width: '36px',
-                height: '36px',
+                width: '40px',
+                height: '40px',
                 borderRadius: '50%',
-                backgroundColor: idx <= currentIndex ? '#2563eb' : '#e2e8f0',
+                background: idx <= currentIndex 
+                  ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                  : '#e2e8f0',
                 color: idx <= currentIndex ? 'white' : '#94a3b8',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontWeight: '600',
-                fontSize: '14px',
+                fontWeight: '700',
+                fontSize: '16px',
+                boxShadow: idx <= currentIndex ? '0 4px 12px rgba(102, 126, 234, 0.3)' : 'none',
+                transition: 'all 0.3s ease',
               }}
             >
-              {idx < currentIndex ? <CheckIcon style={{ width: '20px', height: '20px' }} /> : idx + 1}
+              {idx < currentIndex ? '✓' : step.icon}
             </div>
-            <label style={{ fontSize: '11px', fontWeight: '600', color: idx <= currentIndex ? '#1e293b' : '#94a3b8', marginTop: '6px', whiteSpace: 'nowrap' }}>
+            <label style={{ fontSize: '11px', fontWeight: '600', color: idx <= currentIndex ? '#667eea' : '#94a3b8', marginTop: '6px', whiteSpace: 'nowrap' }}>
               {step.label}
             </label>
           </div>
@@ -627,10 +700,14 @@ function ProgressIndicator({ currentStep, approvalStatus }: { currentStep: Check
             <div
               style={{
                 flex: 1,
-                height: '2px',
-                backgroundColor: idx < currentIndex ? '#2563eb' : '#e2e8f0',
+                height: '3px',
+                background: idx < currentIndex 
+                  ? 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)'
+                  : '#e2e8f0',
                 margin: '0 12px',
                 marginBottom: '24px',
+                borderRadius: '2px',
+                transition: 'all 0.3s ease',
               }}
             />
           )}
@@ -643,14 +720,14 @@ function ProgressIndicator({ currentStep, approvalStatus }: { currentStep: Check
 // Order Summary Component
 function OrderSummary({ currentPlan, subscriptionData, calculateDaysPerWeek, pricingBreakdown, deliveryDistance }: any) {
   return (
-    <div style={{ backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden', position: 'sticky', top: '80px' }}>
+    <div style={{ backgroundColor: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden', position: 'sticky', top: '80px', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)' }}>
       {/* Plan Info */}
-      <div style={{ padding: '20px', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
+      <div style={{ padding: '20px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
           <div style={{ fontSize: '36px' }}>{currentPlan?.image}</div>
           <div>
-            <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#1e293b', margin: 0 }}>{currentPlan?.name}</h3>
-            <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0 0' }}>{currentPlan?.mealTypeLabel}</p>
+            <h3 style={{ fontSize: '16px', fontWeight: '700', color: 'white', margin: 0 }}>{currentPlan?.name}</h3>
+            <p style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.8)', margin: '4px 0 0 0' }}>{currentPlan?.mealTypeLabel}</p>
           </div>
         </div>
       </div>
@@ -685,7 +762,7 @@ function OrderSummary({ currentPlan, subscriptionData, calculateDaysPerWeek, pri
 function PricingBreakdownCard({ pricingBreakdown }: any) {
   return (
     <div style={{ padding: '20px' }}>
-      <h4 style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b', margin: '0 0 12px 0' }}>Price Breakdown</h4>
+      <h4 style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b', margin: '0 0 12px 0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Price Breakdown</h4>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#64748b', marginBottom: '6px' }}>
         <span>Plan</span>
@@ -737,7 +814,7 @@ function PricingBreakdownCard({ pricingBreakdown }: any) {
 
       <div style={{ height: '1px', backgroundColor: '#e2e8f0', margin: '8px 0' }} />
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: '700', color: '#2563eb' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: '800', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
         <span>Total</span>
         <span>₹{pricingBreakdown.finalTotal}</span>
       </div>
@@ -759,12 +836,16 @@ function DateSelectionStep({ subscriptionData, setSubscriptionData, calculateDay
             style={{
               padding: '14px 16px',
               borderRadius: '8px',
-              border: subscriptionData.duration === duration ? '2px solid #2563eb' : '2px solid #e2e8f0',
-              backgroundColor: subscriptionData.duration === duration ? '#dbeafe' : '#f8fafc',
+              border: subscriptionData.duration === duration ? 'none' : '2px solid #e2e8f0',
+              background: subscriptionData.duration === duration 
+                ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                : 'white',
               cursor: 'pointer',
               fontWeight: '600',
               fontSize: '13px',
-              color: subscriptionData.duration === duration ? '#1e40af' : '#64748b',
+              color: subscriptionData.duration === duration ? 'white' : '#64748b',
+              transition: 'all 0.2s ease',
+              boxShadow: subscriptionData.duration === duration ? '0 4px 12px rgba(102, 126, 234, 0.3)' : 'none',
             }}
           >
             {duration === 'weekly' && '📆 Weekly'}
@@ -780,7 +861,15 @@ function DateSelectionStep({ subscriptionData, setSubscriptionData, calculateDay
           type="date"
           value={subscriptionData.startDate}
           onChange={(e) => setSubscriptionData({ ...subscriptionData, startDate: e.target.value })}
-          style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', boxSizing: 'border-box' }}
+          style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', boxSizing: 'border-box', transition: 'all 0.2s ease' }}
+          onFocus={(e) => {
+            (e.currentTarget as HTMLElement).style.borderColor = '#667eea';
+            (e.currentTarget as HTMLElement).style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+          }}
+          onBlur={(e) => {
+            (e.currentTarget as HTMLElement).style.borderColor = '#e2e8f0';
+            (e.currentTarget as HTMLElement).style.boxShadow = 'none';
+          }}
           min={new Date().toISOString().split('T')[0]}
         />
       </div>
@@ -803,12 +892,19 @@ function DateSelectionStep({ subscriptionData, setSubscriptionData, calculateDay
               style={{
                 padding: '10px 8px',
                 borderRadius: '8px',
-                border: selected ? '2px solid #2563eb' : '2px solid #e2e8f0',
-                backgroundColor: selected ? '#dbeafe' : '#f8fafc',
+                border: 'none',
+                background: selected 
+                  ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                  : '#f8fafc',
+                borderWidth: '2px',
+                borderStyle: 'solid',
+                borderColor: selected ? 'transparent' : '#e2e8f0',
                 cursor: 'pointer',
                 fontWeight: '600',
                 fontSize: '12px',
-                color: selected ? '#1e40af' : '#64748b',
+                color: selected ? 'white' : '#64748b',
+                transition: 'all 0.2s ease',
+                boxShadow: selected ? '0 4px 12px rgba(102, 126, 234, 0.2)' : 'none',
               }}
             >
               {day.charAt(0).toUpperCase() + day.slice(1, 3)}
@@ -827,7 +923,7 @@ function DateSelectionStep({ subscriptionData, setSubscriptionData, calculateDay
                 quantity: Math.max(1, subscriptionData.quantity - 1),
               })
             }
-            style={{ padding: '8px 12px', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px', fontWeight: '700', color: '#2563eb' }}
+            style={{ padding: '8px 12px', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px', fontWeight: '700', color: '#667eea' }}
           >
             −
           </button>
@@ -850,7 +946,7 @@ function DateSelectionStep({ subscriptionData, setSubscriptionData, calculateDay
                 quantity: subscriptionData.quantity + 1,
               })
             }
-            style={{ padding: '8px 12px', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px', fontWeight: '700', color: '#2563eb' }}
+            style={{ padding: '8px 12px', backgroundColor: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px', fontWeight: '700', color: '#667eea' }}
           >
             +
           </button>
@@ -864,7 +960,13 @@ function DateSelectionStep({ subscriptionData, setSubscriptionData, calculateDay
             type="number"
             value={deliveryDistance}
             onChange={(e) => setDeliveryDistance(Math.max(0, parseFloat(e.target.value) || 0))}
-            style={{ flex: 1, padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', boxSizing: 'border-box' }}
+            style={{ flex: 1, padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', boxSizing: 'border-box', transition: 'all 0.2s ease' }}
+            onFocus={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = '#667eea';
+            }}
+            onBlur={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = '#e2e8f0';
+            }}
             min="0"
             step="0.5"
           />
@@ -890,18 +992,22 @@ function DateSelectionStep({ subscriptionData, setSubscriptionData, calculateDay
                 style={{
                   padding: '12px 16px',
                   borderRadius: '8px',
-                  border: subscriptionData.addOns.includes(addon.id) ? '2px solid #2563eb' : '2px solid #e2e8f0',
-                  backgroundColor: subscriptionData.addOns.includes(addon.id) ? '#dbeafe' : '#f8fafc',
+                  border: subscriptionData.addOns.includes(addon.id) ? 'none' : '2px solid #e2e8f0',
+                  background: subscriptionData.addOns.includes(addon.id) 
+                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                    : 'white',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '12px',
+                  transition: 'all 0.2s ease',
+                  boxShadow: subscriptionData.addOns.includes(addon.id) ? '0 4px 12px rgba(102, 126, 234, 0.2)' : 'none',
                 }}
               >
                 <input type="checkbox" checked={subscriptionData.addOns.includes(addon.id)} onChange={() => {}} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', flex: 1, alignItems: 'center' }}>
-                  <span style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>{addon.name}</span>
-                  <span style={{ fontSize: '12px', fontWeight: '700', color: '#10b981' }}>+₹{addon.price}</span>
+                  <span style={{ fontSize: '13px', fontWeight: '600', color: subscriptionData.addOns.includes(addon.id) ? 'white' : '#1e293b' }}>{addon.name}</span>
+                  <span style={{ fontSize: '12px', fontWeight: '700', color: subscriptionData.addOns.includes(addon.id) ? 'white' : '#10b981' }}>+₹{addon.price}</span>
                 </div>
               </button>
             ))}
@@ -925,7 +1031,15 @@ function UserInfoStep({ userInfo, setUserInfo }: any) {
             type="text"
             value={userInfo.firstName}
             onChange={(e) => setUserInfo({ ...userInfo, firstName: e.target.value })}
-            style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', boxSizing: 'border-box', transition: 'all 0.2s ease' }}
+            onFocus={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = '#667eea';
+              (e.currentTarget as HTMLElement).style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+            }}
+            onBlur={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = '#e2e8f0';
+              (e.currentTarget as HTMLElement).style.boxShadow = 'none';
+            }}
             placeholder="John"
           />
         </div>
@@ -935,7 +1049,15 @@ function UserInfoStep({ userInfo, setUserInfo }: any) {
             type="text"
             value={userInfo.lastName}
             onChange={(e) => setUserInfo({ ...userInfo, lastName: e.target.value })}
-            style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', boxSizing: 'border-box', transition: 'all 0.2s ease' }}
+            onFocus={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = '#667eea';
+              (e.currentTarget as HTMLElement).style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+            }}
+            onBlur={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = '#e2e8f0';
+              (e.currentTarget as HTMLElement).style.boxShadow = 'none';
+            }}
             placeholder="Doe"
           />
         </div>
@@ -948,7 +1070,15 @@ function UserInfoStep({ userInfo, setUserInfo }: any) {
             type="email"
             value={userInfo.email}
             onChange={(e) => setUserInfo({ ...userInfo, email: e.target.value })}
-            style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', boxSizing: 'border-box', transition: 'all 0.2s ease' }}
+            onFocus={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = '#667eea';
+              (e.currentTarget as HTMLElement).style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+            }}
+            onBlur={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = '#e2e8f0';
+              (e.currentTarget as HTMLElement).style.boxShadow = 'none';
+            }}
             placeholder="john@example.com"
           />
         </div>
@@ -958,7 +1088,15 @@ function UserInfoStep({ userInfo, setUserInfo }: any) {
             type="tel"
             value={userInfo.phone}
             onChange={(e) => setUserInfo({ ...userInfo, phone: e.target.value })}
-            style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', boxSizing: 'border-box', transition: 'all 0.2s ease' }}
+            onFocus={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = '#667eea';
+              (e.currentTarget as HTMLElement).style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+            }}
+            onBlur={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = '#e2e8f0';
+              (e.currentTarget as HTMLElement).style.boxShadow = 'none';
+            }}
             placeholder="+91 98765 43210"
           />
         </div>
@@ -970,7 +1108,15 @@ function UserInfoStep({ userInfo, setUserInfo }: any) {
           type="text"
           value={userInfo.address}
           onChange={(e) => setUserInfo({ ...userInfo, address: e.target.value })}
-          style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', boxSizing: 'border-box' }}
+          style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', boxSizing: 'border-box', transition: 'all 0.2s ease' }}
+          onFocus={(e) => {
+            (e.currentTarget as HTMLElement).style.borderColor = '#667eea';
+            (e.currentTarget as HTMLElement).style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+          }}
+          onBlur={(e) => {
+            (e.currentTarget as HTMLElement).style.borderColor = '#e2e8f0';
+            (e.currentTarget as HTMLElement).style.boxShadow = 'none';
+          }}
           placeholder="Street address"
         />
       </div>
@@ -982,7 +1128,15 @@ function UserInfoStep({ userInfo, setUserInfo }: any) {
             type="text"
             value={userInfo.city}
             onChange={(e) => setUserInfo({ ...userInfo, city: e.target.value })}
-            style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', boxSizing: 'border-box', transition: 'all 0.2s ease' }}
+            onFocus={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = '#667eea';
+              (e.currentTarget as HTMLElement).style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+            }}
+            onBlur={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = '#e2e8f0';
+              (e.currentTarget as HTMLElement).style.boxShadow = 'none';
+            }}
             placeholder="City"
           />
         </div>
@@ -992,7 +1146,15 @@ function UserInfoStep({ userInfo, setUserInfo }: any) {
             type="text"
             value={userInfo.postalCode}
             onChange={(e) => setUserInfo({ ...userInfo, postalCode: e.target.value })}
-            style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', boxSizing: 'border-box', transition: 'all 0.2s ease' }}
+            onFocus={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = '#667eea';
+              (e.currentTarget as HTMLElement).style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+            }}
+            onBlur={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = '#e2e8f0';
+              (e.currentTarget as HTMLElement).style.boxShadow = 'none';
+            }}
             placeholder="123456"
           />
         </div>
@@ -1002,128 +1164,34 @@ function UserInfoStep({ userInfo, setUserInfo }: any) {
 }
 
 // Payment Step
-function PaymentStep({ paymentMethod, setPaymentMethod, cardDetails, setCardDetails }: any) {
+function PaymentStep({ pricingBreakdown }: any) {
   return (
     <>
-      <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', margin: '0 0 20px 0' }}>💳 Payment Method</h2>
+      <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b', margin: '0 0 20px 0' }}>💳 Secure Payment</h2>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '12px', marginBottom: '24px' }}>
-        {[
-          { id: 'card', label: '💳 Card' },
-          { id: 'upi', label: '📱 UPI' },
-          { id: 'wallet', label: '👛 Wallet' },
-        ].map((method) => (
-          <button
-            key={method.id}
-            onClick={() => setPaymentMethod(method.id)}
-            style={{
-              padding: '14px 16px',
-              borderRadius: '8px',
-              border: paymentMethod === method.id ? '2px solid #2563eb' : '2px solid #e2e8f0',
-              backgroundColor: paymentMethod === method.id ? '#dbeafe' : '#f8fafc',
-              cursor: 'pointer',
-              fontWeight: '600',
-              fontSize: '13px',
-              color: paymentMethod === method.id ? '#1e40af' : '#64748b',
-            }}
-          >
-            {method.label}
-          </button>
-        ))}
-      </div>
-
-      {paymentMethod === 'card' && (
-        <>
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ fontSize: '12px', fontWeight: '600', color: '#475569', display: 'block', marginBottom: '6px' }}>Cardholder Name *</label>
-            <input
-              type="text"
-              value={cardDetails.cardName}
-              onChange={(e) => setCardDetails({ ...cardDetails, cardName: e.target.value })}
-              style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', boxSizing: 'border-box' }}
-              placeholder="John Doe"
-            />
-          </div>
-
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ fontSize: '12px', fontWeight: '600', color: '#475569', display: 'block', marginBottom: '6px' }}>Card Number *</label>
-            <input
-              type="text"
-              value={cardDetails.cardNumber}
-              onChange={(e) => setCardDetails({ ...cardDetails, cardNumber: e.target.value })}
-              style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', boxSizing: 'border-box' }}
-              placeholder="1234 5678 9012 3456"
-              maxLength={19}
-            />
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: '600', color: '#475569', display: 'block', marginBottom: '6px' }}>Expiry Date *</label>
-              <input
-                type="text"
-                value={cardDetails.expiryDate}
-                onChange={(e) => setCardDetails({ ...cardDetails, expiryDate: e.target.value })}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', boxSizing: 'border-box' }}
-                placeholder="MM/YY"
-              />
-            </div>
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: '600', color: '#475569', display: 'block', marginBottom: '6px' }}>CVV *</label>
-              <input
-                type="text"
-                value={cardDetails.cvv}
-                onChange={(e) => setCardDetails({ ...cardDetails, cvv: e.target.value })}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', boxSizing: 'border-box' }}
-                placeholder="123"
-                maxLength={4}
-              />
-            </div>
-          </div>
-        </>
-      )}
-    </>
-  );
-}
-
-// Confirmation Step
-function ConfirmationStep({ orderConfirmation, subscriptionData, userInfo, calculateDaysPerWeek, pricingBreakdown, currentPlan }: any) {
-  return (
-    <>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: '32px' }}>
-        <CheckCircleIcon style={{ width: '60px', height: '60px', color: '#10b981', marginBottom: '16px' }} />
-        <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#1e293b', margin: 0, marginBottom: '8px' }}>Order Confirmed! 🎉</h2>
-        <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>Your subscription is all set to start</p>
-      </div>
-
-      <div style={{ backgroundColor: '#f8fafc', borderRadius: '10px', padding: '20px', marginBottom: '20px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+      <div style={{ backgroundColor: '#f0f9ff', borderLeft: '4px solid #667eea', borderRadius: '8px', padding: '16px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <LockClosedIcon style={{ width: '20px', height: '20px', color: '#667eea', flexShrink: 0 }} />
           <div>
-            <p style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', margin: '0 0 4px 0' }}>Order ID</p>
-            <p style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b', margin: 0 }}>{orderConfirmation.orderId}</p>
-          </div>
-          <div>
-            <p style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', margin: '0 0 4px 0' }}>Order Date</p>
-            <p style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b', margin: 0 }}>{orderConfirmation.orderDate}</p>
-          </div>
-          <div>
-            <p style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', margin: '0 0 4px 0' }}>Starts From</p>
-            <p style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b', margin: 0 }}>{orderConfirmation.subscriptionStartDate}</p>
-          </div>
-          <div>
-            <p style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', margin: '0 0 4px 0' }}>Days/Week</p>
-            <p style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b', margin: 0 }}>{calculateDaysPerWeek()} days</p>
+            <p style={{ fontSize: '13px', fontWeight: '700', color: '#667eea', margin: 0 }}>Secure Payment Gateway</p>
+            <p style={{ fontSize: '12px', color: '#0c4a6e', margin: '4px 0 0 0' }}>Your payment is processed by Razorpay. We never store your card details.</p>
           </div>
         </div>
       </div>
 
-      <div style={{ backgroundColor: '#ecfdf5', borderRadius: '10px', padding: '20px', borderLeft: '4px solid #10b981' }}>
-        <h3 style={{ fontSize: '13px', fontWeight: '700', color: '#047857', margin: '0 0 12px 0' }}>What Happens Next?</h3>
-        <ul style={{ margin: 0, padding: '0 0 0 20px' }}>
-          <li style={{ fontSize: '12px', color: '#065f46', marginBottom: '8px' }}>Confirmation email sent to <strong>{userInfo.email}</strong></li>
-          <li style={{ fontSize: '12px', color: '#065f46', marginBottom: '8px' }}>Meals prepared fresh on <strong>{orderConfirmation.subscriptionStartDate}</strong></li>
-          <li style={{ fontSize: '12px', color: '#065f46' }}>Delivery between 7-9 AM at your address</li>
-        </ul>
+      <div style={{ backgroundColor: '#f8fafc', borderRadius: '8px', padding: '20px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <span style={{ fontSize: '14px', fontWeight: '600', color: '#475569' }}>Final Amount</span>
+          <span style={{ fontSize: '24px', fontWeight: '800', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>₹{pricingBreakdown.finalTotal}</span>
+        </div>
+        <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>Including all taxes and fees</p>
+      </div>
+
+      <div style={{ backgroundColor: '#ecfdf5', borderLeft: '4px solid #10b981', borderRadius: '8px', padding: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <CheckCircleIcon style={{ width: '20px', height: '20px', color: '#10b981', flexShrink: 0 }} />
+          <p style={{ fontSize: '12px', color: '#065f46', margin: 0, fontWeight: '500' }}>✓ 100% secure and encrypted • ✓ Money-back guarantee</p>
+        </div>
       </div>
     </>
   );
@@ -1137,22 +1205,28 @@ function ApprovalStep({ approvalStatus, currentPlan }: any) {
       <div style={{ textAlign: 'center', marginBottom: '24px' }}>
         {approvalStatus === 'pending' && (
           <>
-            <ClockIcon style={{ width: '40px', height: '40px', color: '#f59e0b', marginBottom: '16px' }} />
+            <div style={{
+              width: '60px',
+              height: '60px',
+              margin: '0 auto 16px',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '30px',
+              animation: 'spin 2s linear infinite',
+            }}>
+              ⏳
+            </div>
             <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>Your order is being reviewed by our catering team.</p>
-            <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>Please wait a moment...</p>
+            <p style={{ fontSize: '14px', color: '#64748b', margin: '8px 0 0 0' }}>Please wait a moment...</p>
           </>
         )}
         {approvalStatus === 'approved' && (
           <>
-            <CheckCircleIcon style={{ width: '40px', height: '40px', color: '#10b981', marginBottom: '16px' }} />
-            <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>Your order has been approved!</p>
-          </>
-        )}
-        {approvalStatus === 'rejected' && (
-          <>
-            <XMarkIcon style={{ width: '40px', height: '40px', color: '#ef4444', marginBottom: '16px' }} />
-            <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>Unfortunately, your order was not approved.</p>
-            <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>Please contact our support team for assistance.</p>
+            <CheckCircleIcon style={{ width: '60px', height: '60px', color: '#10b981', marginBottom: '16px' }} />
+            <p style={{ fontSize: '14px', color: '#064e3b', fontWeight: '600', margin: 0 }}>✓ Your order has been approved!</p>
           </>
         )}
       </div>
@@ -1168,7 +1242,7 @@ function ReviewStep({ subscriptionData, userInfo, currentPlan, calculateDaysPerW
 
       <div style={{ marginBottom: '24px' }}>
         <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#1e293b', margin: '0 0 12px 0' }}>Plan Details</h3>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px', padding: '16px', backgroundColor: '#f8fafc', borderRadius: '8px' }}>
           <div style={{ fontSize: '36px' }}>{currentPlan?.image}</div>
           <div>
             <h4 style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b', margin: 0 }}>{currentPlan?.name}</h4>
@@ -1183,51 +1257,35 @@ function ReviewStep({ subscriptionData, userInfo, currentPlan, calculateDaysPerW
           <span style={{ color: '#64748b' }}>Days/Week:</span>
           <span style={{ fontWeight: '600', color: '#1e293b' }}>{calculateDaysPerWeek()} days</span>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '8px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
           <span style={{ color: '#64748b' }}>Quantity:</span>
           <span style={{ fontWeight: '600', color: '#1e293b' }}>{subscriptionData.quantity} {subscriptionData.quantity === 1 ? 'person' : 'people'}</span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-          <span style={{ color: '#64748b' }}>Delivery Distance:</span>
-          <span style={{ fontWeight: '600', color: '#1e293b' }}>{subscriptionData.deliveryDistance} km</span>
         </div>
       </div>
 
       <div style={{ marginBottom: '24px' }}>
         <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#1e293b', margin: '0 0 12px 0' }}>Delivery Information</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px', marginBottom: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', padding: '16px', backgroundColor: '#f8fafc', borderRadius: '8px' }}>
           <div>
-            <label style={{ fontSize: '12px', fontWeight: '600', color: '#475569', display: 'block', marginBottom: '6px' }}>First Name</label>
-            <p style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', margin: 0 }}>{userInfo.firstName}</p>
+            <p style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', margin: '0 0 4px 0' }}>Name</p>
+            <p style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b', margin: 0 }}>{userInfo.firstName} {userInfo.lastName}</p>
           </div>
           <div>
-            <label style={{ fontSize: '12px', fontWeight: '600', color: '#475569', display: 'block', marginBottom: '6px' }}>Last Name</label>
-            <p style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', margin: 0 }}>{userInfo.lastName}</p>
-          </div>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px', marginBottom: '16px' }}>
-          <div>
-            <label style={{ fontSize: '12px', fontWeight: '600', color: '#475569', display: 'block', marginBottom: '6px' }}>Email</label>
-            <p style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', margin: 0 }}>{userInfo.email}</p>
+            <p style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', margin: '0 0 4px 0' }}>Email</p>
+            <p style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b', margin: 0 }}>{userInfo.email}</p>
           </div>
           <div>
-            <label style={{ fontSize: '12px', fontWeight: '600', color: '#475569', display: 'block', marginBottom: '6px' }}>Phone</label>
-            <p style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', margin: 0 }}>{userInfo.phone}</p>
+            <p style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', margin: '0 0 4px 0' }}>Phone</p>
+            <p style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b', margin: 0 }}>{userInfo.phone}</p>
+          </div>
+          <div>
+            <p style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', margin: '0 0 4px 0' }}>City</p>
+            <p style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b', margin: 0 }}>{userInfo.city}</p>
           </div>
         </div>
-        <div style={{ marginBottom: '16px' }}>
-          <label style={{ fontSize: '12px', fontWeight: '600', color: '#475569', display: 'block', marginBottom: '6px' }}>Address</label>
-          <p style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', margin: 0 }}>{userInfo.address}</p>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px' }}>
-          <div>
-            <label style={{ fontSize: '12px', fontWeight: '600', color: '#475569', display: 'block', marginBottom: '6px' }}>City</label>
-            <p style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', margin: 0 }}>{userInfo.city}</p>
-          </div>
-          <div>
-            <label style={{ fontSize: '12px', fontWeight: '600', color: '#475569', display: 'block', marginBottom: '6px' }}>Postal Code</label>
-            <p style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', margin: 0 }}>{userInfo.postalCode}</p>
-          </div>
+        <div style={{ marginTop: '12px', padding: '12px', backgroundColor: '#f8fafc', borderRadius: '8px' }}>
+          <p style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', margin: '0 0 4px 0' }}>Address</p>
+          <p style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b', margin: 0 }}>{userInfo.address}, {userInfo.postalCode}</p>
         </div>
       </div>
 
@@ -1236,15 +1294,15 @@ function ReviewStep({ subscriptionData, userInfo, currentPlan, calculateDaysPerW
         <PricingBreakdownCard pricingBreakdown={pricingBreakdown} />
       </div>
 
-      <div style={{ marginBottom: '24px' }}>
-        <label style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b', display: 'block', marginBottom: '8px' }}>
-          <input
-            type="checkbox"
-            checked={termsAccepted}
-            onChange={(e) => setTermsAccepted(e.target.checked)}
-            style={{ marginRight: '8px' }}
-          />
-          I accept the <a href="#" style={{ color: '#2563eb', textDecoration: 'underline' }}>terms and conditions</a>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '16px', backgroundColor: '#fef3c7', borderLeft: '4px solid #f59e0b', borderRadius: '8px', marginBottom: '24px' }}>
+        <input
+          type="checkbox"
+          checked={termsAccepted}
+          onChange={(e) => setTermsAccepted(e.target.checked)}
+          style={{ width: '16px', height: '16px', cursor: 'pointer', marginTop: '3px', flexShrink: 0 }}
+        />
+        <label style={{ fontSize: '12px', color: '#92400e', fontWeight: '500', cursor: 'pointer', margin: 0 }}>
+          I agree to the <span style={{ fontWeight: '700' }}>terms and conditions</span>, and understand that I will be charged ₹{pricingBreakdown.finalTotal} for this subscription. Cancellation is allowed anytime.
         </label>
       </div>
     </>

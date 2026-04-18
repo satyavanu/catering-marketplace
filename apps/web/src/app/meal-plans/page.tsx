@@ -1,13 +1,9 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  CheckIcon,
-  MapPinIcon,
   MagnifyingGlassIcon,
-  AdjustmentsHorizontalIcon,
-  SparklesIcon,
   XMarkIcon,
   ChevronDownIcon,
 } from '@heroicons/react/24/outline';
@@ -49,16 +45,6 @@ interface MealPlan {
   timesBooked: number;
   deliveryTime: string;
   preparationTime: string;
-}
-
-interface City {
-  id: number;
-  name: string;
-  slug: string;
-  emoji: string;
-  description: string;
-  activeVendors: number;
-  popularPlans: number;
 }
 
 const allPlans: MealPlan[] = [
@@ -293,37 +279,15 @@ const allPlans: MealPlan[] = [
   },
 ];
 
-export default function MealPackagesPage({ initialCity }: { initialCity?: string }) {
+export default function MealPackagesPage() {
   const router = useRouter();
-  const [selectedCity, setSelectedCity] = useState<City | null>(null);
-  const [showCitySelector, setShowCitySelector] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
   // Filter states
   const [cuisineFilter, setCuisineFilter] = useState<string | null>(null);
   const [mealTypeFilter, setMealTypeFilter] = useState<string | null>(null);
   const [priceFilter, setPriceFilter] = useState<string | null>(null);
   const [durationFilter, setDurationFilter] = useState<string | null>(null);
-
-  const cities: City[] = [
-    { id: 1, name: 'Mumbai', slug: 'mumbai', emoji: '🌊', description: 'Metropolitan hub', activeVendors: 45, popularPlans: 128 },
-    { id: 2, name: 'Bangalore', slug: 'bangalore', emoji: '🏙️', description: 'Tech city', activeVendors: 38, popularPlans: 112 },
-    { id: 3, name: 'Delhi', slug: 'delhi', emoji: '🏛️', description: 'Capital city', activeVendors: 52, popularPlans: 156 },
-    { id: 4, name: 'Hyderabad', slug: 'hyderabad', emoji: '🏞️', description: 'City of pearls', activeVendors: 32, popularPlans: 98 },
-    { id: 5, name: 'Pune', slug: 'pune', emoji: '⛰️', description: 'Queen of Deccan', activeVendors: 28, popularPlans: 89 },
-  ];
-
-  useEffect(() => {
-    if (initialCity) {
-      const city = cities.find(c => c.slug === initialCity);
-      if (city) {
-        setSelectedCity(city);
-        setShowCitySelector(false);
-      }
-    }
-    setIsLoading(false);
-  }, [initialCity]);
 
   const filteredPlans = useMemo(() => {
     return allPlans.filter(plan => {
@@ -341,195 +305,41 @@ export default function MealPackagesPage({ initialCity }: { initialCity?: string
     });
   }, [cuisineFilter, mealTypeFilter, priceFilter, durationFilter]);
 
-  const handleSelectCity = (city: City) => {
-    setSelectedCity(city);
-    setShowCitySelector(false);
-    router.push(`/meals?city=${city.slug}`);
-  };
-
-  const handleChangeCity = () => {
-    setShowCitySelector(true);
-  };
-
   const handleSelectPlan = (plan: MealPlan) => {
     setSelectedPlan(plan.id);
-    const citySlug = selectedCity?.slug || 'mumbai';
-    router.push(`/checkout?planId=${plan.id}&city=${citySlug}`);
+    router.push(`/checkout?planId=${plan.id}`);
   };
 
   const handleHelpChoose = () => {
     router.push('/help-choose-plan');
   };
 
-  if (isLoading) {
-    return (
-      <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p style={{ fontSize: '16px', color: '#64748b' }}>Loading...</p>
-      </div>
-    );
-  }
-
   return (
     <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh' }}>
-      {/* City Selector Modal */}
-      {showCitySelector && (
-        <CitySelector
-          cities={cities}
-          onSelectCity={handleSelectCity}
-        />
-      )}
+      {/* Simple Header */}
+      <SimpleHeader />
 
-      {/* Main Content - Only show when city is selected */}
-      {!showCitySelector && selectedCity && (
-        <>
-          {/* Top Context Bar */}
-          <TopContextBar selectedCity={selectedCity} onChangeCity={handleChangeCity} />
+      {/* Quick Filters */}
+      <QuickFilters
+        cuisineFilter={cuisineFilter}
+        setCuisineFilter={setCuisineFilter}
+        mealTypeFilter={mealTypeFilter}
+        setMealTypeFilter={setMealTypeFilter}
+        priceFilter={priceFilter}
+        setPriceFilter={setPriceFilter}
+        durationFilter={durationFilter}
+        setDurationFilter={setDurationFilter}
+      />
 
-          {/* Simple Header */}
-          <SimpleHeader />
+      {/* Plans Grid */}
+      <PlansGrid
+        plans={filteredPlans}
+        selectedPlan={selectedPlan}
+        onSelectPlan={handleSelectPlan}
+      />
 
-          {/* Quick Filters */}
-          <QuickFilters
-            cuisineFilter={cuisineFilter}
-            setCuisineFilter={setCuisineFilter}
-            mealTypeFilter={mealTypeFilter}
-            setMealTypeFilter={setMealTypeFilter}
-            priceFilter={priceFilter}
-            setPriceFilter={setPriceFilter}
-            durationFilter={durationFilter}
-            setDurationFilter={setDurationFilter}
-          />
-
-          {/* Plans Grid */}
-          <PlansGrid
-            plans={filteredPlans}
-            selectedPlan={selectedPlan}
-            onSelectPlan={handleSelectPlan}
-          />
-
-          {/* Help Me Choose CTA */}
-          <HelpChooseCTA onHelpChoose={handleHelpChoose} />
-        </>
-      )}
-    </div>
-  );
-}
-
-// Top Context Bar Component
-function TopContextBar({ selectedCity, onChangeCity }: any) {
-  return (
-    <div style={{
-      backgroundColor: 'white',
-      borderBottom: '1px solid #e2e8f0',
-      padding: '12px 20px',
-      position: 'sticky',
-      top: 0,
-      zIndex: 40,
-      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-    }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <MapPinIcon style={{ width: '18px', height: '18px', color: '#2563eb' }} />
-          <span style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>
-            Delivering to: <strong>{selectedCity.emoji} {selectedCity.name}</strong>
-          </span>
-        </div>
-
-        <button
-          onClick={onChangeCity}
-          style={{
-            padding: '6px 14px',
-            borderRadius: '6px',
-            border: '1px solid #e2e8f0',
-            backgroundColor: 'white',
-            color: '#2563eb',
-            cursor: 'pointer',
-            fontWeight: '600',
-            fontSize: '13px',
-            transition: 'all 0.2s ease',
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.backgroundColor = '#f0f9ff';
-            (e.currentTarget as HTMLElement).style.borderColor = '#2563eb';
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.backgroundColor = 'white';
-            (e.currentTarget as HTMLElement).style.borderColor = '#e2e8f0';
-          }}
-        >
-          Change Location
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// City Selector Modal
-function CitySelector({ cities, onSelectCity }: any) {
-  return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 50,
-    }}>
-      <div style={{
-        backgroundColor: 'white',
-        borderRadius: '12px',
-        padding: '32px',
-        maxWidth: '500px',
-        width: '90%',
-        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)',
-      }}>
-        <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#1e293b', margin: '0 0 8px 0' }}>
-          📍 Select Your City
-        </h2>
-        <p style={{ fontSize: '14px', color: '#64748b', margin: '0 0 24px 0' }}>
-          Choose your location to see available meal plans
-        </p>
-
-        <div style={{ display: 'grid', gap: '10px' }}>
-          {cities.map((city: City) => (
-            <button
-              key={city.id}
-              onClick={() => onSelectCity(city)}
-              style={{
-                padding: '16px',
-                borderRadius: '8px',
-                border: '2px solid #e2e8f0',
-                backgroundColor: 'white',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                textAlign: 'left',
-                transition: 'all 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.borderColor = '#2563eb';
-                (e.currentTarget as HTMLElement).style.backgroundColor = '#f0f9ff';
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.borderColor = '#e2e8f0';
-                (e.currentTarget as HTMLElement).style.backgroundColor = 'white';
-              }}
-            >
-              <span style={{ fontSize: '24px' }}>{city.emoji}</span>
-              <div>
-                <p style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b', margin: 0 }}>
-                  {city.name}
-                </p>
-                <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0 0' }}>
-                  {city.activeVendors} vendors • {city.popularPlans} plans
-                </p>
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Help Me Choose CTA */}
+      <HelpChooseCTA onHelpChoose={handleHelpChoose} />
     </div>
   );
 }
@@ -987,45 +797,51 @@ function HelpChooseCTA({ onHelpChoose }: any) {
       borderTop: '1px solid #e2e8f0',
     }}>
       <div style={{
-        padding: '32px 24px',
-        borderRadius: '12px',
-        backgroundColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        backgroundImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        padding: '40px 32px',
+        borderRadius: '16px',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         color: 'white',
         textAlign: 'center',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         gap: '16px',
+        boxShadow: '0 10px 30px rgba(102, 126, 234, 0.2)',
       }}>
-        <h3 style={{ fontSize: '18px', fontWeight: '700', margin: 0 }}>
-          🤔 Not sure which plan to pick?
+        <div style={{ fontSize: '40px', marginBottom: '8px' }}>🤔</div>
+        <h3 style={{ fontSize: '20px', fontWeight: '800', margin: 0, letterSpacing: '-0.5px' }}>
+          Not sure which plan to pick?
         </h3>
-        <p style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.9)', margin: 0 }}>
-          Let our AI recommendation engine help you find the perfect meal plan
+        <p style={{ fontSize: '15px', color: 'rgba(255, 255, 255, 0.9)', margin: 0, maxWidth: '500px', lineHeight: '1.6' }}>
+          Get personalized recommendations based on your preferences and lifestyle
         </p>
         <button
           onClick={onHelpChoose}
           style={{
-            marginTop: '8px',
-            padding: '12px 32px',
+            marginTop: '12px',
+            padding: '12px 40px',
             borderRadius: '8px',
             border: 'none',
             backgroundColor: 'white',
             color: '#667eea',
             fontWeight: '700',
-            fontSize: '14px',
+            fontSize: '15px',
             cursor: 'pointer',
             transition: 'all 0.2s ease',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
           }}
           onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.backgroundColor = '#f0f9ff';
+            (e.currentTarget as HTMLElement).style.backgroundColor = '#f8fafc';
+            (e.currentTarget as HTMLElement).style.transform = 'scale(1.05)';
           }}
           onMouseLeave={(e) => {
             (e.currentTarget as HTMLElement).style.backgroundColor = 'white';
+            (e.currentTarget as HTMLElement).style.transform = 'scale(1)';
           }}
         >
-          Help Me Choose →
+          Help Me Choose <span style={{ fontSize: '18px' }}>→</span>
         </button>
       </div>
     </div>

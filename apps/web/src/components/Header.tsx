@@ -55,7 +55,7 @@ const Header = () => {
   const navLinks = [
     { label: 'Home', href: '/' },
     { label: 'Find Caterers', href: '/caterers' },
-    { label: 'Meal Plans', href: '/meals' },
+    { label: 'Meal Plans', href: '/meal-plans' },
   ];
 
   // Close menus when clicking outside
@@ -956,7 +956,7 @@ const Header = () => {
             alignItems: 'center',
             justifyContent: 'space-between',
             height: 'auto',
-            padding: '12px 0',
+            padding: '0px 0',
             gap: '16px',
           }}
         >
@@ -967,7 +967,7 @@ const Header = () => {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '10px',
+              gap: '2px',
               textDecoration: 'none',
               flexShrink: 0,
             }}
@@ -976,7 +976,7 @@ const Header = () => {
               src="/logo.png"
               alt="Droooly"
               style={{
-                height: '50px',
+                height: '100px',
                 width: 'auto',
               }}
             />
