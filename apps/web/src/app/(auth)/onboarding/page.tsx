@@ -5,51 +5,63 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { sendOtpApi, verifyOtpApi } from '@catering-marketplace/query-client';
 import {
-  Mail,
   ArrowRight,
-  Check,
   Shield,
-  CreditCard,
-  Clock,
-  AlertCircle,
   Utensils,
   Loader,
   Plus,
   Trash2,
-  ChevronDown,
+  Upload,
+  AlertCircle,
+  Check,
 } from 'lucide-react';
 
 type OnboardingStep =
   | 'phone-verification'
   | 'basic-profile'
   | 'business-details'
+  | 'capabilities'
+  | 'service-areas'
   | 'kyc-payments'
   | 'menu-setup'
   | 'packages'
   | 'completion';
 
 type BusinessType = 'home-chef' | 'small-caterer' | 'catering-service';
-type ServiceAreaType = 'city' | 'locality' | 'pincode';
 type DietType = 'veg' | 'non-veg' | 'both';
+type EventType = 'weddings' | 'birthdays' | 'corporate' | 'house-parties' | 'anniversaries';
+type CapabilityType =
+  | 'menu-planning'
+  | 'setup-arrangements'
+  | 'professional-staff'
+  | 'equipment'
+  | 'cleanup'
+  | 'beverage-service';
+
 type MenuItem = {
   id: string;
   name: string;
-  category: string;
   price: number;
   description: string;
+  image?: string;
+  imageFile?: File;
 };
 
 type Package = {
   id: string;
   name: string;
-  numberOfPeople: number;
-  items: string[];
-  price: number;
+  type: 'fixed' | 'customizable';
+  minGuests: number;
+  maxGuests: number;
+  minPrice: number;
+  maxPrice: number;
+  menuItemIds: string[];
 };
 
 interface ServiceArea {
-  type: ServiceAreaType;
-  value: string;
+  pincode: string;
+  city: string;
+  state: string;
 }
 
 interface BankDetails {
@@ -63,6 +75,56 @@ interface BankDetails {
   IMPS: boolean;
   UPI: boolean;
 }
+
+// Mock data - replace with backend API calls
+const MOCK_ALLOWED_CITIES = [
+  { code: 'delhi', name: 'Delhi', pincodes: ['110001', '110002', '110003', '110004', '110005'] },
+  { code: 'mumbai', name: 'Mumbai', pincodes: ['400001', '400002', '400003', '400004', '400005'] },
+  { code: 'bangalore', name: 'Bangalore', pincodes: ['560001', '560002', '560003', '560004', '560005'] },
+  { code: 'hyderabad', name: 'Hyderabad', pincodes: ['500001', '500002', '500003', '500004', '500005'] },
+  { code: 'pune', name: 'Pune', pincodes: ['411001', '411002', '411003', '411004', '411005'] },
+  { code: 'kolkata', name: 'Kolkata', pincodes: ['700001', '700002', '700003', '700004', '700005'] },
+  { code: 'chennai', name: 'Chennai', pincodes: ['600001', '600002', '600003', '600004', '600005'] },
+  { code: 'ahmedabad', name: 'Ahmedabad', pincodes: ['380001', '380002', '380003', '380004', '380005'] },
+];
+
+const CAPABILITIES = [
+  { id: 'menu-planning', label: 'Menu Planning & Customization', icon: '🍽️' },
+  { id: 'setup-arrangements', label: 'Setup & Table Arrangements', icon: '🪑' },
+  { id: 'professional-staff', label: 'Professional Staff Service', icon: '👥' },
+  { id: 'equipment', label: 'Equipment & Utensils', icon: '🔪' },
+  { id: 'cleanup', label: 'Cleanup & Disposal', icon: '🧹' },
+  { id: 'beverage-service', label: 'Beverage Service', icon: '🥂' },
+];
+
+const COUNTRY_CODES = [
+  { code: '+1', country: 'United States' },
+  { code: '+44', country: 'United Kingdom' },
+  { code: '+91', country: 'India' },
+  { code: '+86', country: 'China' },
+  { code: '+81', country: 'Japan' },
+];
+
+const CUISINES = [
+  'South Indian',
+  'North Indian',
+  'Chinese',
+  'Continental',
+  'Italian',
+  'Mughlai',
+  'Desserts',
+  'Bakery',
+  'Fusion',
+  'Other',
+];
+
+const EVENTS = [
+  { id: 'weddings', label: 'Weddings', icon: '💍' },
+  { id: 'birthdays', label: 'Birthdays', icon: '🎂' },
+  { id: 'corporate', label: 'Corporate Events', icon: '🏢' },
+  { id: 'house-parties', label: 'House Parties', icon: '🏠' },
+  { id: 'anniversaries', label: 'Anniversaries', icon: '💑' },
+];
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -87,18 +149,25 @@ export default function OnboardingPage() {
   const [fullName, setFullName] = useState(session?.user?.name || '');
   const [businessName, setBusinessName] = useState('');
   const [businessType, setBusinessType] = useState<BusinessType>('small-caterer');
-  const [serviceAreas, setServiceAreas] = useState<ServiceArea[]>([]);
-  const [newAreaType, setNewAreaType] = useState<ServiceAreaType>('city');
-  const [newAreaValue, setNewAreaValue] = useState('');
+  const [eventsHandled, setEventsHandled] = useState<EventType[]>([]);
 
   // Step 3: Business Details
   const [yearsInBusiness, setYearsInBusiness] = useState('');
   const [cuisines, setCuisines] = useState<string[]>([]);
   const [dietType, setDietType] = useState<DietType>('both');
   const [capacity, setCapacity] = useState('');
-  const [baseLocation, setBaseLocation] = useState('');
+  const [baseCity, setBaseCity] = useState('');
 
-  // Step 4: KYC & Payments
+  // Step 4: Capabilities
+  const [selectedCapabilities, setSelectedCapabilities] = useState<CapabilityType[]>([]);
+
+  // Step 5: Service Areas
+  const [serviceAreas, setServiceAreas] = useState<ServiceArea[]>([]);
+  const [newPincode, setNewPincode] = useState('');
+  const [pincodeValidationMessage, setPincodeValidationMessage] = useState('');
+  const [selectedServiceCity, setSelectedServiceCity] = useState('');
+
+  // Step 6: KYC & Payments
   const [panNumber, setPanNumber] = useState('');
   const [panFile, setPanFile] = useState<File | null>(null);
   const [ifscCode, setIfscCode] = useState('');
@@ -110,61 +179,35 @@ export default function OnboardingPage() {
   const [ifscError, setIfscError] = useState('');
   const ifscTimeoutRef = useRef<NodeJS.Timeout>();
 
-  // Step 5: Menu Setup
+  // Step 7: Menu Setup
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [newMenuItem, setNewMenuItem] = useState<Partial<MenuItem>>({
     name: '',
-    category: 'starter',
     price: 0,
     description: '',
   });
-  const [menuAddedCount, setMenuAddedCount] = useState(0);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-  // Step 6: Packages
+  // Step 8: Packages
   const [packages, setPackages] = useState<Package[]>([]);
   const [newPackage, setNewPackage] = useState<Partial<Package>>({
     name: '',
-    numberOfPeople: 10,
-    items: [],
-    price: 0,
+    type: 'fixed',
+    minGuests: 10,
+    maxGuests: 100,
+    minPrice: 0,
+    maxPrice: 0,
+    menuItemIds: [],
   });
+  const [selectedMenuItemsForPackage, setSelectedMenuItemsForPackage] = useState<string[]>([]);
 
   const initialRedirectChecked = useRef(false);
 
-  const COUNTRY_CODES = [
-    { code: '+1', country: 'United States' },
-    { code: '+44', country: 'United Kingdom' },
-    { code: '+91', country: 'India' },
-    { code: '+86', country: 'China' },
-    { code: '+81', country: 'Japan' },
-  ];
-
-  const CUISINES = [
-    'South Indian',
-    'North Indian',
-    'Chinese',
-    'Continental',
-    'Italian',
-    'Mughlai',
-    'Desserts',
-    'Bakery',
-    'Fusion',
-    'Other',
-  ];
-
-  const MENU_CATEGORIES = [
-    'Starter',
-    'Main Course',
-    'Dessert',
-    'Beverage',
-    'Sides',
-    'Other',
-  ];
-
   const onboardingSteps: OnboardingStep[] = [
-    'phone-verification',
     'basic-profile',
     'business-details',
+    'capabilities',
+    'service-areas',
     'kyc-payments',
     'menu-setup',
     'packages',
@@ -192,17 +235,30 @@ export default function OnboardingPage() {
     return () => clearInterval(interval);
   }, [resendTimer]);
 
-  // Initial mount
+  // Initial mount and auth check
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Redirect if not authenticated
+  // Check authentication and profile completion
   useEffect(() => {
-    if (status === 'unauthenticated' && mounted) {
-      router.push('/login');
+    if (!mounted) return;
+
+    if (status === 'unauthenticated') {
+      setOnboardingStep('phone-verification');
+    } else if (status === 'authenticated' && session?.user) {
+      const isCaterer = (session.user as any)?.role === 'caterer';
+      const isProfileCompleted = (session.user as any)?.isOnboardingCompleted === true;
+
+      if (isCaterer && isProfileCompleted) {
+        setIsRedirecting(true);
+        router.push('/caterer/dashboard');
+      } else {
+        setPhoneVerified(true);
+        setOnboardingStep('basic-profile');
+      }
     }
-  }, [status, mounted, router]);
+  }, [status, session, mounted, router]);
 
   // IFSC validation
   const fetchIFSCDetails = async (code: string) => {
@@ -267,6 +323,37 @@ export default function OnboardingPage() {
     }
   };
 
+  // Pincode Validation
+  const validatePincode = (pincode: string) => {
+    const city = MOCK_ALLOWED_CITIES.find((c) =>
+      c.pincodes.includes(pincode)
+    );
+
+    if (city) {
+      setPincodeValidationMessage(`✓ Valid pincode for ${city.name}`);
+      setSelectedServiceCity(city.code);
+      return city;
+    } else {
+      setPincodeValidationMessage('✗ Pincode not in serviceable areas');
+      setSelectedServiceCity('');
+      return null;
+    }
+  };
+
+const resendTimerRef = useRef<NodeJS.Timeout>();
+
+
+   // Resend timer effect - 60 seconds
+   useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [resendTimer]);
+
   // OTP Handlers
   const handleSendPhoneOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -280,7 +367,7 @@ export default function OnboardingPage() {
     }
 
     if (resendCount >= 3) {
-      setError('Maximum OTP requests reached. Please try again later.');
+      setError('Maximum OTP requests reached (3 attempts). Please try again after some time.');
       setIsLoading(false);
       return;
     }
@@ -297,7 +384,7 @@ export default function OnboardingPage() {
 
       setOtpSent(true);
       setResendCount(resendCount + 1);
-      setResendTimer(30);
+      setResendTimer(60); // 60 seconds timer
       setError('');
     } catch (err) {
       console.error('Error sending OTP:', err);
@@ -342,15 +429,16 @@ export default function OnboardingPage() {
       setIsLoading(false);
     }
   };
+ 
 
-  // Step 2: Basic Profile Submit
+  // Step handlers
   const handleBasicProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
-    if (!fullName.trim() || !businessName.trim()) {
-      setError('Full name and business name are required');
+    if (!fullName.trim() || !businessName.trim() || eventsHandled.length === 0) {
+      setError('Please fill in all required fields');
       setIsLoading(false);
       return;
     }
@@ -364,42 +452,27 @@ export default function OnboardingPage() {
     }
   };
 
-  // Add Service Area
-  const addServiceArea = () => {
-    if (!newAreaValue.trim()) {
-      setError('Please enter a service area');
-      return;
-    }
-
-    const newArea: ServiceArea = {
-      type: newAreaType,
-      value: newAreaValue,
-    };
-
-    setServiceAreas([...serviceAreas, newArea]);
-    setNewAreaValue('');
-    setError('');
-  };
-
-  // Remove Service Area
-  const removeServiceArea = (index: number) => {
-    setServiceAreas(serviceAreas.filter((_, i) => i !== index));
-  };
-
-  // Step 3: Business Details Submit
   const handleBusinessDetailsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
-    if (!yearsInBusiness || cuisines.length === 0 || !capacity.trim()) {
+    if (!yearsInBusiness || cuisines.length === 0 || !capacity.trim() || !baseCity.trim()) {
       setError('Please fill in all required fields');
       setIsLoading(false);
       return;
     }
 
+    // Validate base city is in allowed cities
+    const isValidCity = MOCK_ALLOWED_CITIES.some((c) => c.code === baseCity);
+    if (!isValidCity) {
+      setError('Please select a valid city');
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      setOnboardingStep('kyc-payments');
+      setOnboardingStep('capabilities');
     } catch (err) {
       setError('Failed to save business details. Please try again.');
     } finally {
@@ -407,7 +480,90 @@ export default function OnboardingPage() {
     }
   };
 
-  // Step 4: KYC Skip or Continue
+  // Toggle Capability
+  const toggleCapability = (capabilityId: CapabilityType) => {
+    if (selectedCapabilities.includes(capabilityId)) {
+      setSelectedCapabilities(selectedCapabilities.filter((c) => c !== capabilityId));
+    } else {
+      setSelectedCapabilities([...selectedCapabilities, capabilityId]);
+    }
+  };
+
+  const handleCapabilitiesSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+
+    if (selectedCapabilities.length === 0) {
+      setError('Please select at least one capability');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setOnboardingStep('service-areas');
+    } catch (err) {
+      setError('Failed to save capabilities. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Service Area Handlers
+  const addServiceArea = () => {
+    if (!newPincode.trim()) {
+      setError('Please enter a pincode');
+      return;
+    }
+
+    const city = validatePincode(newPincode);
+    if (!city) {
+      setError('Invalid pincode. Please check and try again.');
+      return;
+    }
+
+    // Check if pincode already exists
+    if (serviceAreas.some((area) => area.pincode === newPincode)) {
+      setError('This pincode is already added');
+      return;
+    }
+
+    const newArea: ServiceArea = {
+      pincode: newPincode,
+      city: city.name,
+      state: 'India', // Mock - add actual state later
+    };
+
+    setServiceAreas([...serviceAreas, newArea]);
+    setNewPincode('');
+    setPincodeValidationMessage('');
+    setError('');
+  };
+
+  const removeServiceArea = (pincode: string) => {
+    setServiceAreas(serviceAreas.filter((area) => area.pincode !== pincode));
+  };
+
+  const handleServiceAreasSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+
+    if (serviceAreas.length === 0) {
+      setError('Please add at least one service area');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setOnboardingStep('kyc-payments');
+    } catch (err) {
+      setError('Failed to save service areas. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleKycSkip = () => {
     setOnboardingStep('menu-setup');
   };
@@ -417,7 +573,6 @@ export default function OnboardingPage() {
     setError('');
     setIsLoading(true);
 
-    // Allow partial KYC - either PAN or UPI ID
     if (!panNumber.trim() && !upiId.trim()) {
       setError('Please provide either PAN number or UPI ID');
       setIsLoading(false);
@@ -433,39 +588,62 @@ export default function OnboardingPage() {
     }
   };
 
-  // Add Menu Item
+  // Menu Item Handlers
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!['image/png', 'image/jpeg'].includes(file.type)) {
+      setError('Please upload PNG or JPG image only');
+      return;
+    }
+
+    // Validate file size (100KB = 102400 bytes)
+    if (file.size > 102400) {
+      setError('Image size should be less than 100KB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+      setNewMenuItem({ ...newMenuItem, imageFile: file, image: reader.result as string });
+    };
+    reader.readAsDataURL(file);
+    setError('');
+  };
+  const toggleEventType = (eventId: EventType) => {
+  if (eventsHandled.includes(eventId)) {
+    setEventsHandled(eventsHandled.filter((e) => e !== eventId));
+  } else {
+    setEventsHandled([...eventsHandled, eventId]);
+  }
+};
+
   const addMenuItem = () => {
-    if (
-      !newMenuItem.name?.trim() ||
-      !newMenuItem.category ||
-      !newMenuItem.price
-    ) {
-      setError('Please fill in all menu item fields');
+    if (!newMenuItem.name?.trim() || !newMenuItem.price) {
+      setError('Please fill in name and price');
       return;
     }
 
     const menuItem: MenuItem = {
       id: Date.now().toString(),
       name: newMenuItem.name || '',
-      category: newMenuItem.category || 'starter',
       price: newMenuItem.price || 0,
       description: newMenuItem.description || '',
+      image: newMenuItem.image,
+      imageFile: newMenuItem.imageFile,
     };
 
     setMenuItems([...menuItems, menuItem]);
-    setNewMenuItem({ name: '', category: 'starter', price: 0, description: '' });
-    setMenuAddedCount(menuAddedCount + 1);
+    setNewMenuItem({ name: '', price: 0, description: '' });
+    setImagePreview(null);
     setError('');
   };
 
-  // Remove Menu Item
   const removeMenuItem = (id: string) => {
     setMenuItems(menuItems.filter((item) => item.id !== id));
-  };
-
-  // Step 5: Menu Setup Skip or Continue
-  const handleMenuSkip = () => {
-    setOnboardingStep('packages');
   };
 
   const handleMenuSubmit = async (e: React.FormEvent) => {
@@ -488,38 +666,72 @@ export default function OnboardingPage() {
     }
   };
 
-  // Add Package
+  const handleMenuSkip = () => {
+    setOnboardingStep('packages');
+  };
+
+  // Package Handlers
   const addPackage = () => {
     if (
       !newPackage.name?.trim() ||
-      !newPackage.numberOfPeople ||
-      !newPackage.price
+      !newPackage.type ||
+      !newPackage.minGuests ||
+      !newPackage.maxGuests ||
+      !newPackage.minPrice ||
+      !newPackage.maxPrice ||
+      selectedMenuItemsForPackage.length === 0
     ) {
-      setError('Please fill in all package fields');
+      setError('Please fill in all required fields and select menu items');
+      return;
+    }
+
+    if (newPackage.minGuests > newPackage.maxGuests) {
+      setError('Minimum guests cannot be more than maximum guests');
+      return;
+    }
+
+    if (newPackage.minPrice > newPackage.maxPrice) {
+      setError('Minimum price cannot be more than maximum price');
       return;
     }
 
     const pkg: Package = {
       id: Date.now().toString(),
       name: newPackage.name || '',
-      numberOfPeople: newPackage.numberOfPeople || 10,
-      items: newPackage.items || [],
-      price: newPackage.price || 0,
+      type: newPackage.type || 'fixed',
+      minGuests: newPackage.minGuests || 10,
+      maxGuests: newPackage.maxGuests || 100,
+      minPrice: newPackage.minPrice || 0,
+      maxPrice: newPackage.maxPrice || 0,
+      menuItemIds: selectedMenuItemsForPackage,
     };
 
     setPackages([...packages, pkg]);
-    setNewPackage({ name: '', numberOfPeople: 10, items: [], price: 0 });
+    setNewPackage({
+      name: '',
+      type: 'fixed',
+      minGuests: 10,
+      maxGuests: 100,
+      minPrice: 0,
+      maxPrice: 0,
+      menuItemIds: [],
+    });
+    setSelectedMenuItemsForPackage([]);
     setError('');
   };
 
-  // Remove Package
   const removePackage = (id: string) => {
     setPackages(packages.filter((pkg) => pkg.id !== id));
   };
 
-  // Step 6: Packages Skip or Continue
-  const handlePackagesSkip = () => {
-    setOnboardingStep('completion');
+  const toggleMenuItemForPackage = (itemId: string) => {
+    if (selectedMenuItemsForPackage.includes(itemId)) {
+      setSelectedMenuItemsForPackage(
+        selectedMenuItemsForPackage.filter((id) => id !== itemId)
+      );
+    } else {
+      setSelectedMenuItemsForPackage([...selectedMenuItemsForPackage, itemId]);
+    }
   };
 
   const handlePackagesSubmit = async (e: React.FormEvent) => {
@@ -536,7 +748,10 @@ export default function OnboardingPage() {
     }
   };
 
-  // Complete Onboarding
+  const handlePackagesSkip = () => {
+    setOnboardingStep('completion');
+  };
+
   const handleCompleteOnboarding = async () => {
     setIsLoading(true);
 
@@ -569,10 +784,6 @@ export default function OnboardingPage() {
     );
   }
 
-  if (!session?.user && onboardingStep !== 'phone-verification') {
-    return null;
-  }
-
   if (isRedirecting) {
     return (
       <div style={styles.loadingContainer}>
@@ -584,22 +795,17 @@ export default function OnboardingPage() {
   }
 
   // Step 1: Phone Verification
-  if (onboardingStep === 'phone-verification') {
+  if (onboardingStep === 'phone-verification' && !phoneVerified) {
     return (
       <div style={styles.container}>
         <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
         <div style={styles.content}>
           <div style={styles.progressContainer}>
-            <div
-              style={{
-                ...styles.progressBar,
-                width: `${getProgressPercentage()}%`,
-              }}
-            />
+            <div style={{ ...styles.progressBar, width: '12.5%' }} />
           </div>
 
           <div style={styles.stepIndicator}>
-            <span style={styles.stepNumber}>{getStepNumber()}</span>
+            <span style={styles.stepNumber}>1 of 9</span>
             <span style={styles.stepDot}>●</span>
           </div>
 
@@ -716,21 +922,35 @@ export default function OnboardingPage() {
 
                 {resendTimer > 0 ? (
                   <p style={styles.helpText}>
-                    Resend OTP in {resendTimer} seconds
+                    Resend OTP in <strong>{resendTimer}s</strong>
                   </p>
+                ) : resendCount >= 3 ? (
+                  <div style={styles.errorMessage}>
+                    Maximum attempts reached. Please try again after some time.
+                  </div>
                 ) : (
                   <button
                     type="button"
-                    onClick={() => handleSendPhoneOtp(new Event('submit') as any)}
+                    onClick={handleSendPhoneOtp}
                     disabled={isLoading || resendCount >= 3}
                     style={{
                       ...styles.resendButton,
                       opacity: isLoading || resendCount >= 3 ? 0.6 : 1,
                     }}
+                    onMouseEnter={(e) => {
+                      if (!isLoading && resendCount < 3) {
+                        e.currentTarget.style.backgroundColor = '#667eea';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#667eea';
+                    }}
                   >
-                    Resend OTP
+                    Resend OTP ({resendCount}/3)
                   </button>
                 )}
+
+
               </>
             )}
           </form>
@@ -807,50 +1027,38 @@ export default function OnboardingPage() {
             </div>
 
             <div style={styles.formGroup}>
-              <label style={styles.label}>Service Areas</label>
-              <div style={styles.serviceAreaGroup}>
-                <select
-                  value={newAreaType}
-                  onChange={(e) => setNewAreaType(e.target.value as ServiceAreaType)}
-                  style={{ ...styles.input, flex: 0.5 }}
-                  disabled={isLoading}
-                >
-                  <option value="city">City</option>
-                  <option value="locality">Locality</option>
-                  <option value="pincode">Pincode</option>
-                </select>
-                <input
-                  type="text"
-                  value={newAreaValue}
-                  onChange={(e) => setNewAreaValue(e.target.value)}
-                  placeholder="Enter area name"
-                  style={{ ...styles.input, flex: 1 }}
-                  disabled={isLoading}
-                />
-                <button
-                  type="button"
-                  onClick={addServiceArea}
-                  disabled={isLoading || !newAreaValue.trim()}
-                  style={{ ...styles.addButton }}
-                >
-                  <Plus size={18} />
-                </button>
-              </div>
-
-              <div style={styles.tagContainer}>
-                {serviceAreas.map((area, index) => (
-                  <div key={index} style={styles.tag}>
-                    <span>
-                      {area.type}: {area.value}
+              <label style={styles.label}>Events You Handle *</label>
+              <p style={styles.helpText}>Select one or more</p>
+              <div style={styles.eventGrid}>
+                {EVENTS.map((event) => (
+                  <button
+                    key={event.id}
+                    type="button"
+                    onClick={() => toggleEventType(event.id as EventType)}
+                    style={{
+                      ...styles.eventTag,
+                      ...(eventsHandled.includes(event.id as EventType)
+                        ? styles.eventTagActive
+                        : styles.eventTagInactive),
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!eventsHandled.includes(event.id as EventType)) {
+                        e.currentTarget.style.backgroundColor = '#f0f9ff';
+                        e.currentTarget.style.borderColor = '#667eea';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!eventsHandled.includes(event.id as EventType)) {
+                        e.currentTarget.style.backgroundColor = 'white';
+                        e.currentTarget.style.borderColor = '#e5e7eb';
+                      }
+                    }}
+                  >
+                    <span style={{ fontSize: '1.25rem', marginRight: '0.5rem' }}>
+                      {event.icon}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => removeServiceArea(index)}
-                      style={styles.tagRemove}
-                    >
-                      ×
-                    </button>
-                  </div>
+                    {event.label}
+                  </button>
                 ))}
               </div>
             </div>
@@ -859,13 +1067,29 @@ export default function OnboardingPage() {
 
             <button
               type="submit"
-              disabled={isLoading || !fullName.trim() || !businessName.trim()}
+              disabled={
+                isLoading ||
+                !fullName.trim() ||
+                !businessName.trim() ||
+                eventsHandled.length === 0
+              }
               style={{
                 ...styles.submitButton,
-                opacity: isLoading || !fullName.trim() || !businessName.trim() ? 0.6 : 1,
+                opacity:
+                  isLoading ||
+                  !fullName.trim() ||
+                  !businessName.trim() ||
+                  eventsHandled.length === 0
+                    ? 0.6
+                    : 1,
               }}
               onMouseEnter={(e) => {
-                if (!isLoading && fullName.trim() && businessName.trim()) {
+                if (
+                  !isLoading &&
+                  fullName.trim() &&
+                  businessName.trim() &&
+                  eventsHandled.length > 0
+                ) {
                   e.currentTarget.style.backgroundColor = '#ea580c';
                 }
               }}
@@ -987,28 +1211,37 @@ export default function OnboardingPage() {
             </div>
 
             <div style={styles.formGroup}>
-              <label style={styles.label}>Base Location</label>
-              <input
-                type="text"
-                value={baseLocation}
-                onChange={(e) => setBaseLocation(e.target.value)}
-                placeholder="e.g., Hyderabad, Mumbai"
+              <label style={styles.label}>Base City *</label>
+              <select
+                value={baseCity}
+                onChange={(e) => setBaseCity(e.target.value)}
                 style={styles.input}
                 disabled={isLoading}
-              />
+                required
+              >
+                <option value="">Select city</option>
+                {MOCK_ALLOWED_CITIES.map((city) => (
+                  <option key={city.code} value={city.code}>
+                    {city.name}
+                  </option>
+                ))}
+              </select>
+              <p style={styles.helpText}>
+                Choose from our serviceable cities
+              </p>
             </div>
 
             {error && <div style={styles.errorMessage}>{error}</div>}
 
             <button
               type="submit"
-              disabled={isLoading || !yearsInBusiness || cuisines.length === 0 || !capacity.trim()}
+              disabled={isLoading || !yearsInBusiness || cuisines.length === 0 || !capacity.trim() || !baseCity.trim()}
               style={{
                 ...styles.submitButton,
-                opacity: isLoading || !yearsInBusiness ? 0.6 : 1,
+                opacity: isLoading || !yearsInBusiness || !baseCity.trim() ? 0.6 : 1,
               }}
               onMouseEnter={(e) => {
-                if (!isLoading && yearsInBusiness) {
+                if (!isLoading && yearsInBusiness && baseCity.trim()) {
                   e.currentTarget.style.backgroundColor = '#ea580c';
                 }
               }}
@@ -1033,7 +1266,253 @@ export default function OnboardingPage() {
     );
   }
 
-  // Step 4: KYC & Payments
+  // Step 4: Capabilities
+  if (onboardingStep === 'capabilities') {
+    return (
+      <div style={styles.container}>
+        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+        <div style={styles.content}>
+          <div style={styles.progressContainer}>
+            <div
+              style={{
+                ...styles.progressBar,
+                width: `${getProgressPercentage()}%`,
+              }}
+            />
+          </div>
+
+          <div style={styles.stepIndicator}>
+            <span style={styles.stepNumber}>{getStepNumber()}</span>
+            <span style={styles.stepDot}>●</span>
+          </div>
+
+          <div style={styles.header}>
+            <h1 style={styles.title}>Your Capabilities</h1>
+            <p style={styles.subtitle}>What services can you provide?</p>
+          </div>
+
+          <form onSubmit={handleCapabilitiesSubmit} style={styles.profileForm}>
+            <div style={styles.infoBox}>
+              <AlertCircle
+                size={20}
+                color="#0284c7"
+                style={{ marginRight: '0.75rem' }}
+              />
+              <p style={{ margin: 0, fontSize: '0.875rem', color: '#0c4a6e' }}>
+                Select all the services you can provide
+              </p>
+            </div>
+
+            <div style={styles.capabilitiesGrid}>
+              {CAPABILITIES.map((capability) => (
+                <button
+                  key={capability.id}
+                  type="button"
+                  onClick={() => toggleCapability(capability.id as CapabilityType)}
+                  style={{
+                    ...styles.capabilityCard,
+                    ...(selectedCapabilities.includes(capability.id as CapabilityType)
+                      ? styles.capabilityCardActive
+                      : styles.capabilityCardInactive),
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!selectedCapabilities.includes(capability.id as CapabilityType)) {
+                      e.currentTarget.style.backgroundColor = '#f0f9ff';
+                      e.currentTarget.style.borderColor = '#667eea';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!selectedCapabilities.includes(capability.id as CapabilityType)) {
+                      e.currentTarget.style.backgroundColor = 'white';
+                      e.currentTarget.style.borderColor = '#e5e7eb';
+                    }
+                  }}
+                >
+                  {selectedCapabilities.includes(capability.id as CapabilityType) && (
+                    <Check size={20} style={{ marginRight: '0.5rem' }} />
+                  )}
+                  <span style={{ fontSize: '1.5rem', marginRight: '0.75rem' }}>
+                    {capability.icon}
+                  </span>
+                  <span style={{ flex: 1, textAlign: 'left' }}>
+                    {capability.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {error && <div style={styles.errorMessage}>{error}</div>}
+
+            <button
+              type="submit"
+              disabled={isLoading || selectedCapabilities.length === 0}
+              style={{
+                ...styles.submitButton,
+                opacity: isLoading || selectedCapabilities.length === 0 ? 0.6 : 1,
+              }}
+              onMouseEnter={(e) => {
+                if (!isLoading && selectedCapabilities.length > 0) {
+                  e.currentTarget.style.backgroundColor = '#ea580c';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#f97316';
+              }}
+            >
+              {isLoading ? 'Saving...' : 'Continue'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setOnboardingStep('business-details')}
+              disabled={isLoading}
+              style={styles.backButton}
+            >
+              Back
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 5: Service Areas
+  if (onboardingStep === 'service-areas') {
+    return (
+      <div style={styles.container}>
+        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+        <div style={styles.content}>
+          <div style={styles.progressContainer}>
+            <div
+              style={{
+                ...styles.progressBar,
+                width: `${getProgressPercentage()}%`,
+              }}
+            />
+          </div>
+
+          <div style={styles.stepIndicator}>
+            <span style={styles.stepNumber}>{getStepNumber()}</span>
+            <span style={styles.stepDot}>●</span>
+          </div>
+
+          <div style={styles.header}>
+            <h1 style={styles.title}>Service Areas</h1>
+            <p style={styles.subtitle}>Where can you deliver?</p>
+          </div>
+
+          <form onSubmit={handleServiceAreasSubmit} style={styles.profileForm}>
+            <div style={styles.infoBox}>
+              <AlertCircle
+                size={20}
+                color="#0284c7"
+                style={{ marginRight: '0.75rem' }}
+              />
+              <p style={{ margin: 0, fontSize: '0.875rem', color: '#0c4a6e' }}>
+                Add pincodes from serviceable areas only
+              </p>
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Pincode *</label>
+              <div style={styles.pincodeInputGroup}>
+                <input
+                  type="text"
+                  value={newPincode}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/[^\d]/g, '');
+                    setNewPincode(value);
+                    if (value.length === 6) {
+                      validatePincode(value);
+                    } else {
+                      setPincodeValidationMessage('');
+                    }
+                  }}
+                  placeholder="Enter 6-digit pincode"
+                  style={styles.input}
+                  disabled={isLoading}
+                  maxLength={6}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={addServiceArea}
+                  disabled={isLoading || !newPincode.trim() || !selectedServiceCity}
+                  style={styles.addButton}
+                >
+                  <Plus size={18} />
+                </button>
+              </div>
+              {pincodeValidationMessage && (
+                <p
+                  style={{
+                    ...styles.helpText,
+                    color: pincodeValidationMessage.startsWith('✓')
+                      ? '#15803d'
+                      : '#dc2626',
+                  }}
+                >
+                  {pincodeValidationMessage}
+                </p>
+              )}
+            </div>
+
+            {serviceAreas.length > 0 && (
+              <div style={styles.serviceAreasList}>
+                {serviceAreas.map((area) => (
+                  <div key={area.pincode} style={styles.serviceAreaItem}>
+                    <div style={styles.areaContent}>
+                      <h4 style={styles.areaTitle}>{area.pincode}</h4>
+                      <p style={styles.areaSubtitle}>{area.city}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeServiceArea(area.pincode)}
+                      style={styles.deleteButton}
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {error && <div style={styles.errorMessage}>{error}</div>}
+
+            <button
+              type="submit"
+              disabled={isLoading || serviceAreas.length === 0}
+              style={{
+                ...styles.submitButton,
+                opacity: isLoading || serviceAreas.length === 0 ? 0.6 : 1,
+              }}
+              onMouseEnter={(e) => {
+                if (!isLoading && serviceAreas.length > 0) {
+                  e.currentTarget.style.backgroundColor = '#ea580c';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#f97316';
+              }}
+            >
+              {isLoading ? 'Saving...' : 'Continue'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setOnboardingStep('capabilities')}
+              disabled={isLoading}
+              style={styles.backButton}
+            >
+              Back
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // Step 6: KYC & Payments
   if (onboardingStep === 'kyc-payments') {
     return (
       <div style={styles.container}>
@@ -1247,7 +1726,7 @@ export default function OnboardingPage() {
 
             <button
               type="button"
-              onClick={() => setOnboardingStep('business-details')}
+              onClick={() => setOnboardingStep('service-areas')}
               disabled={isLoading}
               style={styles.backButton}
             >
@@ -1259,7 +1738,7 @@ export default function OnboardingPage() {
     );
   }
 
-  // Step 5: Menu Setup
+  // Step 7: Menu Setup
   if (onboardingStep === 'menu-setup') {
     return (
       <div style={styles.container}>
@@ -1288,7 +1767,7 @@ export default function OnboardingPage() {
               Menu Setup
             </h1>
             <p style={styles.subtitle}>
-              Add your signature dishes {menuItems.length > 0 && `(${menuItems.length} items added)`}
+              Add your signature dishes {menuItems.length > 0 && `(${menuItems.length} items)`}
             </p>
           </div>
 
@@ -1321,25 +1800,6 @@ export default function OnboardingPage() {
               </div>
 
               <div style={styles.formRow}>
-                <div style={{ ...styles.formGroup, flex: 1 }}>
-                  <label style={styles.label}>Category *</label>
-                  <select
-                    value={newMenuItem.category || 'starter'}
-                    onChange={(e) =>
-                      setNewMenuItem({ ...newMenuItem, category: e.target.value })
-                    }
-                    style={styles.input}
-                    disabled={isLoading}
-                    required
-                  >
-                    {MENU_CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat.toLowerCase()}>
-                        {cat}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
                 <div style={{ ...styles.formGroup, flex: 1 }}>
                   <label style={styles.label}>Price (₹) *</label>
                   <input
@@ -1378,6 +1838,29 @@ export default function OnboardingPage() {
                 />
               </div>
 
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Dish Image (Optional)</label>
+                <div style={styles.imageUploadWrapper}>
+                  <input
+                    type="file"
+                    onChange={handleImageChange}
+                    style={styles.fileInput}
+                    disabled={isLoading}
+                    accept=".png,.jpg,.jpeg"
+                  />
+                  <p style={styles.helpText}>PNG or JPG (Max 100KB)</p>
+                </div>
+                {imagePreview && (
+                  <div style={styles.imagePreviewContainer}>
+                    <img
+                      src={imagePreview}
+                      alt="Preview"
+                      style={styles.imagePreview}
+                    />
+                  </div>
+                )}
+              </div>
+
               <button
                 type="button"
                 onClick={addMenuItem}
@@ -1400,9 +1883,15 @@ export default function OnboardingPage() {
               <div style={styles.itemsList}>
                 {menuItems.map((item) => (
                   <div key={item.id} style={styles.listItem}>
+                    {item.image && (
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        style={styles.listItemImage}
+                      />
+                    )}
                     <div style={styles.itemContent}>
                       <h4 style={styles.itemName}>{item.name}</h4>
-                      <p style={styles.itemCategory}>{item.category}</p>
                       {item.description && (
                         <p style={styles.itemDescription}>{item.description}</p>
                       )}
@@ -1468,7 +1957,7 @@ export default function OnboardingPage() {
     );
   }
 
-  // Step 6: Packages
+  // Step 8: Packages
   if (onboardingStep === 'packages') {
     return (
       <div style={styles.container}>
@@ -1505,76 +1994,197 @@ export default function OnboardingPage() {
               </p>
             </div>
 
-            <div style={styles.menuForm}>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Package Name</label>
-                <input
-                  type="text"
-                  value={newPackage.name || ''}
-                  onChange={(e) =>
-                    setNewPackage({ ...newPackage, name: e.target.value })
-                  }
-                  placeholder="e.g., Wedding Package"
-                  style={styles.input}
-                  disabled={isLoading}
-                />
-              </div>
-
-              <div style={styles.formRow}>
-                <div style={{ ...styles.formGroup, flex: 1 }}>
-                  <label style={styles.label}>Number of People</label>
-                  <input
-                    type="number"
-                    value={newPackage.numberOfPeople || 10}
-                    onChange={(e) =>
-                      setNewPackage({
-                        ...newPackage,
-                        numberOfPeople: parseInt(e.target.value) || 10,
-                      })
-                    }
-                    style={styles.input}
-                    disabled={isLoading}
-                    min="1"
-                  />
-                </div>
-
-                <div style={{ ...styles.formGroup, flex: 1 }}>
-                  <label style={styles.label}>Price (₹)</label>
-                  <input
-                    type="number"
-                    value={newPackage.price || ''}
-                    onChange={(e) =>
-                      setNewPackage({
-                        ...newPackage,
-                        price: parseFloat(e.target.value) || 0,
-                      })
-                    }
-                    placeholder="e.g., 500"
-                    style={styles.input}
-                    disabled={isLoading}
-                    min="0"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={addPackage}
-                disabled={
-                  isLoading ||
-                  !newPackage.name?.trim() ||
-                  !newPackage.numberOfPeople ||
-                  !newPackage.price
-                }
+            {menuItems.length === 0 ? (
+              <div
                 style={{
-                  ...styles.addButton,
-                  width: '100%',
-                  marginBottom: '1.5rem',
+                  ...styles.infoBox,
+                  backgroundColor: '#fef3c7',
+                  borderColor: '#fde68a',
                 }}
               >
-                <Plus size={18} /> Add Package
-              </button>
-            </div>
+                <AlertCircle
+                  size={20}
+                  color="#b45309"
+                  style={{ marginRight: '0.75rem' }}
+                />
+                <p style={{ margin: 0, fontSize: '0.875rem', color: '#78350f' }}>
+                  Add menu items first to create packages
+                </p>
+              </div>
+            ) : (
+              <div style={styles.menuForm}>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Package Name *</label>
+                  <input
+                    type="text"
+                    value={newPackage.name || ''}
+                    onChange={(e) =>
+                      setNewPackage({ ...newPackage, name: e.target.value })
+                    }
+                    placeholder="e.g., Wedding Package"
+                    style={styles.input}
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Package Type *</label>
+                  <div style={styles.radioGroup}>
+                    {[
+                      { value: 'fixed', label: 'Fixed Package' },
+                      { value: 'customizable', label: 'Customizable Package' },
+                    ].map((type) => (
+                      <label key={type.value} style={styles.radioLabel}>
+                        <input
+                          type="radio"
+                          value={type.value}
+                          checked={newPackage.type === type.value}
+                          onChange={(e) =>
+                            setNewPackage({
+                              ...newPackage,
+                              type: e.target.value as 'fixed' | 'customizable',
+                            })
+                          }
+                          disabled={isLoading}
+                          style={styles.radioInput}
+                        />
+                        {type.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={styles.formRow}>
+                  <div style={{ ...styles.formGroup, flex: 1 }}>
+                    <label style={styles.label}>Min Guests *</label>
+                    <input
+                      type="number"
+                      value={newPackage.minGuests || 10}
+                      onChange={(e) =>
+                        setNewPackage({
+                          ...newPackage,
+                          minGuests: parseInt(e.target.value) || 10,
+                        })
+                      }
+                      style={styles.input}
+                      disabled={isLoading}
+                      min="1"
+                    />
+                  </div>
+
+                  <div style={{ ...styles.formGroup, flex: 1 }}>
+                    <label style={styles.label}>Max Guests *</label>
+                    <input
+                      type="number"
+                      value={newPackage.maxGuests || 100}
+                      onChange={(e) =>
+                        setNewPackage({
+                          ...newPackage,
+                          maxGuests: parseInt(e.target.value) || 100,
+                        })
+                      }
+                      style={styles.input}
+                      disabled={isLoading}
+                      min="1"
+                    />
+                  </div>
+                </div>
+
+                <div style={styles.formRow}>
+                  <div style={{ ...styles.formGroup, flex: 1 }}>
+                    <label style={styles.label}>Min Price (₹) *</label>
+                    <input
+                      type="number"
+                      value={newPackage.minPrice || ''}
+                      onChange={(e) =>
+                        setNewPackage({
+                          ...newPackage,
+                          minPrice: parseFloat(e.target.value) || 0,
+                        })
+                      }
+                      placeholder="e.g., 500"
+                      style={styles.input}
+                      disabled={isLoading}
+                      min="0"
+                    />
+                  </div>
+
+                  <div style={{ ...styles.formGroup, flex: 1 }}>
+                    <label style={styles.label}>Max Price (₹) *</label>
+                    <input
+                      type="number"
+                      value={newPackage.maxPrice || ''}
+                      onChange={(e) =>
+                        setNewPackage({
+                          ...newPackage,
+                          maxPrice: parseFloat(e.target.value) || 0,
+                        })
+                      }
+                      placeholder="e.g., 1000"
+                      style={styles.input}
+                      disabled={isLoading}
+                      min="0"
+                    />
+                  </div>
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Select Menu Items *</label>
+                  <p style={styles.helpText}>Choose items to include in this package</p>
+                  <div style={styles.menuItemsCheckList}>
+                    {menuItems.map((item) => (
+                      <label key={item.id} style={styles.checkboxLabel}>
+                        <input
+                          type="checkbox"
+                          checked={selectedMenuItemsForPackage.includes(item.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedMenuItemsForPackage([
+                                ...selectedMenuItemsForPackage,
+                                item.id,
+                              ]);
+                            } else {
+                              setSelectedMenuItemsForPackage(
+                                selectedMenuItemsForPackage.filter(
+                                  (id) => id !== item.id
+                                )
+                              );
+                            }
+                          }}
+                          style={styles.checkbox}
+                          disabled={isLoading}
+                        />
+                        <span>{item.name}</span>
+                        <span style={{ marginLeft: 'auto', color: '#f97316' }}>
+                          ₹{item.price}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={addPackage}
+                  disabled={
+                    isLoading ||
+                    !newPackage.name?.trim() ||
+                    !newPackage.minGuests ||
+                    !newPackage.maxGuests ||
+                    !newPackage.minPrice ||
+                    !newPackage.maxPrice ||
+                    selectedMenuItemsForPackage.length === 0
+                  }
+                  style={{
+                    ...styles.addButton,
+                    width: '100%',
+                    marginBottom: '1.5rem',
+                  }}
+                >
+                  <Plus size={18} /> Add Package
+                </button>
+              </div>
+            )}
 
             {packages.length > 0 && (
               <div style={styles.itemsList}>
@@ -1583,10 +2193,17 @@ export default function OnboardingPage() {
                     <div style={styles.itemContent}>
                       <h4 style={styles.itemName}>{pkg.name}</h4>
                       <p style={styles.itemCategory}>
-                        {pkg.numberOfPeople} people
+                        {pkg.type === 'fixed' ? 'Fixed' : 'Customizable'} • {pkg.minGuests}-{pkg.maxGuests} guests
                       </p>
+                      <p style={styles.itemPrice}>
+                        ₹{pkg.minPrice} - ₹{pkg.maxPrice}
+                      </p>
+                      <div style={{ marginTop: '0.5rem' }}>
+                        <p style={styles.helpText}>
+                          {selectedMenuItemsForPackage.length} item(s)
+                        </p>
+                      </div>
                     </div>
-                    <div style={styles.itemPrice}>₹{pkg.price}</div>
                     <button
                       type="button"
                       onClick={() => removePackage(pkg.id)}
@@ -1643,7 +2260,7 @@ export default function OnboardingPage() {
     );
   }
 
-  // Step 7: Completion
+  // Step 9: Completion
   if (onboardingStep === 'completion') {
     return (
       <div style={styles.container}>
@@ -1660,7 +2277,7 @@ export default function OnboardingPage() {
 
           <div style={styles.completeContainer}>
             <div style={styles.successIcon}>✓</div>
-            <h1 style={styles.title}>You're All Set! 🎉</h1>
+            <h1 style={styles.title}>You're All Set!</h1>
             <p style={styles.subtitle}>
               Your profile is live. Complete the checklist to maximize visibility
             </p>
@@ -1672,6 +2289,54 @@ export default function OnboardingPage() {
                   <h4 style={styles.checklistTitle}>Profile Created</h4>
                   <p style={styles.checklistText}>Your caterer profile is live</p>
                 </div>
+              </div>
+
+              <div style={styles.checklistItem}>
+                {selectedCapabilities.length > 0 ? (
+                  <>
+                    <div style={styles.checklistDone}>✓</div>
+                    <div>
+                      <h4 style={styles.checklistTitle}>Capabilities Added</h4>
+                      <p style={styles.checklistText}>
+                        {selectedCapabilities.length} service(s) listed
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={styles.checklistPending}>⏳</div>
+                    <div>
+                      <h4 style={styles.checklistTitle}>Add Capabilities</h4>
+                      <p style={styles.checklistText}>
+                        List your services
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div style={styles.checklistItem}>
+                {serviceAreas.length > 0 ? (
+                  <>
+                    <div style={styles.checklistDone}>✓</div>
+                    <div>
+                      <h4 style={styles.checklistTitle}>Service Areas Added</h4>
+                      <p style={styles.checklistText}>
+                        {serviceAreas.length} area(s) covered
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={styles.checklistPending}>⏳</div>
+                    <div>
+                      <h4 style={styles.checklistTitle}>Add Service Areas</h4>
+                      <p style={styles.checklistText}>
+                        Define your delivery zones
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div style={styles.checklistItem}>
@@ -1781,7 +2446,7 @@ export default function OnboardingPage() {
   return null;
 }
 
-// Styles
+// Styles object
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
     minHeight: '100vh',
@@ -1920,37 +2585,98 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: 'pointer',
     fontFamily: 'inherit',
   } as React.CSSProperties,
-  serviceAreaGroup: {
+  pincodeInputGroup: {
     display: 'grid',
-    gridTemplateColumns: '100px 1fr 50px',
+    gridTemplateColumns: '1fr 50px',
     gap: '0.75rem',
     alignItems: 'flex-start',
   } as React.CSSProperties,
-  tagContainer: {
-    display: 'flex',
-    flexWrap: 'wrap' as const,
-    gap: '0.5rem',
-    marginTop: '0.75rem',
+  eventGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+    gap: '0.75rem',
+    marginTop: '1rem',
   } as React.CSSProperties,
-  tag: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    padding: '0.5rem 0.75rem',
-    backgroundColor: '#f0fdf4',
-    border: '1px solid #dcfce7',
-    borderRadius: '0.5rem',
+  eventTag: {
+    padding: '0.75rem 1rem',
+    borderRadius: '0.75rem',
+    border: '2px solid',
     fontSize: '0.875rem',
-    color: '#15803d',
-  } as React.CSSProperties,
-  tagRemove: {
-    background: 'none',
-    border: 'none',
-    color: '#dc2626',
+    fontWeight: '500',
     cursor: 'pointer',
-    fontSize: '1.25rem',
-    padding: 0,
-    lineHeight: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    textAlign: 'center' as const,
+    transition: 'all 0.3s ease',
+  } as React.CSSProperties,
+  eventTagActive: {
+    backgroundColor: '#dbeafe',
+    borderColor: '#667eea',
+    color: '#667eea',
+  } as React.CSSProperties,
+  eventTagInactive: {
+    backgroundColor: 'white',
+    borderColor: '#e5e7eb',
+    color: '#6b7280',
+  } as React.CSSProperties,
+  capabilitiesGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gap: '1rem',
+    marginTop: '1rem',
+  } as React.CSSProperties,
+  capabilityCard: {
+    padding: '1.25rem',
+    borderRadius: '0.75rem',
+    border: '2px solid',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    textAlign: 'left' as const,
+    transition: 'all 0.3s ease',
+    fontWeight: '500',
+    fontSize: '0.875rem',
+  } as React.CSSProperties,
+  capabilityCardActive: {
+    backgroundColor: '#dbeafe',
+    borderColor: '#667eea',
+    color: '#667eea',
+  } as React.CSSProperties,
+  capabilityCardInactive: {
+    backgroundColor: 'white',
+    borderColor: '#e5e7eb',
+    color: '#6b7280',
+  } as React.CSSProperties,
+  serviceAreasList: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '0.75rem',
+    marginTop: '1rem',
+  } as React.CSSProperties,
+  serviceAreaItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1rem',
+    padding: '1rem',
+    backgroundColor: '#f3f4f6',
+    borderRadius: '0.5rem',
+    border: '1px solid #e5e7eb',
+  } as React.CSSProperties,
+  areaContent: {
+    flex: 1,
+  } as React.CSSProperties,
+  areaTitle: {
+    margin: 0,
+    fontSize: '0.875rem',
+    fontWeight: '600',
+    color: '#111827',
+  } as React.CSSProperties,
+  areaSubtitle: {
+    margin: '0.25rem 0 0 0',
+    fontSize: '0.75rem',
+    color: '#6b7280',
   } as React.CSSProperties,
   helpText: {
     fontSize: '0.75rem',
@@ -2073,6 +2799,23 @@ const styles: { [key: string]: React.CSSProperties } = {
     textAlign: 'center' as const,
     backgroundColor: '#fafafa',
   } as React.CSSProperties,
+  imageUploadWrapper: {
+    border: '2px dashed #d1d5db',
+    borderRadius: '0.5rem',
+    padding: '1.5rem',
+    textAlign: 'center' as const,
+    backgroundColor: '#fafafa',
+  } as React.CSSProperties,
+  imagePreviewContainer: {
+    marginTop: '1rem',
+    textAlign: 'center' as const,
+  } as React.CSSProperties,
+  imagePreview: {
+    maxWidth: '150px',
+    maxHeight: '150px',
+    borderRadius: '0.5rem',
+    border: '1px solid #e5e7eb',
+  } as React.CSSProperties,
   fileInput: {
     width: '100%',
     cursor: 'pointer',
@@ -2156,6 +2899,12 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '0.5rem',
     border: '1px solid #e5e7eb',
   } as React.CSSProperties,
+  listItemImage: {
+    width: '60px',
+    height: '60px',
+    borderRadius: '0.5rem',
+    objectFit: 'cover' as const,
+  } as React.CSSProperties,
   itemContent: {
     flex: 1,
   } as React.CSSProperties,
@@ -2194,6 +2943,12 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     justifyContent: 'center',
     transition: 'all 0.3s ease',
+  } as React.CSSProperties,
+  menuItemsCheckList: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '0.75rem',
+    marginTop: '1rem',
   } as React.CSSProperties,
   completeContainer: {
     textAlign: 'center' as const,

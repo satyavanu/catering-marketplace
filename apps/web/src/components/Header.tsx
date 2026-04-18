@@ -4,8 +4,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
 import {
-  MagnifyingGlassIcon,
-  Bars3Icon,
   XMarkIcon,
   UserCircleIcon,
   ArrowRightOnRectangleIcon,
@@ -14,10 +12,11 @@ import {
   CheckBadgeIcon,
   MapPinIcon,
   ChevronDownIcon,
+  SparklesIcon,
+  Bars3Icon,
 } from '@heroicons/react/24/outline';
 import { handleLogout } from "@catering-marketplace/auth"
 
-// Mock city data - Replace with actual DB call
 const AVAILABLE_CITIES = [
   { id: 1, name: 'Mumbai', slug: 'mumbai', emoji: '🌊', state: 'Maharashtra', vendors: 45 },
   { id: 2, name: 'Delhi', slug: 'delhi', emoji: '🏛️', state: 'Delhi', vendors: 52 },
@@ -41,15 +40,13 @@ interface City {
 }
 
 const Header = () => {
-  const [searchQuery, setSearchQuery] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isCityModalOpen, setIsCityModalOpen] = useState(false);
-  const [selectedCity, setSelectedCity] = useState<City | null>(AVAILABLE_CITIES[0]); // Default to Mumbai
+  const [selectedCity, setSelectedCity] = useState<City | null>(AVAILABLE_CITIES[0]);
   const [citySearchQuery, setCitySearchQuery] = useState('');
   
   const profileMenuRef = useRef<HTMLDivElement>(null);
-  const cityButtonRef = useRef<HTMLButtonElement>(null);
   const { data: session, status } = useSession();
 
   const navLinks = [
@@ -58,7 +55,6 @@ const Header = () => {
     { label: 'Meal Plans', href: '/meal-plans' },
   ];
 
-  // Close menus when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -78,7 +74,6 @@ const Header = () => {
     };
   }, [isProfileMenuOpen]);
 
-  // Filter cities based on search
   const filteredCities = AVAILABLE_CITIES.filter(city =>
     city.name.toLowerCase().includes(citySearchQuery.toLowerCase()) ||
     city.state.toLowerCase().includes(citySearchQuery.toLowerCase())
@@ -88,28 +83,29 @@ const Header = () => {
     setSelectedCity(city);
     setIsCityModalOpen(false);
     setCitySearchQuery('');
-    // TODO: Update URL or trigger city change in parent component
-    // router.push(`?city=${city.slug}`);
   };
 
   const NavLink = ({ href, label }: { href: string; label: string }) => (
     <Link
       href={href}
       style={{
-        fontSize: '14px',
+        fontSize: '15px',
         fontWeight: '500',
-        color: '#64748b',
+        color: 'white',
         textDecoration: 'none',
-        transition: 'all 0.2s ease',
-        padding: '6px 12px',
+        transition: 'all 0.3s ease',
+        padding: '8px 16px',
         borderRadius: '6px',
+        display: 'inline-block',
+        position: 'relative',
+        letterSpacing: '0.3px',
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.color = '#667eea';
-        e.currentTarget.style.backgroundColor = '#f0f4ff';
+        e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
+        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.color = '#64748b';
+        e.currentTarget.style.color = 'white';
         e.currentTarget.style.backgroundColor = 'transparent';
       }}
     >
@@ -119,63 +115,54 @@ const Header = () => {
 
   const CityButton = ({ isMobile = false }: { isMobile?: boolean }) => (
     <button
-      ref={cityButtonRef}
       onClick={() => setIsCityModalOpen(true)}
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: '6px',
-        backgroundColor: 'transparent',
-        border: '1px solid #e2e8f0',
+        gap: '8px',
+        backgroundColor: isMobile ? 'white' : 'rgba(255, 255, 255, 0.12)',
+        border: isMobile ? '1px solid #e2e8f0' : 'none',
         cursor: 'pointer',
-        padding: isMobile ? '6px 10px' : '8px 12px',
-        borderRadius: '6px',
+        padding: isMobile ? '6px 12px' : '8px 16px',
+        borderRadius: '8px',
         transition: 'all 0.2s ease',
-        fontSize: isMobile ? '12px' : '13px',
+        fontSize: isMobile ? '13px' : '14px',
         fontWeight: '500',
-        color: '#475569',
+        color: isMobile ? '#475569' : 'white',
         whiteSpace: 'nowrap',
+        backdropFilter: isMobile ? 'none' : 'blur(10px)',
       }}
       onMouseEnter={(e) => {
         if (!isMobile) {
-          e.currentTarget.style.backgroundColor = '#f8fafc';
-          e.currentTarget.style.borderColor = '#cbd5e1';
+          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.18)';
         }
       }}
       onMouseLeave={(e) => {
         if (!isMobile) {
-          e.currentTarget.style.backgroundColor = 'transparent';
-          e.currentTarget.style.borderColor = '#e2e8f0';
+          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.12)';
         }
       }}
     >
-      <MapPinIcon style={{ width: isMobile ? '14px' : '16px', height: isMobile ? '14px' : '16px', flexShrink: 0 }} />
+      <MapPinIcon style={{ width: isMobile ? '16px' : '16px', height: isMobile ? '16px' : '16px', flexShrink: 0 }} />
       <span>{selectedCity?.emoji} {selectedCity?.name}</span>
-      <ChevronDownIcon
-        style={{
-          width: '14px',
-          height: '14px',
-          flexShrink: 0,
-        }}
-      />
+      <ChevronDownIcon style={{ width: '14px', height: '14px', flexShrink: 0, opacity: 0.7 }} />
     </button>
   );
 
   const CityModal = () => (
     <>
-      {/* Backdrop */}
       <div
         onClick={() => setIsCityModalOpen(false)}
         style={{
           position: 'fixed',
           inset: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.4)',
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
           zIndex: 999,
           animation: 'fadeIn 0.2s ease-out',
+          backdropFilter: 'blur(4px)',
         }}
       />
 
-      {/* Modal */}
       <div
         style={{
           position: 'fixed',
@@ -195,33 +182,33 @@ const Header = () => {
           overflow: 'hidden',
         }}
       >
-        {/* Header */}
         <div
           style={{
             padding: '24px',
-            borderBottom: '1px solid #e2e8f0',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
+            color: 'white',
           }}
         >
           <div>
-            <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#1e293b', margin: 0 }}>
-              📍 Select Your City
+            <h2 style={{ fontSize: '20px', fontWeight: '800', color: 'white', margin: 0 }}>
+              Select Your City
             </h2>
-            <p style={{ fontSize: '13px', color: '#64748b', margin: '6px 0 0 0' }}>
-              Choose where you want to order from
+            <p style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.8)', margin: '6px 0 0 0' }}>
+              Choose your delivery location
             </p>
           </div>
           <button
             onClick={() => setIsCityModalOpen(false)}
             style={{
-              backgroundColor: 'transparent',
+              backgroundColor: 'rgba(255, 255, 255, 0.2)',
               border: 'none',
               cursor: 'pointer',
               padding: '8px',
               borderRadius: '6px',
-              color: '#64748b',
+              color: 'white',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -229,19 +216,16 @@ const Header = () => {
               flexShrink: 0,
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#f1f5f9';
-              e.currentTarget.style.color = '#1e293b';
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = '#64748b';
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
             }}
           >
             <XMarkIcon style={{ width: '20px', height: '20px' }} />
           </button>
         </div>
 
-        {/* Search Bar */}
         <div style={{ padding: '16px 24px' }}>
           <div
             style={{
@@ -252,19 +236,11 @@ const Header = () => {
               borderRadius: '8px',
               paddingLeft: '12px',
               paddingRight: '12px',
-              height: '44px',
+              height: '40px',
               border: '1px solid #e2e8f0',
               transition: 'all 0.2s ease',
             }}
           >
-            <MagnifyingGlassIcon
-              style={{
-                width: '18px',
-                height: '18px',
-                color: '#94a3b8',
-                flexShrink: 0,
-              }}
-            />
             <input
               type="text"
               placeholder="Search city or state..."
@@ -283,14 +259,7 @@ const Header = () => {
           </div>
         </div>
 
-        {/* Cities List */}
-        <div
-          style={{
-            flex: 1,
-            overflowY: 'auto',
-            padding: '0 24px',
-          }}
-        >
+        <div style={{ flex: 1, overflowY: 'auto', padding: '0 24px' }}>
           {filteredCities.length > 0 ? (
             <div style={{ display: 'grid', gap: '8px', paddingBottom: '16px' }}>
               {filteredCities.map((city) => (
@@ -313,67 +282,35 @@ const Header = () => {
                   onMouseEnter={(e) => {
                     if (selectedCity?.id !== city.id) {
                       e.currentTarget.style.backgroundColor = '#f1f5f9';
-                      e.currentTarget.style.borderColor = '#cbd5e1';
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (selectedCity?.id !== city.id) {
                       e.currentTarget.style.backgroundColor = '#f8fafc';
-                      e.currentTarget.style.borderColor = '#e2e8f0';
                     }
                   }}
                 >
                   <span style={{ fontSize: '24px', flexShrink: 0 }}>{city.emoji}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p
-                      style={{
-                        margin: 0,
-                        fontSize: '14px',
-                        fontWeight: selectedCity?.id === city.id ? '700' : '600',
-                        color: selectedCity?.id === city.id ? '#667eea' : '#1e293b',
-                      }}
-                    >
+                    <p style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>
                       {city.name}
                     </p>
-                    <p
-                      style={{
-                        margin: '4px 0 0 0',
-                        fontSize: '12px',
-                        color: '#94a3b8',
-                      }}
-                    >
-                      {city.state} • {city.vendors} vendors available
+                    <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>
+                      {city.state}
                     </p>
                   </div>
-                  {selectedCity?.id === city.id && (
-                    <div
-                      style={{
-                        width: '8px',
-                        height: '8px',
-                        borderRadius: '50%',
-                        backgroundColor: '#667eea',
-                        flexShrink: 0,
-                        boxShadow: '0 0 8px rgba(102, 126, 234, 0.5)',
-                      }}
-                    />
-                  )}
                 </button>
               ))}
             </div>
           ) : (
             <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-              <div style={{ fontSize: '48px', marginBottom: '12px' }}>🔍</div>
               <p style={{ fontSize: '14px', color: '#94a3b8', margin: 0, fontWeight: '500' }}>
                 No cities found
-              </p>
-              <p style={{ fontSize: '12px', color: '#cbd5e1', margin: '4px 0 0 0' }}>
-                Try searching by city name or state
               </p>
             </div>
           )}
         </div>
 
-        {/* Footer Info */}
         {selectedCity && (
           <div
             style={{
@@ -387,17 +324,15 @@ const Header = () => {
             }}
           >
             <div>
-              <p style={{ fontSize: '12px', color: '#64748b', margin: 0, fontWeight: '600' }}>
-                Selected
-              </p>
+              <p style={{ fontSize: '12px', color: '#64748b', margin: 0, fontWeight: '600' }}>Selected</p>
               <p style={{ fontSize: '14px', color: '#1e293b', margin: '4px 0 0 0', fontWeight: '700' }}>
-                {selectedCity.emoji} {selectedCity.name}, {selectedCity.state}
+                {selectedCity.emoji} {selectedCity.name}
               </p>
             </div>
             <button
               onClick={() => setIsCityModalOpen(false)}
               style={{
-                backgroundColor: '#667eea',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                 color: 'white',
                 border: 'none',
                 padding: '10px 20px',
@@ -407,12 +342,13 @@ const Header = () => {
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
                 whiteSpace: 'nowrap',
+                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#764ba2';
+                e.currentTarget.style.transform = 'translateY(-2px)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#667eea';
+                e.currentTarget.style.transform = 'translateY(0)';
               }}
             >
               Confirm
@@ -423,84 +359,30 @@ const Header = () => {
     </>
   );
 
-  const SearchBar = ({ isMobile = false }: { isMobile?: boolean }) => (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px',
-        backgroundColor: '#f8fafc',
-        borderRadius: '8px',
-        paddingLeft: '14px',
-        paddingRight: '14px',
-        height: '40px',
-        border: '1px solid #e2e8f0',
-        transition: 'all 0.2s ease',
-        flex: isMobile ? 1 : 'initial',
-        minWidth: isMobile ? 'auto' : '200px',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = '#667eea';
-        e.currentTarget.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = '#e2e8f0';
-        e.currentTarget.style.boxShadow = 'none';
-      }}
-    >
-      <MagnifyingGlassIcon
-        style={{
-          width: '18px',
-          height: '18px',
-          color: '#94a3b8',
-          flexShrink: 0,
-        }}
-      />
-      <input
-        type="text"
-        placeholder={isMobile ? 'Search...' : 'Search services...'}
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        style={{
-          flex: 1,
-          border: 'none',
-          outline: 'none',
-          backgroundColor: 'transparent',
-          fontSize: '13px',
-          color: '#1e293b',
-        }}
-      />
-    </div>
-  );
-
   const ProfileDropdown = ({ isMobile = false }) => (
-    <div
-      ref={profileMenuRef}
-      style={{
-        position: 'relative',
-      }}
-    >
+    <div ref={profileMenuRef} style={{ position: 'relative' }}>
       <button
         onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
         style={{
           display: 'flex',
           alignItems: 'center',
           gap: '8px',
-          backgroundColor: 'transparent',
+          backgroundColor: isMobile ? 'transparent' : 'rgba(255, 255, 255, 0.12)',
           border: 'none',
           cursor: 'pointer',
           padding: '6px 10px',
           borderRadius: '8px',
           transition: 'all 0.2s ease',
+          backdropFilter: isMobile ? 'none' : 'blur(10px)',
         }}
         onMouseEnter={(e) => {
           if (!isMobile) {
-            e.currentTarget.style.backgroundColor = '#f1f5f9';
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.18)';
           }
         }}
         onMouseLeave={(e) => {
           if (!isMobile) {
-            e.currentTarget.style.backgroundColor = 'transparent';
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.12)';
           }
         }}
       >
@@ -514,27 +396,16 @@ const Header = () => {
             width: isMobile ? '28px' : '32px',
             height: isMobile ? '28px' : '32px',
             borderRadius: '50%',
-            border: '2px solid #e2e8f0',
+            border: isMobile ? '2px solid #e2e8f0' : '2px solid rgba(255, 255, 255, 0.3)',
           }}
         />
         {!isMobile && (
-          <span
-            style={{
-              fontSize: '13px',
-              fontWeight: '600',
-              color: '#1e293b',
-              maxWidth: '100px',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
+          <span style={{ fontSize: '13px', fontWeight: '500', color: 'white', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {session?.user?.name?.split(' ')[0]}
           </span>
         )}
       </button>
 
-      {/* Dropdown Menu */}
       {isProfileMenuOpen && (
         <div
           style={{
@@ -543,16 +414,15 @@ const Header = () => {
             right: 0,
             marginTop: '8px',
             backgroundColor: 'white',
-            borderRadius: '8px',
+            borderRadius: '12px',
             border: '1px solid #e2e8f0',
-            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.12)',
             minWidth: '220px',
             zIndex: 1000,
             animation: 'slideDown 0.2s ease-out',
-            pointerEvents: 'auto',
+            overflow: 'hidden',
           }}
         >
-          {/* User Info */}
           <div
             style={{
               padding: '12px 16px',
@@ -560,6 +430,7 @@ const Header = () => {
               display: 'flex',
               alignItems: 'center',
               gap: '12px',
+              background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
             }}
           >
             <img
@@ -568,84 +439,26 @@ const Header = () => {
                 `https://api.dicebear.com/7.x/avataaars/svg?seed=${session?.user?.name}`
               }
               alt={session?.user?.name || 'User'}
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '50%',
-                border: '2px solid #e2e8f0',
-              }}
+              style={{ width: '36px', height: '36px', borderRadius: '50%', border: '2px solid #667eea' }}
             />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div
-                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-              >
-                <p
-                  style={{
-                    fontSize: '13px',
-                    fontWeight: '600',
-                    color: '#1e293b',
-                    margin: 0,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <p style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {session?.user?.name}
                 </p>
                 {session?.user?.isOnboardingCompleted && (
-                  <CheckBadgeIcon
-                    style={{
-                      width: '16px',
-                      height: '16px',
-                      color: '#3b82f6',
-                      flexShrink: 0,
-                    }}
-                    title="Verified"
-                  />
+                  <CheckBadgeIcon style={{ width: '16px', height: '16px', color: '#3b82f6', flexShrink: 0 }} />
                 )}
               </div>
-              <p
-                style={{
-                  fontSize: '12px',
-                  color: '#94a3b8',
-                  margin: '2px 0 0 0',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
+              <p style={{ fontSize: '12px', color: '#94a3b8', margin: '2px 0 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {session?.user?.email}
               </p>
-              {session?.user?.role && (
-                <p
-                  style={{
-                    fontSize: '11px',
-                    color: '#667eea',
-                    margin: '2px 0 0 0',
-                    fontWeight: '500',
-                    textTransform: 'capitalize',
-                  }}
-                >
-                  {session.user.role}
-                </p>
-              )}
             </div>
           </div>
 
-          {/* Menu Items */}
-          <nav
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 0,
-            }}
-          >
+          <nav style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
             <Link
-              href={
-                session?.user?.role === 'caterer'
-                  ? '/caterer/dashboard'
-                  : '/customer/dashboard'
-              }
+              href={session?.user?.role === 'caterer' ? '/caterer/dashboard' : '/customer/dashboard'}
               onClick={() => setIsProfileMenuOpen(false)}
               style={{
                 display: 'flex',
@@ -657,7 +470,6 @@ const Header = () => {
                 fontSize: '13px',
                 fontWeight: '500',
                 transition: 'all 0.2s ease',
-                borderRadius: 0,
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.backgroundColor = '#f8fafc';
@@ -668,9 +480,7 @@ const Header = () => {
                 e.currentTarget.style.color = '#475569';
               }}
             >
-              <UserCircleIcon
-                style={{ width: '16px', height: '16px', flexShrink: 0 }}
-              />
+              <UserCircleIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} />
               Dashboard
             </Link>
 
@@ -697,9 +507,7 @@ const Header = () => {
                 e.currentTarget.style.color = '#475569';
               }}
             >
-              <Cog6ToothIcon
-                style={{ width: '16px', height: '16px', flexShrink: 0 }}
-              />
+              <Cog6ToothIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} />
               Settings
             </Link>
 
@@ -727,20 +535,19 @@ const Header = () => {
                   e.currentTarget.style.color = '#475569';
                 }}
               >
-                <HeartIcon
-                  style={{ width: '16px', height: '16px', flexShrink: 0 }}
-                />
+                <HeartIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} />
                 Saved Caterers
               </Link>
             )}
           </nav>
 
-          {/* Divider */}
           <div style={{ borderTop: '1px solid #e2e8f0' }} />
 
-          {/* Logout */}
           <button
-            onClick={handleLogout}
+            onClick={() => {
+              handleLogout();
+              setIsProfileMenuOpen(false);
+            }}
             style={{
               width: '100%',
               display: 'flex',
@@ -754,7 +561,6 @@ const Header = () => {
               fontWeight: '500',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
-              borderRadius: 0,
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = '#fee2e2';
@@ -763,9 +569,7 @@ const Header = () => {
               e.currentTarget.style.backgroundColor = 'transparent';
             }}
           >
-            <ArrowRightOnRectangleIcon
-              style={{ width: '16px', height: '16px', flexShrink: 0 }}
-            />
+            <ArrowRightOnRectangleIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} />
             Sign Out
           </button>
         </div>
@@ -776,9 +580,9 @@ const Header = () => {
   return (
     <header
       style={{
-        backgroundColor: 'white',
-        borderBottom: '1px solid #e2e8f0',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        borderBottom: 'none',
+        boxShadow: '0 8px 24px rgba(102, 126, 234, 0.2)',
         position: 'sticky',
         top: 0,
         zIndex: 50,
@@ -817,12 +621,8 @@ const Header = () => {
         }
 
         @keyframes pulse {
-          0%, 100% {
-            opacity: 1;
-          }
-          50% {
-            opacity: 0.5;
-          }
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
         }
 
         .desktop-logo {
@@ -849,31 +649,23 @@ const Header = () => {
           display: none;
         }
 
-        /* Desktop - iPad and above (1024px+) */
+        /* Desktop - 1024px and above */
         @media (min-width: 1024px) {
           .desktop-logo {
             display: flex !important;
           }
 
-          .mobile-logo {
-            display: none !important;
-          }
-
           .desktop-nav {
             display: flex !important;
             align-items: center;
-            gap: 32px;
+            gap: 4px;
             flex: 1;
-          }
-
-          .desktop-search {
-            display: flex !important;
           }
 
           .desktop-actions {
             display: flex !important;
             align-items: center;
-            gap: 12px;
+            gap: 16px;
             flex-shrink: 0;
           }
 
@@ -886,21 +678,13 @@ const Header = () => {
           }
         }
 
-        /* Tablet/Mobile - Below iPad resolution (< 1024px) */
+        /* Tablet/Mobile - Below 1024px */
         @media (max-width: 1023px) {
           .desktop-logo {
             display: none !important;
           }
 
-          .mobile-logo {
-            display: flex !important;
-          }
-
           .desktop-nav {
-            display: none !important;
-          }
-
-          .desktop-search {
             display: none !important;
           }
 
@@ -918,46 +702,31 @@ const Header = () => {
 
           .mobile-menu {
             display: block !important;
-            border-top: 1px solid #e2e8f0;
-            background-color: #f8fafc;
-            padding: 0 0 16px 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.95) 0%, rgba(118, 75, 162, 0.95) 100%);
+            padding: 16px 0;
             animation: slideDown 0.3s ease-out;
             max-height: 80vh;
             overflow-y: auto;
           }
         }
 
-        /* Extra small screens - iPad mini and below (< 768px) */
         @media (max-width: 767px) {
-          .mobile-header {
-            gap: 6px;
-          }
-        }
-
-        /* Very small phones (< 380px) */
-        @media (max-width: 379px) {
           .mobile-logo span {
             display: none;
           }
         }
       `}</style>
 
-      <div
-        style={{
-          maxWidth: '1400px',
-          margin: '0 auto',
-          padding: '0 16px',
-        }}
-      >
-        {/* Main Header Container */}
+      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 20px' }}>
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             height: 'auto',
-            padding: '0px 0',
-            gap: '16px',
+            padding: '10px 0',
+            gap: '20px',
           }}
         >
           {/* Desktop Logo */}
@@ -967,7 +736,6 @@ const Header = () => {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '2px',
               textDecoration: 'none',
               flexShrink: 0,
             }}
@@ -976,52 +744,57 @@ const Header = () => {
               src="/logo.png"
               alt="Droooly"
               style={{
-                height: '100px',
-                width: 'auto',
+                height: '80px',
+                width: '170px',
+                filter: 'brightness(0) invert(1)',
               }}
             />
           </Link>
 
-          {/* Desktop Navigation Menu */}
+          {/* Desktop Navigation */}
           <nav className="desktop-nav">
             {navLinks.map((link) => (
               <NavLink key={link.href} href={link.href} label={link.label} />
             ))}
           </nav>
 
-          {/* City Selector - Desktop (between nav and search) */}
-          <div className="desktop-actions" style={{ gap: '8px', flex: 'initial' }}>
+          {/* Desktop Actions */}
+          <div className="desktop-actions">
             <CityButton />
-          </div>
-
-          {/* Right Actions - Desktop Only */}
-          <div className="desktop-actions" style={{ gap: '12px' }}>
-            {status === 'authenticated' ? (
-              <>
-                <Link
+            <Link
                   href="/become-a-caterer"
                   style={{
-                    fontSize: '13px',
-                    fontWeight: '600',
-                    color: '#667eea',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: 'white',
                     textDecoration: 'none',
-                    padding: '8px 16px',
-                    borderRadius: '6px',
-                    border: '1px solid #667eea',
-                    backgroundColor: 'transparent',
+                    padding: '8px 18px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
                     transition: 'all 0.2s ease',
-                    display: 'inline-block',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
                     cursor: 'pointer',
+                    backdropFilter: 'blur(10px)',
+                    letterSpacing: '0.3px',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#f0f4ff';
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.15)';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
                   }}
                 >
-                  Become a Partner
+                  <SparklesIcon style={{ width: '16px', height: '16px' }} />
+                  Partner
                 </Link>
+                
+            
+            {status === 'authenticated' ? (
+              <>
+               
                 <ProfileDropdown />
               </>
             ) : status === 'loading' ? (
@@ -1030,7 +803,7 @@ const Header = () => {
                   width: '32px',
                   height: '32px',
                   borderRadius: '50%',
-                  backgroundColor: '#f1f5f9',
+                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
                   animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                 }}
               />
@@ -1039,47 +812,55 @@ const Header = () => {
                 <Link
                   href="/become-caterer"
                   style={{
-                    fontSize: '13px',
-                    fontWeight: '600',
-                    color: '#667eea',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: 'white',
                     textDecoration: 'none',
-                    padding: '8px 16px',
-                    borderRadius: '6px',
-                    border: '1px solid #667eea',
-                    backgroundColor: 'transparent',
+                    padding: '8px 18px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
                     transition: 'all 0.2s ease',
-                    display: 'inline-block',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
                     cursor: 'pointer',
+                    backdropFilter: 'blur(10px)',
+                    letterSpacing: '0.3px',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#f0f4ff';
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.15)';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
                   }}
                 >
-                  Become a Partner
+                  <SparklesIcon style={{ width: '16px', height: '16px' }} />
+                  Partner
                 </Link>
 
                 <Link
                   href="/login"
                   style={{
-                    fontSize: '13px',
-                    fontWeight: '600',
-                    color: 'white',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#667eea',
                     textDecoration: 'none',
                     padding: '8px 20px',
-                    borderRadius: '6px',
-                    backgroundColor: '#667eea',
+                    borderRadius: '8px',
+                    backgroundColor: 'white',
                     transition: 'all 0.2s ease',
                     display: 'inline-block',
                     cursor: 'pointer',
+                    letterSpacing: '0.3px',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#764ba2';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 16px rgba(0, 0, 0, 0.2)';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = '#667eea';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
                   }}
                 >
                   Login
@@ -1088,18 +869,17 @@ const Header = () => {
             )}
           </div>
 
-          {/* Mobile Header - Hamburger First, Then Logo, City + Avatar on Right */}
+          {/* Mobile Header */}
           <div className="mobile-header">
-            {/* Hamburger Menu Button */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               style={{
-                backgroundColor: 'transparent',
+                backgroundColor: 'rgba(255, 255, 255, 0.12)',
                 border: 'none',
                 cursor: 'pointer',
                 padding: '8px',
                 borderRadius: '6px',
-                color: '#1e293b',
+                color: 'white',
                 transition: 'all 0.2s ease',
                 display: 'flex',
                 alignItems: 'center',
@@ -1107,12 +887,7 @@ const Header = () => {
                 minWidth: '40px',
                 height: '40px',
                 flexShrink: 0,
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#f1f5f9';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
+                backdropFilter: 'blur(10px)',
               }}
             >
               {isMobileMenuOpen ? (
@@ -1122,76 +897,48 @@ const Header = () => {
               )}
             </button>
 
-            {/* Mobile Logo */}
             <Link
               href="/"
               className="mobile-logo"
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
+                gap: '8px',
                 textDecoration: 'none',
                 flex: 1,
               }}
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              <div
+              <img
+                src="/logo.png"
+                alt="Droooly"
                 style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '8px',
-                  background:
-                    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'white',
-                  fontSize: '16px',
-                  fontWeight: 'bold',
+                  height: '40px',
+                  width: 'auto',
+                  filter: 'brightness(0) invert(1)',
                 }}
-              >
-                🍽️
-              </div>
-              <span
-                style={{
-                  fontSize: '16px',
-                  fontWeight: '700',
-                  color: '#1e293b',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                CaterHub
-              </span>
+              />
             </Link>
 
-            {/* City Selector - Mobile */}
             <CityButton isMobile={true} />
 
-            {/* Avatar on Right - Always visible when authenticated */}
             {status === 'authenticated' && <ProfileDropdown isMobile={true} />}
 
-            {/* Unauthenticated User - Show Login Button */}
             {status !== 'authenticated' && status !== 'loading' && (
               <Link
                 href="/login"
                 style={{
                   fontSize: '12px',
                   fontWeight: '600',
-                  color: 'white',
+                  color: '#667eea',
                   textDecoration: 'none',
                   padding: '6px 12px',
                   borderRadius: '6px',
-                  backgroundColor: '#667eea',
+                  backgroundColor: 'white',
                   transition: 'all 0.2s ease',
                   display: 'inline-block',
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#764ba2';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#667eea';
                 }}
               >
                 Login
@@ -1204,7 +951,7 @@ const Header = () => {
                   width: '28px',
                   height: '28px',
                   borderRadius: '50%',
-                  backgroundColor: '#f1f5f9',
+                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
                   animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                   flexShrink: 0,
                 }}
@@ -1213,24 +960,15 @@ const Header = () => {
           </div>
         </div>
 
-        {/* Mobile Menu - Navigation + City + Actions */}
+        {/* Mobile Menu */}
         {isMobileMenuOpen && (
           <div className="mobile-menu">
-            {/* City Selector - Mobile Menu Full Width */}
-            <div style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0' }}>
-              <p style={{ fontSize: '11px', fontWeight: '700', color: '#475569', margin: '0 0 8px 0', textTransform: 'uppercase' }}>
-                📍 Service Area
-              </p>
-              <CityButton isMobile={true} />
-            </div>
-
-            {/* Navigation Links */}
             <nav
               style={{
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '0',
-                paddingTop: '12px',
+                paddingBottom: '8px',
               }}
             >
               {navLinks.map((link) => (
@@ -1239,22 +977,22 @@ const Header = () => {
                   href={link.href}
                   onClick={() => setIsMobileMenuOpen(false)}
                   style={{
-                    fontSize: '14px',
+                    fontSize: '15px',
                     fontWeight: '500',
-                    color: '#64748b',
+                    color: 'white',
                     textDecoration: 'none',
-                    padding: '12px 16px',
+                    padding: '12px 20px',
                     borderRadius: '0',
                     transition: 'all 0.2s ease',
                     borderLeft: '3px solid transparent',
+                    display: 'block',
+                    letterSpacing: '0.3px',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.color = '#667eea';
-                    e.currentTarget.style.backgroundColor = '#f0f4ff';
-                    e.currentTarget.style.borderLeftColor = '#667eea';
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.15)';
+                    e.currentTarget.style.borderLeftColor = 'rgba(255, 255, 255, 0.5)';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.color = '#64748b';
                     e.currentTarget.style.backgroundColor = 'transparent';
                     e.currentTarget.style.borderLeftColor = 'transparent';
                   }}
@@ -1264,11 +1002,10 @@ const Header = () => {
               ))}
             </nav>
 
-            {/* Mobile Action Buttons */}
             <div
               style={{
-                padding: '12px 16px',
-                borderTop: '1px solid #e2e8f0',
+                padding: '12px 20px',
+                borderTop: '1px solid rgba(255, 255, 255, 0.2)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '8px',
@@ -1277,31 +1014,22 @@ const Header = () => {
               {status === 'authenticated' ? (
                 <>
                   <Link
-                    href={
-                      session?.user?.role === 'caterer'
-                        ? '/caterer/dashboard'
-                        : '/customer/dashboard'
-                    }
+                    href={session?.user?.role === 'caterer' ? '/caterer/dashboard' : '/customer/dashboard'}
                     onClick={() => setIsMobileMenuOpen(false)}
                     style={{
                       fontSize: '13px',
-                      fontWeight: '600',
-                      color: '#667eea',
+                      fontWeight: '500',
+                      color: 'white',
                       textDecoration: 'none',
-                      padding: '10px 16px',
+                      padding: '10px 14px',
                       borderRadius: '6px',
-                      border: '1px solid #667eea',
-                      backgroundColor: 'transparent',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
                       transition: 'all 0.2s ease',
                       display: 'block',
                       cursor: 'pointer',
                       textAlign: 'center',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#f0f4ff';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = 'transparent';
+                      backdropFilter: 'blur(10px)',
                     }}
                   >
                     Dashboard
@@ -1312,26 +1040,21 @@ const Header = () => {
                     onClick={() => setIsMobileMenuOpen(false)}
                     style={{
                       fontSize: '13px',
-                      fontWeight: '600',
-                      color: '#667eea',
+                      fontWeight: '500',
+                      color: 'white',
                       textDecoration: 'none',
-                      padding: '10px 16px',
+                      padding: '10px 14px',
                       borderRadius: '6px',
-                      border: '1px solid #667eea',
-                      backgroundColor: 'transparent',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
                       transition: 'all 0.2s ease',
                       display: 'block',
                       cursor: 'pointer',
                       textAlign: 'center',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#f0f4ff';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = 'transparent';
+                      backdropFilter: 'blur(10px)',
                     }}
                   >
-                    Become a Partner
+                    Become Partner
                   </Link>
 
                   <button
@@ -1341,22 +1064,17 @@ const Header = () => {
                     }}
                     style={{
                       fontSize: '13px',
-                      fontWeight: '600',
+                      fontWeight: '500',
                       color: 'white',
-                      padding: '10px 16px',
+                      padding: '10px 14px',
                       borderRadius: '6px',
-                      backgroundColor: '#dc2626',
-                      border: 'none',
+                      backgroundColor: 'rgba(220, 38, 38, 0.8)',
+                      border: '1px solid rgba(220, 38, 38, 1)',
                       transition: 'all 0.2s ease',
                       display: 'block',
                       cursor: 'pointer',
                       width: '100%',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#b91c1c';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = '#dc2626';
+                      backdropFilter: 'blur(10px)',
                     }}
                   >
                     Sign Out
@@ -1369,26 +1087,21 @@ const Header = () => {
                     onClick={() => setIsMobileMenuOpen(false)}
                     style={{
                       fontSize: '13px',
-                      fontWeight: '600',
-                      color: '#667eea',
+                      fontWeight: '500',
+                      color: 'white',
                       textDecoration: 'none',
-                      padding: '10px 16px',
+                      padding: '10px 14px',
                       borderRadius: '6px',
-                      border: '1px solid #667eea',
-                      backgroundColor: 'transparent',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      backgroundColor: 'rgba(255, 255, 255, 0.1)',
                       transition: 'all 0.2s ease',
                       display: 'block',
                       cursor: 'pointer',
                       textAlign: 'center',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#f0f4ff';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = 'transparent';
+                      backdropFilter: 'blur(10px)',
                     }}
                   >
-                    Become a Partner
+                    Become Partner
                   </Link>
 
                   <Link
@@ -1396,22 +1109,16 @@ const Header = () => {
                     onClick={() => setIsMobileMenuOpen(false)}
                     style={{
                       fontSize: '13px',
-                      fontWeight: '600',
-                      color: 'white',
+                      fontWeight: '500',
+                      color: '#667eea',
                       textDecoration: 'none',
-                      padding: '10px 16px',
+                      padding: '10px 14px',
                       borderRadius: '6px',
-                      backgroundColor: '#667eea',
+                      backgroundColor: 'white',
                       transition: 'all 0.2s ease',
                       display: 'block',
                       cursor: 'pointer',
                       textAlign: 'center',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#764ba2';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = '#667eea';
                     }}
                   >
                     Login
@@ -1423,7 +1130,6 @@ const Header = () => {
         )}
       </div>
 
-      {/* City Modal */}
       {isCityModalOpen && <CityModal />}
     </header>
   );
