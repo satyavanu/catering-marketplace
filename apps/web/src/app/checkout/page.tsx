@@ -356,69 +356,62 @@ export default function CheckoutPage() {
     };
   };
 
- 
+  const handleCompletePayment = async () => {
+    try {
+      setIsProcessingPayment(true);
 
+      const res = await fetch('/api/create-order', {
+        method: 'POST',
+      });
 
-  const  handleCompletePayment= async () => {
-  try {
-    setIsProcessingPayment(true);
+      const data = await res.json();
 
-    const res = await fetch("/api/create-order", {
-      method: "POST",
-    });
+      if (!data.success) {
+        throw new Error('Failed to create order');
+      }
 
-    const data = await res.json();
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: data.amount,
+        currency: 'INR',
+        order_id: data.order_id,
 
-    if (!data.success) {
-      throw new Error("Failed to create order");
-    }
+        name: 'Droooly',
+        description: 'Meal Plan Subscription',
 
-    const options = {
-      key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-      amount: data.amount,
-      currency: "INR",
-      order_id: data.order_id,
+        handler: function (response: any) {
+          console.log('SUCCESS', response);
 
-      name: "Droooly",
-      description: "Meal Plan Subscription",
+          // ✅ Store order confirmation
+          const orderId = response.razorpay_order_id;
+          const orderDate = new Date().toLocaleDateString();
 
-      handler: function (response: any) {
-        console.log("SUCCESS", response);
+          setOrderConfirmation({
+            orderId,
+            orderDate,
+            subscriptionStartDate: subscriptionData.startDate,
+          });
 
-        // ✅ Store order confirmation
-        const orderId = response.razorpay_order_id;
-        const orderDate = new Date().toLocaleDateString();
-
-        setOrderConfirmation({
-          orderId,
-          orderDate,
-          subscriptionStartDate: subscriptionData.startDate,
-        });
-
-        // 👉 move to success UI
-        setCheckoutStep("confirmation");
-      },
-
-      modal: {
-        ondismiss: function () {
-          console.log("Payment popup closed");
-          setIsProcessingPayment(false);
+          // 👉 move to success UI
+          setCheckoutStep('confirmation');
         },
-      },
-    };
 
-    const rzp = new (window as any).Razorpay(options);
-    rzp.open();
+        modal: {
+          ondismiss: function () {
+            console.log('Payment popup closed');
+            setIsProcessingPayment(false);
+          },
+        },
+      };
 
-  } catch (error) {
-    console.error("Payment error:", error);
-    alert("Something went wrong. Please try again.");
-    setIsProcessingPayment(false);
-  }
-};
-
-
-
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
+    } catch (error) {
+      console.error('Payment error:', error);
+      alert('Something went wrong. Please try again.');
+      setIsProcessingPayment(false);
+    }
+  };
 
   const handleNextStep = () => {
     if (checkoutStep === 'date') {
@@ -469,7 +462,45 @@ export default function CheckoutPage() {
           0%, 100% { background-position: 0% 50%; }
           50% { background-position: 100% 50%; }
         }
-        
+
+        @keyframes slideInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes slideInDown {
+          from {
+            opacity: 0;
+            transform: translateY(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes confetti {
+          0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+          100% { transform: translateY(-500px) rotate(720deg); opacity: 0; }
+        }
+
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+        }
+
+        .confetti-piece {
+          position: fixed;
+          pointer-events: none;
+          animation: confetti 3s ease-out forwards;
+        }
+
         .gradient-btn {
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
           transition: all 0.3s ease;
@@ -487,6 +518,19 @@ export default function CheckoutPage() {
         .gradient-btn:disabled {
           opacity: 0.5;
           cursor: not-allowed;
+        }
+
+        .confirmation-card {
+          animation: slideInUp 0.6s ease-out;
+        }
+
+        .success-icon {
+          animation: pulse 0.6s ease-out;
+        }
+
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
       `}</style>
 
@@ -506,14 +550,16 @@ export default function CheckoutPage() {
       </header>
 
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '20px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: checkoutStep === 'confirmation' ? '1fr' : 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
           {/* Main Content */}
           <div style={{ gridColumn: 'span 1', minHeight: '400px' }}>
-            {/* Progress Indicator */}
-            <ProgressIndicator currentStep={checkoutStep} approvalStatus={approvalStatus} />
+            {/* Progress Indicator - Hide on confirmation */}
+            {checkoutStep !== 'confirmation' && (
+              <ProgressIndicator currentStep={checkoutStep} approvalStatus={approvalStatus} />
+            )}
 
             {/* Step Content */}
-            <div style={{ marginTop: '24px', backgroundColor: 'white', borderRadius: '12px', padding: '24px', border: '1px solid #e2e8f0' }}>
+            <div style={{ marginTop: checkoutStep === 'confirmation' ? '0' : '24px', backgroundColor: 'white', borderRadius: '12px', padding: '24px', border: '1px solid #e2e8f0' }}>
               {checkoutStep === 'date' && (
                 <DateSelectionStep
                   subscriptionData={subscriptionData}
@@ -547,6 +593,17 @@ export default function CheckoutPage() {
 
               {checkoutStep === 'payment' && (
                 <PaymentStep pricingBreakdown={pricingBreakdown} />
+              )}
+
+              {checkoutStep === 'confirmation' && (
+                <ConfirmationStep
+                  orderConfirmation={orderConfirmation}
+                  currentPlan={currentPlan}
+                  subscriptionData={subscriptionData}
+                  userInfo={userInfo}
+                  calculateDaysPerWeek={calculateDaysPerWeek}
+                  pricingBreakdown={pricingBreakdown}
+                />
               )}
 
               {/* Navigation Buttons */}
@@ -634,20 +691,46 @@ export default function CheckoutPage() {
                     </button>
                   </>
                 )}
+
+                {checkoutStep === 'confirmation' && (
+                  <button
+                    onClick={() => router.push('/meal-plans')}
+                    className="gradient-btn"
+                    style={{
+                      width: '100%',
+                      padding: '14px 16px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      color: 'white',
+                      cursor: 'pointer',
+                      fontWeight: '600',
+                      fontSize: '14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                    }}
+                  >
+                    <CheckIcon style={{ width: '16px', height: '16px' }} />
+                    Back to Home
+                  </button>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Sidebar - Order Summary */}
-          <div style={{ gridColumn: 'span 1' }}>
-            <OrderSummary
-              currentPlan={currentPlan}
-              subscriptionData={subscriptionData}
-              calculateDaysPerWeek={calculateDaysPerWeek}
-              pricingBreakdown={pricingBreakdown}
-              deliveryDistance={deliveryDistance}
-            />
-          </div>
+          {/* Sidebar - Order Summary (Hidden on confirmation) */}
+          {checkoutStep !== 'confirmation' && (
+            <div style={{ gridColumn: 'span 1' }}>
+              <OrderSummary
+                currentPlan={currentPlan}
+                subscriptionData={subscriptionData}
+                calculateDaysPerWeek={calculateDaysPerWeek}
+                pricingBreakdown={pricingBreakdown}
+                deliveryDistance={deliveryDistance}
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -1306,5 +1389,135 @@ function ReviewStep({ subscriptionData, userInfo, currentPlan, calculateDaysPerW
         </label>
       </div>
     </>
+  );
+}
+
+// Confirmation Step - NEW
+function ConfirmationStep({ orderConfirmation, currentPlan, subscriptionData, userInfo, calculateDaysPerWeek, pricingBreakdown }: any) {
+  return (
+    <div className="confirmation-card">
+      {/* Success Icon */}
+      <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+        <div className="success-icon" style={{
+          width: '80px',
+          height: '80px',
+          margin: '0 auto 20px',
+          borderRadius: '50%',
+          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 12px 32px rgba(16, 185, 129, 0.3)',
+        }}>
+          <CheckCircleIcon style={{ width: '48px', height: '48px', color: 'white' }} />
+        </div>
+        <h2 style={{ fontSize: '28px', fontWeight: '800', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: '0 0 8px 0' }}>Congratulations! 🎉</h2>
+        <p style={{ fontSize: '16px', fontWeight: '600', color: '#10b981', margin: '0 0 4px 0' }}>Your order has been confirmed</p>
+        <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>We're excited to serve you delicious meals!</p>
+      </div>
+
+      {/* Order Details */}
+      <div style={{ backgroundColor: '#f0fdf4', borderRadius: '12px', padding: '20px', marginBottom: '24px', border: '2px solid #dcfce7' }}>
+        <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#10b981', margin: '0 0 16px 0' }}>📦 Order Confirmation Details</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px' }}>
+          <div>
+            <p style={{ fontSize: '11px', fontWeight: '600', color: '#6ee7b7', textTransform: 'uppercase', margin: '0 0 6px 0', letterSpacing: '0.5px' }}>Order ID</p>
+            <p style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b', margin: 0, fontFamily: 'monospace', backgroundColor: 'white', padding: '8px', borderRadius: '6px', border: '1px solid #dcfce7' }}>{orderConfirmation.orderId}</p>
+          </div>
+          <div>
+            <p style={{ fontSize: '11px', fontWeight: '600', color: '#6ee7b7', textTransform: 'uppercase', margin: '0 0 6px 0', letterSpacing: '0.5px' }}>Order Date</p>
+            <p style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b', margin: 0 }}>{orderConfirmation.orderDate}</p>
+          </div>
+          <div>
+            <p style={{ fontSize: '11px', fontWeight: '600', color: '#6ee7b7', textTransform: 'uppercase', margin: '0 0 6px 0', letterSpacing: '0.5px' }}>Delivery Start</p>
+            <p style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b', margin: 0 }}>{orderConfirmation.subscriptionStartDate}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Plan Details Section */}
+      <div style={{ marginBottom: '24px' }}>
+        <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b', margin: '0 0 12px 0' }}>🍽️ Meal Plan Details</h3>
+        <div style={{ backgroundColor: 'white', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+            <div style={{ fontSize: '48px' }}>{currentPlan?.image}</div>
+            <div>
+              <h4 style={{ fontSize: '16px', fontWeight: '700', color: '#1e293b', margin: 0 }}>{currentPlan?.name}</h4>
+              <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0 0' }}>{currentPlan?.mealTypeLabel}</p>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', padding: '12px', backgroundColor: '#f8fafc', borderRadius: '6px' }}>
+            <div>
+              <p style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', margin: '0 0 4px 0' }}>Duration</p>
+              <p style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b', margin: 0 }}>{subscriptionData.duration.charAt(0).toUpperCase() + subscriptionData.duration.slice(1)}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', margin: '0 0 4px 0' }}>Days Per Week</p>
+              <p style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b', margin: 0 }}>{calculateDaysPerWeek()} days</p>
+            </div>
+            <div>
+              <p style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', margin: '0 0 4px 0' }}>Quantity</p>
+              <p style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b', margin: 0 }}>{subscriptionData.quantity} {subscriptionData.quantity === 1 ? 'person' : 'people'}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', margin: '0 0 4px 0' }}>Delivery To</p>
+              <p style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b', margin: 0 }}>{userInfo.city}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Delivery Information */}
+      <div style={{ marginBottom: '24px' }}>
+        <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b', margin: '0 0 12px 0' }}>📍 Delivery Address</h3>
+        <div style={{ backgroundColor: 'white', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '16px' }}>
+          <p style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b', margin: '0 0 8px 0' }}>{userInfo.firstName} {userInfo.lastName}</p>
+          <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 4px 0' }}>{userInfo.address}</p>
+          <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 4px 0' }}>{userInfo.city}, {userInfo.postalCode}</p>
+          <p style={{ fontSize: '12px', color: '#64748b', margin: '0' }}>{userInfo.email}</p>
+          <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0 0' }}>{userInfo.phone}</p>
+        </div>
+      </div>
+
+      {/* Order Total */}
+      <div style={{ marginBottom: '24px' }}>
+        <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b', margin: '0 0 12px 0' }}>💰 Order Total</h3>
+        <div style={{ backgroundColor: 'white', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span style={{ fontSize: '13px', color: '#64748b' }}>Plan Price</span>
+            <span style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>₹{pricingBreakdown.planPrice}</span>
+          </div>
+          {pricingBreakdown.addOnsPrice > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <span style={{ fontSize: '13px', color: '#64748b' }}>Add-ons</span>
+              <span style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>₹{pricingBreakdown.addOnsPrice}</span>
+            </div>
+          )}
+          {pricingBreakdown.deliveryFee > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <span style={{ fontSize: '13px', color: '#64748b' }}>Delivery Fee</span>
+              <span style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b' }}>₹{pricingBreakdown.deliveryFee}</span>
+            </div>
+          )}
+          <div style={{ height: '1px', backgroundColor: '#e2e8f0', margin: '8px 0' }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '16px', fontWeight: '700', color: '#1e293b' }}>Total Paid</span>
+            <span style={{ fontSize: '20px', fontWeight: '800', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>₹{pricingBreakdown.finalTotal}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Next Steps */}
+      <div style={{ backgroundColor: '#fef3c7', borderRadius: '8px', padding: '16px', border: '1px solid #fde68a' }}>
+        <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#92400e', margin: '0 0 12px 0' }}>📋 What's Next?</h3>
+        <ul style={{ fontSize: '12px', color: '#92400e', margin: 0, paddingLeft: '20px' }}>
+          <li style={{ marginBottom: '8px' }}>You'll receive a confirmation email shortly</li>
+          <li style={{ marginBottom: '8px' }}>Your first meal will be delivered on <strong>{orderConfirmation.subscriptionStartDate}</strong></li>
+          <li style={{ marginBottom: '8px' }}>You can manage your subscription from your account dashboard</li>
+          <li>Our catering team will contact you if they need any clarifications</li>
+        </ul>
+      </div>
+    </div>
   );
 }
