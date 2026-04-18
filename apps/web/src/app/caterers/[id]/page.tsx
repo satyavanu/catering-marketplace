@@ -13,8 +13,10 @@ import {
   ClockIcon,
   UsersIcon,
   XMarkIcon,
+  CalendarIcon,
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
+import { QuoteModal } from '../components/QuoteModal';
 
 // Mock data
 const ALL_CATERING_SERVICES = [
@@ -95,6 +97,9 @@ const ALL_CATERING_SERVICES = [
   },
 ];
 
+
+
+// ============= MENU DRAWER COMPONENT =============
 const MenuDrawer = ({ isOpen, onClose, menu, serviceTitle, onGetQuote }: any) => {
   const [activeCategory, setActiveCategory] = useState('starters');
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
@@ -403,6 +408,7 @@ const MenuDrawer = ({ isOpen, onClose, menu, serviceTitle, onGetQuote }: any) =>
   );
 };
 
+// ============= MAIN PAGE COMPONENT =============
 const CateringDetailPage = () => {
   const params = useParams();
   const router = useRouter();
@@ -410,6 +416,7 @@ const CateringDetailPage = () => {
   const [isFavorite, setIsFavorite] = useState(false);
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
   const [isMenuDrawerOpen, setIsMenuDrawerOpen] = useState(false);
+  const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
 
   const service = useMemo(
     () => ALL_CATERING_SERVICES.find(s => s.id === parseInt(cateringId)),
@@ -462,7 +469,7 @@ const CateringDetailPage = () => {
   };
 
   const handleGetQuote = () => {
-    router.push(`/quote?serviceId=${service.id}`);
+    setIsQuoteModalOpen(true);
   };
 
   return (
@@ -474,6 +481,13 @@ const CateringDetailPage = () => {
         menu={service.menu}
         serviceTitle={service.title}
         onGetQuote={handleGetQuote}
+      />
+
+      {/* QUOTE MODAL */}
+      <QuoteModal
+        isOpen={isQuoteModalOpen}
+        onClose={() => setIsQuoteModalOpen(false)}
+        caterer={service}
       />
 
       {/* STICKY HEADER */}
@@ -966,6 +980,7 @@ const CateringDetailPage = () => {
                   ✓ {pkg.items}
                 </p>
                 <button
+                  onClick={handleGetQuote}
                   style={{
                     width: '100%',
                     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
