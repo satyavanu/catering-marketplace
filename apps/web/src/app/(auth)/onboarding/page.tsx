@@ -133,10 +133,16 @@ export default function OnboardingPage() {
   );
 
   // Step 5: Service Areas
+
+  const [kitchenAddress, setKitchenAddress] = useState('');
+  const [kitchenPincode, setKitchenPincode] = useState('');
+  const [canServeEntireCity, setCanServeEntireCity] = useState(false);
   const [serviceAreas, setServiceAreas] = useState<ServiceArea[]>([]);
-  const [newPincode, setNewPincode] = useState('');
-  const [pincodeValidationMessage, setPincodeValidationMessage] = useState('');
-  const [selectedServiceCity, setSelectedServiceCity] = useState('');
+  const [deliverySettings, setDeliverySettings] = useState({
+    freeDeliveryRadius: 0,
+    maxDeliveryDistance: 0,
+    extraChargePerKm: 0,
+  });
 
   // Step 6: KYC & Payments
   const [panNumber, setPanNumber] = useState('');
@@ -465,7 +471,6 @@ export default function OnboardingPage() {
   };
 
   // ========== Step 3 Handlers ==========
-  
 
   const handleBusinessDetailsFormDataChange = (
     formData: {
@@ -484,74 +489,40 @@ export default function OnboardingPage() {
     setDietTypes(formData.dietTypes);
     setCapacityRange(formData.capacityRange);
     setBaseCity(formData.baseCity);
-  
+
     if (isValid) {
       setOnboardingStep('service-areas');
     }
   };
 
-  const validatePincode = (pincode: string) => {
-    const citiesList = getCitiesFromMasterData();
-    const city = citiesList.find((c) => c.pincodes.includes(pincode));
 
-    if (city) {
-      setPincodeValidationMessage(`✓ Valid pincode for ${city.name}`);
-      setSelectedServiceCity(city.code);
-      return city;
-    } else {
-      setPincodeValidationMessage('✗ Pincode not in serviceable areas');
-      setSelectedServiceCity('');
-      return null;
-    }
-  };
-
-  const addServiceArea = () => {
-    if (!newPincode.trim()) {
-      setError('Please enter a pincode');
-      return;
-    }
-
-    const city = validatePincode(newPincode);
-    if (!city) {
-      setError('Invalid pincode. Please check and try again.');
-      return;
-    }
-
-    if (serviceAreas.some((area) => area.pincode === newPincode)) {
-      setError('This pincode is already added');
-      return;
-    }
-
-    const newArea: ServiceArea = {
-      pincode: newPincode,
-      city: city.name,
-      state: 'India',
+  interface ServiceAreasFormData {
+    kitchenAddress: string;
+    kitchenPincode: string;
+    canServeEntireCity: boolean;
+    serviceAreas: ServiceArea[];
+    deliverySettings: {
+      freeDeliveryRadius: number;
+      maxDeliveryDistance: number;
+      extraChargePerKm: number;
     };
+  }
 
-    setServiceAreas([...serviceAreas, newArea]);
-    setNewPincode('');
-    setPincodeValidationMessage('');
-    setError('');
-  };
-
-  const removeServiceArea = (pincode: string) => {
-    setServiceAreas(serviceAreas.filter((area) => area.pincode !== pincode));
-  };
-
-  const handleServiceAreasSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleServiceAreasSubmit = async (formData: ServiceAreasFormData) => {
     setError('');
     setIsLoading(true);
 
-    if (serviceAreas.length === 0) {
-      setError('Please add at least one service area');
-      setIsLoading(false);
-      return;
-    }
-
     try {
+      // Update local state with the form data
+      setServiceAreas(formData.serviceAreas);
+
+      // You can add API call here later to save to backend
+      // const response = await saveServiceAreasApi(formData);
+
+      // Move to next step
       setOnboardingStep('kyc-payments');
     } catch (err) {
+      console.error('Error saving service areas:', err);
       setError('Failed to save service areas. Please try again.');
     } finally {
       setIsLoading(false);
@@ -892,19 +863,16 @@ export default function OnboardingPage() {
           </div>
 
           <ServiceAreas
+            kitchenAddress={kitchenAddress}
+            kitchenPincode={kitchenPincode}
+            canServeEntireCity={canServeEntireCity}
             serviceAreas={serviceAreas}
-            newPincode={newPincode}
-            pincodeValidationMessage={pincodeValidationMessage}
+            deliverySettings={deliverySettings}
             isLoading={isLoading}
             error={error}
-            onPincodeChange={setNewPincode}
-            onAddServiceArea={addServiceArea}
-            onRemoveServiceArea={removeServiceArea}
             onSubmit={handleServiceAreasSubmit}
             onBack={() => setOnboardingStep('business-details')}
-            onValidatePincode={validatePincode}
             styles={styles}
-            allowedCities={getCitiesFromMasterData()}
           />
         </div>
       </div>

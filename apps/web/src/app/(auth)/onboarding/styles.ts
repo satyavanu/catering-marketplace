@@ -788,5 +788,144 @@ export const styles: { [key: string]: React.CSSProperties } = {
     flexDirection: 'column',
   } as React.CSSProperties,
 
+  
+    documentCard: {
+      padding: '1.5rem',
+      border: '1px solid #e5e7eb',
+      borderRadius: '0.5rem',
+      marginBottom: '1.5rem',
+      backgroundColor: '#fafafa',
+    } as React.CSSProperties,
+  
+    documentHeader: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: '1rem',
+    } as React.CSSProperties,
+  
+    documentTitle: {
+      fontSize: '1rem',
+      fontWeight: '600',
+      color: '#1f2937',
+      margin: '0 0 0.25rem 0',
+    } as React.CSSProperties,
+  
+    documentDescription: {
+      fontSize: '0.875rem',
+      color: '#6b7280',
+      margin: 0,
+    } as React.CSSProperties,
+  
+    uploadSection: {
+      marginTop: '1rem',
+    } as React.CSSProperties,
+  
+    fileUploadBox: {
+      border: '2px dashed #e5e7eb',
+      borderRadius: '0.5rem',
+      padding: '2rem',
+      textAlign: 'center',
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+      backgroundColor: 'white',
+    } as React.CSSProperties,
+  
+    uploadText: {
+      fontSize: '0.95rem',
+      fontWeight: '600',
+      color: '#374151',
+      margin: '0.5rem 0 0.25rem 0',
+    } as React.CSSProperties,
+  
+    uploadSubtext: {
+      fontSize: '0.875rem',
+      color: '#9ca3af',
+      margin: 0,
+    } as React.CSSProperties,
+  
+    fileItem: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: '1rem',
+      backgroundColor: '#f0fdf4',
+      border: '1px solid #86efac',
+      borderRadius: '0.375rem',
+      marginTop: '1rem',
+    } as React.CSSProperties,
+  
+    fileInfo: {
+      display: 'flex',
+      alignItems: 'center',
+      flex: 1,
+    } as React.CSSProperties,
+  
+    fileName: {
+      fontSize: '0.95rem',
+      fontWeight: '600',
+      color: '#1f2937',
+      margin: 0,
+    } as React.CSSProperties,
+  
+    fileSize: {
+      fontSize: '0.8rem',
+      color: '#6b7280',
+      margin: '0.25rem 0 0 0',
+    } as React.CSSProperties,
+  
+    removeButton: {
+      padding: '0.5rem',
+      border: 'none',
+      backgroundColor: '#fee2e2',
+      color: '#dc2626',
+      borderRadius: '0.375rem',
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      transition: 'all 0.2s ease',
+    } as React.CSSProperties,
+  
+    frontBackContainer: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: '1.5rem',
+      marginTop: '1rem',
+    } as React.CSSProperties,
+  
+    frontBackSection: {
+      display: 'flex',
+      flexDirection: 'column',
+    } as React.CSSProperties,
+  
+    frontBackTitle: {
+      fontSize: '0.95rem',
+      fontWeight: '600',
+      color: '#1f2937',
+      marginBottom: '0.75rem',
+      margin: '0 0 0.75rem 0',
+    } as React.CSSProperties,
+  
+    warningMessage: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      padding: '0.875rem 1rem',
+      backgroundColor: '#fef3c7',
+      borderLeft: '4px solid #f59e0b',
+      borderRadius: '0.375rem',
+      color: '#92400e',
+      fontSize: '0.875rem',
+      marginBottom: '1rem',
+    } as React.CSSProperties,
+  
+    buttonGroup: {
+      display: 'flex',
+      gap: '1rem',
+      marginTop: '2rem',
+      flexWrap: 'wrap',
+    } as React.CSSProperties,
+  
+
 };
 
