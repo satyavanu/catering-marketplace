@@ -810,36 +810,6 @@ const Header = () => {
             ) : (
               <>
                 <Link
-                  href="/become-caterer"
-                  style={{
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    color: 'white',
-                    textDecoration: 'none',
-                    padding: '8px 18px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                    transition: 'all 0.2s ease',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    cursor: 'pointer',
-                    backdropFilter: 'blur(10px)',
-                    letterSpacing: '0.3px',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.15)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                  }}
-                >
-                  <SparklesIcon style={{ width: '16px', height: '16px' }} />
-                  Partner
-                </Link>
-
-                <Link
                   href="/login"
                   style={{
                     fontSize: '14px',

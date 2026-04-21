@@ -16,7 +16,6 @@
   "scripts": {
     "dev": "npm run dev:dashboard",
     "dev:web": "cd apps/web && npm run dev",
-    "dev:pos": "cd apps/pos && npm run dev",
     "dev:dashboard": "cd apps/dashboard && npm run dev",
     "dev:all": "concurrently \"npm run dev:web\" \"npm run dev:pos\"",
     "build": "npm run build:types && npm run build:themes && npm run build:shared && npm run build:ui && npm run build:dashboard",
