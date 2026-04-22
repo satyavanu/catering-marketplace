@@ -3,27 +3,31 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCompleteOnboarding } from '@catering-marketplace/query-client';
+import { AlertCircle, X, CheckCircle, Eye } from 'lucide-react';
 
 export const TermsAndCommunications = () => {
   const router = useRouter();
   const completeOnboardingMutation = useCompleteOnboarding();
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [showAgreementModal, setShowAgreementModal] = useState(false);
+  const [agreementType, setAgreementType] = useState<'terms' | 'privacy' | 'partner' | null>(null);
 
   // Local state for all preferences
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreePrivacy, setAgreePrivacy] = useState(false);
+  const [agreePartnerAgreement, setAgreePartnerAgreement] = useState(false);
   const [emailMarketing, setEmailMarketing] = useState(false);
   const [smsMarketing, setSmsMarketing] = useState(false);
   const [pushNotifications, setPushNotifications] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isMandatoryComplete = agreeTerms && agreePrivacy;
+  const isMandatoryComplete = agreeTerms && agreePrivacy && agreePartnerAgreement;
 
   const handleContinueClick = async () => {
     setError(null);
 
     if (!isMandatoryComplete) {
-      setError('Please accept both Terms & Conditions and Privacy Policy to continue');
+      setError('Please accept all required agreements to continue');
       return;
     }
 
@@ -32,397 +36,696 @@ export const TermsAndCommunications = () => {
       console.log('📋 Payload:', {
         agreeTerms,
         agreePrivacy,
+        agreePartnerAgreement,
         emailMarketing,
         smsMarketing,
         pushNotifications,
       });
 
-      // Wait for the mutation to complete
       const response = await completeOnboardingMutation.mutateAsync({
         agreeTerms,
         agreePrivacy,
+        agreePartnerAgreement,
         emailMarketing,
         smsMarketing,
         pushNotifications,
       });
 
       console.log('✅ Onboarding completed successfully!');
-      console.log('📦 Response received:', response);
-      console.log('📊 Response data:', {
-        profile: response?.data?.profile,
-        preferences: response?.data?.preferences,
-        message: response?.message,
-        timestamp: response?.timestamp,
-      });
-
-      // Set redirecting state to show loading feedback
       setIsRedirecting(true);
-      console.log('🚀 Redirecting to dashboard...');
 
-      // Add a small delay for visual feedback
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Redirect to dashboard
+      await new Promise((resolve) => setTimeout(resolve, 500));
       router.push('/dashboard');
-
-      console.log('✨ Redirect initiated');
     } catch (err) {
       console.error('❌ Error during onboarding:', err);
-      console.error('Error details:', {
-        message: err instanceof Error ? err.message : 'Unknown error',
-        stack: err instanceof Error ? err.stack : 'No stack trace',
-        full: err,
-      });
-
-      const errorMessage = err instanceof Error ? err.message : 'Failed to save preferences. Please try again.';
+      const errorMessage =
+        err instanceof Error ? err.message : 'Failed to save preferences. Please try again.';
       setError(errorMessage);
     }
   };
 
+  const openModal = (type: 'terms' | 'privacy' | 'partner') => {
+    setAgreementType(type);
+    setShowAgreementModal(true);
+  };
+
+  const closeModal = () => {
+    setShowAgreementModal(false);
+    setAgreementType(null);
+  };
+
   return (
-    <div style={styles.container}>
-      {/* Header Section with Gradient */}
-      <div style={styles.headerSection}>
-        <div style={styles.headerContent}>
-          <h2 style={styles.headerTitle}>Finalize Your Account Setup</h2>
-          <p style={styles.headerSubtitle}>
-            Please review and accept our policies, and choose how you'd like to stay connected
-          </p>
-        </div>
-      </div>
-
-      {/* Legal & Compliance Section */}
-      <div style={styles.legalSection}>
-        <div style={styles.sectionHeader}>
-          <span style={styles.sectionIcon}>⚖️</span>
-          <div>
-            <h3 style={styles.sectionTitle}>
-              Legal Agreement
-              <span style={styles.requiredBadge}>REQUIRED</span>
-            </h3>
-            <p style={styles.sectionDescription}>
-              Please accept both to continue using our platform
+    <>
+      <div style={styles.container}>
+        {/* Header Section */}
+        <div style={styles.headerSection}>
+          <div style={styles.headerContent}>
+            <h2 style={styles.headerTitle}>Finalize Your Account Setup</h2>
+            <p style={styles.headerSubtitle}>
+              Please review and accept our agreements to start receiving orders
             </p>
           </div>
         </div>
 
-        <div style={styles.checkboxesGroup}>
-          {/* Terms & Conditions Checkbox */}
-          <div
-            style={{
-              ...styles.checkboxCard,
-              borderColor: agreeTerms ? '#10b981' : '#e5e7eb',
-              backgroundColor: agreeTerms ? '#ecfdf5' : '#fafafa',
-            }}
-          >
-            <label style={styles.checkboxLabel}>
-              <div style={styles.customCheckboxContainer}>
-                <input
-                  type="checkbox"
-                  checked={agreeTerms}
-                  onChange={(e) => setAgreeTerms(e.target.checked)}
-                  style={styles.hiddenCheckbox}
-                  disabled={completeOnboardingMutation.isPending || isRedirecting}
-                />
-                <div
-                  style={{
-                    ...styles.customCheckbox,
-                    backgroundColor: agreeTerms ? '#10b981' : 'white',
-                    borderColor: agreeTerms ? '#10b981' : '#d1d5db',
-                  }}
-                >
-                  {agreeTerms && <span style={styles.checkmark}>✓</span>}
-                </div>
-              </div>
-              <div style={styles.checkboxTextWrapper}>
-                <span style={styles.checkboxMainText}>
-                  I agree to the{' '}
-                  <a href="/terms-and-conditions" target="_blank" rel="noopener noreferrer" style={styles.link}>
-                    Terms & Conditions
-                  </a>
-                </span>
-                <span style={styles.asterisk}>*</span>
-              </div>
-            </label>
-            <p style={styles.checkboxHelper}>
-              Read our terms to understand the rules and guidelines
-            </p>
-          </div>
-
-          {/* Privacy Policy Checkbox */}
-          <div
-            style={{
-              ...styles.checkboxCard,
-              borderColor: agreePrivacy ? '#10b981' : '#e5e7eb',
-              backgroundColor: agreePrivacy ? '#ecfdf5' : '#fafafa',
-            }}
-          >
-            <label style={styles.checkboxLabel}>
-              <div style={styles.customCheckboxContainer}>
-                <input
-                  type="checkbox"
-                  checked={agreePrivacy}
-                  onChange={(e) => setAgreePrivacy(e.target.checked)}
-                  style={styles.hiddenCheckbox}
-                  disabled={completeOnboardingMutation.isPending || isRedirecting}
-                />
-                <div
-                  style={{
-                    ...styles.customCheckbox,
-                    backgroundColor: agreePrivacy ? '#10b981' : 'white',
-                    borderColor: agreePrivacy ? '#10b981' : '#d1d5db',
-                  }}
-                >
-                  {agreePrivacy && <span style={styles.checkmark}>✓</span>}
-                </div>
-              </div>
-              <div style={styles.checkboxTextWrapper}>
-                <span style={styles.checkboxMainText}>
-                  I agree to the{' '}
-                  <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" style={styles.link}>
-                    Privacy Policy
-                  </a>
-                </span>
-                <span style={styles.asterisk}>*</span>
-              </div>
-            </label>
-            <p style={styles.checkboxHelper}>
-              Understand how we collect, use, and protect your data
-            </p>
-          </div>
-        </div>
-
-        {/* Status Indicator */}
-        <div
-          style={{
-            ...styles.statusIndicator,
-            backgroundColor: isMandatoryComplete ? '#ecfdf5' : '#fef3c7',
-            borderColor: isMandatoryComplete ? '#6ee7b7' : '#fcd34d',
-          }}
-        >
-          <span style={styles.statusIcon}>{isMandatoryComplete ? '✓' : '⚠️'}</span>
-          <span
-            style={{
-              ...styles.statusText,
-              color: isMandatoryComplete ? '#065f46' : '#92400e',
-            }}
-          >
-            {isMandatoryComplete ? 'All legal agreements accepted ✨' : 'Please accept both agreements to continue'}
-          </span>
-        </div>
-      </div>
-
-      {/* Communication Preferences Section */}
-      <div style={styles.communicationSection}>
-        <div style={styles.sectionHeader}>
-          <span style={styles.sectionIcon}>📬</span>
-          <div>
-            <h3 style={styles.sectionTitle}>
-              Communication Preferences
-              <span style={styles.optionalBadge}>OPTIONAL</span>
-            </h3>
-            <p style={styles.sectionDescription}>Choose how you'd like to hear from us about offers and updates</p>
-          </div>
-        </div>
-
-        <div style={styles.communicationGrid}>
-          {/* Email Marketing Card */}
-          <div
-            style={{
-              ...styles.communicationCard,
-              borderColor: emailMarketing ? '#3b82f6' : '#e5e7eb',
-              backgroundColor: emailMarketing ? '#eff6ff' : '#ffffff',
-              boxShadow: emailMarketing ? '0 4px 12px rgba(59, 130, 246, 0.15)' : 'none',
-              transform: emailMarketing ? 'translateY(-2px)' : 'translateY(0)',
-            }}
-          >
-            <label style={styles.communicationLabel}>
-              <div style={styles.customCheckboxContainer}>
-                <input
-                  type="checkbox"
-                  checked={emailMarketing}
-                  onChange={(e) => setEmailMarketing(e.target.checked)}
-                  style={styles.hiddenCheckbox}
-                  disabled={completeOnboardingMutation.isPending || isRedirecting}
-                />
-                <div
-                  style={{
-                    ...styles.customCheckbox,
-                    backgroundColor: emailMarketing ? '#3b82f6' : 'white',
-                    borderColor: emailMarketing ? '#3b82f6' : '#d1d5db',
-                  }}
-                >
-                  {emailMarketing && <span style={styles.checkmark}>✓</span>}
-                </div>
-              </div>
-              <div style={styles.communicationContent}>
-                <div style={styles.communicationIconBox}>
-                  <span style={styles.communicationIcon}>📧</span>
-                </div>
-                <div style={styles.communicationText}>
-                  <p style={styles.communicationTitle}>Email Updates</p>
-                  <p style={styles.communicationDesc}>Promotions, offers & weekly updates</p>
-                </div>
-              </div>
-            </label>
-          </div>
-
-          {/* SMS/WhatsApp Marketing Card */}
-          <div
-            style={{
-              ...styles.communicationCard,
-              borderColor: smsMarketing ? '#3b82f6' : '#e5e7eb',
-              backgroundColor: smsMarketing ? '#eff6ff' : '#ffffff',
-              boxShadow: smsMarketing ? '0 4px 12px rgba(59, 130, 246, 0.15)' : 'none',
-              transform: smsMarketing ? 'translateY(-2px)' : 'translateY(0)',
-            }}
-          >
-            <label style={styles.communicationLabel}>
-              <div style={styles.customCheckboxContainer}>
-                <input
-                  type="checkbox"
-                  checked={smsMarketing}
-                  onChange={(e) => setSmsMarketing(e.target.checked)}
-                  style={styles.hiddenCheckbox}
-                  disabled={completeOnboardingMutation.isPending || isRedirecting}
-                />
-                <div
-                  style={{
-                    ...styles.customCheckbox,
-                    backgroundColor: smsMarketing ? '#3b82f6' : 'white',
-                    borderColor: smsMarketing ? '#3b82f6' : '#d1d5db',
-                  }}
-                >
-                  {smsMarketing && <span style={styles.checkmark}>✓</span>}
-                </div>
-              </div>
-              <div style={styles.communicationContent}>
-                <div style={styles.communicationIconBox}>
-                  <span style={styles.communicationIcon}>📱</span>
-                </div>
-                <div style={styles.communicationText}>
-                  <p style={styles.communicationTitle}>SMS & WhatsApp</p>
-                  <p style={styles.communicationDesc}>Exclusive deals & instant alerts</p>
-                </div>
-              </div>
-            </label>
-          </div>
-
-          {/* Push Notifications Card */}
-          <div
-            style={{
-              ...styles.communicationCard,
-              borderColor: pushNotifications ? '#3b82f6' : '#e5e7eb',
-              backgroundColor: pushNotifications ? '#eff6ff' : '#ffffff',
-              boxShadow: pushNotifications ? '0 4px 12px rgba(59, 130, 246, 0.15)' : 'none',
-              transform: pushNotifications ? 'translateY(-2px)' : 'translateY(0)',
-            }}
-          >
-            <label style={styles.communicationLabel}>
-              <div style={styles.customCheckboxContainer}>
-                <input
-                  type="checkbox"
-                  checked={pushNotifications}
-                  onChange={(e) => setPushNotifications(e.target.checked)}
-                  style={styles.hiddenCheckbox}
-                  disabled={completeOnboardingMutation.isPending || isRedirecting}
-                />
-                <div
-                  style={{
-                    ...styles.customCheckbox,
-                    backgroundColor: pushNotifications ? '#3b82f6' : 'white',
-                    borderColor: pushNotifications ? '#3b82f6' : '#d1d5db',
-                  }}
-                >
-                  {pushNotifications && <span style={styles.checkmark}>✓</span>}
-                </div>
-              </div>
-              <div style={styles.communicationContent}>
-                <div style={styles.communicationIconBox}>
-                  <span style={styles.communicationIcon}>🔔</span>
-                </div>
-                <div style={styles.communicationText}>
-                  <p style={styles.communicationTitle}>Push Notifications</p>
-                  <p style={styles.communicationDesc}>Real-time bookings & special deals</p>
-                </div>
-              </div>
-            </label>
-          </div>
-        </div>
-
-        {/* Footer Note */}
-        <div style={styles.preferencesFooter}>
-          <p style={styles.preferencesFooterText}>
-            💡 You can manage these preferences anytime in your account settings. We'll never share your data with third
-            parties.
-          </p>
-        </div>
-      </div>
-
-      {/* Error Message */}
-      {error && (
-        <div style={styles.errorContainer}>
-          <div style={styles.errorContent}>
-            <span style={styles.errorIcon}>⚠️</span>
+        {/* Legal & Compliance Section */}
+        <div style={styles.legalSection}>
+          <div style={styles.sectionHeader}>
+            <span style={styles.sectionIcon}>⚖️</span>
             <div>
-              <p style={styles.errorTitle}>Something went wrong</p>
-              <p style={styles.errorMessage}>{error}</p>
+              <h3 style={styles.sectionTitle}>
+                Legal Agreements
+                <span style={styles.requiredBadge}>REQUIRED</span>
+              </h3>
+              <p style={styles.sectionDescription}>Please accept all to continue using our platform</p>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* Continue Button */}
-      <div style={styles.buttonWrapper}>
-        <button
-          onClick={handleContinueClick}
-          disabled={!isMandatoryComplete || completeOnboardingMutation.isPending || isRedirecting}
-          style={{
-            ...styles.continueButton,
-            opacity: isMandatoryComplete && !isRedirecting ? 1 : 0.6,
-            cursor:
-              isMandatoryComplete && !completeOnboardingMutation.isPending && !isRedirecting
-                ? 'pointer'
-                : 'not-allowed',
-            backgroundColor: isMandatoryComplete ? '#10b981' : '#9ca3af',
-          }}
-          onMouseEnter={(e) => {
-            if (isMandatoryComplete && !completeOnboardingMutation.isPending && !isRedirecting) {
-              e.currentTarget.style.backgroundColor = '#059669';
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 12px 28px rgba(16, 185, 129, 0.3)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (isMandatoryComplete && !completeOnboardingMutation.isPending && !isRedirecting) {
-              e.currentTarget.style.backgroundColor = '#10b981';
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = 'none';
-            }
-          }}
-        >
-          {completeOnboardingMutation.isPending || isRedirecting ? (
-            <>
-              <span style={styles.spinner}></span>
-              {isRedirecting ? 'Redirecting to Dashboard...' : 'Processing...'}
-            </>
-          ) : (
-            <>
-              Continue to Dashboard
-              <span style={styles.buttonArrow}>→</span>
-            </>
-          )}
-        </button>
-        <p style={styles.buttonHelpText}>You'll be redirected to your dashboard after completion</p>
+          <div style={styles.checkboxesGroup}>
+            {/* Terms & Conditions */}
+            <AgreementCheckbox
+              checked={agreeTerms}
+              onChange={setAgreeTerms}
+              label="I have read and agree to the"
+              linkText="Terms & Conditions"
+              onViewClick={() => openModal('terms')}
+              disabled={completeOnboardingMutation.isPending || isRedirecting}
+              helperText="Review our terms and guidelines"
+            />
+
+            {/* Privacy Policy */}
+            <AgreementCheckbox
+              checked={agreePrivacy}
+              onChange={setAgreePrivacy}
+              label="I have read and agree to the"
+              linkText="Privacy Policy"
+              onViewClick={() => openModal('privacy')}
+              disabled={completeOnboardingMutation.isPending || isRedirecting}
+              helperText="Understand how we handle your data"
+            />
+
+            {/* Partner Agreement */}
+            <AgreementCheckbox
+              checked={agreePartnerAgreement}
+              onChange={setAgreePartnerAgreement}
+              label="I have read and agree to the"
+              linkText="Droooly Partner Agreement"
+              onViewClick={() => openModal('partner')}
+              disabled={completeOnboardingMutation.isPending || isRedirecting}
+              helperText="Review commission, payout, and operational terms"
+            />
+          </div>
+
+          {/* Status Indicator */}
+          <div
+            style={{
+              ...styles.statusIndicator,
+              backgroundColor: isMandatoryComplete ? '#ecfdf5' : '#fef3c7',
+              borderColor: isMandatoryComplete ? '#6ee7b7' : '#fcd34d',
+            }}
+          >
+            <span style={styles.statusIcon}>{isMandatoryComplete ? '✓' : '⚠️'}</span>
+            <span
+              style={{
+                ...styles.statusText,
+                color: isMandatoryComplete ? '#065f46' : '#92400e',
+              }}
+            >
+              {isMandatoryComplete
+                ? 'All agreements accepted ✨'
+                : 'Please accept all agreements to continue'}
+            </span>
+          </div>
+        </div>
+
+        {/* Communication Preferences Section */}
+        <div style={styles.communicationSection}>
+          <div style={styles.sectionHeader}>
+            <span style={styles.sectionIcon}>📬</span>
+            <div>
+              <h3 style={styles.sectionTitle}>
+                Communication Preferences
+                <span style={styles.optionalBadge}>OPTIONAL</span>
+              </h3>
+              <p style={styles.sectionDescription}>
+                Choose how you'd like to hear from us about offers and updates
+              </p>
+            </div>
+          </div>
+
+          <div style={styles.communicationGrid}>
+            <CommunicationCard
+              icon="📧"
+              title="Email Updates"
+              description="Promotions, offers & weekly updates"
+              checked={emailMarketing}
+              onChange={setEmailMarketing}
+              disabled={completeOnboardingMutation.isPending || isRedirecting}
+            />
+
+            <CommunicationCard
+              icon="📱"
+              title="SMS & WhatsApp"
+              description="Exclusive deals & instant alerts"
+              checked={smsMarketing}
+              onChange={setSmsMarketing}
+              disabled={completeOnboardingMutation.isPending || isRedirecting}
+            />
+
+            <CommunicationCard
+              icon="🔔"
+              title="Push Notifications"
+              description="Real-time bookings & special deals"
+              checked={pushNotifications}
+              onChange={setPushNotifications}
+              disabled={completeOnboardingMutation.isPending || isRedirecting}
+            />
+          </div>
+
+          <div style={styles.preferencesFooter}>
+            <p style={styles.preferencesFooterText}>
+              💡 You can manage these preferences anytime in your account settings. We'll never
+              share your data with third parties.
+            </p>
+          </div>
+        </div>
+
+        {/* Error Message */}
+        {error && (
+          <div style={styles.errorContainer}>
+            <div style={styles.errorContent}>
+              <span style={styles.errorIcon}>⚠️</span>
+              <div>
+                <p style={styles.errorTitle}>Something went wrong</p>
+                <p style={styles.errorMessage}>{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Continue Button */}
+        <div style={styles.buttonWrapper}>
+          <button
+            onClick={handleContinueClick}
+            disabled={!isMandatoryComplete || completeOnboardingMutation.isPending || isRedirecting}
+            style={{
+              ...styles.continueButton,
+              opacity: isMandatoryComplete && !isRedirecting ? 1 : 0.6,
+              cursor:
+                isMandatoryComplete && !completeOnboardingMutation.isPending && !isRedirecting
+                  ? 'pointer'
+                  : 'not-allowed',
+              backgroundColor: isMandatoryComplete ? '#10b981' : '#9ca3af',
+            }}
+            onMouseEnter={(e) => {
+              if (
+                isMandatoryComplete &&
+                !completeOnboardingMutation.isPending &&
+                !isRedirecting
+              ) {
+                e.currentTarget.style.backgroundColor = '#059669';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 12px 28px rgba(16, 185, 129, 0.3)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (
+                isMandatoryComplete &&
+                !completeOnboardingMutation.isPending &&
+                !isRedirecting
+              ) {
+                e.currentTarget.style.backgroundColor = '#10b981';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }
+            }}
+          >
+            {completeOnboardingMutation.isPending || isRedirecting ? (
+              <>
+                <span style={styles.spinner}></span>
+                {isRedirecting ? 'Redirecting to Dashboard...' : 'Processing...'}
+              </>
+            ) : (
+              <>
+                Continue to Dashboard
+                <span style={styles.buttonArrow}>→</span>
+              </>
+            )}
+          </button>
+          <p style={styles.buttonHelpText}>You'll be redirected to your dashboard after completion</p>
+        </div>
       </div>
 
+      {/* Agreement Modal */}
+      {showAgreementModal && <AgreementModal type={agreementType} onClose={closeModal} />}
+
       <style>{styles.keyframes}</style>
-    </div>
+    </>
   );
 };
 
-// Comprehensive Styles (same as before)
-const styles = {
+// Agreement Checkbox Component
+interface AgreementCheckboxProps {
+  checked: boolean;
+  onChange: (value: boolean) => void;
+  label: string;
+  linkText: string;
+  onViewClick: () => void;
+  disabled: boolean;
+  helperText: string;
+}
+
+function AgreementCheckbox({
+  checked,
+  onChange,
+  label,
+  linkText,
+  onViewClick,
+  disabled,
+  helperText,
+}: AgreementCheckboxProps) {
+  return (
+    <div
+      style={{
+        ...styles.checkboxCard,
+        borderColor: checked ? '#10b981' : '#e5e7eb',
+        backgroundColor: checked ? '#ecfdf5' : '#fafafa',
+      }}
+    >
+      <div style={styles.checkboxContentWrapper}>
+        <label style={styles.checkboxLabel}>
+          <div style={styles.customCheckboxContainer}>
+            <input
+              type="checkbox"
+              checked={checked}
+              onChange={(e) => onChange(e.target.checked)}
+              style={styles.hiddenCheckbox}
+              disabled={disabled}
+            />
+            <div
+              style={{
+                ...styles.customCheckbox,
+                backgroundColor: checked ? '#10b981' : 'white',
+                borderColor: checked ? '#10b981' : '#d1d5db',
+              }}
+            >
+              {checked && <span style={styles.checkmark}>✓</span>}
+            </div>
+          </div>
+          <div style={styles.checkboxTextWrapper}>
+            <span style={styles.checkboxMainText}>
+              {label}{' '}
+              <button
+                type="button"
+                onClick={onViewClick}
+                style={styles.agreementLink}
+                disabled={disabled}
+              >
+                {linkText}
+              </button>
+              <span style={styles.asterisk}>*</span>
+            </span>
+          </div>
+        </label>
+        <button
+          type="button"
+          onClick={onViewClick}
+          style={styles.viewButton}
+          disabled={disabled}
+          title="View full document"
+        >
+          <Eye size={16} />
+        </button>
+      </div>
+      <p style={styles.checkboxHelper}>{helperText}</p>
+    </div>
+  );
+}
+
+// Communication Card Component
+interface CommunicationCardProps {
+  icon: string;
+  title: string;
+  description: string;
+  checked: boolean;
+  onChange: (value: boolean) => void;
+  disabled: boolean;
+}
+
+function CommunicationCard({
+  icon,
+  title,
+  description,
+  checked,
+  onChange,
+  disabled,
+}: CommunicationCardProps) {
+  return (
+    <div
+      style={{
+        ...styles.communicationCard,
+        borderColor: checked ? '#3b82f6' : '#e5e7eb',
+        backgroundColor: checked ? '#eff6ff' : '#ffffff',
+        boxShadow: checked ? '0 4px 12px rgba(59, 130, 246, 0.15)' : 'none',
+        transform: checked ? 'translateY(-2px)' : 'translateY(0)',
+      }}
+    >
+      <label style={styles.communicationLabel}>
+        <div style={styles.customCheckboxContainer}>
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={(e) => onChange(e.target.checked)}
+            style={styles.hiddenCheckbox}
+            disabled={disabled}
+          />
+          <div
+            style={{
+              ...styles.customCheckbox,
+              backgroundColor: checked ? '#3b82f6' : 'white',
+              borderColor: checked ? '#3b82f6' : '#d1d5db',
+            }}
+          >
+            {checked && <span style={styles.checkmark}>✓</span>}
+          </div>
+        </div>
+        <div style={styles.communicationContent}>
+          <div style={styles.communicationIconBox}>
+            <span style={styles.communicationIcon}>{icon}</span>
+          </div>
+          <div style={styles.communicationText}>
+            <p style={styles.communicationTitle}>{title}</p>
+            <p style={styles.communicationDesc}>{description}</p>
+          </div>
+        </div>
+      </label>
+    </div>
+  );
+}
+
+// Agreement Modal Component
+interface AgreementModalProps {
+  type: 'terms' | 'privacy' | 'partner' | null;
+  onClose: () => void;
+}
+
+function AgreementModal({ type, onClose }: AgreementModalProps) {
+  const getAgreementContent = () => {
+    switch (type) {
+      case 'terms':
+        return {
+          title: 'Terms & Conditions',
+          content: TERMS_AND_CONDITIONS,
+        };
+      case 'privacy':
+        return {
+          title: 'Privacy Policy',
+          content: PRIVACY_POLICY,
+        };
+      case 'partner':
+        return {
+          title: 'Droooly Partner Agreement',
+          content: PARTNER_AGREEMENT,
+        };
+      default:
+        return { title: '', content: '' };
+    }
+  };
+
+  const { title, content } = getAgreementContent();
+
+  return (
+    <div style={styles.modalOverlay} onClick={onClose}>
+      <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+        <div style={styles.modalHeader}>
+          <h2 style={styles.modalTitle}>{title}</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            style={styles.modalCloseButton}
+            title="Close"
+          >
+            <X size={24} />
+          </button>
+        </div>
+
+        <div style={styles.modalContent}>
+          <pre style={styles.agreementText}>{content}</pre>
+        </div>
+
+        <div style={styles.modalFooter}>
+          <button type="button" onClick={onClose} style={styles.modalCloseLink}>
+            Close & Accept
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Agreement Content
+const TERMS_AND_CONDITIONS = `DROOOLY TERMS & CONDITIONS
+
+Last Updated: [Current Date]
+
+1. INTRODUCTION & ACCEPTANCE
+By accessing and using the Droooly platform, you agree to these Terms & Conditions.
+
+2. USE OF PLATFORM
+You agree to use this platform only for lawful purposes and in a way that does not infringe upon the rights of others.
+
+3. USER ACCOUNTS
+You are responsible for maintaining the confidentiality of your account credentials and password.
+You agree to accept responsibility for all activities that occur under your account.
+
+4. INTELLECTUAL PROPERTY RIGHTS
+All content on the platform, including but not limited to text, graphics, logos, and images, is the intellectual property of Droooly.
+
+5. LIMITATIONS OF LIABILITY
+Droooly shall not be liable for any indirect, incidental, special, consequential, or punitive damages.
+
+6. GOVERNING LAW
+These Terms shall be governed by and construed in accordance with the laws of India.
+
+7. ENTIRE AGREEMENT
+These Terms & Conditions constitute the entire agreement between you and Droooly.
+
+For complete details, please contact our legal team.`;
+
+const PRIVACY_POLICY = `DROOOLY PRIVACY POLICY
+
+Last Updated: [Current Date]
+
+1. INTRODUCTION
+Droooly respects your privacy and is committed to protecting your personal data.
+
+2. DATA COLLECTION
+We collect information that you provide directly to us, such as:
+- Name, email address, phone number
+- Payment and billing information
+- Location and service preferences
+
+3. USE OF DATA
+We use your data to:
+- Provide and improve our services
+- Process payments and orders
+- Communicate with you about your account
+- Comply with legal obligations
+
+4. DATA SECURITY
+We implement industry-standard security measures to protect your personal data.
+
+5. DATA SHARING
+We do not share your personal data with third parties except:
+- Service providers who assist us in operating our platform
+- When required by law
+
+6. YOUR RIGHTS
+You have the right to:
+- Access your personal data
+- Request correction of inaccurate data
+- Request deletion of your data
+- Opt-out of marketing communications
+
+7. CONTACT US
+For privacy-related concerns, contact: privacy@droooly.com
+
+For complete details, please visit our privacy center.`;
+
+const PARTNER_AGREEMENT = `DROOOLY PARTNER AGREEMENT (INDIA)
+(Lawyer-Grade Version with Detailed Schedules & Compliance Clauses)
+
+THIS PARTNER AGREEMENT
+
+This Partner Agreement ("Agreement") is entered into on this ___ day of ____, 20 ("Effective Date"),
+
+BY AND BETWEEN
+
+[YOUR LEGAL ENTITY NAME], a company incorporated under the Companies Act, 2013, having its registered office at [Address] (hereinafter referred to as "Droooly" or "Company", which expression shall, unless repugnant to the context, include its successors and assigns),
+
+AND
+
+[PARTNER LEGAL NAME], an individual/proprietorship/partnership/company having its principal place of business at [Address] (hereinafter referred to as "Partner", which expression shall include its heirs, successors, and permitted assigns).
+
+Droooly and the Partner are hereinafter collectively referred to as the "Parties" and individually as a "Party".
+
+1. DEFINITIONS
+
+Unless the context otherwise requires:
+
+* "Platform" means the Droooly mobile application, website, APIs, and associated systems.
+* "Services" means catering, meal plans, chef services, or any offerings listed by the Partner.
+* "Order" means a confirmed booking placed by a Customer via the Platform.
+* "Customer" means an end user availing Services.
+* "Fulfilment" means successful completion/delivery of an Order.
+* "Commission" / "Platform Fee" means the fee charged by Droooly per transaction.
+* "Net Payable Amount" means Order value less Commission, taxes, refunds, penalties, and deductions.
+* "T+1" means one (1) business day post Fulfilment.
+* "Applicable Law" includes all Indian laws, including but not limited to tax, food safety, and IT laws.
+
+2. APPOINTMENT & NATURE OF RELATIONSHIP
+
+2.1 Droooly hereby grants the Partner a non-exclusive, revocable, non-transferable right to list and provide Services on the Platform.
+
+2.2 The relationship between the Parties is strictly on a principal-to-principal basis. Nothing herein shall be construed as creating an employer-employee, agency, joint venture, or partnership relationship.
+
+3. ELIGIBILITY, KYC & VERIFICATION
+
+3.1 The Partner shall mandatorily submit and maintain valid:
+
+* PAN (Permanent Account Number)
+* Aadhaar (for individuals/authorized signatory)
+* GST Registration Certificate (if applicable)
+* FSSAI License (mandatory for food-related services)
+* Bank Account Proof (cancelled cheque/passbook)
+* Address Proof of business premises
+
+3.2 Droooly reserves the right to:
+
+* Conduct KYC/AML verification through third-party agencies
+* Seek additional documentation at any time
+* Suspend onboarding or deactivate accounts upon failure of verification
+
+3.3 Any misrepresentation shall constitute material breach.
+
+4. LISTINGS, PRICING & SERVICE AREA
+
+4.1 The Partner shall ensure that all listings:
+
+* Are accurate, lawful, and non-misleading
+* Clearly specify inclusions, taxes, and delivery charges
+
+4.2 The Partner shall define:
+
+* Base kitchen/service location
+* Serviceable PIN codes and/or delivery radius
+* Delivery charges, if applicable
+
+4.3 Droooly reserves the right to standardize listings for platform uniformity.
+
+5. ORDERS & FULFILMENT OBLIGATIONS
+
+5.1 Orders shall be deemed confirmed upon successful payment.
+
+5.2 The Partner shall:
+
+* Accept/reject Orders within SLA timelines
+* Fulfil Orders strictly as per specifications
+* Ensure quality, hygiene, and timeliness
+
+5.3 Failure to comply shall attract penalties under this Agreement.
+
+6. PAYMENTS, PLATFORM FEES, GST & TDS
+
+6.1 Platform Fee / Commission
+
+Droooly shall charge a Platform Fee (Commission) as mutually agreed (Annexure A).
+
+6.2 GST Compliance
+
+* GST shall be levied as per the Central Goods and Services Tax Act, 2017 and applicable rules
+* The Partner is solely responsible for:
+    * Charging GST (if applicable)
+    * Filing returns
+    * Issuing tax invoices
+
+6.3 TDS (Tax Deducted at Source)
+
+* Droooly shall deduct TDS under Section 194-O of the Income Tax Act, 1961 (currently 1% or as amended) on gross sales facilitated through the Platform
+* TDS certificates shall be issued periodically
+
+6.4 Payout Terms
+
+* Payouts shall be released on a T+1 basis post Fulfilment
+* Subject to:
+    * No pending disputes
+    * No chargebacks/refunds
+    * Compliance with Agreement
+
+7. CANCELLATIONS, REFUNDS & CHARGEBACKS
+
+7.1 Governed by cancellation policy matrix
+7.2 Droooly reserves the unilateral right to:
+* Process refunds to Customers
+* Recover amounts from Partner payouts
+
+8. CUSTOMER DISPUTES & GRIEVANCE REDRESSAL
+
+8.1 Droooly shall act as a facilitator and mediator.
+8.2 The Partner shall:
+* Respond within defined SLA timelines
+* Provide documentary evidence when requested
+
+9. HYGIENE & FOOD SAFETY COMPLIANCE
+
+9.1 The Partner shall strictly comply with:
+* Food Safety laws under the Food Safety and Standards Act, 2006
+* Guidelines issued by the Food Safety and Standards Authority of India (FSSAI)
+
+10. PROHIBITED CONDUCT
+
+The Partner shall not:
+* Circumvent Platform payments
+* Solicit Customers outside Platform
+* Engage in fraudulent activities
+* Violate any Applicable Law
+
+11. SUSPENSION & TERMINATION
+
+11.1 Suspension (Immediate) for:
+* Failed KYC
+* Customer complaints
+* Fraud suspicion
+
+11.2 Termination for:
+* Repeated breaches
+* Illegal activities
+* Severe misconduct
+
+12. INDEMNITY
+
+The Partner agrees to indemnify and hold harmless Droooly against:
+* Claims arising from food quality, safety, or negligence
+* Legal violations
+* Third-party claims
+
+13. LIMITATION OF LIABILITY
+
+Droooly shall not be liable for:
+* Indirect or consequential damages
+* Loss of profits
+* Partner negligence
+
+14. GOVERNING LAW & JURISDICTION
+
+This Agreement shall be governed by Indian laws.
+Courts at [City] shall have exclusive jurisdiction.
+
+ACCEPTANCE
+
+By registering on Droooly, the Partner expressly agrees to this Agreement and all Schedules.`;
+
+// Styles
+const styles: { [key: string]: React.CSSProperties } = {
   keyframes: `
     @keyframes spin {
       from { transform: rotate(0deg); }
@@ -564,12 +867,20 @@ const styles = {
     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
   } as React.CSSProperties,
 
+  checkboxContentWrapper: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: '1rem',
+    marginBottom: '0.75rem',
+  } as React.CSSProperties,
+
   checkboxLabel: {
     display: 'flex',
     alignItems: 'flex-start',
     gap: '1rem',
     cursor: 'pointer',
-    marginBottom: '0.75rem',
+    flex: 1,
   } as React.CSSProperties,
 
   customCheckboxContainer: {
@@ -597,6 +908,8 @@ const styles = {
     border: '2px solid',
     transition: 'all 0.2s ease',
     cursor: 'pointer',
+    flexShrink: 0,
+    marginTop: '0.2rem',
   } as React.CSSProperties,
 
   checkmark: {
@@ -607,7 +920,7 @@ const styles = {
 
   checkboxTextWrapper: {
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: '0.5rem',
     flex: 1,
     flexWrap: 'wrap',
@@ -618,12 +931,42 @@ const styles = {
     fontWeight: '500',
     color: '#1f2937',
     lineHeight: '1.5',
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: '0.25rem',
+  } as React.CSSProperties,
+
+  agreementLink: {
+    backgroundColor: 'transparent',
+    border: 'none',
+    color: '#667eea',
+    textDecoration: 'underline',
+    fontWeight: '700',
+    cursor: 'pointer',
+    padding: 0,
+    font: 'inherit',
+    transition: 'color 0.2s ease',
+  } as React.CSSProperties,
+
+  viewButton: {
+    padding: '0.5rem 1rem',
+    backgroundColor: '#f3f4f6',
+    border: '1px solid #e5e7eb',
+    borderRadius: '0.5rem',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.2s ease',
+    color: '#667eea',
+    flexShrink: 0,
   } as React.CSSProperties,
 
   asterisk: {
     color: '#dc2626',
     fontWeight: '700',
     fontSize: '1.1rem',
+    lineHeight: '1.5',
   } as React.CSSProperties,
 
   checkboxHelper: {
@@ -631,14 +974,6 @@ const styles = {
     color: '#9ca3af',
     margin: '0.75rem 0 0 2.75rem',
     fontWeight: '500',
-  } as React.CSSProperties,
-
-  link: {
-    color: '#667eea',
-    textDecoration: 'none',
-    fontWeight: '700',
-    borderBottom: '2px solid #667eea',
-    transition: 'all 0.2s ease',
   } as React.CSSProperties,
 
   statusIndicator: {
@@ -833,5 +1168,95 @@ const styles = {
     margin: 0,
     fontWeight: '500',
   } as React.CSSProperties,
-};
 
+  // Modal Styles
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+    animation: 'fadeIn 0.2s ease',
+  } as React.CSSProperties,
+
+  modal: {
+    backgroundColor: 'white',
+    borderRadius: '1rem',
+    width: '90%',
+    maxWidth: '800px',
+    maxHeight: '90vh',
+    display: 'flex',
+    flexDirection: 'column',
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+    animation: 'slideIn 0.3s ease',
+  } as React.CSSProperties,
+
+  modalHeader: {
+    padding: '2rem',
+    borderBottom: '1px solid #e5e7eb',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexShrink: 0,
+  } as React.CSSProperties,
+
+  modalTitle: {
+    fontSize: '1.5rem',
+    fontWeight: '700',
+    color: '#111827',
+    margin: 0,
+  } as React.CSSProperties,
+
+  modalCloseButton: {
+    padding: '0.5rem',
+    border: 'none',
+    backgroundColor: '#f3f4f6',
+    borderRadius: '0.5rem',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#6b7280',
+    transition: 'all 0.2s ease',
+  } as React.CSSProperties,
+
+  modalContent: {
+    flex: 1,
+    overflow: 'auto',
+    padding: '2rem',
+  } as React.CSSProperties,
+
+  agreementText: {
+    fontSize: '0.85rem',
+    lineHeight: '1.6',
+    color: '#374151',
+    fontFamily: '"Courier New", monospace',
+    whiteSpace: 'pre-wrap',
+    wordWrap: 'break-word',
+    margin: 0,
+  } as React.CSSProperties,
+
+  modalFooter: {
+    padding: '1.5rem 2rem',
+    borderTop: '1px solid #e5e7eb',
+    display: 'flex',
+    justifyContent: 'flex-end',
+    flexShrink: 0,
+  } as React.CSSProperties,
+
+  modalCloseLink: {
+    padding: '0.75rem 1.5rem',
+    backgroundColor: '#10b981',
+    color: 'white',
+    border: 'none',
+    borderRadius: '0.5rem',
+    cursor: 'pointer',
+    fontWeight: '600',
+    transition: 'all 0.2s ease',
+  } as React.CSSProperties,
+};

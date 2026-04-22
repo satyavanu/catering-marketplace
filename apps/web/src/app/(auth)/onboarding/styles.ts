@@ -861,12 +861,7 @@ export const styles: { [key: string]: React.CSSProperties } = {
       flex: 1,
     } as React.CSSProperties,
   
-    fileName: {
-      fontSize: '0.95rem',
-      fontWeight: '600',
-      color: '#1f2937',
-      margin: 0,
-    } as React.CSSProperties,
+   
   
     fileSize: {
       fontSize: '0.8rem',
@@ -918,14 +913,5 @@ export const styles: { [key: string]: React.CSSProperties } = {
       fontSize: '0.875rem',
       marginBottom: '1rem',
     } as React.CSSProperties,
-  
-    buttonGroup: {
-      display: 'flex',
-      gap: '1rem',
-      marginTop: '2rem',
-      flexWrap: 'wrap',
-    } as React.CSSProperties,
-  
-
 };
 

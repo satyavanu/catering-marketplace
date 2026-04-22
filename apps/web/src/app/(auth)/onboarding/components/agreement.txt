@@ -1,0 +1,203 @@
+DROOOLY PARTNER AGREEMENT (INDIA)
+(Lawyer-Grade Version with Detailed Schedules & Compliance Clauses)
+
+THIS PARTNER AGREEMENT
+This Partner Agreement (“Agreement”) is entered into on this ___ day of ____, 20 (“Effective Date”),
+BY AND BETWEEN
+[YOUR LEGAL ENTITY NAME], a company incorporated under the Companies Act, 2013, having its registered office at [Address] (hereinafter referred to as “Droooly” or “Company”, which expression shall, unless repugnant to the context, include its successors and assigns),
+AND
+[PARTNER LEGAL NAME], an individual/proprietorship/partnership/company having its principal place of business at [Address] (hereinafter referred to as “Partner”, which expression shall include its heirs, successors, and permitted assigns).
+Droooly and the Partner are hereinafter collectively referred to as the “Parties” and individually as a “Party”.
+
+1. DEFINITIONS
+Unless the context otherwise requires:
+* “Platform” means the Droooly mobile application, website, APIs, and associated systems.
+* “Services” means catering, meal plans, chef services, or any offerings listed by the Partner.
+* “Order” means a confirmed booking placed by a Customer via the Platform.
+* “Customer” means an end user availing Services.
+* “Fulfilment” means successful completion/delivery of an Order.
+* “Commission” / “Platform Fee” means the fee charged by Droooly per transaction.
+* “Net Payable Amount” means Order value less Commission, taxes, refunds, penalties, and deductions.
+* “T+1” means one (1) business day post Fulfilment.
+* “Applicable Law” includes all Indian laws, including but not limited to tax, food safety, and IT laws.
+
+2. APPOINTMENT & NATURE OF RELATIONSHIP
+2.1 Droooly hereby grants the Partner a non-exclusive, revocable, non-transferable right to list and provide Services on the Platform.
+2.2 The relationship between the Parties is strictly on a principal-to-principal basis. Nothing herein shall be construed as creating an employer-employee, agency, joint venture, or partnership relationship.
+
+3. ELIGIBILITY, KYC & VERIFICATION
+3.1 The Partner shall mandatorily submit and maintain valid:
+* PAN (Permanent Account Number)
+* Aadhaar (for individuals/authorized signatory)
+* GST Registration Certificate (if applicable)
+* FSSAI License (mandatory for food-related services)
+* Bank Account Proof (cancelled cheque/passbook)
+* Address Proof of business premises
+3.2 Droooly reserves the right to:
+* Conduct KYC/AML verification through third-party agencies
+* Seek additional documentation at any time
+* Suspend onboarding or deactivate accounts upon failure of verification
+3.3 Any misrepresentation shall constitute material breach.
+
+4. LISTINGS, PRICING & SERVICE AREA
+4.1 The Partner shall ensure that all listings:
+* Are accurate, lawful, and non-misleading
+* Clearly specify inclusions, taxes, and delivery charges
+4.2 The Partner shall define:
+* Base kitchen/service location
+* Serviceable PIN codes and/or delivery radius
+* Delivery charges, if applicable
+4.3 Droooly reserves the right to standardize listings for platform uniformity.
+
+5. ORDERS & FULFILMENT OBLIGATIONS
+5.1 Orders shall be deemed confirmed upon successful payment.
+5.2 The Partner shall:
+* Accept/reject Orders within SLA timelines
+* Fulfil Orders strictly as per specifications
+* Ensure quality, hygiene, and timeliness
+5.3 Failure to comply shall attract penalties under this Agreement.
+
+6. PAYMENTS, PLATFORM FEES, GST & TDS
+6.1 Platform Fee / Commission
+Droooly shall charge a Platform Fee (Commission) as mutually agreed (Annexure A).
+6.2 GST Compliance
+* GST shall be levied as per the Central Goods and Services Tax Act, 2017 and applicable rules
+* The Partner is solely responsible for:
+    * Charging GST (if applicable)
+    * Filing returns
+    * Issuing tax invoices
+* Droooly may:
+    * Collect and remit GST where required under law (including e-commerce operator provisions under Section 9(5), if applicable in future)
+6.3 TDS (Tax Deducted at Source)
+* Droooly shall deduct TDS under Section 194-O of the Income Tax Act, 1961 (currently 1% or as amended) on gross sales facilitated through the Platform
+* TDS certificates shall be issued periodically
+6.4 Payout Terms
+* Payouts shall be released on a T+1 basis post Fulfilment
+* Subject to:
+    * No pending disputes
+    * No chargebacks/refunds
+    * Compliance with Agreement
+6.5 Deductions
+Droooly reserves the right to deduct:
+* Platform Fee
+* GST/TDS
+* Refunds
+* Penalties
+* Chargebacks
+
+7. CANCELLATIONS, REFUNDS & CHARGEBACKS
+7.1 Governed by Schedule I (Cancellation Matrix)
+7.2 Droooly reserves the unilateral right to:
+* Process refunds to Customers
+* Recover amounts from Partner payouts
+
+8. CUSTOMER DISPUTES & GRIEVANCE REDRESSAL
+8.1 Droooly shall act as a facilitator and mediator.
+8.2 The Partner shall:
+* Respond within defined SLA timelines
+* Provide documentary evidence when requested
+8.3 Repeated complaints shall result in penalties, suspension, or termination.
+
+9. SERVICE LEVEL AGREEMENT (SLA)
+Governed by Schedule II (SLA Document)
+
+10. HYGIENE & FOOD SAFETY COMPLIANCE
+10.1 The Partner shall strictly comply with:
+* Food Safety laws under the Food Safety and Standards Act, 2006
+* Guidelines issued by the Food Safety and Standards Authority of India (FSSAI)
+10.2 Detailed obligations in Schedule III (Hygiene Checklist)
+
+11. CHEF SERVICES (IN-HOME)
+Applicable where Partner provides in-home services.
+Governed by Schedule IV (Chef Conduct Policy)
+
+12. EXPORT / SHIPPABLE FOOD COMPLIANCE
+Applicable where Partner enables shipping/export.
+Governed by Schedule V
+
+13. PROHIBITED CONDUCT
+The Partner shall not:
+* Circumvent Platform payments
+* Solicit Customers outside Platform
+* Engage in fraudulent activities
+* Violate any Applicable Law
+
+14. SUSPENSION & TERMINATION
+14.1 Suspension (Immediate) for:
+* Failed KYC
+* Customer complaints
+* Fraud suspicion
+14.2 Termination for:
+* Repeated breaches
+* Illegal activities
+* Severe misconduct
+14.3 Droooly may withhold payouts during investigation.
+
+15. INDEMNITY
+The Partner agrees to indemnify and hold harmless Droooly against:
+* Claims arising from food quality, safety, or negligence
+* Legal violations
+* Third-party claims
+
+16. LIMITATION OF LIABILITY
+Droooly shall not be liable for:
+* Indirect or consequential damages
+* Loss of profits
+* Partner negligence
+
+17. FORCE MAJEURE
+Neither Party shall be liable for events beyond reasonable control.
+
+18. GOVERNING LAW & JURISDICTION
+This Agreement shall be governed by Indian laws.Courts at [City – Suggested: Hyderabad] shall have exclusive jurisdiction.
+
+SCHEDULE I – CANCELLATION MATRIX
+Scenario	Time of Cancellation	Refund to Customer	Charge to Partner
+Customer cancels	>24 hrs before	100%	0
+Customer cancels	6–24 hrs	Partial	Minimal
+Customer cancels	<6 hrs	No refund	Full payout to Partner
+Partner cancels	Any time	100%	Penalty + compensation
+Late delivery (>30 min)	NA	Partial refund	Penalty
+Wrong/defective order	NA	Full refund	Full deduction
+SCHEDULE II – SLA DOCUMENT
+Response Time
+* Order acceptance: Within 5–10 minutes
+* Customer queries: Within 30 minutes
+Fulfilment Benchmarks
+* On-time delivery: ≥ 95%
+* Cancellation rate: ≤ 5%
+* Complaint rate: ≤ 3%
+Breach Consequences
+* Warning → Penalty → Suspension → Termination
+
+SCHEDULE III – HYGIENE CHECKLIST (FSSAI-ALIGNED)
+* Valid FSSAI License displayed
+* Use of gloves, hairnets, clean uniforms
+* Clean kitchen & storage conditions
+* Proper food temperature control
+* No expired ingredients
+* Safe packaging
+
+SCHEDULE IV – CHEF CONDUCT POLICY
+* Mandatory ID verification
+* Professional behavior at customer premises
+* No harassment/misconduct
+* No alcohol/drug use
+* Respect privacy and property
+* Immediate exit upon misconduct
+
+SCHEDULE V – EXPORT / SHIPPABLE FOOD COMPLIANCE
+* Compliance with Indian export laws
+* Proper labeling (ingredients, expiry, origin)
+* Packaging as per international standards
+* Customs & duties borne by Customer unless specified
+* No prohibited items
+
+ANNEXURE A – COMMERCIAL TERMS
+* Platform Fee: __%
+* GST: Applicable as per law
+* TDS: As per Section 194-O
+* Payout Cycle: T+1
+
+ACCEPTANCE
+By registering on Droooly, the Partner expressly agrees to this Agreement and all Schedules.

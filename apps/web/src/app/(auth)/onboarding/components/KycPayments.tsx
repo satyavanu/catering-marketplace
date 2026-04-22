@@ -687,11 +687,13 @@ function FileUploadBox({
   onDragDrop,
   isLoading,
   styles,
+  children,
 }: {
   onClick: () => void;
   onDragDrop: (file: File) => void;
   isLoading: boolean;
   styles: { [key: string]: React.CSSProperties };
+  children?: React.ReactNode;
 }) {
   return (
     <div
