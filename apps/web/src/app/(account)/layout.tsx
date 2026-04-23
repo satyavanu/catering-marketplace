@@ -28,12 +28,14 @@ import {
   ArrowPathIcon,
   SwapIcon,
 } from '@heroicons/react/24/outline';
+import { handleLogout } from "@catering-marketplace/auth"
 
 interface MenuItem {
   name: string;
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   color: string;
   path: string;
+  badge?: string;
 }
 
 type UserRole = 'customer' | 'caterer' | 'admin';
@@ -124,18 +126,17 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
       customer: [
         { name: 'Dashboard', icon: HomeIcon, color: 'from-blue-500 to-cyan-500', path: '/customer/dashboard' },
         { name: 'My Quotes', icon: DocumentCheckIcon, color: 'from-green-500 to-emerald-500', path: '/customer/quotes' },
-        { name: 'My Subscriptions', icon: SparklesIcon, color: 'from-orange-500 to-yellow-500', path: '/customer/subscriptions' },
+        { name: 'My Subscriptions', icon: SparklesIcon, color: 'from-orange-500 to-yellow-500', path: '/customer/subscriptions', badge: 'New' },
         { name: 'My Orders', icon: ClipboardDocumentListIcon, color: 'from-purple-500 to-pink-500', path: '/customer/orders' },
+        { name: 'Saved', icon: HeartIcon, color: 'from-red-500 to-pink-500', path: '/customer/saved' },
         { name: 'Profile', icon: UserCircleIcon, color: 'from-pink-500 to-rose-500', path: '/profile' },
       ],
       caterer: [
         { name: 'Dashboard', icon: HomeIcon, color: 'from-blue-500 to-cyan-500', path: '/caterer/dashboard' },
-        { name: 'Requests', icon: DocumentCheckIcon, color: 'from-green-500 to-emerald-500', path: '/caterer/requests' },
+        { name: 'Requests', icon: DocumentCheckIcon, color: 'from-green-500 to-emerald-500', path: '/caterer/requests', badge: '3' },
         { name: 'Orders', icon: ClipboardDocumentListIcon, color: 'from-purple-500 to-pink-500', path: '/caterer/orders' },
-      
         { name: 'Packages', icon: GiftIcon, color: 'from-rose-500 to-pink-500', path: '/caterer/packages' },
-
-        { name: 'Plans', icon: GiftIcon, color: 'from-rose-500 to-pink-500', path: '/caterer/plans' },
+        { name: 'Plans', icon: SparklesIcon, color: 'from-orange-500 to-yellow-500', path: '/caterer/plans' },
         { name: 'Calendar', icon: CalendarDaysIcon, color: 'from-yellow-500 to-amber-500', path: '/caterer/calendar' },
         { name: 'Profile', icon: UserCircleIcon, color: 'from-pink-500 to-rose-500', path: '/profile' },
       ],
@@ -170,6 +171,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
     'My Quotes': ['Home', 'My Quotes'],
     'My Subscriptions': ['Home', 'My Subscriptions'],
     'My Orders': ['Home', 'My Orders'],
+    'Saved': ['Home', 'Saved'],
   };
 
   const handleMenuClick = (item: MenuItem) => {
@@ -222,10 +224,10 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
           position: isMobile && mobileMenuOpen ? 'fixed' : 'relative',
           left: 0,
           top: 0,
-          width: isMobile ? (mobileMenuOpen ? '280px' : '0px') : sidebarOpen ? '280px' : '80px',
+          width: isMobile ? (mobileMenuOpen ? '280px' : '0px') : sidebarOpen ? '260px' : '80px',
           backgroundColor: 'white',
           borderRight: '1px solid #e2e8f0',
-          padding: isMobile ? (mobileMenuOpen ? '24px 16px' : '0px') : '24px 16px',
+          padding: isMobile ? (mobileMenuOpen ? '20px 12px' : '0px') : '20px 12px',
           overflow: 'hidden',
           transition: isMobile ? 'width 0.3s ease, padding 0.3s ease' : 'all 0.3s ease',
           boxShadow: isMobile && mobileMenuOpen ? '0 20px 25px rgba(0, 0, 0, 0.15)' : '0 4px 6px rgba(0, 0, 0, 0.07)',
@@ -236,7 +238,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
           flexDirection: 'column',
         }}
       >
-        {/* Logo & Brand */}
+        {/* Header with Toggle - REMOVED LOGO */}
         <div
           style={{
             marginBottom: '24px',
@@ -251,47 +253,20 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
             flexShrink: 0,
           }}
         >
-          <div
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '12px',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontSize: '24px',
-              fontWeight: 'bold',
-              flexShrink: 0,
-            }}
-          >
-            🍽️
-          </div>
           {(sidebarOpen || (isMobile && mobileMenuOpen)) && (
             <div>
               <h1
                 style={{
-                  fontSize: '18px',
-                  fontWeight: '700',
+                  fontSize: '16px',
+                  fontWeight: '800',
                   color: '#1e293b',
                   margin: 0,
                   whiteSpace: 'nowrap',
+                  letterSpacing: '1px',
                 }}
               >
-                CateringHub
+                Menu
               </h1>
-              <p
-                style={{
-                  fontSize: '11px',
-                  color: '#94a3b8',
-                  margin: '2px 0 0 0',
-                  fontWeight: '500',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {displayRole === 'customer' ? 'Find Events' : 'Your Services'}
-              </p>
             </div>
           )}
           {isMobile && mobileMenuOpen ? (
@@ -321,7 +296,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
               }}
               title="Close menu"
             >
-              <XMarkIcon style={{ width: '24px', height: '24px' }} />
+              <XMarkIcon style={{ width: '20px', height: '20px' }} />
             </button>
           ) : !isMobile ? (
             <button
@@ -351,9 +326,9 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
               title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
             >
               {sidebarOpen ? (
-                <ChevronLeftIcon style={{ width: '20px', height: '20px' }} />
+                <ChevronLeftIcon style={{ width: '18px', height: '18px' }} />
               ) : (
-                <ChevronRightIcon style={{ width: '20px', height: '20px' }} />
+                <ChevronRightIcon style={{ width: '18px', height: '18px' }} />
               )}
             </button>
           ) : null}
@@ -364,7 +339,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
           <div
             style={{
               marginBottom: '20px',
-              padding: '12px',
+              padding: '10px 8px',
               backgroundColor: '#f8fafc',
               borderRadius: '10px',
               border: '1px solid #e2e8f0',
@@ -374,26 +349,26 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
               flexShrink: 0,
             }}
           >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                marginBottom: (sidebarOpen || (isMobile && mobileMenuOpen)) ? '8px' : '0px',
-              }}
-            >
-              <SwapIcon
+            {(sidebarOpen || (isMobile && mobileMenuOpen)) && (
+              <div
                 style={{
-                  width: '14px',
-                  height: '14px',
-                  color: '#667eea',
-                  flexShrink: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  marginBottom: '6px',
                 }}
-              />
-              {(sidebarOpen || (isMobile && mobileMenuOpen)) && (
+              >
+                <SwapIcon
+                  style={{
+                    width: '13px',
+                    height: '13px',
+                    color: '#667eea',
+                    flexShrink: 0,
+                  }}
+                />
                 <span
                   style={{
-                    fontSize: '11px',
+                    fontSize: '10px',
                     fontWeight: '700',
                     color: '#667eea',
                     textTransform: 'uppercase',
@@ -402,15 +377,15 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
                 >
                   Switch Role
                 </span>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Role Buttons */}
             <div
               style={{
                 display: 'flex',
                 gap: '6px',
-                flexDirection: (sidebarOpen || (isMobile && mobileMenuOpen)) ? 'row' : 'column',
+                flexDirection: 'row',
               }}
             >
               {/* Customer Button */}
@@ -425,12 +400,12 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
                   color: displayRole === 'customer' ? '#0c4a6e' : '#64748b',
                   cursor: 'pointer',
                   fontWeight: displayRole === 'customer' ? '700' : '600',
-                  fontSize: '12px',
+                  fontSize: '11px',
                   transition: 'all 0.2s ease',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: (sidebarOpen || (isMobile && mobileMenuOpen)) ? 'center' : 'center',
-                  gap: (sidebarOpen || (isMobile && mobileMenuOpen)) ? '4px' : '0px',
+                  justifyContent: 'center',
+                  gap: '4px',
                   minHeight: '32px',
                 }}
                 onMouseEnter={(e) => {
@@ -463,12 +438,12 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
                   color: displayRole === 'caterer' ? '#92400e' : '#64748b',
                   cursor: 'pointer',
                   fontWeight: displayRole === 'caterer' ? '700' : '600',
-                  fontSize: '12px',
+                  fontSize: '11px',
                   transition: 'all 0.2s ease',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: (sidebarOpen || (isMobile && mobileMenuOpen)) ? 'center' : 'center',
-                  gap: (sidebarOpen || (isMobile && mobileMenuOpen)) ? '4px' : '0px',
+                  justifyContent: 'center',
+                  gap: '4px',
                   minHeight: '32px',
                 }}
                 onMouseEnter={(e) => {
@@ -500,7 +475,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
             marginBottom: '16px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '4px',
+            gap: '6px',
             minHeight: 0,
           }}
         >
@@ -514,16 +489,14 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
                 alignItems: 'center',
                 justifyContent: (sidebarOpen || (isMobile && mobileMenuOpen)) ? 'flex-start' : 'center',
                 gap: '12px',
-                padding: (sidebarOpen || (isMobile && mobileMenuOpen)) ? '10px 12px' : '10px',
-                borderRadius: '8px',
-                border: 'none',
+                padding: (sidebarOpen || (isMobile && mobileMenuOpen)) ? '11px 12px' : '11px',
+                borderRadius: '10px',
+                border: activeMenu === item.name ? '1.5px solid #667eea' : '1.5px solid transparent',
                 cursor: 'pointer',
-                backgroundColor: activeMenu === item.name ? '#f0f4ff' : 'transparent',
-                borderLeft: activeMenu === item.name ? '4px solid #667eea' : '4px solid transparent',
+                backgroundColor: activeMenu === item.name ? '#eef2ff' : 'transparent',
                 transition: 'all 0.2s ease',
-                paddingLeft: activeMenu === item.name ? ((sidebarOpen || (isMobile && mobileMenuOpen)) ? '8px' : '10px') : (sidebarOpen || (isMobile && mobileMenuOpen)) ? '12px' : '10px',
                 position: 'relative',
-                minHeight: '40px',
+                minHeight: '44px',
                 fontSize: '14px',
                 opacity: isMobile && !mobileMenuOpen && !sidebarOpen ? 0 : 1,
                 flexShrink: 0,
@@ -532,167 +505,85 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
               onMouseEnter={(e) => {
                 if (activeMenu !== item.name) {
                   e.currentTarget.style.backgroundColor = '#f8fafc';
+                  e.currentTarget.style.borderColor = '#e2e8f0';
                 }
               }}
               onMouseLeave={(e) => {
                 if (activeMenu !== item.name) {
                   e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.borderColor = 'transparent';
                 }
               }}
             >
-              <item.icon
+              {/* Icon with gradient background - FIXED COLOR */}
+              <div
                 style={{
-                  width: '18px',
-                  height: '18px',
-                  color: activeMenu === item.name ? '#667eea' : '#94a3b8',
-                  transition: 'color 0.2s ease',
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '8px',
+                  background: activeMenu === item.name
+                    ? `linear-gradient(135deg, #667eea 0%, #764ba2 100%)`
+                    : '#f1f5f9',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   flexShrink: 0,
+                  transition: 'all 0.2s ease',
                 }}
-              />
+              >
+                <item.icon
+                  style={{
+                    width: '18px',
+                    height: '18px',
+                    color: activeMenu === item.name ? '#667eea' : '#94a3b8',
+                    transition: 'color 0.2s ease',
+                    flexShrink: 0,
+                    fontWeight: 'bold',
+                    stroke: 'currentColor',
+                    strokeWidth: activeMenu === item.name ? '2.5' : '2',
+                  }}
+                />
+              </div>
+
               {(sidebarOpen || (isMobile && mobileMenuOpen)) && (
-                <>
-                  <span
-                    style={{
-                      fontSize: '13px',
-                      fontWeight: activeMenu === item.name ? '600' : '500',
-                      color: activeMenu === item.name ? '#667eea' : '#475569',
-                      transition: 'color 0.2s ease',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {item.name}
-                  </span>
-                  {activeMenu === item.name && (
-                    <ChevronRightIcon
+                <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span
                       style={{
-                        width: '14px',
-                        height: '14px',
-                        marginLeft: 'auto',
-                        color: '#667eea',
-                        flexShrink: 0,
+                        fontSize: '13px',
+                        fontWeight: activeMenu === item.name ? '600' : '500',
+                        color: activeMenu === item.name ? '#667eea' : '#475569',
+                        transition: 'color 0.2s ease',
+                        whiteSpace: 'nowrap',
                       }}
-                    />
-                  )}
-                </>
+                    >
+                      {item.name}
+                    </span>
+                    {item.badge && (
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: '700',
+                          backgroundColor: '#667eea',
+                          color: 'white',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          minWidth: '20px',
+                          textAlign: 'center',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {item.badge}
+                      </span>
+                    )}
+                  </div>
+                </div>
               )}
             </button>
           ))}
         </nav>
 
-        {/* Bottom Section - Fixed */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-            flexShrink: 0,
-            borderTop: '1px solid #e2e8f0',
-            paddingTop: '16px',
-            opacity: isMobile && !mobileMenuOpen && !sidebarOpen ? 0 : 1,
-            transition: 'opacity 0.3s ease',
-          }}
-        >
-          {/* Help Card */}
-          <div
-            style={{
-              backgroundImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              borderRadius: '10px',
-              padding: (sidebarOpen || (isMobile && mobileMenuOpen)) ? '14px' : '10px',
-              color: 'white',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: (sidebarOpen || (isMobile && mobileMenuOpen)) ? 'flex-start' : 'center',
-              transition: 'all 0.3s ease',
-            }}
-          >
-            {(sidebarOpen || (isMobile && mobileMenuOpen)) ? (
-              <>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    marginBottom: '8px',
-                  }}
-                >
-                  <SparklesIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} />
-                  <p style={{ fontSize: '12px', fontWeight: '700', margin: 0 }}>Need Help?</p>
-                </div>
-                <p
-                  style={{
-                    fontSize: '11px',
-                    opacity: 0.9,
-                    margin: 0,
-                    lineHeight: '1.4',
-                    marginBottom: '10px',
-                  }}
-                >
-                  24/7 Support Available
-                </p>
-                <button
-                  style={{
-                    width: '100%',
-                    padding: '6px 10px',
-                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                    color: 'white',
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
-                    borderRadius: '6px',
-                    fontSize: '11px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-                  }}
-                >
-                  Contact Support
-                </button>
-              </>
-            ) : (
-              <SparklesIcon style={{ width: '20px', height: '20px', flexShrink: 0 }} title="Need Help?" />
-            )}
-          </div>
-
-          {/* Logout */}
-          <button
-            onClick={handleSignOut}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: (sidebarOpen || (isMobile && mobileMenuOpen)) ? 'flex-start' : 'center',
-              gap: '12px',
-              padding: (sidebarOpen || (isMobile && mobileMenuOpen)) ? '10px 12px' : '10px',
-              borderRadius: '8px',
-              border: '1px solid #e2e8f0',
-              backgroundColor: '#f8fafc',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              fontSize: '13px',
-              fontWeight: '500',
-              color: '#64748b',
-              minHeight: '40px',
-            }}
-            title={(!sidebarOpen && !isMobile) ? 'Sign Out' : undefined}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#fee2e2';
-              e.currentTarget.style.color = '#dc2626';
-              e.currentTarget.style.borderColor = '#fca5a5';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#f8fafc';
-              e.currentTarget.style.color = '#64748b';
-              e.currentTarget.style.borderColor = '#e2e8f0';
-            }}
-          >
-            <ArrowLeftOnRectangleIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} />
-            {(sidebarOpen || (isMobile && mobileMenuOpen)) && 'Sign Out'}
-          </button>
-        </div>
+        {/* Bottom section is now empty - moved to top bar */}
       </aside>
 
       {/* MAIN CONTENT */}
@@ -706,122 +597,210 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
           overflowX: 'hidden',
         }}
       >
-        {/* TOP BAR WITH HAMBURGER - Responsive */}
+        {/* TOP BAR WITH HAMBURGER & ACTIONS - Responsive */}
         <div
           style={{
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
             marginBottom: '24px',
-            gap: '12px',
+            gap: '16px',
             flexShrink: 0,
             flexWrap: 'wrap',
           }}
         >
-          {/* Mobile Hamburger */}
-          {isMobile && (
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '6px',
-                borderRadius: '8px',
-                color: '#64748b',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 0.2s ease',
-                order: -1,
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#f1f5f9';
-                e.currentTarget.style.color = '#667eea';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.color = '#64748b';
-              }}
-              title="Toggle menu"
-            >
-              {mobileMenuOpen ? (
-                <XMarkIcon style={{ width: '24px', height: '24px' }} />
-              ) : (
-                <Bars3Icon style={{ width: '24px', height: '24px' }} />
-              )}
-            </button>
-          )}
-
-          {/* Breadcrumbs */}
+          {/* Left Section - Mobile Hamburger + Breadcrumbs */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
+              gap: '12px',
               flex: '1 1 auto',
               minWidth: '150px',
-              order: 1,
-              overflowX: 'auto',
             }}
           >
-            {breadcrumbs[activeMenu]?.map((crumb, idx) => (
-              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                <button
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: idx === breadcrumbs[activeMenu].length - 1 ? '#667eea' : '#94a3b8',
-                    fontSize: isMobile ? '12px' : '13px',
-                    fontWeight: idx === breadcrumbs[activeMenu].length - 1 ? '600' : '500',
-                    transition: 'all 0.2s ease',
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    whiteSpace: 'nowrap',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (idx !== breadcrumbs[activeMenu].length - 1) {
-                      e.currentTarget.style.backgroundColor = '#f1f5f9';
-                      e.currentTarget.style.color = '#667eea';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (idx !== breadcrumbs[activeMenu].length - 1) {
-                      e.currentTarget.style.backgroundColor = 'transparent';
-                      e.currentTarget.style.color = '#94a3b8';
-                    }
-                  }}
-                >
-                  {crumb}
-                </button>
-                {idx < breadcrumbs[activeMenu].length - 1 && (
-                  <ChevronRightIcon style={{ width: '16px', height: '16px', color: '#cbd5e1', flexShrink: 0 }} />
+            {/* Mobile Hamburger */}
+            {isMobile && (
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '8px',
+                  borderRadius: '8px',
+                  color: '#64748b',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.2s ease',
+                  flexShrink: 0,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f1f5f9';
+                  e.currentTarget.style.color = '#667eea';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.color = '#64748b';
+                }}
+                title="Toggle menu"
+              >
+                {mobileMenuOpen ? (
+                  <XMarkIcon style={{ width: '24px', height: '24px' }} />
+                ) : (
+                  <Bars3Icon style={{ width: '24px', height: '24px' }} />
                 )}
-              </div>
-            ))}
-          </div>
+              </button>
+            )}
 
-          {/* Current Role Badge */}
-          {canSwitchRoles && (
+            {/* Breadcrumbs */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                padding: '6px 12px',
-                backgroundColor: currentRoleBadge.bg,
-                color: currentRoleBadge.color,
-                borderRadius: '20px',
-                fontSize: '12px',
-                fontWeight: '600',
-                flexShrink: 0,
+                flex: '1 1 auto',
+                overflowX: 'auto',
               }}
             >
-              <span>{currentRoleBadge.icon}</span>
-              <span>{currentRoleBadge.label}</span>
+              {breadcrumbs[activeMenu]?.map((crumb, idx) => (
+                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                  <button
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: idx === breadcrumbs[activeMenu].length - 1 ? '#667eea' : '#94a3b8',
+                      fontSize: isMobile ? '12px' : '13px',
+                      fontWeight: idx === breadcrumbs[activeMenu].length - 1 ? '600' : '500',
+                      transition: 'all 0.2s ease',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      whiteSpace: 'nowrap',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (idx !== breadcrumbs[activeMenu].length - 1) {
+                        e.currentTarget.style.backgroundColor = '#f1f5f9';
+                        e.currentTarget.style.color = '#667eea';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (idx !== breadcrumbs[activeMenu].length - 1) {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.color = '#94a3b8';
+                      }
+                    }}
+                  >
+                    {crumb}
+                  </button>
+                  {idx < breadcrumbs[activeMenu].length - 1 && (
+                    <ChevronRightIcon style={{ width: '16px', height: '16px', color: '#cbd5e1', flexShrink: 0 }} />
+                  )}
+                </div>
+              ))}
             </div>
-          )}
+          </div>
+
+          {/* Right Section - Role Badge + Support + Logout */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              flexShrink: 0,
+              flexWrap: 'wrap',
+              justifyContent: 'flex-end',
+            }}
+          >
+            {/* Current Role Badge */}
+            {canSwitchRoles && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '6px 12px',
+                  backgroundColor: currentRoleBadge.bg,
+                  color: currentRoleBadge.color,
+                  borderRadius: '20px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  flexShrink: 0,
+                }}
+              >
+                <span>{currentRoleBadge.icon}</span>
+                <span>{currentRoleBadge.label}</span>
+              </div>
+            )}
+
+            {/* Support Button */}
+            <button
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 14px',
+                borderRadius: '10px',
+                border: '1.5px solid #e2e8f0',
+                backgroundColor: 'white',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                fontSize: '13px',
+                fontWeight: '500',
+                color: '#64748b',
+                minHeight: '40px',
+                whiteSpace: 'nowrap',
+              }}
+              title="24/7 Support"
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f0f9ff';
+                e.currentTarget.style.borderColor = '#667eea';
+                e.currentTarget.style.color = '#667eea';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'white';
+                e.currentTarget.style.borderColor = '#e2e8f0';
+                e.currentTarget.style.color = '#64748b';
+              }}
+            >
+              <SparklesIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} />
+              <span>Support</span>
+            </button>
+
+            {/* Logout Button */}
+            <button
+              onClick={handleSignOut}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 14px',
+                borderRadius: '10px',
+                border: '1.5px solid #fee2e2',
+                backgroundColor: 'white',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                fontSize: '13px',
+                fontWeight: '500',
+                color: '#dc2626',
+                minHeight: '40px',
+                whiteSpace: 'nowrap',
+              }}
+              title="Sign Out"
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#fee2e2';
+                e.currentTarget.style.borderColor = '#dc2626';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'white';
+                e.currentTarget.style.borderColor = '#fee2e2';
+              }}
+            >
+              <ArrowLeftOnRectangleIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} />
+              <span>Logout</span>
+            </button>
+          </div>
         </div>
 
         {/* CONTENT AREA */}
