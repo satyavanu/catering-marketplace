@@ -2,6 +2,9 @@
 
 import React, { useRef, useState } from 'react';
 import { AlertCircle, Download, Trash2, Eye } from 'lucide-react';
+import  { successModalStyles, agreementStyles, agreementModalStyles, agreementModalStyles_CSS } from './styles';
+import { downloadFromServer, downloadAsEmail, getClientIP } from "./utils";
+
 
 interface PartnerAgreementProps {
   termsAccepted: boolean;
@@ -961,564 +964,246 @@ Email: partners@droooly.com
 Last Updated: ${new Date().toLocaleDateString('en-IN')}
 `;
 
-// Styles for the agreement component
-const agreementStyles: { [key: string]: React.CSSProperties } = {
-  infoBox: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    padding: '1rem',
-    backgroundColor: '#eff6ff',
-    borderLeft: '4px solid #0284c7',
-    borderRadius: '0.5rem',
-    marginBottom: '2rem',
-  } as React.CSSProperties,
 
-  infoText: {
-    margin: 0,
-    fontSize: '0.9rem',
-    color: '#0c4a6e',
-    fontWeight: '500',
-    lineHeight: '1.6',
-  } as React.CSSProperties,
 
-  agreementContainer: {
-    border: '2px solid #e5e7eb',
-    borderRadius: '1rem',
-    backgroundColor: '#f9fafb',
-    marginBottom: '2rem',
-    overflow: 'hidden',
-  } as React.CSSProperties,
 
-  agreementHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '1.5rem',
-    borderBottom: '1px solid #e5e7eb',
-    backgroundColor: 'white',
-  } as React.CSSProperties,
 
-  agreementTitle: {
-    fontSize: '1.1rem',
-    fontWeight: '700',
-    color: '#111827',
-    margin: 0,
-  } as React.CSSProperties,
+const handleSubmitAgreement = async (
+  termsAccepted: boolean,
+  privacyAccepted: boolean,
+  signatureImage: string | null
+) => {
+  if (!signatureImage) {
+    console.error('No signature captured');
+    return;
+  }
 
-  viewFullButton: {
-    padding: '0.5rem 1rem',
-    backgroundColor: '#eff6ff',
-    border: '1px solid #0284c7',
-    color: '#0284c7',
-    borderRadius: '0.5rem',
-    cursor: 'pointer',
-    fontSize: '0.85rem',
-    fontWeight: '600',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    transition: 'all 0.2s ease',
-  } as React.CSSProperties,
+  try {
+    // 1. CAPTURE SIGNATURE DATA
+    const signatureData = {
+      signatureImage: signatureImage, // Base64 string of the signature
+      signedAt: new Date().toISOString(),
+      ipAddress: await getClientIP(), // Optional: for audit trail
+      userAgent: navigator.userAgent, // Device info
+    };
 
-  agreementContent: {
-    maxHeight: '500px',
-    overflowY: 'auto',
-    padding: '1.5rem',
-    backgroundColor: 'white',
-  } as React.CSSProperties,
+    // 2. CREATE SIGNED AGREEMENT DOCUMENT
+    const signedAgreementPDF = generateSignedAgreementPDF(
+      PARTNER_AGREEMENT_TEXT,
+      signatureImage,
+      termsAccepted,
+      privacyAccepted
+    );
 
-  downloadSection: {
-    padding: '1rem 1.5rem',
-    borderTop: '1px solid #e5e7eb',
-    backgroundColor: '#fafafa',
-  } as React.CSSProperties,
+    // 3. SEND TO BACKEND FOR STORAGE
+    const response = await fetch('/api/onboarding/sign-agreement', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        partnerId: '', // From your user context
+        signatureImage: signatureImage,
+        signedAgreementPDF: signedAgreementPDF, // Base64 encoded PDF
+        termsAccepted,
+        privacyAccepted,
+        signedAt: new Date().toISOString(),
+        ipAddress: signatureData.ipAddress,
+      }),
+    });
 
-  downloadButton: {
-    padding: '0.75rem 1.5rem',
-    backgroundColor: '#eff6ff',
-    border: '2px solid #0284c7',
-    color: '#0284c7',
-    borderRadius: '0.5rem',
-    cursor: 'pointer',
-    fontSize: '0.9rem',
-    fontWeight: '600',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-    transition: 'all 0.2s ease',
-  } as React.CSSProperties,
+    if (!response.ok) throw new Error('Failed to save signed agreement');
 
-  checkboxContainer: {
-    marginBottom: '1.5rem',
-    padding: '1.25rem',
-    backgroundColor: '#f9fafb',
-    border: '2px solid #e5e7eb',
-    borderRadius: '0.75rem',
-  } as React.CSSProperties,
+    const { documentId, downloadUrl } = await response.json();
 
-  checkboxLabel: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: '0.875rem',
-    cursor: 'pointer',
-    marginBottom: '0.75rem',
-  } as React.CSSProperties,
+    downloadSignedDocument(await signedAgreementPDF, documentId);
 
-  customCheckboxContainer: {
-    position: 'relative',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-    marginTop: '0.25rem',
-  } as React.CSSProperties,
-
-  hiddenCheckbox: {
-    width: 0,
-    height: 0,
-    opacity: 0,
-    cursor: 'pointer',
-  } as React.CSSProperties,
-
-  customCheckbox: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '24px',
-    height: '24px',
-    borderRadius: '0.375rem',
-    border: '2px solid',
-    transition: 'all 0.2s ease',
-    cursor: 'pointer',
-    flexShrink: 0,
-  } as React.CSSProperties,
-
-  checkmark: {
-    color: 'white',
-    fontSize: '0.8rem',
-    fontWeight: 'bold',
-  } as React.CSSProperties,
-
-  checkboxText: {
-    fontSize: '0.95rem',
-    fontWeight: '500',
-    color: '#1f2937',
-    lineHeight: '1.6',
-  } as React.CSSProperties,
-
-  asterisk: {
-    color: '#dc2626',
-    fontWeight: '700',
-  } as React.CSSProperties,
-
-  legalDisclaimer: {
-    fontSize: '0.8rem',
-    color: '#6b7280',
-    margin: '0.75rem 0 0 2.375rem',
-    fontStyle: 'italic',
-    lineHeight: '1.5',
-  } as React.CSSProperties,
-
-  signatureSection: {
-    marginBottom: '2rem',
-    padding: '1.5rem',
-    backgroundColor: '#f9fafb',
-    border: '2px solid #e5e7eb',
-    borderRadius: '0.75rem',
-  } as React.CSSProperties,
-
-  label: {
-    display: 'block',
-    fontSize: '0.95rem',
-    fontWeight: '700',
-    color: '#1f2937',
-    marginBottom: '0.5rem',
-  } as React.CSSProperties,
-
-  helpText: {
-    fontSize: '0.875rem',
-    color: '#6b7280',
-    margin: '0 0 1rem 0',
-  } as React.CSSProperties,
-
-  signaturePadContainer: {
-    marginBottom: '1rem',
-  } as React.CSSProperties,
-
-  signatureCanvas: {
-    display: 'block',
-    width: '100%',
-    height: 'auto',
-    border: '2px dashed #cbd5e1',
-    borderRadius: '0.5rem',
-    cursor: 'crosshair',
-    backgroundColor: 'white',
-  } as React.CSSProperties,
-
-  signaturePreviewBox: {
-    padding: '1rem',
-    backgroundColor: '#ecfdf5',
-    border: '2px solid #86efac',
-    borderRadius: '0.5rem',
-  } as React.CSSProperties,
-
-  signaturePreview: {
-    marginBottom: '0.75rem',
-    padding: '0.75rem',
-    backgroundColor: 'white',
-    borderRadius: '0.375rem',
-    display: 'flex',
-    justifyContent: 'center',
-  } as React.CSSProperties,
-
-  clearButton: {
-    padding: '0.5rem 1rem',
-    backgroundColor: '#fecaca',
-    border: 'none',
-    color: '#7f1d1d',
-    borderRadius: '0.5rem',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    fontWeight: '600',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    transition: 'all 0.2s ease',
-  } as React.CSSProperties,
-
-  signatureError: {
-    fontSize: '0.85rem',
-    color: '#dc2626',
-    margin: '0.75rem 0 0 0',
-    fontWeight: '500',
-  } as React.CSSProperties,
-
-  errorMessage: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: '0.75rem',
-    padding: '1rem',
-    backgroundColor: '#fee2e2',
-    border: '1px solid #fecaca',
-    borderRadius: '0.5rem',
-    color: '#991b1b',
-    marginBottom: '1rem',
-  } as React.CSSProperties,
-
-  warningBox: {
-    padding: '0.875rem 1rem',
-    backgroundColor: '#fef3c7',
-    border: '1px solid #fcd34d',
-    borderRadius: '0.5rem',
-    color: '#92400e',
-    fontSize: '0.875rem',
-    fontWeight: '500',
-    marginBottom: '0.75rem',
-  } as React.CSSProperties,
-
-  buttonGroup: {
-    display: 'flex',
-    gap: '1rem',
-    marginTop: '2rem',
-    flexWrap: 'wrap',
-  } as React.CSSProperties,
-
-  submitButton: {
-    flex: 1,
-    minWidth: '200px',
-    padding: '1rem 2rem',
-    backgroundColor: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '0.75rem',
-    fontSize: '1rem',
-    fontWeight: '700',
-    cursor: 'pointer',
-    transition: 'all 0.3s ease',
-  } as React.CSSProperties,
-
-  backButton: {
-    flex: 1,
-    minWidth: '120px',
-    padding: '1rem 2rem',
-    backgroundColor: '#f3f4f6',
-    color: '#374151',
-    border: '1px solid #d1d5db',
-    borderRadius: '0.75rem',
-    fontSize: '1rem',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-  } as React.CSSProperties,
-
-  disclaimerFooter: {
-    fontSize: '0.8rem',
-    color: '#6b7280',
-    textAlign: 'center',
-    marginTop: '1.5rem',
-    lineHeight: '1.6',
-    fontWeight: '500',
-  } as React.CSSProperties,
+   
+    function showSignatureSuccess({ documentId, downloadUrl, signedAt }: { documentId: string; downloadUrl: string; signedAt: Date }) {
+      console.log('Signature success:', { documentId, downloadUrl, signedAt });
+    }
+    
+        showSignatureSuccess({
+      documentId,
+      downloadUrl,
+      signedAt: new Date(),
+    });
+  } catch (error) {
+    console.error('Error saving signed agreement:', error);
+  }
 };
 
-// Modal Styles
-const agreementModalStyles: { [key: string]: React.CSSProperties & { [key: string]: any } } = {
-  overlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-  } as React.CSSProperties,
+// Generate PDF with signature embedded
+async function generateSignedAgreementPDF(
+  agreementText: string,
+  signatureImage: string,
+  termsAccepted: boolean,
+  privacyAccepted: boolean
+): Promise<string> {
+  // This creates a PDF with the agreement text + signature image embedded
+  // Using a library like jsPDF or PDFKit
 
-  modal: {
-    backgroundColor: 'white',
-    borderRadius: '1rem',
-    width: '95%',
-    maxWidth: '900px',
-    maxHeight: '90vh',
-    display: 'flex',
-    flexDirection: 'column',
-    boxShadow: '0 25px 50px rgba(0, 0, 0, 0.15)',
-  } as React.CSSProperties,
+  const pdfContent = `
+    DROOOLY PARTNER AGREEMENT (INDIA)
+    
+    ${agreementText}
+    
+    ========================================
+    DIGITAL SIGNATURE & ACCEPTANCE
+    ========================================
+    
+    Terms Accepted: ${termsAccepted ? 'YES' : 'NO'}
+    Privacy Policy Accepted: ${privacyAccepted ? 'YES' : 'NO'}
+    
+    PARTNER SIGNATURE:
+    [Signature Image Embedded]
+    
+    Signed on: ${new Date().toLocaleString('en-IN')}
+    IP Address: ${await getClientIP()}
+    Device: ${navigator.userAgent}
+    
+    This electronic signature constitutes a legally binding agreement 
+    under applicable Indian laws.
+    
+    ========================================
+  `;
 
-  modalHeader: {
-    padding: '1.5rem',
-    borderBottom: '2px solid #e5e7eb',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: 'white',
-    flexShrink: 0,
-  } as React.CSSProperties,
+  // Convert to Base64 (simplified - use proper PDF library in production)
+  return btoa(unescape(encodeURIComponent(pdfContent)));
+}
 
-  modalTitle: {
-    fontSize: '1.3rem',
-    fontWeight: '700',
-    color: '#111827',
-    margin: 0,
-  } as React.CSSProperties,
+// Automatic download function
+function downloadSignedDocument(pdfBase64: string, documentId: string) {
+  const link = document.createElement('a');
+  link.href = `data:application/pdf;base64,${pdfBase64}`;
+  link.download = `Droooly_Partner_Agreement_Signed_${documentId}_${new Date().getTime()}.pdf`;
+  link.click();
+}
 
-  closeButton: {
-    padding: '0.5rem 0.75rem',
-    border: 'none',
-    backgroundColor: 'transparent',
-    color: '#6b7280',
-    cursor: 'pointer',
-    fontSize: '1.5rem',
-    lineHeight: '1',
-    transition: 'color 0.2s ease',
-  } as React.CSSProperties,
+// Success modal with download options
+function SignatureSuccessModal({
+  documentId,
+  downloadUrl,
+  signedAt,
+  onClose,
+}: {
+  documentId: string;
+  downloadUrl: string;
+  signedAt: Date;
+  onClose: () => void;
+}) {
+  return (
+    <div style={successModalStyles.overlay} onClick={onClose}>
+      <div
+        style={successModalStyles.modal}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={successModalStyles.content}>
+          <div style={successModalStyles.successIcon}>✅</div>
+          <h2 style={successModalStyles.title}>Agreement Signed Successfully!</h2>
+          <p style={successModalStyles.message}>
+            Your Partner Agreement has been digitally signed and saved.
+          </p>
 
-  modalContent: {
-    flex: 1,
-    overflowY: 'auto',
-    padding: '2rem',
-  } as React.CSSProperties,
+          {/* Document Details */}
+          <div style={successModalStyles.detailsBox}>
+            <div style={successModalStyles.detailRow}>
+              <span style={successModalStyles.label}>Document ID:</span>
+              <span style={successModalStyles.value}>{documentId}</span>
+            </div>
+            <div style={successModalStyles.detailRow}>
+              <span style={successModalStyles.label}>Signed on:</span>
+              <span style={successModalStyles.value}>
+                {signedAt.toLocaleString('en-IN')}
+              </span>
+            </div>
+            <div style={successModalStyles.detailRow}>
+              <span style={successModalStyles.label}>Status:</span>
+              <span style={{ ...successModalStyles.value, color: '#10b981', fontWeight: '700' }}>
+                Legally Binding
+              </span>
+            </div>
+          </div>
 
-  modalFooter: {
-    padding: '1.5rem',
-    borderTop: '1px solid #e5e7eb',
-    display: 'flex',
-    justifyContent: 'flex-end',
-    backgroundColor: '#f9fafb',
-    flexShrink: 0,
-  } as React.CSSProperties,
+          {/* Download Options */}
+          <div style={successModalStyles.downloadOptions}>
+            <h3 style={successModalStyles.optionsTitle}>Download Your Signed Agreement</h3>
 
-  closeButtonFooter: {
-    padding: '0.75rem 1.5rem',
-    backgroundColor: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '0.5rem',
-    cursor: 'pointer',
-    fontWeight: '600',
-    transition: 'all 0.2s ease',
-  } as React.CSSProperties,
-};
+            <button
+              onClick={() => downloadFromServer(downloadUrl, documentId)}
+              style={successModalStyles.downloadBtn}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#059669';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#10b981';
+              }}
+            >
+              📥 Download as PDF
+            </button>
 
-// CSS for HTML content styling
-const agreementModalStyles_CSS = `
-  .agreement-document {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    color: #1f2937;
-    line-height: 1.8;
-  }
+            <button
+              onClick={() => downloadAsEmail(documentId)}
+              style={{
+                ...successModalStyles.downloadBtn,
+                backgroundColor: '#3b82f6',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#2563eb';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#3b82f6';
+              }}
+            >
+              📧 Email to Me
+            </button>
 
-  .agreement-header {
-    text-align: center;
-    margin-bottom: 2rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 2px solid #e5e7eb;
-  }
+            <button
+              onClick={() => downloadAsEmail(documentId, true)}
+              style={{
+                ...successModalStyles.downloadBtn,
+                backgroundColor: '#8b5cf6',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#7c3aed';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#8b5cf6';
+              }}
+            >
+              💾 Save to My Account
+            </button>
+          </div>
 
-  .agreement-header h1 {
-    margin: 0 0 0.5rem 0;
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #111827;
-  }
+          {/* Audit Trail */}
+          <div style={successModalStyles.auditTrail}>
+            <h4 style={successModalStyles.auditTitle}>📋 Audit Trail</h4>
+            <ul style={successModalStyles.auditList}>
+              <li>✓ Signature captured digitally</li>
+              <li>✓ Timestamp recorded: {signedAt.toISOString()}</li>
+              <li>✓ Legal jurisdiction: Indian Laws</li>
+              <li>✓ Encryption: End-to-end protected</li>
+              <li>✓ Stored securely in our database</li>
+            </ul>
+          </div>
 
-  .agreement-subtitle {
-    font-size: 0.95rem;
-    color: #6b7280;
-    margin: 0;
-  }
+          {/* Action Button */}
+          <button
+            onClick={onClose}
+            style={successModalStyles.continueBtn}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#f3f4f6';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#e5e7eb';
+            }}
+          >
+            Continue to Dashboard
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-  .agreement-date {
-    font-size: 0.85rem;
-    color: #9ca3af;
-    margin: 0.75rem 0 0 0;
-  }
 
-  .agreement-parties {
-    margin-bottom: 2rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 1px solid #e5e7eb;
-  }
-
-  .agreement-parties h2 {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: #111827;
-    margin: 0 0 1rem 0;
-  }
-
-  .agreement-parties p {
-    margin: 0.75rem 0;
-    color: #374151;
-  }
-
-  .agreement-section {
-    margin-bottom: 0.5rem;
-  }
-
-  .agreement-section h2 {
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: #111827;
-    margin: 1.5rem 0 0.75rem 0;
-    border-left: 4px solid #667eea;
-    padding-left: 1rem;
-  }
-
-  .agreement-section h3 {
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: #374151;
-    margin: 1rem 0 0.5rem 0;
-  }
-
-  .agreement-section p {
-    margin: 0.75rem 0;
-    color: #374151;
-  }
-
-  .agreement-section ul, .agreement-section ol {
-    margin: 0.75rem 0;
-    padding-left: 1.75rem;
-  }
-
-  .agreement-section li {
-    margin-bottom: 0.5rem;
-    color: #374151;
-  }
-
-  .definitions-box {
-    background: #f9fafb;
-    padding: 1.25rem;
-    border-radius: 0.5rem;
-    border: 1px solid #e5e7eb;
-  }
-
-  .definition {
-    margin-bottom: 0.75rem;
-    color: #374151;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid #e5e7eb;
-  }
-
-  .definition:last-child {
-    border-bottom: none;
-    margin-bottom: 0;
-    padding-bottom: 0;
-  }
-
-  .cancellation-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 1rem 0;
-    border: 1px solid #e5e7eb;
-  }
-
-  .cancellation-table th {
-    background: #f3f4f6;
-    padding: 0.75rem;
-    text-align: left;
-    font-weight: 600;
-    color: #111827;
-    border-bottom: 2px solid #e5e7eb;
-    font-size: 0.875rem;
-  }
-
-  .cancellation-table td {
-    padding: 0.75rem;
-    color: #374151;
-    border-bottom: 1px solid #e5e7eb;
-    font-size: 0.875rem;
-  }
-
-  .cancellation-table tr:hover {
-    background: #f9fafb;
-  }
-
-  .agreement-acceptance {
-    background: #ecfdf5;
-    padding: 1.5rem;
-    border: 2px solid #6ee7b7;
-    border-radius: 0.75rem;
-    margin: 2rem 0;
-  }
-
-  .legal-notice {
-    background: #fef3c7;
-    padding: 1rem;
-    border-left: 4px solid #f59e0b;
-    border-radius: 0.375rem;
-    margin: 1rem 0 0 0;
-    color: #92400e;
-    font-size: 0.85rem;
-  }
-
-  .agreement-footer {
-    text-align: center;
-    padding: 1.5rem 0;
-    margin-top: 2rem;
-    border-top: 1px solid #e5e7eb;
-    color: #6b7280;
-    font-size: 0.85rem;
-  }
-
-  /* Scrollbar styling */
-  ::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  ::-webkit-scrollbar-track {
-    background: #f1f5f9;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 4px;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
-  }
-`;

@@ -1,474 +1,582 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
-import { AlertCircle, Upload, X, CheckCircle, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react';
 
-interface DocumentUpload {
-  type: string;
-  name: string;
-  file: File | null;
-  metadata: {
-    fileName: string;
-    fileSize: number;
-    fileType: string;
-    uploadedAt: string;
-  } | null;
-  frontFile?: File | null;
-  backFile?: File | null;
-  frontMetadata?: {
-    fileName: string;
-    fileSize: number;
-    fileType: string;
-    uploadedAt: string;
-  } | null;
-  backMetadata?: {
-    fileName: string;
-    fileSize: number;
-    fileType: string;
-    uploadedAt: string;
-  } | null;
+interface KYCFormData {
+  panNumber: string;
+  gstNumber: string;
+  fssaiNumber: string;
+  upiHandle: string;
+  accountHolderName: string;
+  bankAccountNumber: string;
+  bankIfscCode: string;
 }
 
-interface KycPaymentsFormData {
-  documents: {
-    fssaiLicense: DocumentUpload;
-    panCard: DocumentUpload;
-    gstCertificate: DocumentUpload;
-    cancelledCheque: DocumentUpload;
-    businessAddressProof: DocumentUpload;
-    ownerIdentity: DocumentUpload;
-    partnershipDeed?: DocumentUpload;
-  };
-  upiId: string;
+interface ValidationError {
+  field: string;
+  message: string;
 }
 
-interface KycPaymentsProps {
-  upiId: string;
+interface KYCPaymentsProps {
+  formData: KYCFormData;
   isLoading: boolean;
   error: string;
-  onUpiIdChange: (value: string) => void;
-  onSubmit: (formData: KycPaymentsFormData) => Promise<void>;
-  onSkip: () => void;
-  onBack: () => void;
+  onFormDataChange: (formData: KYCFormData) => void;
+  onSubmit: (e: React.FormEvent) => Promise<void>;
   styles: { [key: string]: React.CSSProperties };
 }
 
-const DOCUMENT_CATEGORIES = [
-  {
-    id: 'business',
-    title: 'Business Registration',
-    icon: '🏢',
-    documents: [
-      {
-        id: 'fssaiLicense',
-        name: 'FSSAI License',
-        description: 'Proof of food safety certification',
-        required: true,
-        hasFrontBack: false,
-      },
-      {
-        id: 'gstCertificate',
-        name: 'GST Certificate',
-        description: 'Essential for tax and invoice generation',
-        required: true,
-        hasFrontBack: false,
-      },
-      {
-        id: 'partnershipDeed',
-        name: 'Partnership Deed / CoI',
-        description: 'Only if business is NOT a sole proprietorship',
-        required: false,
-        hasFrontBack: false,
-      },
-    ],
-  },
-  {
-    id: 'financial',
-    title: 'Financial & Banking',
-    icon: '🏦',
-    documents: [
-      {
-        id: 'cancelledCheque',
-        name: 'Cancelled Cheque',
-        description: 'Must match legal name on PAN/GST',
-        required: true,
-        hasFrontBack: false,
-      },
-      {
-        id: 'panCard',
-        name: 'PAN Card',
-        description: 'Individual (proprietors) or Company PAN',
-        required: true,
-        hasFrontBack: true,
-      },
-    ],
-  },
-  {
-    id: 'owner',
-    title: 'Owner & Address',
-    icon: '👤',
-    documents: [
-      {
-        id: 'ownerIdentity',
-        name: "Owner's Identity",
-        description: 'Aadhaar or Voter ID',
-        required: true,
-        hasFrontBack: true,
-      },
-      {
-        id: 'businessAddressProof',
-        name: 'Business Address Proof',
-        description: 'Rent agreement or utility bill',
-        required: true,
-        hasFrontBack: false,
-      },
-    ],
-  },
-];
-
-export default function KycPayments({
-  upiId,
+export default function KYCPayments({
+  formData,
   isLoading,
   error,
-  onUpiIdChange,
+  onFormDataChange,
   onSubmit,
-  onSkip,
-  onBack,
   styles,
-}: KycPaymentsProps) {
-  const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
-  const [expandedCategory, setExpandedCategory] = useState<string>('business');
-  const [selectedDoc, setSelectedDoc] = useState<string | null>(null);
+}: KYCPaymentsProps) {
+  const [localFormData, setLocalFormData] = useState<KYCFormData>(formData);
+  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+  const [showBankDetails, setShowBankDetails] = useState(false);
+  const [fieldTouched, setFieldTouched] = useState<Set<string>>(new Set());
 
-  const [documents, setDocuments] = useState<{ [key: string]: DocumentUpload }>({
-    fssaiLicense: { type: 'fssaiLicense', name: 'FSSAI License', file: null, metadata: null },
-    panCard: {
-      type: 'panCard',
-      name: 'PAN Card',
-      file: null,
-      metadata: null,
-      frontFile: null,
-      backFile: null,
-      frontMetadata: null,
-      backMetadata: null,
-    },
-    gstCertificate: { type: 'gstCertificate', name: 'GST Certificate', file: null, metadata: null },
-    cancelledCheque: { type: 'cancelledCheque', name: 'Cancelled Cheque', file: null, metadata: null },
-    businessAddressProof: {
-      type: 'businessAddressProof',
-      name: 'Business Address Proof',
-      file: null,
-      metadata: null,
-    },
-    ownerIdentity: {
-      type: 'ownerIdentity',
-      name: "Owner's Identity",
-      file: null,
-      metadata: null,
-      frontFile: null,
-      backFile: null,
-      frontMetadata: null,
-      backMetadata: null,
-    },
-    partnershipDeed: { type: 'partnershipDeed', name: 'Partnership Deed', file: null, metadata: null },
-  });
+  // PAN validation regex (Format: AAAPL5055K)
+  const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
 
-  const [fileErrors, setFileErrors] = useState<{ [key: string]: string }>({});
+  // GST validation regex (Format: 27AABPL5055K1Z0)
+  const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9]{1}$/;
 
-  const validateFile = (file: File): { valid: boolean; error?: string } => {
-    const maxSizeKB = 500;
-    const maxSizeBytes = maxSizeKB * 1024;
-    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+  // FSSAI validation (10 digits)
+  const fssaiRegex = /^[0-9]{10}$/;
 
-    if (!allowedTypes.includes(file.type)) {
-      return { valid: false, error: 'Only PDF, JPG, or PNG files are allowed' };
+  // UPI validation (username@bankname or mobile@bankname)
+  const upiRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z]{3,}$/;
+
+  // Bank Account validation (9-18 digits)
+  const accountRegex = /^[0-9]{9,18}$/;
+
+  // IFSC validation (Format: SBIN0001234)
+  const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+
+  // Validate PAN format
+  const validatePAN = (pan: string): boolean => {
+    return panRegex.test(pan.toUpperCase());
+  };
+
+  // Validate GST format
+  const validateGST = (gst: string): boolean => {
+    if (!gst.trim()) return true; // Optional field
+    return gstRegex.test(gst.toUpperCase());
+  };
+
+  // Validate FSSAI format
+  const validateFSSAI = (fssai: string): boolean => {
+    if (!fssai.trim()) return true; // Optional field
+    return fssaiRegex.test(fssai);
+  };
+
+  // Validate UPI format
+  const validateUPI = (upi: string): boolean => {
+    if (!upi.trim()) return true; // Optional field
+    return upiRegex.test(upi.toLowerCase());
+  };
+
+  // Validate Bank Account
+  const validateBankAccount = (account: string): boolean => {
+    return accountRegex.test(account.replace(/\s/g, ''));
+  };
+
+  // Validate IFSC Code
+  const validateIFSC = (ifsc: string): boolean => {
+    return ifscRegex.test(ifsc.toUpperCase());
+  };
+
+  // Validate PAN and Account Holder Name Match
+  const validatePANNameMatch = (pan: string, accountHolder: string): boolean => {
+    // Extract initials from PAN (first 5 characters are name initials)
+    const panInitials = pan.substring(0, 5).toUpperCase();
+    const accountHolderInitials = accountHolder
+      .split(' ')
+      .map((word) => word[0])
+      .join('')
+      .toUpperCase();
+
+    // Check if at least the first 3 characters match
+    return panInitials.substring(0, 3) === accountHolderInitials.substring(0, 3);
+  };
+
+  // Validate all fields
+  const validateForm = (): ValidationError[] => {
+    const errors: ValidationError[] = [];
+
+    // PAN validation (MANDATORY)
+    if (!localFormData.panNumber.trim()) {
+      errors.push({ field: 'panNumber', message: 'PAN Number is required' });
+    } else if (!validatePAN(localFormData.panNumber)) {
+      errors.push({
+        field: 'panNumber',
+        message: 'Invalid PAN format. Expected format: AAAPL5055K',
+      });
     }
 
-    if (file.size > maxSizeBytes) {
-      return { valid: false, error: `File size must be less than ${maxSizeKB}KB` };
+    // GST validation (OPTIONAL)
+    if (localFormData.gstNumber.trim() && !validateGST(localFormData.gstNumber)) {
+      errors.push({
+        field: 'gstNumber',
+        message: 'Invalid GST format. Expected format: 27AABPL5055K1Z0',
+      });
     }
 
-    return { valid: true };
-  };
-
-  const getFileMetadata = (file: File) => ({
-    fileName: file.name,
-    fileSize: file.size,
-    fileType: file.type,
-    uploadedAt: new Date().toISOString(),
-  });
-
-  const handleFileChange = (docId: string, file: File | null, side?: 'front' | 'back') => {
-    if (!file) return;
-
-    const validation = validateFile(file);
-    if (!validation.valid) {
-      setFileErrors((prev) => ({
-        ...prev,
-        [side ? `${docId}-${side}` : docId]: validation.error || '',
-      }));
-      return;
+    // FSSAI validation (OPTIONAL)
+    if (localFormData.fssaiNumber.trim() && !validateFSSAI(localFormData.fssaiNumber)) {
+      errors.push({
+        field: 'fssaiNumber',
+        message: 'Invalid FSSAI format. Expected 10 digits',
+      });
     }
 
-    setFileErrors((prev) => {
-      const newErrors = { ...prev };
-      delete newErrors[side ? `${docId}-${side}` : docId];
-      return newErrors;
-    });
-
-    setDocuments((prev) => {
-      if (side) {
-        return {
-          ...prev,
-          [docId]: {
-            ...prev[docId],
-            [`${side}File`]: file,
-            [`${side}Metadata`]: getFileMetadata(file),
-          },
-        };
-      }
-
-      return {
-        ...prev,
-        [docId]: {
-          ...prev[docId],
-          file,
-          metadata: getFileMetadata(file),
-        },
-      };
-    });
-
-    setSelectedDoc(null);
-  };
-
-  const handleRemoveFile = (docId: string, side?: 'front' | 'back') => {
-    setDocuments((prev) => {
-      if (side) {
-        return {
-          ...prev,
-          [docId]: {
-            ...prev[docId],
-            [`${side}File`]: null,
-            [`${side}Metadata`]: null,
-          },
-        };
-      }
-
-      return {
-        ...prev,
-        [docId]: {
-          ...prev[docId],
-          file: null,
-          metadata: null,
-        },
-      };
-    });
-
-    setFileErrors((prev) => {
-      const newErrors = { ...prev };
-      delete newErrors[side ? `${docId}-${side}` : docId];
-      return newErrors;
-    });
-  };
-
-  // Check required documents
-  const requiredDocsFilled = DOCUMENT_CATEGORIES.flatMap((cat) => cat.documents)
-    .filter((doc) => doc.required)
-    .every((doc) => {
-      const docData = documents[doc.id];
-      if (doc.hasFrontBack) {
-        return docData.frontFile && docData.backFile;
-      }
-      return docData.file;
-    });
-
-  const isFormValid = requiredDocsFilled && upiId.trim().length > 0;
-
-  const getDocumentStatus = (docId: string) => {
-    const doc = DOCUMENT_CATEGORIES.flatMap((cat) => cat.documents).find((d) => d.id === docId);
-    if (!doc) return null;
-
-    const docData = documents[docId];
-
-    if (doc.hasFrontBack) {
-      if (docData.frontFile && docData.backFile) return 'complete';
-      if (docData.frontFile || docData.backFile) return 'partial';
-    } else {
-      if (docData.file) return 'complete';
+    // UPI validation (OPTIONAL)
+    if (localFormData.upiHandle.trim() && !validateUPI(localFormData.upiHandle)) {
+      errors.push({
+        field: 'upiHandle',
+        message: 'Invalid UPI format. Expected format: username@bankname or mobile@bankname',
+      });
     }
 
-    return 'pending';
+    // Bank Details validation (MANDATORY)
+    if (!localFormData.accountHolderName.trim()) {
+      errors.push({ field: 'accountHolderName', message: 'Account Holder Name is required' });
+    }
+
+    if (!localFormData.bankAccountNumber.trim()) {
+      errors.push({ field: 'bankAccountNumber', message: 'Bank Account Number is required' });
+    } else if (!validateBankAccount(localFormData.bankAccountNumber)) {
+      errors.push({
+        field: 'bankAccountNumber',
+        message: 'Invalid account number. Expected 9-18 digits',
+      });
+    }
+
+    if (!localFormData.bankIfscCode.trim()) {
+      errors.push({ field: 'bankIfscCode', message: 'IFSC Code is required' });
+    } else if (!validateIFSC(localFormData.bankIfscCode)) {
+      errors.push({
+        field: 'bankIfscCode',
+        message: 'Invalid IFSC Code. Expected format: SBIN0001234',
+      });
+    }
+
+    // PAN and Account Holder Name Match validation
+    if (
+      localFormData.panNumber.trim() &&
+      localFormData.accountHolderName.trim() &&
+      !validatePANNameMatch(localFormData.panNumber, localFormData.accountHolderName)
+    ) {
+      errors.push({
+        field: 'accountHolderName',
+        message:
+          '⚠️ Account Holder Name must match the PAN. Ensure names align (first 3 characters should match)',
+      });
+    }
+
+    return errors;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Update validation errors whenever form data changes
+  useEffect(() => {
+    if (fieldTouched.size > 0) {
+      setValidationErrors(validateForm());
+    }
+  }, [localFormData, fieldTouched]);
 
-    if (!isFormValid) return;
+  // Pass form data back to parent
+  useEffect(() => {
+    onFormDataChange(localFormData);
+  }, [localFormData, onFormDataChange]);
 
-    const formData: KycPaymentsFormData = {
-      documents: {
-        fssaiLicense: documents.fssaiLicense,
-        panCard: documents.panCard,
-        gstCertificate: documents.gstCertificate,
-        cancelledCheque: documents.cancelledCheque,
-        businessAddressProof: documents.businessAddressProof,
-        ownerIdentity: documents.ownerIdentity,
-        partnershipDeed: documents.partnershipDeed,
-      },
-      upiId,
-    };
-
-    await onSubmit(formData);
+  const handleInputChange = (field: keyof KYCFormData, value: string) => {
+    setLocalFormData((prev) => ({
+      ...prev,
+      [field]: value.toUpperCase(),
+    }));
+    setFieldTouched((prev) => new Set([...prev, field]));
   };
+
+  const getFieldError = (field: string): ValidationError | undefined => {
+    return validationErrors.find((err) => err.field === field);
+  };
+
+  const isFieldValid = (field: string): boolean => {
+    return !getFieldError(field);
+  };
+
+  const isFormValid = validationErrors.length === 0 && fieldTouched.size > 0;
 
   return (
     <>
       <div style={styles.header}>
-        <h1 style={styles.title}>🛡️ KYC & Payments</h1>
+        <h1 style={styles.title}>🏦 KYC & Payment Details</h1>
         <p style={styles.subtitle}>
-          Complete KYC to receive payments. We'll verify your documents to ensure compliance.
+          Verify your identity and set up your bank account for payments
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} style={styles.profileForm}>
-        {/* Info Box */}
-        <div style={styles.infoBox}>
+      <form onSubmit={onSubmit} style={styles.profileForm}>
+        {/* Important Notice */}
+        <div style={kycStyles.noticeBox}>
           <AlertCircle size={20} color="#0284c7" style={{ marginRight: '0.75rem' }} />
-          <p style={{ margin: 0, fontSize: '0.875rem', color: '#0c4a6e' }}>
-            You can skip KYC for now, but you won't receive payments until it's complete. All
-            documents must be clear and match your registered business details.
-          </p>
+          <div>
+            <p style={kycStyles.noticeTitle}>⚠️ Important Information</p>
+            <p style={kycStyles.noticeText}>
+              Your bank details and PAN information must match your registered documents. We
+              verify this during onboarding for security and compliance.
+            </p>
+          </div>
         </div>
 
-        {/* Two Column Layout */}
-        <div style={kycStyles.mainContainer}>
-          {/* Left: Document Categories List */}
-          <div style={kycStyles.categoriesPanel}>
-            <h2 style={kycStyles.panelTitle}>Required Documents</h2>
-            <p style={kycStyles.panelSubtitle}>
-              Upload clear scans or photos (PDF, JPG, PNG - Max 500KB)
-            </p>
-
-            {DOCUMENT_CATEGORIES.map((category) => (
-              <div key={category.id} style={kycStyles.categorySection}>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setExpandedCategory(expandedCategory === category.id ? '' : category.id)
-                  }
-                  style={kycStyles.categoryHeader}
-                >
-                  <span style={kycStyles.categoryIcon}>{category.icon}</span>
-                  <div style={{ flex: 1, textAlign: 'left' }}>
-                    <h3 style={kycStyles.categoryTitle}>{category.title}</h3>
-                    <p style={kycStyles.categoryCount}>
-                      {category.documents.filter((d) => getDocumentStatus(d.id) === 'complete')
-                        .length}/{category.documents.length} uploaded
-                    </p>
-                  </div>
-                  <ChevronDown
-                    size={20}
-                    style={{
-                      transform: expandedCategory === category.id ? 'rotate(180deg)' : 'rotate(0)',
-                      transition: 'transform 0.2s ease',
-                    }}
-                  />
-                </button>
-
-                {expandedCategory === category.id && (
-                  <div style={kycStyles.documentsList}>
-                    {category.documents.map((doc) => {
-                      const status = getDocumentStatus(doc.id);
-                      const isSelected = selectedDoc === doc.id;
-
-                      return (
-                        <button
-                          key={doc.id}
-                          type="button"
-                          onClick={() => setSelectedDoc(isSelected ? null : doc.id)}
-                          style={{
-                            ...kycStyles.documentListItem,
-                            ...(isSelected ? kycStyles.documentListItemSelected : {}),
-                            ...(status === 'complete' ? kycStyles.documentListItemComplete : {}),
-                          }}
-                        >
-                          <div style={kycStyles.documentListInfo}>
-                            <h4 style={kycStyles.documentListName}>
-                              {doc.name}
-                              {doc.required && (
-                                <span style={{ color: '#dc2626', marginLeft: '0.25rem' }}>*</span>
-                              )}
-                            </h4>
-                            <p style={kycStyles.documentListDesc}>{doc.description}</p>
-                            {doc.hasFrontBack && (
-                              <p style={kycStyles.documentListSides}>
-                                Front {documents[doc.id].frontFile ? '✓' : '○'} • Back{' '}
-                                {documents[doc.id].backFile ? '✓' : '○'}
-                              </p>
-                            )}
-                          </div>
-                          {status === 'complete' && (
-                            <CheckCircle size={20} color="#10b981" />
-                          )}
-                          {status === 'partial' && (
-                            <div style={kycStyles.partialIndicator}>⚠️</div>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            ))}
+        {/* Section 1: Tax & Regulatory Details */}
+        <div style={kycStyles.section}>
+          <div style={kycStyles.sectionHeader}>
+            <h2 style={kycStyles.sectionTitle}>📋 Tax & Regulatory Details</h2>
+            <span style={kycStyles.sectionSubtitle}>PAN is mandatory | GST & FSSAI optional</span>
           </div>
 
-          {/* Right: Upload Section */}
-          <div style={kycStyles.uploadPanel}>
-            {selectedDoc ? (
-              <UploadSection
-                docId={selectedDoc}
-                docConfig={DOCUMENT_CATEGORIES.flatMap((cat) => cat.documents).find(
-                  (d) => d.id === selectedDoc
-                )!}
-                docData={documents[selectedDoc]}
-                fileErrors={fileErrors}
-                onFileChange={handleFileChange}
-                onRemoveFile={handleRemoveFile}
-                fileInputRefs={fileInputRefs}
-                isLoading={isLoading}
-                styles={kycStyles}
+          {/* PAN Number (MANDATORY) */}
+          <div style={styles.formGroup}>
+            <label style={styles.label}>
+              PAN Number <span style={kycStyles.mandatory}>*</span>
+            </label>
+            <p style={styles.helpText}>
+              Permanent Account Number (Format: AAAPL5055K) - Required for all partners
+            </p>
+            <div style={kycStyles.inputWrapper}>
+              <input
+                type="text"
+                value={localFormData.panNumber}
+                onChange={(e) => handleInputChange('panNumber', e.target.value)}
+                onBlur={() => setFieldTouched((prev) => new Set([...prev, 'panNumber']))}
+                placeholder="E.g., ABCPL1234K"
+                maxLength={10}
+                style={{
+                  ...styles.input,
+                  borderColor: getFieldError('panNumber')
+                    ? '#dc2626'
+                    : isFieldValid('panNumber') && localFormData.panNumber
+                      ? '#10b981'
+                      : '#d1d5db',
+                }}
+                disabled={isLoading}
               />
-            ) : (
-              <div style={kycStyles.uploadPanelEmpty}>
-                <Upload size={48} color="#d1d5db" />
-                <p style={kycStyles.uploadPanelEmptyText}>Select a document to upload</p>
-              </div>
+              {localFormData.panNumber && isFieldValid('panNumber') && (
+                <CheckCircle size={18} color="#10b981" style={kycStyles.validIcon} />
+              )}
+            </div>
+            {getFieldError('panNumber') && (
+              <p style={kycStyles.errorText}>{getFieldError('panNumber')?.message}</p>
+            )}
+            <p style={kycStyles.infoText}>
+              💡 You can find your PAN on your PAN card or Income Tax return
+            </p>
+          </div>
+
+          {/* GST Number (OPTIONAL) */}
+          <div style={styles.formGroup}>
+            <label style={styles.label}>
+              GST Number <span style={kycStyles.optional}>(Optional)</span>
+            </label>
+            <p style={styles.helpText}>
+              Goods and Services Tax Registration (Format: 27AABPL5055K1Z0)
+            </p>
+            <div style={kycStyles.inputWrapper}>
+              <input
+                type="text"
+                value={localFormData.gstNumber}
+                onChange={(e) => handleInputChange('gstNumber', e.target.value)}
+                onBlur={() => setFieldTouched((prev) => new Set([...prev, 'gstNumber']))}
+                placeholder="E.g., 27ABCPL1234K1Z0"
+                maxLength={15}
+                style={{
+                  ...styles.input,
+                  borderColor: getFieldError('gstNumber')
+                    ? '#dc2626'
+                    : isFieldValid('gstNumber') && localFormData.gstNumber
+                      ? '#10b981'
+                      : '#d1d5db',
+                }}
+                disabled={isLoading}
+              />
+              {localFormData.gstNumber && isFieldValid('gstNumber') && (
+                <CheckCircle size={18} color="#10b981" style={kycStyles.validIcon} />
+              )}
+            </div>
+            {getFieldError('gstNumber') && (
+              <p style={kycStyles.errorText}>{getFieldError('gstNumber')?.message}</p>
+            )}
+            <p style={kycStyles.infoText}>
+              💡 If registered for GST, add your number for faster verification
+            </p>
+          </div>
+
+          {/* FSSAI Number (OPTIONAL) */}
+          <div style={styles.formGroup}>
+            <label style={styles.label}>
+              FSSAI License Number <span style={kycStyles.optional}>(Optional)</span>
+            </label>
+            <p style={styles.helpText}>
+              Food Safety & Standards Authority License (10 digits) - Highly recommended
+            </p>
+            <div style={kycStyles.inputWrapper}>
+              <input
+                type="text"
+                value={localFormData.fssaiNumber}
+                onChange={(e) => handleInputChange('fssaiNumber', e.target.value.replace(/\D/g, ''))}
+                onBlur={() => setFieldTouched((prev) => new Set([...prev, 'fssaiNumber']))}
+                placeholder="E.g., 1234567890"
+                maxLength={10}
+                style={{
+                  ...styles.input,
+                  borderColor: getFieldError('fssaiNumber')
+                    ? '#dc2626'
+                    : isFieldValid('fssaiNumber') && localFormData.fssaiNumber
+                      ? '#10b981'
+                      : '#d1d5db',
+                }}
+                disabled={isLoading}
+              />
+              {localFormData.fssaiNumber && isFieldValid('fssaiNumber') && (
+                <CheckCircle size={18} color="#10b981" style={kycStyles.validIcon} />
+              )}
+            </div>
+            {getFieldError('fssaiNumber') && (
+              <p style={kycStyles.errorText}>{getFieldError('fssaiNumber')?.message}</p>
+            )}
+            <p style={kycStyles.infoText}>
+              💡 FSSAI is mandatory for food businesses. Check your license document
+            </p>
+          </div>
+        </div>
+
+        {/* Section 2: Bank Account Details */}
+        <div style={kycStyles.section}>
+          <div style={kycStyles.sectionHeader}>
+            <h2 style={kycStyles.sectionTitle}>🏦 Bank Account Details</h2>
+            <span style={kycStyles.sectionSubtitle}>
+              All fields mandatory | Must match PAN holder
+            </span>
+          </div>
+
+          {/* Account Holder Name (MANDATORY) */}
+          <div style={styles.formGroup}>
+            <label style={styles.label}>
+              Account Holder Name <span style={kycStyles.mandatory}>*</span>
+            </label>
+            <p style={styles.helpText}>
+              Must match the name on your PAN card and bank account (First 3 characters should
+              match with PAN)
+            </p>
+            <div style={kycStyles.inputWrapper}>
+              <input
+                type="text"
+                value={localFormData.accountHolderName}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/[^a-zA-Z\s]/g, '');
+                  setLocalFormData((prev) => ({
+                    ...prev,
+                    accountHolderName: value,
+                  }));
+                  setFieldTouched((prev) => new Set([...prev, 'accountHolderName']));
+                }}
+                onBlur={() => setFieldTouched((prev) => new Set([...prev, 'accountHolderName']))}
+                placeholder="E.g., Priya Sharma"
+                style={{
+                  ...styles.input,
+                  borderColor: getFieldError('accountHolderName')
+                    ? '#dc2626'
+                    : isFieldValid('accountHolderName') && localFormData.accountHolderName
+                      ? '#10b981'
+                      : '#d1d5db',
+                }}
+                disabled={isLoading}
+              />
+              {localFormData.accountHolderName && isFieldValid('accountHolderName') && (
+                <CheckCircle size={18} color="#10b981" style={kycStyles.validIcon} />
+              )}
+            </div>
+            {getFieldError('accountHolderName') && (
+              <p style={kycStyles.errorText}>{getFieldError('accountHolderName')?.message}</p>
+            )}
+          </div>
+
+          {/* Bank Account Number (MANDATORY) */}
+          <div style={styles.formGroup}>
+            <label style={styles.label}>
+              Bank Account Number <span style={kycStyles.mandatory}>*</span>
+            </label>
+            <p style={styles.helpText}>9–18 digits (without spaces)</p>
+            <div style={kycStyles.inputWrapper}>
+              <input
+                type="text"
+                value={localFormData.bankAccountNumber}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, '');
+                  setLocalFormData((prev) => ({
+                    ...prev,
+                    bankAccountNumber: value,
+                  }));
+                  setFieldTouched((prev) => new Set([...prev, 'bankAccountNumber']));
+                }}
+                onBlur={() =>
+                  setFieldTouched((prev) => new Set([...prev, 'bankAccountNumber']))
+                }
+                placeholder="E.g., 123456789012345"
+                style={{
+                  ...styles.input,
+                  borderColor: getFieldError('bankAccountNumber')
+                    ? '#dc2626'
+                    : isFieldValid('bankAccountNumber') && localFormData.bankAccountNumber
+                      ? '#10b981'
+                      : '#d1d5db',
+                }}
+                disabled={isLoading}
+              />
+              {localFormData.bankAccountNumber && isFieldValid('bankAccountNumber') && (
+                <CheckCircle size={18} color="#10b981" style={kycStyles.validIcon} />
+              )}
+            </div>
+            {getFieldError('bankAccountNumber') && (
+              <p style={kycStyles.errorText}>{getFieldError('bankAccountNumber')?.message}</p>
+            )}
+            <p style={kycStyles.infoText}>
+              💡 Don't share your account number with anyone other than Droooly
+            </p>
+          </div>
+
+          {/* IFSC Code (MANDATORY) */}
+          <div style={styles.formGroup}>
+            <label style={styles.label}>
+              Bank IFSC Code <span style={kycStyles.mandatory}>*</span>
+            </label>
+            <p style={styles.helpText}>
+              Indian Financial System Code (Format: SBIN0001234) - Find on your bank's website
+            </p>
+            <div style={kycStyles.inputWrapper}>
+              <input
+                type="text"
+                value={localFormData.bankIfscCode}
+                onChange={(e) => handleInputChange('bankIfscCode', e.target.value)}
+                onBlur={() => setFieldTouched((prev) => new Set([...prev, 'bankIfscCode']))}
+                placeholder="E.g., SBIN0001234"
+                maxLength={11}
+                style={{
+                  ...styles.input,
+                  borderColor: getFieldError('bankIfscCode')
+                    ? '#dc2626'
+                    : isFieldValid('bankIfscCode') && localFormData.bankIfscCode
+                      ? '#10b981'
+                      : '#d1d5db',
+                }}
+                disabled={isLoading}
+              />
+              {localFormData.bankIfscCode && isFieldValid('bankIfscCode') && (
+                <CheckCircle size={18} color="#10b981" style={kycStyles.validIcon} />
+              )}
+            </div>
+            {getFieldError('bankIfscCode') && (
+              <p style={kycStyles.errorText}>{getFieldError('bankIfscCode')?.message}</p>
             )}
           </div>
         </div>
 
-        {/* UPI Section */}
-        <div style={styles.formSection}>
-          <h2 style={styles.sectionTitle}>Payment Details</h2>
-          <p style={styles.sectionSubtitle}>
-            We'll verify your UPI and set up direct bank transfers for your earnings
-          </p>
+        {/* Section 3: UPI Handle (OPTIONAL) */}
+        <div style={kycStyles.section}>
+          <div style={kycStyles.sectionHeader}>
+            <h2 style={kycStyles.sectionTitle}>📱 UPI Payment Handle</h2>
+            <span style={kycStyles.sectionSubtitle}>Optional - for faster payouts</span>
+          </div>
 
           <div style={styles.formGroup}>
-            <label style={styles.label}>UPI ID *</label>
-            <input
-              type="text"
-              value={upiId}
-              onChange={(e) => onUpiIdChange(e.target.value)}
-              placeholder="e.g., yourname@googleplay or yourname@okhdfcbank"
-              style={styles.input}
-              disabled={isLoading}
-              required
-            />
+            <label style={styles.label}>
+              UPI Handle <span style={kycStyles.optional}>(Optional)</span>
+            </label>
             <p style={styles.helpText}>
-              Your UPI will be used for quick settlements. We'll verify it with a penny drop test.
+              E.g., username@googleplay or 9876543210@paytm (for faster instant transfers)
+            </p>
+            <div style={kycStyles.inputWrapper}>
+              <input
+                type="text"
+                value={localFormData.upiHandle}
+                onChange={(e) => {
+                  const value = e.target.value.toLowerCase();
+                  setLocalFormData((prev) => ({
+                    ...prev,
+                    upiHandle: value,
+                  }));
+                  setFieldTouched((prev) => new Set([...prev, 'upiHandle']));
+                }}
+                onBlur={() => setFieldTouched((prev) => new Set([...prev, 'upiHandle']))}
+                placeholder="E.g., priya123@googleplay"
+                style={{
+                  ...styles.input,
+                  borderColor: getFieldError('upiHandle')
+                    ? '#dc2626'
+                    : isFieldValid('upiHandle') && localFormData.upiHandle
+                      ? '#10b981'
+                      : '#d1d5db',
+                }}
+                disabled={isLoading}
+              />
+              {localFormData.upiHandle && isFieldValid('upiHandle') && (
+                <CheckCircle size={18} color="#10b981" style={kycStyles.validIcon} />
+              )}
+            </div>
+            {getFieldError('upiHandle') && (
+              <p style={kycStyles.errorText}>{getFieldError('upiHandle')?.message}</p>
+            )}
+            <p style={kycStyles.infoText}>
+              💡 We'll use UPI for instant payouts if provided, otherwise bank transfer (T+1)
             </p>
           </div>
+        </div>
+
+        {/* Verification Checklist */}
+        <div style={kycStyles.checklistBox}>
+          <h3 style={kycStyles.checklistTitle}>✓ Verification Checklist</h3>
+          <ul style={kycStyles.checklistItems}>
+            <li style={kycStyles.checklistItem}>
+              <span style={kycStyles.checklistIcon}>
+                {localFormData.panNumber && isFieldValid('panNumber') ? '✓' : '○'}
+              </span>
+              PAN number is valid
+            </li>
+            <li style={kycStyles.checklistItem}>
+              <span style={kycStyles.checklistIcon}>
+                {localFormData.accountHolderName &&
+                localFormData.panNumber &&
+                isFieldValid('accountHolderName')
+                  ? '✓'
+                  : '○'}
+              </span>
+              Account holder name matches PAN
+            </li>
+            <li style={kycStyles.checklistItem}>
+              <span style={kycStyles.checklistIcon}>
+                {localFormData.bankAccountNumber && isFieldValid('bankAccountNumber') ? '✓' : '○'}
+              </span>
+              Valid bank account number
+            </li>
+            <li style={kycStyles.checklistItem}>
+              <span style={kycStyles.checklistIcon}>
+                {localFormData.bankIfscCode && isFieldValid('bankIfscCode') ? '✓' : '○'}
+              </span>
+              Valid IFSC code
+            </li>
+            <li style={kycStyles.checklistItem}>
+              <span style={kycStyles.checklistIcon}>
+                {!getFieldError('gstNumber') || !localFormData.gstNumber ? '✓' : '○'}
+              </span>
+              GST verified (if applicable)
+            </li>
+          </ul>
         </div>
 
         {/* Error Message */}
@@ -479,548 +587,179 @@ export default function KycPayments({
           </div>
         )}
 
-        {/* Validation Error */}
-        {!requiredDocsFilled && (
-          <div style={kycStyles.warningMessage}>
-            <AlertCircle size={18} style={{ marginRight: '0.5rem' }} />
-            Please upload all required documents (marked with *)
-          </div>
+        {/* Submit Button */}
+        <button
+          type="submit"
+          disabled={isLoading || !isFormValid}
+          style={{
+            ...styles.submitButton,
+            opacity: isLoading || !isFormValid ? 0.6 : 1,
+            cursor: isLoading || !isFormValid ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {isLoading ? '⏳ Verifying Details...' : '✓ Continue to Agreement'}
+        </button>
+
+        {/* Form Status */}
+        {fieldTouched.size > 0 && !isFormValid && (
+          <p style={kycStyles.formStatus}>
+            ⚠️ Please fill in all mandatory fields and fix validation errors
+          </p>
         )}
-
-        {/* Submit Buttons */}
-        <div style={styles.buttonGroup}>
-          <button
-            type="submit"
-            disabled={isLoading || !isFormValid}
-            style={{
-              ...styles.submitButton,
-              opacity: isLoading || !isFormValid ? 0.6 : 1,
-              cursor: isLoading || !isFormValid ? 'not-allowed' : 'pointer',
-            }}
-            onMouseEnter={(e) => {
-              if (!isLoading && isFormValid) {
-                e.currentTarget.style.backgroundColor = '#ea580c';
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#f97316';
-            }}
-          >
-            {isLoading ? 'Uploading...' : 'Complete KYC'}
-          </button>
-
-          <button
-            type="button"
-            onClick={onSkip}
-            disabled={isLoading}
-            style={styles.skipButton}
-          >
-            Skip for Now
-          </button>
-
-          <button
-            type="button"
-            onClick={onBack}
-            disabled={isLoading}
-            style={styles.backButton}
-          >
-            Back
-          </button>
-        </div>
       </form>
     </>
   );
 }
 
-// Separate Upload Section Component
-interface UploadSectionProps {
-  docId: string;
-  docConfig: any;
-  docData: DocumentUpload;
-  fileErrors: { [key: string]: string };
-  onFileChange: (docId: string, file: File | null, side?: 'front' | 'back') => void;
-  onRemoveFile: (docId: string, side?: 'front' | 'back') => void;
-  fileInputRefs: React.MutableRefObject<{ [key: string]: HTMLInputElement | null }>;
-  isLoading: boolean;
-  styles: { [key: string]: React.CSSProperties };
-}
-
-function UploadSection({
-  docId,
-  docConfig,
-  docData,
-  fileErrors,
-  onFileChange,
-  onRemoveFile,
-  fileInputRefs,
-  isLoading,
-  styles,
-}: UploadSectionProps) {
-  return (
-    <div style={styles.uploadSectionContent}>
-      <div style={styles.uploadHeader}>
-        <h3 style={styles.uploadTitle}>{docConfig.name}</h3>
-        <p style={styles.uploadDesc}>{docConfig.description}</p>
-      </div>
-
-      {/* Single File */}
-      {!docConfig.hasFrontBack && (
-        <div style={styles.uploadContainer}>
-          {!docData.file ? (
-            <FileUploadBox
-              onClick={() => fileInputRefs.current[docId]?.click()}
-              onDragDrop={(file) => onFileChange(docId, file)}
-              isLoading={isLoading}
-              styles={styles}
-            >
-              <input
-                ref={(el) => {
-                  if (el) fileInputRefs.current[docId] = el;
-                }}
-                type="file"
-                onChange={(e) => onFileChange(docId, e.target.files?.[0] || null)}
-                style={{ display: 'none' }}
-                accept=".pdf,.jpg,.jpeg,.png"
-                disabled={isLoading}
-              />
-            </FileUploadBox>
-          ) : (
-            <FileUploadedItem
-              fileName={docData.metadata?.fileName || ''}
-              fileSize={docData.metadata?.fileSize || 0}
-              onRemove={() => onRemoveFile(docId)}
-            />
-          )}
-
-          {fileErrors[docId] && (
-            <div style={styles.uploadError}>
-              <AlertCircle size={16} />
-              {fileErrors[docId]}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Front & Back */}
-      {docConfig.hasFrontBack && (
-        <div style={styles.frontBackGrid}>
-          {/* Front */}
-          <div>
-            <h4 style={styles.sideTitle}>Front Side</h4>
-            {!docData.frontFile ? (
-              <FileUploadBox
-                onClick={() => fileInputRefs.current[`${docId}-front`]?.click()}
-                onDragDrop={(file) => onFileChange(docId, file, 'front')}
-                isLoading={isLoading}
-                styles={styles}
-              >
-                <input
-                  ref={(el) => {
-                    if (el) fileInputRefs.current[`${docId}-front`] = el;
-                  }}
-                  type="file"
-                  onChange={(e) => onFileChange(docId, e.target.files?.[0] || null, 'front')}
-                  style={{ display: 'none' }}
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  disabled={isLoading}
-                />
-              </FileUploadBox>
-            ) : (
-              <FileUploadedItem
-                fileName={docData.frontMetadata?.fileName || ''}
-                fileSize={docData.frontMetadata?.fileSize || 0}
-                onRemove={() => onRemoveFile(docId, 'front')}
-              />
-            )}
-            {fileErrors[`${docId}-front`] && (
-              <div style={styles.uploadError}>
-                <AlertCircle size={16} />
-                {fileErrors[`${docId}-front`]}
-              </div>
-            )}
-          </div>
-
-          {/* Back */}
-          <div>
-            <h4 style={styles.sideTitle}>Back Side</h4>
-            {!docData.backFile ? (
-              <FileUploadBox
-                onClick={() => fileInputRefs.current[`${docId}-back`]?.click()}
-                onDragDrop={(file) => onFileChange(docId, file, 'back')}
-                isLoading={isLoading}
-                styles={styles}
-              >
-                <input
-                  ref={(el) => {
-                    if (el) fileInputRefs.current[`${docId}-back`] = el;
-                  }}
-                  type="file"
-                  onChange={(e) => onFileChange(docId, e.target.files?.[0] || null, 'back')}
-                  style={{ display: 'none' }}
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  disabled={isLoading}
-                />
-              </FileUploadBox>
-            ) : (
-              <FileUploadedItem
-                fileName={docData.backMetadata?.fileName || ''}
-                fileSize={docData.backMetadata?.fileSize || 0}
-                onRemove={() => onRemoveFile(docId, 'back')}
-              />
-            )}
-            {fileErrors[`${docId}-back`] && (
-              <div style={styles.uploadError}>
-                <AlertCircle size={16} />
-                {fileErrors[`${docId}-back`]}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// File Upload Box Component
-function FileUploadBox({
-  onClick,
-  onDragDrop,
-  isLoading,
-  styles,
-  children,
-}: {
-  onClick: () => void;
-  onDragDrop: (file: File) => void;
-  isLoading: boolean;
-  styles: { [key: string]: React.CSSProperties };
-  children?: React.ReactNode;
-}) {
-  return (
-    <div
-      style={styles.fileUploadBox}
-      onClick={onClick}
-      onDragOver={(e) => {
-        e.preventDefault();
-        e.currentTarget.style.backgroundColor = '#f3f4f6';
-        e.currentTarget.style.borderColor = '#667eea';
-      }}
-      onDragLeave={(e) => {
-        e.currentTarget.style.backgroundColor = 'white';
-        e.currentTarget.style.borderColor = '#e5e7eb';
-      }}
-      onDrop={(e) => {
-        e.preventDefault();
-        e.currentTarget.style.backgroundColor = 'white';
-        e.currentTarget.style.borderColor = '#e5e7eb';
-        onDragDrop(e.dataTransfer.files[0]);
-      }}
-    >
-      <Upload size={32} color="#9ca3af" style={{ marginBottom: '0.5rem' }} />
-      <p style={styles.uploadText}>Click to upload or drag and drop</p>
-      <p style={styles.uploadSubtext}>PDF, JPG, PNG (Max 500KB)</p>
-    </div>
-  );
-}
-
-// File Uploaded Item Component
-function FileUploadedItem({
-  fileName,
-  fileSize,
-  onRemove,
-}: {
-  fileName: string;
-  fileSize: number;
-  onRemove: () => void;
-}) {
-  const kycStyles = {
-    fileItem: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      padding: '1rem',
-      backgroundColor: '#f0fdf4',
-      border: '1px solid #86efac',
-      borderRadius: '0.375rem',
-    } as React.CSSProperties,
-  };
-
-  return (
-    <div style={kycStyles.fileItem}>
-      <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-        <CheckCircle size={20} color="#10b981" />
-        <div style={{ marginLeft: '0.75rem' }}>
-          <p style={{ fontSize: '0.95rem', fontWeight: '600', color: '#1f2937', margin: 0 }}>
-            {fileName}
-          </p>
-          <p style={{ fontSize: '0.8rem', color: '#6b7280', margin: '0.25rem 0 0 0' }}>
-            {(fileSize / 1024).toFixed(2)} KB
-          </p>
-        </div>
-      </div>
-      <button
-        type="button"
-        onClick={onRemove}
-        style={{
-          padding: '0.5rem',
-          border: 'none',
-          backgroundColor: '#fee2e2',
-          color: '#dc2626',
-          borderRadius: '0.375rem',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <X size={18} />
-      </button>
-    </div>
-  );
-}
-
-// Styles
-const kycStyles = {
-  mainContainer: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '2rem',
-    marginBottom: '2rem',
-    marginTop: '1.5rem',
-  } as React.CSSProperties,
-
-  categoriesPanel: {
+// KYC Specific Styles
+const kycStyles: { [key: string]: React.CSSProperties } = {
+  noticeBox: {
     display: 'flex',
-    flexDirection: 'column',
+    alignItems: 'flex-start',
     gap: '1rem',
-  } as React.CSSProperties,
-
-  panelTitle: {
-    fontSize: '1.1rem',
-    fontWeight: '700',
-    color: '#1f2937',
-    margin: '0 0 0.5rem 0',
-  } as React.CSSProperties,
-
-  panelSubtitle: {
-    fontSize: '0.875rem',
-    color: '#6b7280',
-    margin: '0 0 1rem 0',
-  } as React.CSSProperties,
-
-  categorySection: {
-    border: '1px solid #e5e7eb',
-    borderRadius: '0.5rem',
-    overflow: 'hidden',
-    backgroundColor: '#fafafa',
-  } as React.CSSProperties,
-
-  categoryHeader: {
-    width: '100%',
-    padding: '1rem',
-    border: 'none',
-    backgroundColor: 'white',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-    transition: 'all 0.2s ease',
-    textAlign: 'left',
-  } as React.CSSProperties,
-
-  categoryIcon: {
-    fontSize: '1.5rem',
-    minWidth: '1.5rem',
-  } as React.CSSProperties,
-
-  categoryTitle: {
-    fontSize: '0.95rem',
-    fontWeight: '600',
-    color: '#1f2937',
-    margin: 0,
-  } as React.CSSProperties,
-
-  categoryCount: {
-    fontSize: '0.75rem',
-    color: '#9ca3af',
-    margin: '0.25rem 0 0 0',
-  } as React.CSSProperties,
-
-  documentsList: {
-    padding: '0.75rem',
-    backgroundColor: 'white',
-    borderTop: '1px solid #e5e7eb',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.5rem',
-  } as React.CSSProperties,
-
-  documentListItem: {
-    padding: '0.75rem 1rem',
-    border: '1px solid #e5e7eb',
-    borderRadius: '0.375rem',
-    backgroundColor: 'white',
-    cursor: 'pointer',
-    textAlign: 'left',
-    transition: 'all 0.2s ease',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: '1rem',
-  } as React.CSSProperties,
-
-  documentListItemSelected: {
+    padding: '1.25rem',
     backgroundColor: '#eff6ff',
-    borderColor: '#667eea',
-    borderWidth: '2px',
+    border: '2px solid #0284c7',
+    borderRadius: '0.75rem',
+    marginBottom: '2rem',
   } as React.CSSProperties,
 
-  documentListItemComplete: {
-    backgroundColor: '#f0fdf4',
-    borderColor: '#86efac',
-  } as React.CSSProperties,
-
-  documentListInfo: {
-    flex: 1,
-  } as React.CSSProperties,
-
-  documentListName: {
-    fontSize: '0.9rem',
-    fontWeight: '600',
-    color: '#1f2937',
+  noticeTitle: {
+    fontSize: '0.95rem',
+    fontWeight: '700',
+    color: '#0c4a6e',
     margin: '0 0 0.25rem 0',
   } as React.CSSProperties,
 
-  documentListDesc: {
-    fontSize: '0.75rem',
-    color: '#6b7280',
+  noticeText: {
+    fontSize: '0.85rem',
+    color: '#0369a1',
+    margin: 0,
+    lineHeight: '1.5',
+  } as React.CSSProperties,
+
+  section: {
+    backgroundColor: '#f9fafb',
+    padding: '1.5rem',
+    borderRadius: '0.75rem',
+    marginBottom: '2rem',
+    border: '1px solid #e5e7eb',
+  } as React.CSSProperties,
+
+  sectionHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: '1.5rem',
+    paddingBottom: '1rem',
+    borderBottom: '2px solid #e5e7eb',
+  } as React.CSSProperties,
+
+  sectionTitle: {
+    fontSize: '1.05rem',
+    fontWeight: '700',
+    color: '#111827',
     margin: 0,
   } as React.CSSProperties,
 
-  documentListSides: {
-    fontSize: '0.7rem',
-    color: '#9ca3af',
-    margin: '0.25rem 0 0 0',
+  sectionSubtitle: {
+    fontSize: '0.75rem',
+    color: '#6b7280',
+    backgroundColor: '#fff3cd',
+    padding: '0.25rem 0.75rem',
+    borderRadius: '0.25rem',
     fontWeight: '500',
   } as React.CSSProperties,
 
-  partialIndicator: {
-    fontSize: '1rem',
-  } as React.CSSProperties,
-
-  uploadPanel: {
-    border: '1px solid #e5e7eb',
-    borderRadius: '0.5rem',
-    backgroundColor: '#fafafa',
-    padding: '2rem',
-    minHeight: '400px',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'center',
-    sticky: 'top',
-    top: '2rem',
-  } as React.CSSProperties,
-
-  uploadPanelEmpty: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '1rem',
-    color: '#9ca3af',
-  } as React.CSSProperties,
-
-  uploadPanelEmptyText: {
-    fontSize: '1rem',
-    color: '#9ca3af',
-    margin: 0,
-  } as React.CSSProperties,
-
-  uploadSectionContent: {
-    width: '100%',
-  } as React.CSSProperties,
-
-  uploadHeader: {
-    marginBottom: '1.5rem',
-  } as React.CSSProperties,
-
-  uploadTitle: {
-    fontSize: '1.05rem',
+  mandatory: {
+    color: '#dc2626',
     fontWeight: '700',
-    color: '#1f2937',
-    margin: '0 0 0.25rem 0',
   } as React.CSSProperties,
 
-  uploadDesc: {
-    fontSize: '0.875rem',
+  optional: {
     color: '#6b7280',
-    margin: 0,
+    fontSize: '0.85rem',
+    fontWeight: '500',
   } as React.CSSProperties,
 
-  uploadContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1rem',
-  } as React.CSSProperties,
-
-  fileUploadBox: {
-    border: '2px dashed #e5e7eb',
-    borderRadius: '0.5rem',
-    padding: '2rem',
-    textAlign: 'center',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    backgroundColor: 'white',
-  } as React.CSSProperties,
-
-  uploadText: {
-    fontSize: '0.95rem',
-    fontWeight: '600',
-    color: '#374151',
-    margin: '0.5rem 0 0.25rem 0',
-  } as React.CSSProperties,
-
-  uploadSubtext: {
-    fontSize: '0.875rem',
-    color: '#9ca3af',
-    margin: 0,
-  } as React.CSSProperties,
-
-  uploadError: {
+  inputWrapper: {
+    position: 'relative',
     display: 'flex',
     alignItems: 'center',
-    gap: '0.5rem',
-    padding: '0.75rem',
-    backgroundColor: '#fee2e2',
-    borderLeft: '4px solid #dc2626',
-    borderRadius: '0.375rem',
-    color: '#991b1b',
-    fontSize: '0.875rem',
   } as React.CSSProperties,
 
-  frontBackGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '1.5rem',
+  validIcon: {
+    position: 'absolute',
+    right: '12px',
+    pointerEvents: 'none',
   } as React.CSSProperties,
 
-  sideTitle: {
+  errorText: {
+    fontSize: '0.8rem',
+    color: '#dc2626',
+    margin: '0.5rem 0 0 0',
+    fontWeight: '500',
+  } as React.CSSProperties,
+
+  infoText: {
+    fontSize: '0.8rem',
+    color: '#0284c7',
+    margin: '0.5rem 0 0 0',
+    fontStyle: 'italic',
+  } as React.CSSProperties,
+
+  checklistBox: {
+    backgroundColor: '#ecfdf5',
+    padding: '1.5rem',
+    borderRadius: '0.75rem',
+    border: '2px solid #6ee7b7',
+    marginBottom: '2rem',
+  } as React.CSSProperties,
+
+  checklistTitle: {
     fontSize: '0.95rem',
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: '0.75rem',
-    margin: '0 0 0.75rem 0',
+    fontWeight: '700',
+    color: '#065f46',
+    margin: '0 0 1rem 0',
   } as React.CSSProperties,
 
-  warningMessage: {
+  checklistItems: {
+    listStyle: 'none',
+    margin: 0,
+    padding: 0,
+  } as React.CSSProperties,
+
+  checklistItem: {
+    fontSize: '0.9rem',
+    color: '#047857',
+    margin: '0.75rem 0',
     display: 'flex',
-    alignItems: 'flex-start',
-    padding: '0.875rem 1rem',
-    backgroundColor: '#fef3c7',
-    borderLeft: '4px solid #f59e0b',
-    borderRadius: '0.375rem',
+    alignItems: 'center',
+    gap: '0.75rem',
+  } as React.CSSProperties,
+
+  checklistIcon: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '20px',
+    height: '20px',
+    backgroundColor: 'white',
+    border: '2px solid #6ee7b7',
+    borderRadius: '50%',
+    fontSize: '0.8rem',
+    fontWeight: '700',
+    color: '#10b981',
+    flexShrink: 0,
+  } as React.CSSProperties,
+
+  formStatus: {
+    fontSize: '0.85rem',
     color: '#92400e',
-    fontSize: '0.875rem',
-    marginBottom: '1rem',
+    backgroundColor: '#fef3c7',
+    padding: '0.75rem 1rem',
+    borderRadius: '0.375rem',
+    border: '1px solid #fcd34d',
+    margin: '1rem 0 0 0',
   } as React.CSSProperties,
 };

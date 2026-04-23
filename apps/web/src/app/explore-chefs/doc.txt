@@ -1,0 +1,436 @@
+# 🍽️ Explore Chefs Page — Product + UX + Flow (Droooly)
+
+This document defines:
+
+* Explore Chefs page layout
+* Filters & data types
+* Chef card design
+* Chef detail page
+* 3 customer booking flows (critical for conversion)
+* Recommended UX decisions
+
+---
+
+# 1. 🧭 Page Goal
+
+**Primary goal:**
+Help users quickly discover and trust chefs → take action (view / enquire / book / order)
+
+**User intents:**
+
+1. “I want food now” → quick order
+2. “I need a chef for event” → compare & enquire
+3. “I want recurring/personal chef” → subscription-style
+
+---
+
+# 2. 📱 Explore Chefs Page Layout
+
+## 🔝 Header Section
+
+* Search bar:
+
+  * 🔍 “Search cuisines, dishes, chefs”
+* Location selector (auto-detected + editable)
+* Quick chips:
+
+  * Home Chef
+  * Catering
+  * Meal Plans
+  * Event Specialist
+
+---
+
+## 🧩 Filter Bar (Sticky Horizontal + Drawer)
+
+### Quick Filters (Top Chips)
+
+* Cuisine 🍛
+* Price 💰
+* Rating ⭐
+* Available Today ⚡
+* Veg / Non-Veg 🥗🍗
+
+---
+
+## 🧰 Advanced Filters (Drawer)
+
+### 1. Chef Type
+
+```ts
+type ChefType = 
+  | "HOME_CHEF"
+  | "CATERER"
+  | "PRIVATE_CHEF"
+  | "MEAL_PLAN_PROVIDER"
+```
+
+---
+
+### 2. Service Style
+
+```ts
+type ServiceStyle =
+  | "DELIVERY"
+  | "LIVE_COOKING"
+  | "ON_SITE"
+  | "PICKUP"
+```
+
+---
+
+### 3. Cuisine
+
+```ts
+type Cuisine =
+  | "North Indian"
+  | "South Indian"
+  | "Chinese"
+  | "Italian"
+  | "Hyderabadi"
+  | "Bakery"
+  | "Healthy"
+```
+
+---
+
+### 4. Budget Range
+
+* ₹100–300
+* ₹300–700
+* ₹700–1500
+* ₹1500+
+
+---
+
+### 5. Event Capacity
+
+```ts
+type CapacityRange =
+  | "1-5"
+  | "5-20"
+  | "20-50"
+  | "50-100"
+  | "100+"
+```
+
+---
+
+### 6. Ratings
+
+* 4.5+
+* 4.0+
+* 3.5+
+
+---
+
+### 7. Dietary Options
+
+* Pure Veg
+* Jain
+* Vegan
+* Gluten Free
+
+---
+
+### 8. Availability
+
+* Today
+* This Weekend
+* Custom Date
+
+---
+
+# 3. 🧾 Chef Card Design (CRITICAL FOR CONVERSION)
+
+## Layout
+
+```
+[Chef Image]
+
+⭐ 4.7 (120 reviews)     📍 3 km
+
+👨‍🍳 Chef Name
+🍛 South Indian | Biryani Specialist
+
+💰 ₹250 / plate   |   ⚡ Available Today
+
+[Tags]
+Home Chef | Delivery | Meal Plans
+
+[CTA Buttons]
+[View Details]   [Quick Order / Enquire]
+```
+
+---
+
+## Data Model
+
+```ts
+type ChefCard = {
+  id: string
+  name: string
+  profileImage: string
+  rating: number
+  reviewsCount: number
+  distanceKm: number
+
+  cuisines: string[]
+  specialties: string[]
+
+  priceStarting: number
+  priceUnit: "per_plate" | "per_day" | "per_event"
+
+  tags: string[]
+
+  isAvailableToday: boolean
+  isVerified: boolean
+}
+```
+
+---
+
+## Smart Badges (High Impact)
+
+* 🔥 “Popular”
+* ⚡ “Available Today”
+* 🏆 “Top Rated”
+* 💸 “Budget Friendly”
+* 🆕 “New”
+
+---
+
+# 4. 📄 Chef Detail Page
+
+## Sections
+
+### 1. Hero Section
+
+* Chef image
+* Name + rating
+* Location
+* CTA:
+
+  * Book Now
+  * Enquire
+  * Order
+
+---
+
+### 2. About Chef
+
+* Experience
+* Specialty dishes
+* Story (trust builder)
+
+---
+
+### 3. Menu / Packages
+
+```ts
+type Package = {
+  title: string
+  price: number
+  serves: number
+  items: string[]
+}
+```
+
+Examples:
+
+* “South Indian Lunch Combo”
+* “Birthday Catering Package”
+
+---
+
+### 4. Services Offered
+
+* Home Delivery
+* Live Cooking
+* Event Catering
+* Meal Plans
+
+---
+
+### 5. Availability Calendar
+
+---
+
+### 6. Reviews
+
+---
+
+### 7. Photos
+
+---
+
+# 5. 🔥 3 CUSTOMER FLOWS (MOST IMPORTANT)
+
+You mentioned confusion — this is the core decision.
+
+---
+
+## FLOW 1: ⚡ Quick Order (Zomato-style)
+
+### Best for:
+
+* Daily food
+* Small orders
+
+### Flow:
+
+```
+Explore → Chef → Menu → Add to Cart → Checkout → Delivery
+```
+
+### Key Features:
+
+* Instant checkout
+* No negotiation
+* Fixed pricing
+
+---
+
+## FLOW 2: 📩 Enquiry / Quote (UrbanClap-style)
+
+### Best for:
+
+* Events
+* Catering
+* Custom needs
+
+### Flow:
+
+```
+Explore → Chef → Click "Enquire"
+
+→ Form:
+  - Event type
+  - Date
+  - Guests
+  - Budget
+
+→ Submit → Chef responds → User confirms → Pay advance
+```
+
+---
+
+## FLOW 3: 🧑‍🍳 Direct Booking (Hybrid Premium Flow)
+
+### Best for:
+
+* Private chefs
+* Meal plans
+
+### Flow:
+
+```
+Explore → Chef → Select Package
+
+→ Choose:
+  - Date
+  - Duration
+  - Guests
+
+→ Pay → Booking confirmed
+```
+
+---
+
+# 6. 🧠 Recommended Strategy (VERY IMPORTANT)
+
+Don’t force one flow.
+
+### Instead:
+
+| Chef Type    | Default Flow |
+| ------------ | ------------ |
+| Home Chef    | Quick Order  |
+| Caterer      | Enquiry      |
+| Private Chef | Booking      |
+| Meal Plans   | Subscription |
+
+---
+
+## Smart CTA Logic
+
+```ts
+if (chef.type === "HOME_CHEF") show("Order Now")
+if (chef.type === "CATERER") show("Get Quote")
+if (chef.type === "PRIVATE_CHEF") show("Book Chef")
+```
+
+---
+
+# 7. 💡 UX Enhancements
+
+## 1. AI Recommendations
+
+* “Based on your taste”
+* “Popular near you”
+
+---
+
+## 2. Sticky CTA Bar (Mobile)
+
+* Always visible:
+
+  * Order
+  * Enquire
+
+---
+
+## 3. Trust Builders
+
+* Verified badge
+* Hygiene certification
+* Repeat customers %
+
+---
+
+## 4. Empty State Handling
+
+* Show:
+
+  * Nearby chefs
+  * Relax filters suggestion
+
+---
+
+# 8. 📊 Conversion Optimization Tips
+
+* Show **starting price clearly**
+* Show **distance**
+* Show **availability**
+* Reduce clicks → fewer steps
+* Use **photos heavily**
+
+---
+
+# 9. 🧱 Tech Considerations
+
+* Pagination or infinite scroll
+* Elastic search (for cuisine + dish)
+* Geo-based sorting
+* Cache popular chefs
+
+---
+
+# 10. 🚀 MVP vs Scale
+
+## MVP:
+
+* Explore page
+* Basic filters
+* Chef card
+* Detail page
+* Enquiry flow
+
+## Phase 2:
+
+* Booking system
+* Payments
+* Subscriptions
+* AI recommendations
+
+---

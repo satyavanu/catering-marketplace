@@ -994,8 +994,9 @@ export default function OnboardingPage() {
             isLoading={isLoading}
             error={error}
             onComplete={handleCompleteOnboarding}
-            styles={styles}
-          />
+            styles={styles} onDownloadAgreement={function (): void {
+              throw new Error('Function not implemented.');
+            } }          />
         </div>
       </div>
     );

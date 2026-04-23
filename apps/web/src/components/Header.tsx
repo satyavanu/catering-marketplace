@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import {
   XMarkIcon,
@@ -46,6 +47,7 @@ const Header = () => {
   const [selectedCity, setSelectedCity] = useState<City | null>(AVAILABLE_CITIES[0]);
   const [citySearchQuery, setCitySearchQuery] = useState('');
   
+  const pathname = usePathname();
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const { data: session, status } = useSession();
 
@@ -53,6 +55,7 @@ const Header = () => {
     { label: 'Home', href: '/' },
     { label: 'Find Caterers', href: '/caterers' },
     { label: 'Meal Plans', href: '/meal-plans' },
+    { label: 'Explore Chefs', href: '/explore-chefs' },
   ];
 
   useEffect(() => {
@@ -85,33 +88,51 @@ const Header = () => {
     setCitySearchQuery('');
   };
 
-  const NavLink = ({ href, label }: { href: string; label: string }) => (
-    <Link
-      href={href}
-      style={{
-        fontSize: '15px',
-        fontWeight: '500',
-        color: 'white',
-        textDecoration: 'none',
-        transition: 'all 0.3s ease',
-        padding: '8px 16px',
-        borderRadius: '6px',
-        display: 'inline-block',
-        position: 'relative',
-        letterSpacing: '0.3px',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)';
-        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.color = 'white';
-        e.currentTarget.style.backgroundColor = 'transparent';
-      }}
-    >
-      {label}
-    </Link>
-  );
+  // Check if a link is active
+  const isLinkActive = (href: string) => {
+    if (href === '/') {
+      return pathname === '/';
+    }
+    return pathname.startsWith(href);
+  };
+
+  const NavLink = ({ href, label }: { href: string; label: string }) => {
+    const active = isLinkActive(href);
+
+    return (
+      <Link
+        href={href}
+        style={{
+          fontSize: '15px',
+          fontWeight: '500',
+          color: active ? 'white' : 'white',
+          textDecoration: 'none',
+          transition: 'all 0.3s ease',
+          padding: '8px 16px',
+          borderRadius: '6px',
+          display: 'inline-block',
+          position: 'relative',
+          letterSpacing: '0.3px',
+          backgroundColor: active ? 'rgba(255, 255, 255, 0.15)' : 'transparent',
+          borderBottom: active ? '2px solid white' : '2px solid transparent',
+        }}
+        onMouseEnter={(e) => {
+          if (!active) {
+            e.currentTarget.style.color = 'rgba(255, 255, 255, 0.9)';
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!active) {
+            e.currentTarget.style.color = 'white';
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }
+        }}
+      >
+        {label}
+      </Link>
+    );
+  };
 
   const CityButton = ({ isMobile = false }: { isMobile?: boolean }) => (
     <button
@@ -941,35 +962,43 @@ const Header = () => {
                 paddingBottom: '8px',
               }}
             >
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  style={{
-                    fontSize: '15px',
-                    fontWeight: '500',
-                    color: 'white',
-                    textDecoration: 'none',
-                    padding: '12px 20px',
-                    borderRadius: '0',
-                    transition: 'all 0.2s ease',
-                    borderLeft: '3px solid transparent',
-                    display: 'block',
-                    letterSpacing: '0.3px',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.15)';
-                    e.currentTarget.style.borderLeftColor = 'rgba(255, 255, 255, 0.5)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                    e.currentTarget.style.borderLeftColor = 'transparent';
-                  }}
-                >
-                  {link.label}
-                </Link>
-              ))}
+              {navLinks.map((link) => {
+                const active = isLinkActive(link.href);
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    style={{
+                      fontSize: '15px',
+                      fontWeight: '500',
+                      color: 'white',
+                      textDecoration: 'none',
+                      padding: '12px 20px',
+                      borderRadius: '0',
+                      transition: 'all 0.2s ease',
+                      borderLeft: active ? '3px solid white' : '3px solid transparent',
+                      display: 'block',
+                      letterSpacing: '0.3px',
+                      backgroundColor: active ? 'rgba(255, 255, 255, 0.15)' : 'transparent',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!active) {
+                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.15)';
+                        e.currentTarget.style.borderLeftColor = 'rgba(255, 255, 255, 0.5)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!active) {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.borderLeftColor = 'transparent';
+                      }
+                    }}
+                  >
+                    {link.label}
+                  </Link>
+                );
+              })}
             </nav>
 
             <div
