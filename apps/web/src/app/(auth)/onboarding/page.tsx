@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
+import { useSession, signIn } from 'next-auth/react';
 import { sendOtpApi, verifyOtpApi } from '@catering-marketplace/query-client';
 import { styles } from './styles';
 import { useOnboardingMasterDataContext } from '@/app/context/OnboardingMasterDataContext';
@@ -26,72 +26,99 @@ type OnboardingStep =
   | 'agreement'
   | 'completion';
 
-type BusinessType = 'home-chef' | 'small-caterer' | 'catering-service';
-type DietType = 'veg' | 'non-veg' | 'both';
-type EventType =
-  | 'weddings'
-  | 'birthdays'
-  | 'corporate'
-  | 'house-parties'
-  | 'anniversaries';
-type CapabilityType =
-  | 'menu-planning'
-  | 'setup-arrangements'
-  | 'professional-staff'
-  | 'equipment'
-  | 'cleanup'
-  | 'beverage-service';
-type VerificationType = 'email' | 'phone';
-
-type MenuItem = {
-  id: string;
-  name: string;
-  price: number;
-  description: string;
-  image?: string;
-  imageFile?: File;
-};
-
-type Package = {
-  id: string;
-  name: string;
-  type: 'fixed' | 'customizable';
-  minGuests: number;
-  maxGuests: number;
-  minPrice: number;
-  maxPrice: number;
-  menuItemIds: string[];
-};
-
-interface ServiceArea {
-  pincode: string;
-  city: string;
-  state: string;
+interface OnboardingFormData {
+  // Step 1: Verification
+  email: string;
+  phone: string;
+  otp: string;
+  
+  // Step 2: Basic Profile
+  fullName: string;
+  businessName: string;
+  businessType: string[];
+  eventsHandled: string[];
+  
+  // Step 3: Business Details
+  yearsInBusiness: string;
+  cuisines: string[];
+  specializations: string[];
+  dietTypes: string[];
+  capacityRange: string;
+  baseCity: string;
+  
+  // Step 4: Service Areas
+  kitchenAddress: string;
+  kitchenPincode: string;
+  canServeEntireCity: boolean;
+  serviceAreas: Array<{ pincode: string; city: string; state: string }>;
+  deliverySettings: {
+    freeDeliveryRadius: number;
+    maxDeliveryDistance: number;
+    extraChargePerKm: number;
+  };
+  
+  // Step 5: KYC & Payments
+  panNumber: string;
+  gstNumber: string;
+  fssaiNumber: string;
+  upiHandle: string;
+  accountHolderName: string;
+  bankAccountNumber: string;
+  bankIfscCode: string;
+  
+  // Step 6: Agreement
+  termsAccepted: boolean;
+  privacyAccepted: boolean;
+  signatureImage: string | null;
 }
 
-interface BankDetails {
-  BANK: string;
-  ADDRESS: string;
-  CENTRE: string;
-  CITY: string;
-  MICR: string;
-  NEFT: boolean;
-  RTGS: boolean;
-  IMPS: boolean;
-  UPI: boolean;
-}
+const DEFAULT_FORM_DATA: OnboardingFormData = {
+  email: '',
+  phone: '',
+  otp: '',
+  fullName: '',
+  businessName: '',
+  businessType: [],
+  eventsHandled: [],
+  yearsInBusiness: '',
+  cuisines: [],
+  specializations: [],
+  dietTypes: [],
+  capacityRange: '',
+  baseCity: '',
+  kitchenAddress: '',
+  kitchenPincode: '',
+  canServeEntireCity: false,
+  serviceAreas: [],
+  deliverySettings: {
+    freeDeliveryRadius: 0,
+    maxDeliveryDistance: 0,
+    extraChargePerKm: 0,
+  },
+  panNumber: '',
+  gstNumber: '',
+  fssaiNumber: '',
+  upiHandle: '',
+  accountHolderName: '',
+  bankAccountNumber: '',
+  bankIfscCode: '',
+  termsAccepted: false,
+  privacyAccepted: false,
+  signatureImage: null,
+};
 
 export default function OnboardingPage() {
   const router = useRouter();
   const { data: session, status, update: updateSession } = useSession();
 
-  // Fetch master data
+  // Master data
   const {
     data: masterData,
     isLoading: isStaticDataLoading,
     error: staticDataError,
   } = useOnboardingMasterDataContext();
 
+  // Global state
   const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [onboardingStep, setOnboardingStep] =
@@ -101,165 +128,20 @@ export default function OnboardingPage() {
   const initialRedirectChecked = useRef(false);
   const ifscTimeoutRef = useRef<NodeJS.Timeout>();
 
-  // Step 1: Phone/Email Verification
-  const [verificationType, setVerificationType] =
-    useState<VerificationType>('phone');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [countryCode, setCountryCode] = useState('+91');
-  const [otp, setOtp] = useState('');
+  // Main unified form data
+  const [formData, setFormData] = useState<OnboardingFormData>(DEFAULT_FORM_DATA);
+
+  // Step 1 specific states
+  const [emailOrPhone, setEmailOrPhone] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
   const [resendCount, setResendCount] = useState(0);
 
-  // Step 2: Basic Profile
-  const [fullName, setFullName] = useState(session?.user?.name || '');
-  const [businessName, setBusinessName] = useState('');
-  const [businessType, setBusinessType] = useState<string[]>([]);
-  const [eventsHandled, setEventsHandled] = useState<string[]>([]);
-
-  // Step 3: Business Details
-  const [yearsInBusiness, setYearsInBusiness] = useState('');
-  const [cuisines, setCuisines] = useState<string[]>([]); // Array of IDs
-  const [specializations, setSpecializations] = useState<string[]>([]); // Array of IDs
-  const [dietTypes, setDietTypes] = useState<string[]>([]); // Array of IDs
-  const [capacityRange, setCapacityRange] = useState(''); // Single selection
-  const [baseCity, setBaseCity] = useState('');
-
-  // Step 4: Capabilities
-  const [selectedCapabilities, setSelectedCapabilities] = useState<string[]>(
-    []
-  );
-
-  // Step 5: Service Areas
-
-  const [kitchenAddress, setKitchenAddress] = useState('');
-  const [kitchenPincode, setKitchenPincode] = useState('');
-  const [canServeEntireCity, setCanServeEntireCity] = useState(false);
-  const [serviceAreas, setServiceAreas] = useState<ServiceArea[]>([]);
-  const [deliverySettings, setDeliverySettings] = useState({
-    freeDeliveryRadius: 0,
-    maxDeliveryDistance: 0,
-    extraChargePerKm: 0,
-  });
-
-  // Step 6: KYC & Payments
-  const [panNumber, setPanNumber] = useState('');
-  const [panFile, setPanFile] = useState<File | null>(null);
-  const [ifscCode, setIfscCode] = useState('');
-  const [accountNumber, setAccountNumber] = useState('');
-  const [accountHolderName, setAccountHolderName] = useState('');
-  const [upiId, setUpiId] = useState('');
-  const [bankDetails, setBankDetails] = useState<BankDetails | null>(null);
+  // Step 5 specific states
+  const [bankDetails, setBankDetails] = useState<any>(null);
   const [isValidatingIFSC, setIsValidatingIFSC] = useState(false);
   const [ifscError, setIfscError] = useState('');
-
-  // Step 7: Menu Setup
-  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-  const [newMenuItem, setNewMenuItem] = useState<Partial<MenuItem>>({
-    name: '',
-    price: 0,
-    description: '',
-  });
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-
-  // Step 8: Packages
-  const [packages, setPackages] = useState<Package[]>([]);
-  const [newPackage, setNewPackage] = useState<Partial<Package>>({
-    name: '',
-    type: 'fixed',
-    minGuests: 10,
-    maxGuests: 100,
-    minPrice: 0,
-    maxPrice: 0,
-    menuItemIds: [],
-  });
-  const [selectedMenuItemsForPackage, setSelectedMenuItemsForPackage] =
-    useState<string[]>([]);
-
-  // Step 9: Partner Agreement
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  const [privacyAccepted, setPrivacyAccepted] = useState(false);
-  const [signaturePad, setSignaturePad] = useState<HTMLCanvasElement | null>(
-    null
-  );
-  const [signatureImage, setSignatureImage] = useState<string | null>(null);
-
-  const onboardingSteps: OnboardingStep[] = [
-    'basic-profile',
-    'business-details',
-    'service-areas',
-    'kyc-payments',
-    'agreement',
-    'completion',
-  ];
-
-  // Utilities
-  const getStepNumber = (): string => {
-    const currentIndex = onboardingSteps.indexOf(onboardingStep);
-    return `${currentIndex + 1} of ${onboardingSteps.length}`;
-  };
-
-  const getProgressPercentage = (): number => {
-    if (onboardingStep === 'phone-verification') return 0;
-    const currentIndex = onboardingSteps.indexOf(onboardingStep);
-    return ((currentIndex + 1) / onboardingSteps.length) * 100;
-  };
-
-  // Helper function to get cities from master data
-  const getCitiesFromMasterData = (): Array<{
-    code: string;
-    name: string;
-    pincodes: string[];
-  }> => {
-    if (!masterData) return [];
-
-    // Build cities from service areas available in master data
-    const citiesSet = new Set<string>();
-    return [
-      {
-        code: 'delhi',
-        name: 'Delhi',
-        pincodes: ['110001', '110002', '110003', '110004', '110005'],
-      },
-      {
-        code: 'mumbai',
-        name: 'Mumbai',
-        pincodes: ['400001', '400002', '400003', '400004', '400005'],
-      },
-      {
-        code: 'bangalore',
-        name: 'Bangalore',
-        pincodes: ['560001', '560002', '560003', '560004', '560005'],
-      },
-      {
-        code: 'hyderabad',
-        name: 'Hyderabad',
-        pincodes: ['500001', '500002', '500003', '500004', '500005'],
-      },
-      {
-        code: 'pune',
-        name: 'Pune',
-        pincodes: ['411001', '411002', '411003', '411004', '411005'],
-      },
-      {
-        code: 'kolkata',
-        name: 'Kolkata',
-        pincodes: ['700001', '700002', '700003', '700004', '700005'],
-      },
-      {
-        code: 'chennai',
-        name: 'Chennai',
-        pincodes: ['600001', '600002', '600003', '600004', '600005'],
-      },
-      {
-        code: 'ahmedabad',
-        name: 'Ahmedabad',
-        pincodes: ['380001', '380002', '380003', '380004', '380005'],
-      },
-    ];
-  };
 
   // Resend timer effect
   useEffect(() => {
@@ -297,45 +179,38 @@ export default function OnboardingPage() {
     }
   }, [status, session, mounted, router]);
 
-  const handleBasicProfileFormDataChange = (formData: {
-    fullName: string;
-    businessName: string;
-    businessType: string[];
-    eventsHandled: string[];
-  }) => {
-    setFullName(formData.fullName);
-    setBusinessName(formData.businessName);
-    setBusinessType(formData.businessType);
-    setEventsHandled(formData.eventsHandled);
+  // Helper: Detect input type (email or phone)
+  const detectInputType = (value: string): 'email' | 'phone' | 'invalid' => {
+    const trimmed = value.trim();
+
+    // Check for email
+    if (trimmed.includes('@') && trimmed.includes('.')) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (emailRegex.test(trimmed)) {
+        return 'email';
+      }
+    }
+
+    // Check for phone (10 digits only for India)
+    const phoneRegex = /^\d{10}$/;
+    if (phoneRegex.test(trimmed.replace(/\D/g, ''))) {
+      return 'phone';
+    }
+
+    return 'invalid';
   };
 
-  // ========== Step 1 Handlers ==========
-  const handleChangeVerificationType = () => {
-    setVerificationType(verificationType === 'email' ? 'phone' : 'email');
-    setPhone('');
-    setEmail('');
-    setOtp('');
-    setOtpSent(false);
-    setError('');
-    setResendTimer(0);
-    setResendCount(0);
-  };
+  // ========== STEP 1: OTP VERIFICATION HANDLERS ==========
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
-    const isEmail = verificationType === 'email';
+    const inputType = detectInputType(emailOrPhone);
 
-    if (isEmail && (!email.includes('@') || !email.includes('.'))) {
-      setError('Please enter a valid email address');
-      setIsLoading(false);
-      return;
-    }
-
-    if (!isEmail && phone.length < 10) {
-      setError('Please enter a valid phone number');
+    if (inputType === 'invalid') {
+      setError('Please enter a valid email address or 10-digit mobile number');
       setIsLoading(false);
       return;
     }
@@ -349,7 +224,11 @@ export default function OnboardingPage() {
     }
 
     try {
-      const payload = isEmail ? { email } : { phone: `${countryCode}${phone}` };
+      const payload =
+        inputType === 'email'
+          ? { email: emailOrPhone.trim() }
+          : { phone: `+91${emailOrPhone.replace(/\D/g, '')}` };
+
       const result = await sendOtpApi(payload);
 
       if (!result.success) {
@@ -365,7 +244,6 @@ export default function OnboardingPage() {
     } catch (err) {
       console.error('Error sending OTP:', err);
       setError('Failed to send OTP. Please try again.');
-    } finally {
       setIsLoading(false);
     }
   };
@@ -375,22 +253,34 @@ export default function OnboardingPage() {
     setError('');
     setIsLoading(true);
 
-    if (!otp || otp.length !== 6) {
+    if (!formData.otp || formData.otp.length !== 6) {
       setError('Please enter a valid 6-digit OTP');
       setIsLoading(false);
       return;
     }
 
+    const inputType = detectInputType(emailOrPhone);
+
+    if (inputType === 'invalid') {
+      setError('Invalid email or phone number');
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const isEmail = verificationType === 'email';
-      const payload = isEmail
-        ? { email, otp }
-        : { phone: `${countryCode}${phone}`, otp };
+      const payload =
+        inputType === 'email'
+          ? { email: emailOrPhone.trim(), otp: formData.otp }
+          : {
+              phone: `+91${emailOrPhone.replace(/\D/g, '')}`,
+              otp: formData.otp,
+            };
 
       const result = await verifyOtpApi(payload);
-      const isVerified = isEmail
-        ? result?.data?.email_verified
-        : result?.data?.phone_verified;
+      const isVerified =
+        inputType === 'email'
+          ? result?.data?.email_verified
+          : result?.data?.phone_verified;
 
       if (!result.success || !isVerified) {
         setError(result.message || 'Invalid OTP. Please try again.');
@@ -398,15 +288,61 @@ export default function OnboardingPage() {
         return;
       }
 
-      setPhoneVerified(true);
-      setOtpSent(false);
-      setOtp('');
-      setError('');
-      setOnboardingStep('basic-profile');
+      // Update formData with verified email/phone
+      const updatedFormData = { ...formData };
+      if (inputType === 'email') {
+        updatedFormData.email = emailOrPhone.trim();
+        updatedFormData.phone = '';
+      } else {
+        updatedFormData.phone = `+91${emailOrPhone.replace(/\D/g, '')}`;
+        updatedFormData.email = '';
+      }
+      updatedFormData.otp = formData.otp;
+      setFormData(updatedFormData);
+
+      // Sign in with NextAuth
+      try {
+        const signInPayload = {
+          ...(inputType === 'email' && { email: emailOrPhone.trim() }),
+          ...(inputType === 'phone' && {
+            phone: `+91${emailOrPhone.replace(/\D/g, '')}`,
+          }),
+          otp: formData.otp,
+          redirect: false,
+        };
+
+        const signInResult = await signIn('otp', signInPayload);
+
+        if (!signInResult?.ok) {
+          setError('Failed to sign in. Please try again.');
+          setIsLoading(false);
+          return;
+        }
+
+        // Update session
+        await updateSession({
+          ...session,
+          user: {
+            ...session?.user,
+            ...(inputType === 'email' && { email: emailOrPhone.trim() }),
+            ...(inputType === 'phone' && {
+              phone: `+91${emailOrPhone.replace(/\D/g, '')}`,
+            }),
+          },
+        });
+
+        setPhoneVerified(true);
+        setOtpSent(false);
+        setError('');
+        setOnboardingStep('basic-profile');
+      } catch (signInError) {
+        console.error('Sign in error:', signInError);
+        setError('Failed to sign in. Please try again.');
+        setIsLoading(false);
+      }
     } catch (err) {
       console.error('Error verifying OTP:', err);
       setError('Failed to verify OTP. Please try again.');
-    } finally {
       setIsLoading(false);
     }
   };
@@ -414,6 +350,14 @@ export default function OnboardingPage() {
   const handleResendOtp = async () => {
     setError('');
     setIsLoading(true);
+
+    const inputType = detectInputType(emailOrPhone);
+
+    if (inputType === 'invalid') {
+      setError('Invalid email or phone number');
+      setIsLoading(false);
+      return;
+    }
 
     if (resendCount >= 3) {
       setError(
@@ -424,8 +368,11 @@ export default function OnboardingPage() {
     }
 
     try {
-      const isEmail = verificationType === 'email';
-      const payload = isEmail ? { email } : { phone: `${countryCode}${phone}` };
+      const payload =
+        inputType === 'email'
+          ? { email: emailOrPhone.trim() }
+          : { phone: `+91${emailOrPhone.replace(/\D/g, '')}` };
+
       const result = await sendOtpApi(payload);
 
       if (!result.success) {
@@ -440,40 +387,47 @@ export default function OnboardingPage() {
     } catch (err) {
       console.error('Error resending OTP:', err);
       setError('Failed to resend OTP. Please try again.');
-    } finally {
       setIsLoading(false);
     }
   };
 
-  // ========== Step 2 Handlers ==========
+  // ========== STEP 2: BASIC PROFILE HANDLERS ==========
+
+  const handleBasicProfileFormDataChange = (data: {
+    fullName: string;
+    businessName: string;
+    businessType: string[];
+    eventsHandled: string[];
+  }) => {
+    setFormData((prev) => ({
+      ...prev,
+      fullName: data.fullName,
+      businessName: data.businessName,
+      businessType: data.businessType,
+      eventsHandled: data.eventsHandled,
+    }));
+  };
+
   const handleBasicProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setIsLoading(true);
 
     if (
-      !fullName.trim() ||
-      !businessName.trim() ||
-      eventsHandled.length === 0
+      !formData.fullName.trim() ||
+      !formData.businessName.trim() ||
+      formData.eventsHandled.length === 0
     ) {
       setError('Please fill in all required fields');
-      setIsLoading(false);
       return;
     }
 
-    try {
-      setOnboardingStep('business-details');
-    } catch (err) {
-      setError('Failed to save profile. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
+    setOnboardingStep('business-details');
   };
 
-  // ========== Step 3 Handlers ==========
+  // ========== STEP 3: BUSINESS DETAILS HANDLERS ==========
 
   const handleBusinessDetailsFormDataChange = (
-    formData: {
+    data: {
       yearsInBusiness: string;
       cuisines: string[];
       specializations: string[];
@@ -483,43 +437,47 @@ export default function OnboardingPage() {
     },
     isValid: boolean
   ) => {
-    setYearsInBusiness(formData.yearsInBusiness);
-    setCuisines(formData.cuisines);
-    setSpecializations(formData.specializations);
-    setDietTypes(formData.dietTypes);
-    setCapacityRange(formData.capacityRange);
-    setBaseCity(formData.baseCity);
+    setFormData((prev) => ({
+      ...prev,
+      yearsInBusiness: data.yearsInBusiness,
+      cuisines: data.cuisines,
+      specializations: data.specializations,
+      dietTypes: data.dietTypes,
+      capacityRange: data.capacityRange,
+      baseCity: data.baseCity,
+    }));
 
     if (isValid) {
       setOnboardingStep('service-areas');
     }
   };
 
+  // ========== STEP 4: SERVICE AREAS HANDLERS ==========
 
-  interface ServiceAreasFormData {
+  const handleServiceAreasSubmit = async (data: {
     kitchenAddress: string;
     kitchenPincode: string;
     canServeEntireCity: boolean;
-    serviceAreas: ServiceArea[];
+    serviceAreas: Array<{ pincode: string; city: string; state: string }>;
     deliverySettings: {
       freeDeliveryRadius: number;
       maxDeliveryDistance: number;
       extraChargePerKm: number;
     };
-  }
-
-  const handleServiceAreasSubmit = async (formData: ServiceAreasFormData) => {
+  }) => {
     setError('');
     setIsLoading(true);
 
     try {
-      // Update local state with the form data
-      setServiceAreas(formData.serviceAreas);
+      setFormData((prev) => ({
+        ...prev,
+        kitchenAddress: data.kitchenAddress,
+        kitchenPincode: data.kitchenPincode,
+        canServeEntireCity: data.canServeEntireCity,
+        serviceAreas: data.serviceAreas,
+        deliverySettings: data.deliverySettings,
+      }));
 
-      // You can add API call here later to save to backend
-      // const response = await saveServiceAreasApi(formData);
-
-      // Move to next step
       setOnboardingStep('kyc-payments');
     } catch (err) {
       console.error('Error saving service areas:', err);
@@ -529,67 +487,27 @@ export default function OnboardingPage() {
     }
   };
 
-  // ========== Step 6 Handlers ==========
-  const fetchIFSCDetails = async (code: string) => {
-    if (!code || code.length < 4) {
-      setBankDetails(null);
-      setIfscError('');
-      return;
-    }
+  // ========== STEP 5: KYC PAYMENTS HANDLERS ==========
 
-    setIsValidatingIFSC(true);
-    setIfscError('');
-
-    if (ifscTimeoutRef.current) {
-      clearTimeout(ifscTimeoutRef.current);
-    }
-
-    try {
-      const response = await fetch(
-        `https://ifsc.razorpay.com/${code.toUpperCase()}`
-      );
-
-      if (!response.ok) {
-        setIfscError('IFSC code not found. Please check and try again.');
-        setBankDetails(null);
-        setIsValidatingIFSC(false);
-        return;
-      }
-
-      const data: BankDetails = await response.json();
-
-      if (data.BANK && data.CENTRE && data.CITY) {
-        setBankDetails(data);
-        setIfscError('');
-      } else {
-        setIfscError('Invalid IFSC code response. Please try again.');
-        setBankDetails(null);
-      }
-    } catch (err) {
-      console.error('Error fetching IFSC details:', err);
-      setIfscError('Failed to validate IFSC code. Please try again.');
-      setBankDetails(null);
-    } finally {
-      setIsValidatingIFSC(false);
-    }
-  };
-
-  const handleIfscChange = (value: string) => {
-    const uppercaseValue = value.toUpperCase();
-    setIfscCode(uppercaseValue);
-
-    if (ifscTimeoutRef.current) {
-      clearTimeout(ifscTimeoutRef.current);
-    }
-
-    if (uppercaseValue.length >= 4) {
-      ifscTimeoutRef.current = setTimeout(() => {
-        fetchIFSCDetails(uppercaseValue);
-      }, 500);
-    } else {
-      setBankDetails(null);
-      setIfscError('');
-    }
+  const handleKycFormDataChange = (data: {
+    panNumber?: string;
+    gstNumber?: string;
+    fssaiNumber?: string;
+    upiHandle?: string;
+    accountHolderName?: string;
+    bankAccountNumber?: string;
+    bankIfscCode?: string;
+  }) => {
+    setFormData((prev) => ({
+      ...prev,
+      panNumber: data.panNumber || prev.panNumber,
+      gstNumber: data.gstNumber || prev.gstNumber,
+      fssaiNumber: data.fssaiNumber || prev.fssaiNumber,
+      upiHandle: data.upiHandle || prev.upiHandle,
+      accountHolderName: data.accountHolderName || prev.accountHolderName,
+      bankAccountNumber: data.bankAccountNumber || prev.bankAccountNumber,
+      bankIfscCode: data.bankIfscCode || prev.bankIfscCode,
+    }));
   };
 
   const handleKycSubmit = async (e: React.FormEvent) => {
@@ -597,7 +515,7 @@ export default function OnboardingPage() {
     setError('');
     setIsLoading(true);
 
-    if (!panNumber.trim() && !upiId.trim()) {
+    if (!formData.panNumber?.trim() && !formData.upiHandle?.trim()) {
       setError('Please provide either PAN number or UPI ID');
       setIsLoading(false);
       return;
@@ -612,32 +530,30 @@ export default function OnboardingPage() {
     }
   };
 
-  const handleKycSkip = () => {
-    setOnboardingStep('agreement');
-  };
+  // ========== STEP 6: AGREEMENT HANDLERS ==========
 
-  // ========== Step 9 Handlers ==========
-  const handleSignatureDraw = (canvas: HTMLCanvasElement) => {
-    const imageData = canvas.toDataURL('image/png');
-    setSignatureImage(imageData);
-  };
-
-  const handleSignatureClear = () => {
-    setSignatureImage(null);
-  };
-
-  const handleAgreementSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAgreementSubmit = async (data: {
+    termsAccepted: boolean;
+    privacyAccepted: boolean;
+    signatureImage: string | null;
+  }) => {
     setError('');
     setIsLoading(true);
 
-    if (!termsAccepted || !privacyAccepted || !signatureImage) {
+    if (!data.termsAccepted || !data.privacyAccepted || !data.signatureImage) {
       setError('Please accept all terms and provide your signature');
       setIsLoading(false);
       return;
     }
 
     try {
+      setFormData((prev) => ({
+        ...prev,
+        termsAccepted: data.termsAccepted,
+        privacyAccepted: data.privacyAccepted,
+        signatureImage: data.signatureImage,
+      }));
+
       setOnboardingStep('completion');
     } catch (err) {
       setError('Failed to process agreement. Please try again.');
@@ -646,11 +562,16 @@ export default function OnboardingPage() {
     }
   };
 
-  // ========== Step 10 Handlers ==========
+  // ========== STEP 7: COMPLETION HANDLER ==========
+
   const handleCompleteOnboarding = async () => {
     setIsLoading(true);
+    setError('');
 
     try {
+      // Here you would call your API to save formData
+      // const response = await completeOnboardingApi(formData);
+
       await updateSession({
         ...session,
         user: {
@@ -667,6 +588,34 @@ export default function OnboardingPage() {
       setError('Failed to complete onboarding. Please try again.');
       setIsLoading(false);
     }
+  };
+
+  // Utility functions
+  const getStepNumber = (): string => {
+    const steps: OnboardingStep[] = [
+      'basic-profile',
+      'business-details',
+      'service-areas',
+      'kyc-payments',
+      'agreement',
+      'completion',
+    ];
+    const currentIndex = steps.indexOf(onboardingStep);
+    return `${currentIndex + 1} of ${steps.length}`;
+  };
+
+  const getProgressPercentage = (): number => {
+    if (onboardingStep === 'phone-verification') return 0;
+    const steps: OnboardingStep[] = [
+      'basic-profile',
+      'business-details',
+      'service-areas',
+      'kyc-payments',
+      'agreement',
+      'completion',
+    ];
+    const currentIndex = steps.indexOf(onboardingStep);
+    return ((currentIndex + 1) / steps.length) * 100;
   };
 
   // Loading state
@@ -690,7 +639,7 @@ export default function OnboardingPage() {
     );
   }
 
-  // Show error if master data failed to load
+  // Error state
   if (staticDataError) {
     return (
       <div style={styles.loadingContainer}>
@@ -731,32 +680,24 @@ export default function OnboardingPage() {
           </div>
 
           <div style={styles.stepIndicator}>
-            <span style={styles.stepNumber}>1 of 10</span>
+            <span style={styles.stepNumber}>1 of 7</span>
             <span style={styles.stepDot}>●</span>
           </div>
 
           <EmailOrPhoneVerification
-            verificationType={verificationType}
-            emailOrPhone={verificationType === 'email' ? email : phone}
-            countryCode={countryCode}
-            otp={otp}
+            emailOrPhone={emailOrPhone}
+            otp={formData.otp}
             otpSent={otpSent}
             resendTimer={resendTimer}
             resendCount={resendCount}
             isLoading={isLoading}
             error={error}
-            onEmailOrPhoneChange={(value) => {
-              if (verificationType === 'email') {
-                setEmail(value);
-              } else {
-                setPhone(value);
-              }
-            }}
-            onCountryCodeChange={setCountryCode}
-            onOtpChange={setOtp}
+            onEmailOrPhoneChange={setEmailOrPhone}
+            onOtpChange={(value) =>
+              setFormData((prev) => ({ ...prev, otp: value }))
+            }
             onSendOtp={handleSendOtp}
             onVerifyOtp={handleVerifyOtp}
-            onChangeMethod={handleChangeVerificationType}
             onResendOtp={handleResendOtp}
             styles={styles}
           />
@@ -786,10 +727,10 @@ export default function OnboardingPage() {
           </div>
 
           <BasicProfile
-            fullName={fullName}
-            businessName={businessName}
-            businessType={businessType}
-            eventsHandled={eventsHandled}
+            fullName={formData.fullName}
+            businessName={formData.businessName}
+            businessType={formData.businessType}
+            eventsHandled={formData.eventsHandled}
             isLoading={isLoading}
             error={error}
             onFormDataChange={handleBasicProfileFormDataChange}
@@ -824,12 +765,12 @@ export default function OnboardingPage() {
           </div>
 
           <BusinessDetails
-            yearsInBusiness={yearsInBusiness}
-            cuisines={cuisines}
-            specializations={specializations}
-            dietTypes={dietTypes}
-            capacityRange={capacityRange}
-            baseCity={baseCity}
+            yearsInBusiness={formData.yearsInBusiness}
+            cuisines={formData.cuisines}
+            specializations={formData.specializations}
+            dietTypes={formData.dietTypes}
+            capacityRange={formData.capacityRange}
+            baseCity={formData.baseCity}
             isLoading={isLoading}
             error={error}
             onFormDataChange={handleBusinessDetailsFormDataChange}
@@ -842,7 +783,7 @@ export default function OnboardingPage() {
     );
   }
 
-  // Step 5: Service Areas
+  // Step 4: Service Areas
   if (onboardingStep === 'service-areas') {
     return (
       <div style={styles.container}>
@@ -863,11 +804,11 @@ export default function OnboardingPage() {
           </div>
 
           <ServiceAreas
-            kitchenAddress={kitchenAddress}
-            kitchenPincode={kitchenPincode}
-            canServeEntireCity={canServeEntireCity}
-            serviceAreas={serviceAreas}
-            deliverySettings={deliverySettings}
+            kitchenAddress={formData.kitchenAddress}
+            kitchenPincode={formData.kitchenPincode}
+            canServeEntireCity={formData.canServeEntireCity}
+            serviceAreas={formData.serviceAreas}
+            deliverySettings={formData.deliverySettings}
             isLoading={isLoading}
             error={error}
             onSubmit={handleServiceAreasSubmit}
@@ -879,7 +820,7 @@ export default function OnboardingPage() {
     );
   }
 
-  // Step 6: KYC & Payments
+  // Step 5: KYC & Payments
   if (onboardingStep === 'kyc-payments') {
     return (
       <div style={styles.container}>
@@ -900,27 +841,19 @@ export default function OnboardingPage() {
           </div>
 
           <KycPayments
-            panNumber={panNumber}
-            panFile={panFile}
-            ifscCode={ifscCode}
-            accountNumber={accountNumber}
-            accountHolderName={accountHolderName}
-            upiId={upiId}
-            bankDetails={bankDetails}
-            isValidatingIFSC={isValidatingIFSC}
-            ifscError={ifscError}
+            formData={{
+              panNumber: formData.panNumber,
+              gstNumber: formData.gstNumber,
+              fssaiNumber: formData.fssaiNumber,
+              upiHandle: formData.upiHandle,
+              accountHolderName: formData.accountHolderName,
+              bankAccountNumber: formData.bankAccountNumber,
+              bankIfscCode: formData.bankIfscCode,
+            }}
             isLoading={isLoading}
             error={error}
-            onPanNumberChange={setPanNumber}
-            onPanFileChange={setPanFile}
-            onIfscCodeChange={handleIfscChange}
-            onAccountNumberChange={setAccountNumber}
-            onAccountHolderNameChange={setAccountHolderName}
-            onUpiIdChange={setUpiId}
-            onIfscValidate={fetchIFSCDetails}
+            onFormDataChange={handleKycFormDataChange}
             onSubmit={handleKycSubmit}
-            onSkip={handleKycSkip}
-            onBack={() => setOnboardingStep('service-areas')}
             styles={styles}
           />
         </div>
@@ -928,7 +861,7 @@ export default function OnboardingPage() {
     );
   }
 
-  // Step 7: Partner Agreement
+  // Step 6: Partner Agreement
   if (onboardingStep === 'agreement') {
     return (
       <div style={styles.container}>
@@ -949,18 +882,13 @@ export default function OnboardingPage() {
           </div>
 
           <PartnerAgreement
-            termsAccepted={termsAccepted}
-            privacyAccepted={privacyAccepted}
-            signaturePad={signaturePad}
-            signatureImage={signatureImage}
+            termsAccepted={formData.termsAccepted}
+            privacyAccepted={formData.privacyAccepted}
+            signatureImage={formData.signatureImage}
             isLoading={isLoading}
             error={error}
-            onTermsAcceptChange={setTermsAccepted}
-            onPrivacyAcceptChange={setPrivacyAccepted}
-            onSignatureDraw={handleSignatureDraw}
-            onSignatureClear={handleSignatureClear}
             onSubmit={handleAgreementSubmit}
-            onBack={() => setOnboardingStep('service-areas')}
+            onBack={() => setOnboardingStep('kyc-payments')}
             styles={styles}
           />
         </div>
@@ -968,7 +896,7 @@ export default function OnboardingPage() {
     );
   }
 
-  // Step 8: Completion
+  // Step 7: Completion
   if (onboardingStep === 'completion') {
     return (
       <div style={styles.container}>
@@ -985,18 +913,20 @@ export default function OnboardingPage() {
 
           <OnboardingStatus
             completionData={{
-              capabilities: selectedCapabilities.length,
-              serviceAreas: serviceAreas.length,
-              menuItems: menuItems.length,
-              packages: packages.length,
-              hasKYC: !!(panNumber || upiId),
+              capabilities: 0,
+              serviceAreas: formData.serviceAreas.length,
+              menuItems: 0,
+              packages: 0,
+              hasKYC: !!(formData.panNumber || formData.upiHandle),
             }}
             isLoading={isLoading}
             error={error}
             onComplete={handleCompleteOnboarding}
-            styles={styles} onDownloadAgreement={function (): void {
-              throw new Error('Function not implemented.');
-            } }          />
+            styles={styles}
+            onDownloadAgreement={() => {
+              console.log('Download agreement');
+            }}
+          />
         </div>
       </div>
     );
