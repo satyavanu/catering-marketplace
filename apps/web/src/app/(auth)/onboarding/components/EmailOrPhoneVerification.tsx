@@ -421,31 +421,29 @@ export default function EmailOrPhoneVerification({
         )}
 
         {/* Submit Button */}
-        <button
-          type="submit"
-          disabled={
-            otpSent
-              ? otp.length !== 6 || isLoading
-              : !isValidInput || isLoading
-          }
-          style={{
-            ...verificationStyles.button,
-            ...(otpSent
-              ? otp.length !== 6 || isLoading
-              : !isValidInput || isLoading)
-              ? verificationStyles.buttonDisabled
-              : {},
-          }}
-        >
-          {isLoading
-            ? otpSent
-              ? '⏳ Verifying OTP...'
-              : '⏳ Sending OTP...'
-            : otpSent
-              ? '✓ Verify OTP'
-              : '→ Send OTP'}
-        </button>
-
+    
+{/* Submit Button */}
+<button
+  type="submit"
+  disabled={
+    isLoading || 
+    (otpSent && otp.length !== 6)
+  }
+  style={{
+    ...verificationStyles.button,
+    ...((isLoading || (otpSent && otp.length !== 6))
+      ? verificationStyles.buttonDisabled
+      : {}),
+  }}
+>
+  {isLoading
+    ? otpSent
+      ? '⏳ Verifying OTP...'
+      : '⏳ Sending OTP...'
+    : otpSent
+      ? '✓ Verify OTP'
+      : '→ Send OTP'}
+</button>
         {!otpSent && resendCount >= 3 && (
           <p
             style={{
