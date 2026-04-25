@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSession, signIn } from 'next-auth/react';
-import { sendOtpApi } from '@catering-marketplace/query-client';
+import { useSession } from 'next-auth/react';
 import { styles } from './styles';
 import { useOnboardingMasterDataContext } from '@/app/context/OnboardingMasterDataContext';
 
@@ -15,7 +14,6 @@ import PartnerAgreement from './components/PartnerAgreement';
 import OnboardingStatus from './components/OnboardingStatus';
 import ServiceAreas from './components/ServiceAreas';
 import { OnboardingFormData, OnboardingStep } from './types';
-import { detectInputType } from './utils';
 
 const DEFAULT_FORM_DATA: OnboardingFormData = {
   email: '',
@@ -73,22 +71,10 @@ export default function OnboardingPage() {
   const [formData, setFormData] =
     useState<OnboardingFormData>(DEFAULT_FORM_DATA);
 
-  const [emailOrPhone, setEmailOrPhone] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
+
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
-  const [resendCount, setResendCount] = useState(0);
 
-  // Resend timer effect
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (resendTimer > 0) {
-      interval = setInterval(() => {
-        setResendTimer((prev) => prev - 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [resendTimer]);
 
   // Mount and auth check
   useEffect(() => {
@@ -129,185 +115,6 @@ export default function OnboardingPage() {
         eventsHandled: data.eventsHandled,
       }));
       setOnboardingStep('business-details');
-    }
-  };
-
-
-  const handleSendOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
-
-    const inputType = detectInputType(emailOrPhone);
-
-    if (inputType === 'invalid') {
-      setError('Please enter a valid email address or 10-digit mobile number');
-      setIsLoading(false);
-      return;
-    }
-
-    if (resendCount >= 3) {
-      setError(
-        'Maximum OTP requests reached (3 attempts). Please try again after some time.'
-      );
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const payload =
-        inputType === 'email'
-          ? { email: emailOrPhone.trim() }
-          : { phone: `+91${emailOrPhone.replace(/\D/g, '')}` };
-
-      const result = await sendOtpApi(payload);
-
-      if (!result.success) {
-        setError(result.error || 'Failed to send OTP. Please try again.');
-        setIsLoading(false);
-        return;
-      }
-
-      setOtpSent(true);
-      setResendCount(resendCount + 1);
-      setResendTimer(60);
-      setError('');
-    } catch (err) {
-      console.error('Error sending OTP:', err);
-      setError('Failed to send OTP. Please try again.');
-      setIsLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
-
-    if (!formData.otp || formData.otp.length !== 6) {
-      setError('Please enter a valid 6-digit OTP');
-      setIsLoading(false);
-      return;
-    }
-
-    const inputType = detectInputType(emailOrPhone);
-
-    if (inputType === 'invalid') {
-      setError('Invalid email or phone number');
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const payload =
-        inputType === 'email'
-          ? { email: emailOrPhone.trim(), otp: formData.otp, phone: '' }
-          : {
-              phone: `+91${emailOrPhone.replace(/\D/g, '')}`,
-              otp: formData.otp,
-              email: '',
-            };
-      const signInType = inputType === 'email' ? 'email-otp' : 'phone-otp';
-
-      const updatedFormData = { ...formData };
-      if (inputType === 'email') {
-        updatedFormData.email = emailOrPhone.trim();
-        updatedFormData.phone = '';
-      } else {
-        updatedFormData.phone = `+91${emailOrPhone.replace(/\D/g, '')}`;
-        updatedFormData.email = '';
-      }
-      updatedFormData.otp = formData.otp;
-      setFormData(updatedFormData);
-
-      // Sign in with NextAuth
-      try {
-        const signInPayload = {
-          ...(inputType === 'email' && { email: emailOrPhone.trim() }),
-          ...(inputType === 'phone' && {
-            phone: `+91${emailOrPhone.replace(/\D/g, '')}`,
-          }),
-          otp: formData.otp,
-          redirect: false,
-        };
-
-        const signInResult = await signIn(signInType, signInPayload);
-
-        if (!signInResult?.ok) {
-          setError('Failed to sign in. Please try again.');
-          setIsLoading(false);
-          return;
-        }
-
-        // Update session
-        await updateSession({
-          ...session,
-          user: {
-            ...session?.user,
-            ...(inputType === 'email' && { email: emailOrPhone.trim() }),
-            ...(inputType === 'phone' && {
-              phone: `+91${emailOrPhone.replace(/\D/g, '')}`,
-            }),
-          },
-        });
-
-        setPhoneVerified(true);
-        setOtpSent(false);
-        setError('');
-        setOnboardingStep('basic-profile');
-      } catch (signInError) {
-        console.error('Sign in error:', signInError);
-        setError('Failed to sign in. Please try again.');
-        setIsLoading(false);
-      }
-    } catch (err) {
-      console.error('Error verifying OTP:', err);
-      setError('Failed to verify OTP. Please try again.');
-      setIsLoading(false);
-    }
-  };
-
-  const handleResendOtp = async () => {
-    setError('');
-    setIsLoading(true);
-
-    const inputType = detectInputType(emailOrPhone);
-
-    if (inputType === 'invalid') {
-      setError('Invalid email or phone number');
-      setIsLoading(false);
-      return;
-    }
-
-    if (resendCount >= 3) {
-      setError(
-        'Maximum OTP requests reached (3 attempts). Please try again after some time.'
-      );
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const payload =
-        inputType === 'email'
-          ? { email: emailOrPhone.trim() }
-          : { phone: `+91${emailOrPhone.replace(/\D/g, '')}` };
-
-      const result = await sendOtpApi(payload);
-
-      if (!result.success) {
-        setError(result.error || 'Failed to resend OTP. Please try again.');
-        setIsLoading(false);
-        return;
-      }
-
-      setResendCount(resendCount + 1);
-      setResendTimer(60);
-      setError('');
-    } catch (err) {
-      console.error('Error resending OTP:', err);
-      setError('Failed to resend OTP. Please try again.');
-      setIsLoading(false);
     }
   };
 
@@ -689,8 +496,7 @@ export default function OnboardingPage() {
     );
   }
 
-  {{onboardingStep}}
-  // Step 5: KYC & Payments
+ 
   if (onboardingStep === 'kyc-payments') {
     return (
       <div style={styles.container}>

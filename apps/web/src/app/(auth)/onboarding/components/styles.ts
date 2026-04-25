@@ -396,14 +396,13 @@ const successModalStyles: { [key: string]: React.CSSProperties } = {
   
     buttonGroup: {
       display: 'flex',
+      flexDirection: 'column', 
       gap: '1rem',
       marginTop: '2rem',
-      flexWrap: 'wrap',
     } as React.CSSProperties,
   
     submitButton: {
-      flex: 1,
-      minWidth: '200px',
+      width: '100%',      
       padding: '1rem 2rem',
       backgroundColor: '#10b981',
       color: 'white',
@@ -412,12 +411,10 @@ const successModalStyles: { [key: string]: React.CSSProperties } = {
       fontSize: '1rem',
       fontWeight: '700',
       cursor: 'pointer',
-      transition: 'all 0.3s ease',
     } as React.CSSProperties,
-  
+    
     backButton: {
-      flex: 1,
-      minWidth: '120px',
+      width: '100%',           
       padding: '1rem 2rem',
       backgroundColor: '#f3f4f6',
       color: '#374151',
@@ -426,7 +423,6 @@ const successModalStyles: { [key: string]: React.CSSProperties } = {
       fontSize: '1rem',
       fontWeight: '600',
       cursor: 'pointer',
-      transition: 'all 0.2s ease',
     } as React.CSSProperties,
   
     disclaimerFooter: {

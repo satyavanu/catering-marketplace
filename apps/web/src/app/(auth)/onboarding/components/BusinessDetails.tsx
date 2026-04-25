@@ -630,10 +630,6 @@ const profileStyles: { [key: string]: React.CSSProperties } = {
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.2s ease-in-out',
-    flex: '1', // Distribute space
-    ':hover': { // Standard inline styles don't support pseudo-classes directly
-      backgroundColor: '#f3f4f6',
-      borderColor: '#9ca3af',
-    },
+    flex: '1',
   }
 };

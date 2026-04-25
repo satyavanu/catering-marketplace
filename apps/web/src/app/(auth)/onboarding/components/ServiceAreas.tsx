@@ -644,6 +644,7 @@ export default function ServiceAreas({
 
         {/* Buttons */}
         <div style={profileStyles.buttonGroup}>
+          <div>
           <button
             type="button"
             onClick={onBack}
@@ -652,7 +653,8 @@ export default function ServiceAreas({
           >
             Back
           </button>
-
+          </div>
+          <div>
           <button
             type="button"
             onClick={handleSubmit}
@@ -673,6 +675,7 @@ export default function ServiceAreas({
               'Save and Continue'
             )}
           </button>
+          </div>
         </div>
       </div>
     </>
