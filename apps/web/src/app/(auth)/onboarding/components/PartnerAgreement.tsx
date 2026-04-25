@@ -17,7 +17,7 @@ interface PartnerAgreementProps {
   onPrivacyAcceptChange: (accepted: boolean) => void;
   onSignatureDraw: (canvas: HTMLCanvasElement) => void;
   onSignatureClear: () => void;
-  onSubmit: (e: React.FormEvent) => Promise<void>;
+  onSubmit?: any;
   onBack: () => void;
   styles: { [key: string]: React.CSSProperties };
 }

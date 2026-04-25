@@ -3,11 +3,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession, signIn } from 'next-auth/react';
-import { sendOtpApi, verifyOtpApi } from '@catering-marketplace/query-client';
+import { sendOtpApi } from '@catering-marketplace/query-client';
 import { styles } from './styles';
 import { useOnboardingMasterDataContext } from '@/app/context/OnboardingMasterDataContext';
 
-// Import all components
 import EmailOrPhoneVerification from './components/EmailOrPhoneVerification';
 import BasicProfile from './components/BasicProfile';
 import BusinessDetails from './components/BusinessDetails';
@@ -15,63 +14,8 @@ import KycPayments from './components/KycPayments';
 import PartnerAgreement from './components/PartnerAgreement';
 import OnboardingStatus from './components/OnboardingStatus';
 import ServiceAreas from './components/ServiceAreas';
-
-// Type definitions
-type OnboardingStep =
-  | 'phone-verification'
-  | 'basic-profile'
-  | 'business-details'
-  | 'service-areas'
-  | 'kyc-payments'
-  | 'agreement'
-  | 'completion';
-
-interface OnboardingFormData {
-  // Step 1: Verification
-  email: string;
-  phone: string;
-  otp: string;
-
-  // Step 2: Basic Profile
-  fullName: string;
-  partnerType: 'individual' | 'business' | null;
-  businessName: string;
-  businessType: string[];
-  eventsHandled: string[];
-
-  // Step 3: Business Details
-  yearsInBusiness: string;
-  cuisines: string[];
-  specializations: string[];
-  dietTypes: string[];
-  capacityRange: string;
-  baseCity: string;
-
-  // Step 4: Service Areas
-  kitchenAddress: string;
-  kitchenPincode: string;
-  canServeEntireCity: boolean;
-  serviceAreas: Array<{ pincode: string; city: string; state: string }>;
-  deliverySettings: {
-    freeDeliveryRadius: number;
-    maxDeliveryDistance: number;
-    extraChargePerKm: number;
-  };
-
-  // Step 5: KYC & Payments
-  panNumber: string;
-  gstNumber: string;
-  fssaiNumber: string;
-  upiHandle: string;
-  accountHolderName: string;
-  bankAccountNumber: string;
-  bankIfscCode: string;
-
-  // Step 6: Agreement
-  termsAccepted: boolean;
-  privacyAccepted: boolean;
-  signatureImage: string | null;
-}
+import { OnboardingFormData, OnboardingStep } from './types';
+import { detectInputType } from './utils';
 
 const DEFAULT_FORM_DATA: OnboardingFormData = {
   email: '',
@@ -113,28 +57,22 @@ export default function OnboardingPage() {
   const router = useRouter();
   const { data: session, status, update: updateSession } = useSession();
 
-  // Master data
   const {
     data: masterData,
     isLoading: isStaticDataLoading,
     error: staticDataError,
   } = useOnboardingMasterDataContext();
 
-  // Global state
   const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [onboardingStep, setOnboardingStep] =
     useState<OnboardingStep>('phone-verification');
   const [error, setError] = useState('');
   const [isRedirecting, setIsRedirecting] = useState(false);
-  const initialRedirectChecked = useRef(false);
-  const ifscTimeoutRef = useRef<NodeJS.Timeout>();
 
-  // Main unified form data
   const [formData, setFormData] =
     useState<OnboardingFormData>(DEFAULT_FORM_DATA);
 
-  // Step 1 specific states
   const [emailOrPhone, setEmailOrPhone] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [phoneVerified, setPhoneVerified] = useState(false);
@@ -177,28 +115,23 @@ export default function OnboardingPage() {
     }
   }, [status, session, mounted, router]);
 
-  // Helper: Detect input type (email or phone)
-  const detectInputType = (value: string): 'email' | 'phone' | 'invalid' => {
-    const trimmed = value.trim();
-
-    // Check for email
-    if (trimmed.includes('@') && trimmed.includes('.')) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (emailRegex.test(trimmed)) {
-        return 'email';
-      }
+  const handleBasicProfileSubmit = (
+    data: any,
+    isValid: boolean,
+  ) => {
+    if (isValid) {
+      setFormData((prev) => ({
+        ...prev,
+        fullName: data.fullName,
+        partnerType: data.partnerType,
+        businessName: data.businessName,
+        businessType: data.businessType,
+        eventsHandled: data.eventsHandled,
+      }));
+      setOnboardingStep('business-details');
     }
-
-    // Check for phone (10 digits only for India)
-    const phoneRegex = /^\d{10}$/;
-    if (phoneRegex.test(trimmed.replace(/\D/g, ''))) {
-      return 'phone';
-    }
-
-    return 'invalid';
   };
 
-  // ========== STEP 1: OTP VERIFICATION HANDLERS ==========
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -276,7 +209,6 @@ export default function OnboardingPage() {
             };
       const signInType = inputType === 'email' ? 'email-otp' : 'phone-otp';
 
-      // Update formData with verified email/phone
       const updatedFormData = { ...formData };
       if (inputType === 'email') {
         updatedFormData.email = emailOrPhone.trim();
@@ -379,42 +311,7 @@ export default function OnboardingPage() {
     }
   };
 
-  // ========== STEP 2: BASIC PROFILE HANDLERS ==========
-
-  const handleBasicProfileFormDataChange = (data: {
-    fullName: string;
-    businessName: string;
-    businessType: string[];
-    eventsHandled: string[];
-  }) => {
-    setFormData((prev) => ({
-      ...prev,
-      fullName: data.fullName,
-      businessName: data.businessName,
-      businessType: data.businessType,
-      eventsHandled: data.eventsHandled,
-    }));
-  };
-
-  const handleBasicProfileSubmit = (
-    data: any,
-    isValid: boolean,
-  ) => {
-    if (isValid) {
-      setFormData((prev) => ({
-        ...prev,
-        fullName: data.fullName,
-        partnerType: data.partnerType,
-        businessName: data.businessName,
-        businessType: data.businessType,
-        eventsHandled: data.eventsHandled,
-      }));
-      setOnboardingStep('business-details');
-    }
-  };
-
-  // ========== STEP 3: BUSINESS DETAILS HANDLERS ==========
-
+ 
   const handleBusinessDetailsFormDataChange = (
     data: {
       yearsInBusiness: string;
@@ -441,7 +338,6 @@ export default function OnboardingPage() {
     }
   };
 
-  // ========== STEP 4: SERVICE AREAS HANDLERS ==========
 
   const handleServiceAreasSubmit = async (data: {
     kitchenAddress: string;
@@ -655,9 +551,7 @@ export default function OnboardingPage() {
     );
   }
 
-  // ========== RENDER STEPS ==========
 
-  // Step 1: Email/Phone Verification
   if (onboardingStep === 'phone-verification' && !phoneVerified) {
     return (
       <div style={styles.container}>
@@ -669,25 +563,13 @@ export default function OnboardingPage() {
 
           <div style={styles.stepIndicator}>
             <span style={styles.stepNumber}>1 of 7</span>
-            <span style={styles.stepDot}>●</span>
+            <span style={styles.stepDot}></span>
           </div>
 
           <EmailOrPhoneVerification
-            emailOrPhone={emailOrPhone}
-            otp={formData.otp}
-            otpSent={otpSent}
-            resendTimer={resendTimer}
-            resendCount={resendCount}
-            isLoading={isLoading}
-            error={error}
-            onEmailOrPhoneChange={setEmailOrPhone}
-            onOtpChange={(value) =>
-              setFormData((prev) => ({ ...prev, otp: value }))
-            }
-            onSendOtp={handleSendOtp}
-            onVerifyOtp={handleVerifyOtp}
-            onResendOtp={handleResendOtp}
-            styles={styles}
+            onOtpVerified={(value: any) => {
+              console.log("OTP vrfied callback:", value); 
+            }}
           />
         </div>
       </div>
