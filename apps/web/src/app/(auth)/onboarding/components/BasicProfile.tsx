@@ -33,9 +33,8 @@ interface BasicProfileProps {
   businessType: string[];
   eventsHandled: string[];
   isLoading: boolean;
-  error: string;
-  onFormDataChange: (formData: BasicProfileFormData) => void;
-  onSubmit: (e: React.FormEvent) => Promise<void>;
+  onFormDataChange?: (formData: BasicProfileFormData) => void;
+  onSubmit: any;
   styles: { [key: string]: React.CSSProperties };
   businessTypes: BusinessType[];
   eventTypes: EventTypeData[];
@@ -48,29 +47,21 @@ export default function BasicProfile({
   businessType,
   eventsHandled,
   isLoading,
-  error,
-  onFormDataChange,
   onSubmit,
   styles,
   businessTypes,
   eventTypes,
 }: BasicProfileProps) {
-  // Local state for form data
   const [localFullName, setLocalFullName] = useState(fullName);
-  const [localPartnerType, setLocalPartnerType] = useState<PartnerType>(partnerType);
+  const [localPartnerType, setLocalPartnerType] =
+    useState<PartnerType>(partnerType);
   const [localBusinessName, setLocalBusinessName] = useState(businessName);
-  const [localBusinessType, setLocalBusinessType] = useState<string[]>(businessType);
-  const [localEventsHandled, setLocalEventsHandled] = useState<string[]>(eventsHandled);
-
-  // Form validation
-  const isFormValid =
-    localFullName.trim().length > 0 &&
-    localPartnerType !== null &&
-    (localPartnerType === 'individual' || localBusinessName.trim().length > 0) &&
-    localBusinessType.length >= 1 &&
-    localEventsHandled.length >= 1;
-
-  // Group events by category
+  const [localBusinessType, setLocalBusinessType] =
+    useState<string[]>(businessType);
+  const [localEventsHandled, setLocalEventsHandled] =
+    useState<string[]>(eventsHandled);
+  const [isFormValid, setIsFormValid] = useState(false);
+ const [error, setError] = useState('');
   const eventsByCategory = eventTypes.reduce(
     (acc, event) => {
       if (!acc[event.category]) {
@@ -82,37 +73,48 @@ export default function BasicProfile({
     {} as Record<string, EventTypeData[]>
   );
 
-  const categoryOrder = ['personal', 'wedding', 'corporate', 'cultural', 'special'];
+  const categoryOrder = [
+    'personal',
+    'wedding',
+    'corporate',
+    'cultural',
+    'special',
+  ];
 
-  // Pass form data back to parent whenever it changes
   useEffect(() => {
-    onFormDataChange({
-      fullName: localFullName,
-      partnerType: localPartnerType,
-      businessName: localBusinessName,
-      businessType: localBusinessType,
-      eventsHandled: localEventsHandled,
-    });
+    setIsFormValid(
+      localFullName.trim().length > 0 &&
+        localPartnerType !== null &&
+        (localPartnerType === 'individual' ||
+          localBusinessName.trim().length > 0) &&
+        localBusinessType.length >= 1 &&
+        localEventsHandled.length >= 1
+    );
+
+    
   }, [
     localFullName,
     localPartnerType,
     localBusinessName,
     localBusinessType,
     localEventsHandled,
-    onFormDataChange,
   ]);
 
   // Handle business type toggle
   const handleBusinessTypeToggle = (typeId: string) => {
     setLocalBusinessType((prev) =>
-      prev.includes(typeId) ? prev.filter((id) => id !== typeId) : [...prev, typeId]
+      prev.includes(typeId)
+        ? prev.filter((id) => id !== typeId)
+        : [...prev, typeId]
     );
   };
 
   // Handle event toggle
   const handleEventToggle = (eventId: string) => {
     setLocalEventsHandled((prev) =>
-      prev.includes(eventId) ? prev.filter((id) => id !== eventId) : [...prev, eventId]
+      prev.includes(eventId)
+        ? prev.filter((id) => id !== eventId)
+        : [...prev, eventId]
     );
   };
 
@@ -121,12 +123,29 @@ export default function BasicProfile({
       <div style={styles.header}>
         <h1 style={styles.title}>Create Your Catering Profile</h1>
         <p style={styles.subtitle}>
-          Let us know more about your business and the services you offer. This will help us
-          showcase your expertise to potential clients.
+          Let us know more about your business and the services you offer. This
+          will help us showcase your expertise to potential clients.
         </p>
       </div>
 
-      <form onSubmit={onSubmit} style={styles.profileForm}>
+      <form onSubmit={() => { 
+        if(isFormValid) {
+          onSubmit(
+            {
+            fullName: localFullName.trim(),
+            partnerType: localPartnerType,
+            businessName: localBusinessName.trim(),
+            businessType: localBusinessType,
+            eventsHandled: localEventsHandled,
+            },
+            isFormValid
+          )
+          setError('');
+        } else {
+          setIsFormValid(false);
+          setError('Please fill out all required fields and make valid selections before submitting.');
+        }
+      }} style={styles.profileForm}>
         {/* Step 1: Full Name */}
         <div style={profileStyles.stepSection}>
           <div style={profileStyles.stepHeader}>
@@ -140,7 +159,8 @@ export default function BasicProfile({
               type="text"
               value={localFullName}
               onChange={(e) => {
-                if (e.target.value.length <= 255) setLocalFullName(e.target.value);
+                if (e.target.value.length <= 255)
+                  setLocalFullName(e.target.value);
               }}
               placeholder="Enter your full name"
               style={styles.input}
@@ -181,7 +201,9 @@ export default function BasicProfile({
               >
                 <div style={profileStyles.partnerTypeIcon}>🏠</div>
                 <div style={profileStyles.partnerTypeContent}>
-                  <h3 style={profileStyles.partnerTypeTitle}>Individual / Home Chef</h3>
+                  <h3 style={profileStyles.partnerTypeTitle}>
+                    Individual / Home Chef
+                  </h3>
                   <p style={profileStyles.partnerTypeDescription}>
                     Operating from home as a solo chef or home-based caterer
                   </p>
@@ -205,9 +227,12 @@ export default function BasicProfile({
               >
                 <div style={profileStyles.partnerTypeIcon}>🏢</div>
                 <div style={profileStyles.partnerTypeContent}>
-                  <h3 style={profileStyles.partnerTypeTitle}>Business / Catering Company</h3>
+                  <h3 style={profileStyles.partnerTypeTitle}>
+                    Business / Catering Company
+                  </h3>
                   <p style={profileStyles.partnerTypeDescription}>
-                    Registered business with team, kitchen facilities, or commercial setup
+                    Registered business with team, kitchen facilities, or
+                    commercial setup
                   </p>
                 </div>
                 {localPartnerType === 'business' && (
@@ -229,14 +254,20 @@ export default function BasicProfile({
           <div style={profileStyles.stepSection}>
             <div style={profileStyles.stepHeader}>
               <h2 style={profileStyles.stepTitle}>
-                Step 3 — {localPartnerType === 'individual' ? 'Your Brand Name' : 'Business Name'}
+                Step 3 —{' '}
+                {localPartnerType === 'individual'
+                  ? 'Your Brand Name'
+                  : 'Business Name'}
               </h2>
               <span style={profileStyles.stepNumber}>3</span>
             </div>
 
             <div style={styles.formGroup}>
               <label style={styles.label}>
-                {localPartnerType === 'individual' ? 'Brand / Chef Name' : 'Business Name'} *
+                {localPartnerType === 'individual'
+                  ? 'Brand / Chef Name'
+                  : 'Business Name'}{' '}
+                *
               </label>
               <p style={styles.helpText}>
                 {localPartnerType === 'individual'
@@ -247,7 +278,8 @@ export default function BasicProfile({
                 type="text"
                 value={localBusinessName}
                 onChange={(e) => {
-                  if (e.target.value.length <= 255) setLocalBusinessName(e.target.value);
+                  if (e.target.value.length <= 255)
+                    setLocalBusinessName(e.target.value);
                 }}
                 placeholder={
                   localPartnerType === 'individual'
@@ -256,13 +288,13 @@ export default function BasicProfile({
                 }
                 style={styles.input}
                 disabled={isLoading}
-                required
               />
               <p style={styles.charCounter}>{localBusinessName.length}/255</p>
 
               {localPartnerType === 'individual' && (
                 <p style={profileStyles.infoNote}>
-                  💡 Tip: Use your name or a catchy brand name that customers will remember.
+                  💡 Tip: Use your name or a catchy brand name that customers
+                  will remember.
                 </p>
               )}
             </div>
@@ -317,7 +349,9 @@ export default function BasicProfile({
         {localPartnerType && (
           <div style={profileStyles.stepSection}>
             <div style={profileStyles.stepHeader}>
-              <h2 style={profileStyles.stepTitle}>Step 5 — Events You Handle</h2>
+              <h2 style={profileStyles.stepTitle}>
+                Step 5 — Events You Handle
+              </h2>
               <span style={profileStyles.stepNumber}>5</span>
             </div>
 
@@ -333,7 +367,8 @@ export default function BasicProfile({
                 return (
                   <div key={category} style={styles.categorySection}>
                     <h3 style={styles.categoryTitle}>
-                      {category.charAt(0).toUpperCase() + category.slice(1)} Events
+                      {category.charAt(0).toUpperCase() + category.slice(1)}{' '}
+                      Events
                     </h3>
                     <div style={styles.eventGrid}>
                       {eventsInCategory.map((event) => (

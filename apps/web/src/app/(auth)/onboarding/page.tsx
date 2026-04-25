@@ -31,13 +31,14 @@ interface OnboardingFormData {
   email: string;
   phone: string;
   otp: string;
-  
+
   // Step 2: Basic Profile
   fullName: string;
+  partnerType: 'individual' | 'business' | null;
   businessName: string;
   businessType: string[];
   eventsHandled: string[];
-  
+
   // Step 3: Business Details
   yearsInBusiness: string;
   cuisines: string[];
@@ -45,7 +46,7 @@ interface OnboardingFormData {
   dietTypes: string[];
   capacityRange: string;
   baseCity: string;
-  
+
   // Step 4: Service Areas
   kitchenAddress: string;
   kitchenPincode: string;
@@ -56,7 +57,7 @@ interface OnboardingFormData {
     maxDeliveryDistance: number;
     extraChargePerKm: number;
   };
-  
+
   // Step 5: KYC & Payments
   panNumber: string;
   gstNumber: string;
@@ -65,7 +66,7 @@ interface OnboardingFormData {
   accountHolderName: string;
   bankAccountNumber: string;
   bankIfscCode: string;
-  
+
   // Step 6: Agreement
   termsAccepted: boolean;
   privacyAccepted: boolean;
@@ -77,6 +78,7 @@ const DEFAULT_FORM_DATA: OnboardingFormData = {
   phone: '',
   otp: '',
   fullName: '',
+  partnerType: null,
   businessName: '',
   businessType: [],
   eventsHandled: [],
@@ -129,7 +131,8 @@ export default function OnboardingPage() {
   const ifscTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Main unified form data
-  const [formData, setFormData] = useState<OnboardingFormData>(DEFAULT_FORM_DATA);
+  const [formData, setFormData] =
+    useState<OnboardingFormData>(DEFAULT_FORM_DATA);
 
   // Step 1 specific states
   const [emailOrPhone, setEmailOrPhone] = useState('');
@@ -137,11 +140,6 @@ export default function OnboardingPage() {
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
   const [resendCount, setResendCount] = useState(0);
-
-  // Step 5 specific states
-  const [bankDetails, setBankDetails] = useState<any>(null);
-  const [isValidatingIFSC, setIsValidatingIFSC] = useState(false);
-  const [ifscError, setIfscError] = useState('');
 
   // Resend timer effect
   useEffect(() => {
@@ -270,23 +268,13 @@ export default function OnboardingPage() {
     try {
       const payload =
         inputType === 'email'
-          ? { email: emailOrPhone.trim(), otp: formData.otp }
+          ? { email: emailOrPhone.trim(), otp: formData.otp, phone: '' }
           : {
               phone: `+91${emailOrPhone.replace(/\D/g, '')}`,
               otp: formData.otp,
+              email: '',
             };
-
-      const result = await verifyOtpApi(payload);
-      const isVerified =
-        inputType === 'email'
-          ? result?.data?.email_verified
-          : result?.data?.phone_verified;
-
-      if (!result.success || !isVerified) {
-        setError(result.message || 'Invalid OTP. Please try again.');
-        setIsLoading(false);
-        return;
-      }
+      const signInType = inputType === 'email' ? 'email-otp' : 'phone-otp';
 
       // Update formData with verified email/phone
       const updatedFormData = { ...formData };
@@ -311,7 +299,7 @@ export default function OnboardingPage() {
           redirect: false,
         };
 
-        const signInResult = await signIn('otp', signInPayload);
+        const signInResult = await signIn(signInType, signInPayload);
 
         if (!signInResult?.ok) {
           setError('Failed to sign in. Please try again.');
@@ -408,20 +396,21 @@ export default function OnboardingPage() {
     }));
   };
 
-  const handleBasicProfileSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    if (
-      !formData.fullName.trim() ||
-      !formData.businessName.trim() ||
-      formData.eventsHandled.length === 0
-    ) {
-      setError('Please fill in all required fields');
-      return;
+  const handleBasicProfileSubmit = (
+    data: any,
+    isValid: boolean,
+  ) => {
+    if (isValid) {
+      setFormData((prev) => ({
+        ...prev,
+        fullName: data.fullName,
+        partnerType: data.partnerType,
+        businessName: data.businessName,
+        businessType: data.businessType,
+        eventsHandled: data.eventsHandled,
+      }));
+      setOnboardingStep('business-details');
     }
-
-    setOnboardingStep('business-details');
   };
 
   // ========== STEP 3: BUSINESS DETAILS HANDLERS ==========
@@ -477,7 +466,6 @@ export default function OnboardingPage() {
         serviceAreas: data.serviceAreas,
         deliverySettings: data.deliverySettings,
       }));
-
       setOnboardingStep('kyc-payments');
     } catch (err) {
       console.error('Error saving service areas:', err);
@@ -727,13 +715,12 @@ export default function OnboardingPage() {
           </div>
 
           <BasicProfile
+            partnerType={formData.partnerType}
             fullName={formData.fullName}
             businessName={formData.businessName}
             businessType={formData.businessType}
             eventsHandled={formData.eventsHandled}
             isLoading={isLoading}
-            error={error}
-            onFormDataChange={handleBasicProfileFormDataChange}
             onSubmit={handleBasicProfileSubmit}
             styles={styles}
             businessTypes={masterData?.business_types || []}
@@ -820,6 +807,7 @@ export default function OnboardingPage() {
     );
   }
 
+  {{onboardingStep}}
   // Step 5: KYC & Payments
   if (onboardingStep === 'kyc-payments') {
     return (
@@ -841,15 +829,7 @@ export default function OnboardingPage() {
           </div>
 
           <KycPayments
-            formData={{
-              panNumber: formData.panNumber,
-              gstNumber: formData.gstNumber,
-              fssaiNumber: formData.fssaiNumber,
-              upiHandle: formData.upiHandle,
-              accountHolderName: formData.accountHolderName,
-              bankAccountNumber: formData.bankAccountNumber,
-              bankIfscCode: formData.bankIfscCode,
-            }}
+            formData={formData}
             isLoading={isLoading}
             error={error}
             onFormDataChange={handleKycFormDataChange}

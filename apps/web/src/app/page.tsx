@@ -8,14 +8,14 @@ import CustomerReviews from '@/components/CustomerReviews';
 import HowItWorks from '@/components/HowItWorks';
 import SocialProof from '@/components/SocialProof';
 import MealPlans from '@/components/MealPlans';
+import QuickBooking from '@/components/QuickBooking';
+import BecomeChefCTA from '@/components/BecomeChef';
 
 export default function HomePage() {
   return (
     <main>
-      <HeroSection />
-      <LatestCaters />
-      <MealPlans />
-      <SocialProof />
+      <QuickBooking />
+      <BecomeChefCTA />
     </main>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { AlertCircle, CheckCircle, Mail, Phone } from 'lucide-react';
 
 interface EmailOrPhoneVerificationProps {
@@ -16,6 +16,7 @@ interface EmailOrPhoneVerificationProps {
   onSendOtp: (e: React.FormEvent) => void;
   onVerifyOtp: (e: React.FormEvent) => void;
   onResendOtp: () => void;
+  clearError?: () => void;
   styles: any;
 }
 
@@ -32,430 +33,257 @@ export default function EmailOrPhoneVerification({
   onSendOtp,
   onVerifyOtp,
   onResendOtp,
-  styles,
+  clearError
 }: EmailOrPhoneVerificationProps) {
-  // Detect input type
+  const otpRefs = useRef<HTMLInputElement[]>([]);
+
+  useEffect(() => {
+    if (error && otp.length < 6) {
+      clearError?.();
+    }
+  }, [otp]);
+
   const detectInputType = (value: string): 'email' | 'phone' | 'invalid' => {
     const trimmed = value.trim();
-
     if (trimmed.includes('@') && trimmed.includes('.')) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (emailRegex.test(trimmed)) {
-        return 'email';
-      }
+      if (emailRegex.test(trimmed)) return 'email';
     }
-
-    const phoneRegex = /^\d{10}$/;
-    if (phoneRegex.test(trimmed.replace(/\D/g, ''))) {
-      return 'phone';
-    }
-
+    const digits = trimmed.replace(/\D/g, '');
+    if (/^\d{10}$/.test(digits)) return 'phone';
     return 'invalid';
   };
 
   const inputType = detectInputType(emailOrPhone);
-  const isValidInput = inputType !== 'invalid' && emailOrPhone.length > 0;
-  const isPhone = inputType === 'phone';
+  const isValidInput = inputType !== 'invalid';
   const isEmail = inputType === 'email';
+  const isPhone = inputType === 'phone';
 
-  // Format phone for display
-  const formatPhoneForDisplay = (phone: string): string => {
-    const digits = phone.replace(/\D/g, '');
-    if (digits.length === 10) {
-      return `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`;
-    }
+  const otpArray = Array.from({ length: 6 }, (_, i) => otp[i] || "");
+
+  const formatPhoneForDisplay = (phone: string) => {
+    const d = phone.replace(/\D/g, '');
+    if (d.length === 10) return `+91 ${d.slice(0, 5)} ${d.slice(5)}`;
     return phone;
   };
 
-  const verificationStyles: { [key: string]: React.CSSProperties } = {
-    container: {
-      maxWidth: '500px',
-      margin: '2rem auto',
-      padding: '2rem',
-      backgroundColor: 'white',
-      borderRadius: '1rem',
-      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-    },
+  // ✔ FINAL CORRECT BUTTON RULES
+  const canSendOtp =
+    !otpSent &&
+    isValidInput &&
+    !isLoading &&
+    resendCount < 3;
 
-    header: {
-      textAlign: 'center' as const,
-      marginBottom: '2rem',
-    },
+  const isOtpNumeric = /^[0-9]{6}$/.test(otp);
 
-    title: {
-      fontSize: '1.75rem',
-      fontWeight: '700',
-      color: '#1e293b',
-      margin: '0 0 0.5rem 0',
-    },
-
-    subtitle: {
-      fontSize: '0.95rem',
-      color: '#64748b',
-      margin: 0,
-    },
-
-    form: {
-      display: 'flex',
-      flexDirection: 'column' as const,
-      gap: '1.5rem',
-    },
-
-    inputGroup: {
-      display: 'flex',
-      flexDirection: 'column' as const,
-    },
-
-    label: {
-      fontSize: '0.95rem',
-      fontWeight: '600',
-      color: '#1e293b',
-      marginBottom: '0.5rem',
-    },
-
-    helpText: {
-      fontSize: '0.8rem',
-      color: '#64748b',
-      margin: '0.5rem 0 0 0',
-    },
-
-    inputWrapper: {
-      position: 'relative' as const,
-      display: 'flex',
-      alignItems: 'center',
-    },
-
-    input: {
-      width: '100%',
-      padding: '0.875rem 1rem 0.875rem 2.75rem',
-      borderRadius: '0.5rem',
-      border: '2px solid #e5e7eb',
-      fontSize: '0.95rem',
-      fontFamily: 'inherit',
-      transition: 'all 0.2s ease',
-    },
-
-    inputValid: {
-      borderColor: '#10b981',
-      backgroundColor: '#f0fdf4',
-    },
-
-    inputInvalid: {
-      borderColor: '#dc2626',
-      backgroundColor: '#fef2f2',
-    },
-
-    icon: {
-      position: 'absolute' as const,
-      left: '12px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      pointerEvents: 'none' as const,
-      color: '#667eea',
-    },
-
-    validIcon: {
-      position: 'absolute' as const,
-      right: '12px',
-      color: '#10b981',
-      pointerEvents: 'none' as const,
-    },
-
-    otpSection: {
-      backgroundColor: '#f9fafb',
-      padding: '1.5rem',
-      borderRadius: '0.75rem',
-      border: '1px solid #e5e7eb',
-    },
-
-    otpLabel: {
-      fontSize: '0.95rem',
-      fontWeight: '600',
-      color: '#1e293b',
-      marginBottom: '0.75rem',
-    },
-
-    otpInfo: {
-      fontSize: '0.8rem',
-      color: '#64748b',
-      marginBottom: '1rem',
-    },
-
-    otpInput: {
-      width: '100%',
-      padding: '0.875rem',
-      borderRadius: '0.5rem',
-      border: '2px solid #e5e7eb',
-      fontSize: '1.25rem',
-      letterSpacing: '0.25rem',
-      fontFamily: 'monospace',
-      transition: 'all 0.2s ease',
-      textAlign: 'center' as const,
-    },
-
-    otpInputValid: {
-      borderColor: '#10b981',
-      backgroundColor: '#f0fdf4',
-    },
-
-    otpInputInvalid: {
-      borderColor: '#dc2626',
-      backgroundColor: '#fef2f2',
-    },
-
-    resendSection: {
-      textAlign: 'center' as const,
-      marginTop: '1rem',
-    },
-
-    resendButton: {
-      background: 'none',
-      border: 'none',
-      color: '#667eea',
-      cursor: 'pointer',
-      fontSize: '0.9rem',
-      fontWeight: '600',
-      textDecoration: 'underline',
-      padding: 0,
-    },
-
-    resendButtonDisabled: {
-      opacity: 0.5,
-      cursor: 'not-allowed',
-    },
-
-    resendTimer: {
-      fontSize: '0.9rem',
-      color: '#64748b',
-      fontWeight: '600',
-    },
-
-    errorBox: {
-      display: 'flex',
-      alignItems: 'flex-start',
-      gap: '0.75rem',
-      padding: '1rem',
-      backgroundColor: '#fee2e2',
-      border: '1px solid #fca5a5',
-      borderRadius: '0.5rem',
-      color: '#dc2626',
-      fontSize: '0.9rem',
-    },
-
-    button: {
-      width: '100%',
-      padding: '0.875rem 1.5rem',
-      backgroundColor: '#667eea',
-      color: 'white',
-      border: 'none',
-      borderRadius: '0.5rem',
-      fontSize: '0.95rem',
-      fontWeight: '600',
-      cursor: 'pointer',
-      transition: 'all 0.2s ease',
-      minHeight: '44px',
-    },
-
-    buttonDisabled: {
-      opacity: 0.6,
-      cursor: 'not-allowed',
-    },
-
-    infoBox: {
-      backgroundColor: '#eff6ff',
-      border: '1px solid #7dd3fc',
-      borderRadius: '0.5rem',
-      padding: '1rem',
-      color: '#0369a1',
-      fontSize: '0.85rem',
-      marginBottom: '1.5rem',
-    },
-  };
+  const canVerifyOtp =
+    otpSent &&
+    isOtpNumeric &&
+    !isLoading &&
+    !error;
 
   return (
-    <div style={verificationStyles.container}>
-      <div style={verificationStyles.header}>
-        <h1 style={verificationStyles.title}>👋 Welcome to Droooly</h1>
-        <p style={verificationStyles.subtitle}>
-          Verify your identity to get started as a partner
+    <div
+      style={{
+        maxWidth: '500px',
+        margin: '2rem auto',
+        padding: '2rem',
+        background: 'white',
+        borderRadius: '1rem',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+      }}
+    >
+      {/* HEADER */}
+      <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+        <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#1e293b' }}>
+          👋 Welcome to Droooly
+        </h1>
+        <p style={{ fontSize: '0.95rem', color: '#64748b' }}>
+          Verify your identity to get started
         </p>
-      </div>
-
-      <div style={verificationStyles.infoBox}>
-        📱 Enter your email address or 10-digit mobile number
       </div>
 
       <form
         onSubmit={otpSent ? onVerifyOtp : onSendOtp}
-        style={verificationStyles.form}
+        style={{ display: 'flex', flexDirection: 'column', gap: '1.4rem' }}
       >
-        {/* Email/Phone Input - ALWAYS SHOW WHEN NOT OTP SENT */}
+        {/* EMAIL OR PHONE INPUT */}
         {!otpSent ? (
-          <div style={verificationStyles.inputGroup}>
-            <label style={verificationStyles.label}>
-              {isEmail
-                ? '📧 Email Address'
-                : isPhone
-                  ? '📱 Mobile Number'
-                  : '📧 Email or Mobile Number'}
-            </label>
+          <>
+            <label style={{ fontWeight: 600 }}>Email or Phone</label>
 
-            <div style={verificationStyles.inputWrapper}>
-              <div style={verificationStyles.icon}>
-                {isEmail ? (
-                  <Mail size={20} />
-                ) : isPhone ? (
-                  <Phone size={20} />
-                ) : (
-                  <Mail size={20} />
-                )}
+            <div style={{ position: 'relative' }}>
+              <div
+                style={{
+                  position: 'absolute',
+                  left: 12,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: '#667eea'
+                }}
+              >
+                {isPhone ? <Phone size={20} /> : <Mail size={20} />}
               </div>
 
               <input
-                type="text"
+                autoFocus
+                disabled={isLoading}
                 value={emailOrPhone}
                 onChange={(e) => {
                   let value = e.target.value;
-                  // Allow @ and . for email, digits for phone
-                  if (!value.includes('@')) {
-                    value = value.replace(/\D/g, '');
+                  const digits = value.replace(/\D/g, '');
+                  if (/^\d+$/.test(value)) {
+                    if (digits.length <= 10) {
+                      value = digits.replace(/(\d{5})(\d{1,5})/, "$1 $2");
+                    }
                   }
                   onEmailOrPhoneChange(value);
                 }}
-                placeholder="your@email.com or 9876543210"
-                disabled={isLoading}
-                autoFocus
+                placeholder="you@example.com or 98765 43210"
                 style={{
-                  ...verificationStyles.input,
-                  ...(isValidInput ? verificationStyles.inputValid : {}),
-                  ...(error && emailOrPhone
-                    ? verificationStyles.inputInvalid
-                    : {}),
+                  width: '100%',
+                  padding: '0.875rem 1rem 0.875rem 2.75rem',
+                  borderRadius: '0.5rem',
+                  border: '2px solid #e5e7eb',
+                  ...(isValidInput && {
+                    borderColor: '#10b981',
+                    background: '#f0fdf4'
+                  })
                 }}
               />
 
               {isValidInput && (
-                <div style={verificationStyles.validIcon}>
-                  <CheckCircle size={20} />
-                </div>
+                <CheckCircle
+                  size={20}
+                  style={{
+                    position: 'absolute',
+                    right: 12,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: '#10b981'
+                  }}
+                />
               )}
             </div>
-
-            <p style={verificationStyles.helpText}>
-              {isPhone
-                ? `Detected: ${formatPhoneForDisplay(emailOrPhone)}`
-                : isEmail
-                  ? `Detected: ${emailOrPhone}`
-                  : 'Email: user@example.com | Phone: 10 digits'}
-            </p>
-          </div>
+          </>
         ) : (
-          /* OTP INPUT SECTION */
           <>
-            <div style={verificationStyles.otpSection}>
-              <label style={verificationStyles.otpLabel}>Enter OTP</label>
-              <p style={verificationStyles.otpInfo}>
-                We've sent a 6-digit code to{' '}
-                {isEmail
-                  ? emailOrPhone
-                  : formatPhoneForDisplay(emailOrPhone)}
+            {/* OTP SECTION */}
+            <div
+              style={{
+                background: '#f9fafb',
+                padding: '1.5rem',
+                borderRadius: '0.75rem',
+                border: '1px solid #e5e7eb'
+              }}
+            >
+              <label style={{ fontWeight: 600 }}>Enter OTP</label>
+
+              <p style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                Sent to {isEmail ? emailOrPhone : formatPhoneForDisplay(emailOrPhone)}
               </p>
 
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                value={otp}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/\D/g, '');
-                  if (value.length <= 6) {
-                    onOtpChange(value);
-                  }
-                }}
-                placeholder="000000"
-                disabled={false}
-                autoFocus
+              <div
                 style={{
-                  ...verificationStyles.otpInput,
-                  ...(otp.length === 6
-                    ? verificationStyles.otpInputValid
-                    : {}),
-                  ...(error && otp
-                    ? verificationStyles.otpInputInvalid
-                    : {}),
+                  display: 'flex',
+                  gap: '0.75rem',
+                  justifyContent: 'center',
+                  marginTop: '1rem'
                 }}
-              />
-            </div>
+              >
+                {otpArray.map((v, i) => (
+                  <input
+                    key={i}
+                    maxLength={1}
+                    value={v}
+                    inputMode="numeric"
+                    ref={(el) => (otpRefs.current[i] = el!)}
+                    onChange={(e) => {
+                      const d = e.target.value.replace(/\D/g, '');
+                      const arr = [...otpArray];
 
-            <div style={verificationStyles.resendSection}>
-              {resendTimer > 0 ? (
-                <p style={verificationStyles.resendTimer}>
-                  Resend OTP in {resendTimer}s
-                </p>
-              ) : (
-                <button
-                  type="button"
-                  onClick={onResendOtp}
-                  disabled={isLoading || resendCount >= 3}
-                  style={{
-                    ...verificationStyles.resendButton,
-                    ...(isLoading || resendCount >= 3
-                      ? verificationStyles.resendButtonDisabled
-                      : {}),
-                  }}
-                >
-                  Resend OTP {resendCount > 0 && `(${resendCount}/3)`}
-                </button>
-              )}
+                      if (d === '') arr[i] = '';
+                      else {
+                        arr[i] = d[0];
+                        if (i < 5) otpRefs.current[i + 1]?.focus();
+                      }
+
+                      onOtpChange(arr.join(''));
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Backspace' && !otpArray[i] && i > 0) {
+                        otpRefs.current[i - 1]?.focus();
+                      }
+                    }}
+                    style={{
+                      width: '3rem',
+                      height: '3rem',
+                      textAlign: 'center',
+                      fontSize: '1.5rem',
+                      borderRadius: '0.5rem',
+                      border: '2px solid #e5e7eb',
+                      transition: '0.15s',
+                      ...(error &&
+                        otp.length === 6 && {
+                          borderColor: '#dc2626',
+                          background: '#fee2e2'
+                        })
+                    }}
+                  />
+                ))}
+              </div>
             </div>
           </>
         )}
 
-        {/* Error Message */}
-        {error && (
-          <div style={verificationStyles.errorBox}>
-            <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
-            <p style={{ margin: 0, lineHeight: '1.4' }}>{error}</p>
+        {/* ERROR BOX */}
+        {error && otpSent && (
+          <div
+            style={{
+              background: '#fee2e2',
+              border: '1px solid #fca5a5',
+              padding: '1rem',
+              borderRadius: '0.5rem',
+              display: 'flex',
+              gap: '0.75rem',
+              color: '#dc2626'
+            }}
+          >
+            <AlertCircle size={18} />
+            <p style={{ margin: 0 }}>{error}</p>
           </div>
         )}
 
-        {/* Submit Button */}
-    
-{/* Submit Button */}
-<button
-  type="submit"
-  disabled={
-    isLoading || 
-    (otpSent && otp.length !== 6)
-  }
-  style={{
-    ...verificationStyles.button,
-    ...((isLoading || (otpSent && otp.length !== 6))
-      ? verificationStyles.buttonDisabled
-      : {}),
-  }}
->
-  {isLoading
-    ? otpSent
-      ? '⏳ Verifying OTP...'
-      : '⏳ Sending OTP...'
-    : otpSent
-      ? '✓ Verify OTP'
-      : '→ Send OTP'}
-</button>
-        {!otpSent && resendCount >= 3 && (
-          <p
-            style={{
-              textAlign: 'center',
-              color: '#dc2626',
-              fontSize: '0.85rem',
-              margin: '0.5rem 0 0 0',
-            }}
-          >
-            ⚠️ Maximum attempts reached. Please try again later.
-          </p>
-        )}
+        {/* BUTTON */}
+        <button
+          type="submit"
+          style={{
+            width: '100%',
+            padding: '0.875rem',
+            background: '#667eea',
+            border: 'none',
+            borderRadius: '0.5rem',
+            color: 'white',
+            fontWeight: 600,
+            opacity: otpSent ? (!canVerifyOtp ? 0.5 : 1) : (!canSendOtp ? 0.5 : 1),
+            cursor:
+              otpSent
+                ? canVerifyOtp
+                  ? 'pointer'
+                  : 'not-allowed'
+                : canSendOtp
+                ? 'pointer'
+                : 'not-allowed'
+          }}
+        >
+          {isLoading
+            ? otpSent
+              ? '⏳ Verifying OTP...'
+              : '⏳ Sending OTP...'
+            : otpSent
+            ? '✓ Verify OTP'
+            : '→ Send OTP'}
+        </button>
       </form>
     </div>
   );

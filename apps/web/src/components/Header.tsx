@@ -16,6 +16,7 @@ import {
   SparklesIcon,
   Bars3Icon,
 } from '@heroicons/react/24/outline';
+import { ChevronDown, Users, Utensils, ArrowRight, CheckCircle } from 'lucide-react';
 import { handleLogout } from "@catering-marketplace/auth"
 
 const AVAILABLE_CITIES = [
@@ -46,17 +47,48 @@ const Header = () => {
   const [isCityModalOpen, setIsCityModalOpen] = useState(false);
   const [selectedCity, setSelectedCity] = useState<City | null>(AVAILABLE_CITIES[0]);
   const [citySearchQuery, setCitySearchQuery] = useState('');
+  const [eventType, setEventType] = useState('');
+  const [guestCount, setGuestCount] = useState('');
+  const [location, setLocation] = useState('');
   
-  const pathname = usePathname();
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const { data: session, status } = useSession();
 
   const navLinks = [
-    { label: 'Home', href: '/' },
     { label: 'Find Caterers', href: '/caterers' },
     { label: 'Meal Plans', href: '/meal-plans' },
     { label: 'Explore Chefs', href: '/explore-chefs' },
   ];
+
+  const eventTypes = [
+    { value: 'wedding', label: '💍 Wedding' },
+    { value: 'corporate', label: '🏢 Corporate Event' },
+    { value: 'birthday', label: '🎂 Birthday Party' },
+    { value: 'anniversary', label: '💕 Anniversary' },
+    { value: 'engagement', label: '💎 Engagement' },
+    { value: 'conference', label: '📋 Conference' },
+  ];
+
+  const guestCounts = [
+    { value: '10-25', label: '10-25 guests' },
+    { value: '25-50', label: '25-50 guests' },
+    { value: '50-100', label: '50-100 guests' },
+    { value: '100-200', label: '100-200 guests' },
+    { value: '200-500', label: '200-500 guests' },
+    { value: '500+', label: '500+ guests' },
+  ];
+
+  const locations = [
+    { value: 'bangalore', label: '🏙️ Bangalore' },
+    { value: 'delhi', label: '🏛️ Delhi' },
+    { value: 'hyderabad', label: '🌆 Hyderabad' },
+    { value: 'mumbai', label: '🌃 Mumbai' },
+    { value: 'pune', label: '🏞️ Pune' },
+    { value: 'kolkata', label: '🎭 Kolkata' },
+  ];
+
+  const pathname = usePathname();
+   const isHome = pathname === "/"
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -88,12 +120,23 @@ const Header = () => {
     setCitySearchQuery('');
   };
 
-  // Check if a link is active
   const isLinkActive = (href: string) => {
     if (href === '/') {
       return pathname === '/';
     }
     return pathname.startsWith(href);
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (location && eventType && guestCount) {
+      const searchParams = new URLSearchParams({
+        location,
+        eventType,
+        guestCount,
+      });
+      window.location.href = `/search?${searchParams.toString()}`;
+    }
   };
 
   const NavLink = ({ href, label }: { href: string; label: string }) => {
@@ -105,7 +148,7 @@ const Header = () => {
         style={{
           fontSize: '15px',
           fontWeight: '500',
-          color: active ? 'white' : 'white',
+          color: 'white',
           textDecoration: 'none',
           transition: 'all 0.3s ease',
           padding: '8px 16px',
@@ -164,7 +207,7 @@ const Header = () => {
         }
       }}
     >
-      <MapPinIcon style={{ width: isMobile ? '16px' : '16px', height: isMobile ? '16px' : '16px', flexShrink: 0 }} />
+      <MapPinIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} />
       <span>{selectedCity?.emoji} {selectedCity?.name}</span>
       <ChevronDownIcon style={{ width: '14px', height: '14px', flexShrink: 0, opacity: 0.7 }} />
     </button>
@@ -601,11 +644,14 @@ const Header = () => {
   return (
     <header
       style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        backgroundImage: `linear-gradient(135deg, rgba(102, 126, 234, 0.8) 0%, rgba(118, 75, 162, 0.8) 100%), url('/catering-hero.jpg')`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed',
+        backgroundRepeat: 'no-repeat',
         borderBottom: 'none',
         boxShadow: '0 8px 24px rgba(102, 126, 234, 0.2)',
-        position: 'sticky',
-        top: 0,
+        position: 'relative',
         zIndex: 50,
       }}
     >
@@ -670,7 +716,6 @@ const Header = () => {
           display: none;
         }
 
-        /* Desktop - 1024px and above */
         @media (min-width: 1024px) {
           .desktop-logo {
             display: flex !important;
@@ -699,7 +744,6 @@ const Header = () => {
           }
         }
 
-        /* Tablet/Mobile - Below 1024px */
         @media (max-width: 1023px) {
           .desktop-logo {
             display: none !important;
@@ -740,14 +784,16 @@ const Header = () => {
       `}</style>
 
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 20px' }}>
+        {/* Top Navigation Bar */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             height: 'auto',
-            padding: '10px 0',
+            padding: '12px 0',
             gap: '20px',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
           }}
         >
           {/* Desktop Logo */}
@@ -765,8 +811,10 @@ const Header = () => {
               src="/logo.png"
               alt="Droooly"
               style={{
-                height: '80px',
-                width: '170px',
+                minHeight: '110px',
+                height: '110px',
+                width: 'auto',
+                objectFit: 'contain',
                 filter: 'brightness(0) invert(1)',
               }}
             />
@@ -783,41 +831,37 @@ const Header = () => {
           <div className="desktop-actions">
             <CityButton />
             <Link
-                  href="/become-a-caterer"
-                  style={{
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    color: 'white',
-                    textDecoration: 'none',
-                    padding: '8px 18px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                    transition: 'all 0.2s ease',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    cursor: 'pointer',
-                    backdropFilter: 'blur(10px)',
-                    letterSpacing: '0.3px',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.15)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                  }}
-                >
-                  <SparklesIcon style={{ width: '16px', height: '16px' }} />
-                  Partner
-                </Link>
-                
-            
+              href="/become-a-caterer"
+              style={{
+                fontSize: '14px',
+                fontWeight: '500',
+                color: 'white',
+                textDecoration: 'none',
+                padding: '8px 18px',
+                borderRadius: '8px',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                transition: 'all 0.2s ease',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer',
+                backdropFilter: 'blur(10px)',
+                letterSpacing: '0.3px',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.15)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+              }}
+            >
+              <SparklesIcon style={{ width: '16px', height: '16px' }} />
+              Partner
+            </Link>
+
             {status === 'authenticated' ? (
-              <>
-               
-                <ProfileDropdown />
-              </>
+              <ProfileDropdown />
             ) : status === 'loading' ? (
               <div
                 style={{
@@ -829,34 +873,32 @@ const Header = () => {
                 }}
               />
             ) : (
-              <>
-                <Link
-                  href="/login"
-                  style={{
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    color: '#667eea',
-                    textDecoration: 'none',
-                    padding: '8px 20px',
-                    borderRadius: '8px',
-                    backgroundColor: 'white',
-                    transition: 'all 0.2s ease',
-                    display: 'inline-block',
-                    cursor: 'pointer',
-                    letterSpacing: '0.3px',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 8px 16px rgba(0, 0, 0, 0.2)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                >
-                  Login
-                </Link>
-              </>
+              <Link
+                href="/login"
+                style={{
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#667eea',
+                  textDecoration: 'none',
+                  padding: '8px 20px',
+                  borderRadius: '8px',
+                  backgroundColor: 'white',
+                  transition: 'all 0.2s ease',
+                  display: 'inline-block',
+                  cursor: 'pointer',
+                  letterSpacing: '0.3px',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 8px 16px rgba(0, 0, 0, 0.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                Login
+              </Link>
             )}
           </div>
 
@@ -904,8 +946,10 @@ const Header = () => {
                 src="/logo.png"
                 alt="Droooly"
                 style={{
-                  height: '40px',
+                  minHeight: '48px',
+                  height: '48px',
                   width: 'auto',
+                  objectFit: 'contain',
                   filter: 'brightness(0) invert(1)',
                 }}
               />
@@ -950,6 +994,373 @@ const Header = () => {
             )}
           </div>
         </div>
+
+        {/* Hero Section with Search Form */}
+        {isHome ?? (<>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingTop: 'clamp(1.5rem, 4vw, 2.5rem)',
+            paddingBottom: 'clamp(1.5rem, 4vw, 2.5rem)',
+            minHeight: 'auto',
+          }}
+        >
+          {/* Main Hero Title & Description */}
+          <div style={{ textAlign: 'center', marginBottom: '1.5rem', maxWidth: '800px', animation: 'fadeIn 0.8s ease-in' }}>
+            <h1
+              style={{
+                fontSize: 'clamp(1.75rem, 5vw, 3rem)',
+                fontWeight: '800',
+                marginBottom: '0.75rem',
+                marginTop: 0,
+                lineHeight: '1.2',
+                textShadow: '0 4px 12px rgba(0, 0, 0, 0.25)',
+                letterSpacing: '-0.02em',
+                color: 'white',
+              }}
+            >
+              Plan Your Perfect Event in Seconds
+            </h1>
+
+            <p
+              style={{
+                fontSize: 'clamp(0.95rem, 2.5vw, 1.1rem)',
+                color: 'rgba(255, 255, 255, 0.95)',
+                maxWidth: '700px',
+                margin: '0 auto',
+                lineHeight: '1.6',
+                textShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+              }}
+            >
+              Find the best caterers for your event — fast, simple, and reliable.
+            </p>
+          </div>
+
+          {/* Search Form Card */}
+          <div
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.98)',
+              borderRadius: '1.25rem',
+              padding: 'clamp(1rem, 3vw, 1.5rem)',
+              boxShadow: '0 25px 50px rgba(0, 0, 0, 0.25)',
+              maxWidth: '900px',
+              width: '100%',
+              backdropFilter: 'blur(10px)',
+            }}
+          >
+            <form onSubmit={handleSearch}>
+              <p
+                style={{
+                  fontSize: '0.75rem',
+                  fontWeight: '700',
+                  color: '#6b7280',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.1em',
+                  margin: '0 0 1rem 0',
+                }}
+              >
+                Search Fields
+              </p>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                  gap: '0.75rem',
+                  marginBottom: '1rem',
+                }}
+              >
+                {/* Location Dropdown */}
+                <div>
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      fontSize: '0.75rem',
+                      fontWeight: '700',
+                      color: '#374151',
+                      marginBottom: '0.5rem',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                    }}
+                  >
+                    <MapPinIcon style={{ width: '16px', height: '16px' }} />
+                    Location
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <select
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem 2.5rem 0.75rem 0.875rem',
+                        border: '2px solid #e5e7eb',
+                        borderRadius: '0.75rem',
+                        fontSize: '0.9rem',
+                        fontWeight: '500',
+                        color: location ? '#111827' : '#9ca3af',
+                        backgroundColor: 'white',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease',
+                        appearance: 'none',
+                      }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = '#667eea';
+                        e.currentTarget.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = '#e5e7eb';
+                        e.currentTarget.style.boxShadow = 'none';
+                      }}
+                      required
+                    >
+                      <option value="">Select Location</option>
+                      {locations.map((loc) => (
+                        <option key={loc.value} value={loc.value}>
+                          {loc.label}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown
+                      size={18}
+                      style={{
+                        position: 'absolute',
+                        right: '0.75rem',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        pointerEvents: 'none',
+                        color: '#9ca3af',
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Event Type Dropdown */}
+                <div>
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      fontSize: '0.75rem',
+                      fontWeight: '700',
+                      color: '#374151',
+                      marginBottom: '0.5rem',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                    }}
+                  >
+                    <Utensils size={16} />
+                    Event Type
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <select
+                      value={eventType}
+                      onChange={(e) => setEventType(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem 2.5rem 0.75rem 0.875rem',
+                        border: '2px solid #e5e7eb',
+                        borderRadius: '0.75rem',
+                        fontSize: '0.9rem',
+                        fontWeight: '500',
+                        color: eventType ? '#111827' : '#9ca3af',
+                        backgroundColor: 'white',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease',
+                        appearance: 'none',
+                      }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = '#667eea';
+                        e.currentTarget.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = '#e5e7eb';
+                        e.currentTarget.style.boxShadow = 'none';
+                      }}
+                      required
+                    >
+                      <option value="">Select Event Type</option>
+                      {eventTypes.map((type) => (
+                        <option key={type.value} value={type.value}>
+                          {type.label}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown
+                      size={18}
+                      style={{
+                        position: 'absolute',
+                        right: '0.75rem',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        pointerEvents: 'none',
+                        color: '#9ca3af',
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Guest Count Dropdown */}
+                <div>
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      fontSize: '0.75rem',
+                      fontWeight: '700',
+                      color: '#374151',
+                      marginBottom: '0.5rem',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                    }}
+                  >
+                    <Users size={16} />
+                    Number of Guests
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <select
+                      value={guestCount}
+                      onChange={(e) => setGuestCount(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem 2.5rem 0.75rem 0.875rem',
+                        border: '2px solid #e5e7eb',
+                        borderRadius: '0.75rem',
+                        fontSize: '0.9rem',
+                        fontWeight: '500',
+                        color: guestCount ? '#111827' : '#9ca3af',
+                        backgroundColor: 'white',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease',
+                        appearance: 'none',
+                      }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = '#667eea';
+                        e.currentTarget.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = '#e5e7eb';
+                        e.currentTarget.style.boxShadow = 'none';
+                      }}
+                      required
+                    >
+                      <option value="">Select Guest Count</option>
+                      {guestCounts.map((count) => (
+                        <option key={count.value} value={count.value}>
+                          {count.label}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown
+                      size={18}
+                      style={{
+                        position: 'absolute',
+                        right: '0.75rem',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        pointerEvents: 'none',
+                        color: '#9ca3af',
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Search Button */}
+              <button
+                type="submit"
+                disabled={!location || !eventType || !guestCount}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem 1rem',
+                  backgroundImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '0.75rem',
+                  fontWeight: '700',
+                  cursor: !location || !eventType || !guestCount ? 'not-allowed' : 'pointer',
+                  fontSize: 'clamp(0.875rem, 2vw, 1rem)',
+                  transition: 'all 0.3s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.75rem',
+                  opacity: !location || !eventType || !guestCount ? 0.6 : 1,
+                }}
+                onMouseEnter={(e) => {
+                  if (location && eventType && guestCount) {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 10px 25px rgba(102, 126, 234, 0.4)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                Find Caterers
+                <ArrowRight size={20} />
+              </button>
+
+              {/* Trust Badges */}
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  justifyContent: 'center',
+                  gap: 'clamp(0.75rem, 2vw, 1rem)',
+                  paddingTop: '0.875rem',
+                  marginTop: '0.875rem',
+                  borderTop: '1px solid #e5e7eb',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.375rem',
+                    fontSize: '0.75rem',
+                    color: '#666',
+                  }}
+                >
+                  <CheckCircle size={14} color="#10b981" />
+                  <span>No hidden costs</span>
+                </div>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.375rem',
+                    fontSize: '0.75rem',
+                    color: '#666',
+                  }}
+                >
+                  <CheckCircle size={14} color="#10b981" />
+                  <span>Verified caterers</span>
+                </div>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.375rem',
+                    fontSize: '0.75rem',
+                    color: '#666',
+                  }}
+                >
+                  <CheckCircle size={14} color="#10b981" />
+                  <span>Instant quotes</span>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+        </>)}
 
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
@@ -1035,7 +1446,7 @@ const Header = () => {
                   </Link>
 
                   <Link
-                    href="/become-caterer"
+                    href="/become-a-caterer"
                     onClick={() => setIsMobileMenuOpen(false)}
                     style={{
                       fontSize: '13px',
@@ -1082,7 +1493,7 @@ const Header = () => {
               ) : (
                 <>
                   <Link
-                    href="/become-caterer"
+                    href="/become-a-caterer"
                     onClick={() => setIsMobileMenuOpen(false)}
                     style={{
                       fontSize: '13px',
