@@ -53,6 +53,7 @@ export interface OnboardingMasterData {
   diet_types: DietType[];
   service_styles: ServiceStyle[];
   capacity_ranges: CapacityRange[];
+  cities: Record<string, string>[];
 }
 
 export interface OnboardingMasterDataResponse {

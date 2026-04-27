@@ -1,452 +1,525 @@
 'use client';
 
-import React, { useRef, useEffect, useState } from 'react';
-import { AlertCircle, CheckCircle, Mail, Phone } from 'lucide-react';
-import { useSession, signIn } from 'next-auth/react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { signIn, useSession } from 'next-auth/react';
 import { sendOtpApi } from '@catering-marketplace/query-client';
 
-interface EmailOrPhoneVerificationProps {
-  onOtpVerified?:any;
+type AuthIntent = 'partner_onboarding';
+type InputType = 'email' | 'phone' | 'invalid';
+
+export interface AuthVerificationData {
+  email?: string;
+  phone?: string;
+  intent: AuthIntent;
+  isNewUser?: boolean;
 }
 
+interface EmailOrPhoneVerificationProps {
+  initialData?: {
+    email?: string;
+    phone?: string;
+  };
+  intent?: AuthIntent;
+  onSubmitForm: (data: AuthVerificationData) => void | Promise<void>;
+  onBack?: () => void;
+}
+
+const RESEND_SECONDS = 180;
+const OTP_LENGTH = 6;
+
 export default function EmailOrPhoneVerification({
-  onOtpVerified,
+  initialData,
+  intent = 'partner_onboarding',
+  onSubmitForm,
 }: EmailOrPhoneVerificationProps) {
+  const { data: session, update: updateSession } = useSession();
   const otpRefs = useRef<HTMLInputElement[]>([]);
-  const [resendTimer, setResendTimer] = useState(0);
-  const [resendCount, setResendCount] = useState(0);
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [otpSent, setOtpSent] = useState(false);
-  const [phoneVerified, setPhoneVerified] = useState(false);
-  const [emailOrPhone, setEmailOrPhone] = useState('');
+
+  const [emailOrPhone, setEmailOrPhone] = useState(
+    initialData?.email || initialData?.phone || ''
+  );
+
   const [otp, setOtp] = useState('');
-    const { data: session, status, update: updateSession } = useSession();
-  
+  const [otpSent, setOtpSent] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
+
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (resendTimer > 0) {
-      interval = setInterval(() => {
-        setResendTimer((prev) => prev - 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
+    if (resendTimer <= 0) return;
+
+    const interval = window.setInterval(() => {
+      setResendTimer((prev) => Math.max(prev - 1, 0));
+    }, 1000);
+
+    return () => window.clearInterval(interval);
   }, [resendTimer]);
-  useEffect(() => {
-    if (error && otp.length < 6) {
-      setError('');
-    }
-  }, [otp]);
 
-  const handleSendOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const inputType = useMemo<InputType>(() => {
+    const value = emailOrPhone.trim();
+    const digits = value.replace(/\D/g, '');
+
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'email';
+    if (/^\d{10}$/.test(digits)) return 'phone';
+
+    return 'invalid';
+  }, [emailOrPhone]);
+
+  const normalizedContact = useMemo(() => {
+    if (inputType === 'email') {
+      return {
+        email: emailOrPhone.trim().toLowerCase(),
+      };
+    }
+
+    if (inputType === 'phone') {
+      return {
+        phone: `+91${emailOrPhone.replace(/\D/g, '')}`,
+      };
+    }
+
+    return {};
+  }, [emailOrPhone, inputType]);
+
+  const canSendOtp =
+    inputType !== 'invalid' &&
+    !otpSent &&
+    !isSendingOtp &&
+    !isVerifyingOtp;
+
+  const canVerifyOtp =
+    otpSent &&
+    otp.length === OTP_LENGTH &&
+    /^\d{6}$/.test(otp) &&
+    !isVerifyingOtp &&
+    !isSendingOtp;
+
+  const canResendOtp =
+    otpSent &&
+    resendTimer === 0 &&
+    !isSendingOtp &&
+    !isVerifyingOtp;
+
+  const formatTimer = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+
+    return `${minutes}:${String(remainingSeconds).padStart(2, '0')}`;
+  };
+
+  const handleSendOtp = async () => {
+    if (!canSendOtp) return;
+
     setError('');
-    setIsLoading(true);
-
-    const inputType = detectInputType(emailOrPhone);
-
-    if (inputType === 'invalid') {
-      setError('Please enter a valid email address or 10-digit mobile number');
-      setIsLoading(false);
-      return;
-    }
-
-    if (resendCount >= 3) {
-      setError(
-        'Maximum OTP requests reached (3 attempts). Please try again after some time.'
-      );
-      setIsLoading(false);
-      return;
-    }
+    setIsSendingOtp(true);
 
     try {
-      const payload =
-        inputType === 'email'
-          ? { email: emailOrPhone.trim() }
-          : { phone: `+91${emailOrPhone.replace(/\D/g, '')}` };
-
-      const result = await sendOtpApi(payload);
+      const result = await sendOtpApi({
+        ...normalizedContact,
+      });
 
       if (!result.success) {
-        setError(result.error || 'Failed to send OTP. Please try again.');
-        setIsLoading(false);
+        setError(result.error || 'Unable to send OTP. Please try again.');
         return;
       }
 
       setOtpSent(true);
-      setResendCount(resendCount + 1);
-      setResendTimer(60);
-      setError('');
+      setOtp('');
+      setResendTimer(RESEND_SECONDS);
+
+      setTimeout(() => {
+        otpRefs.current[0]?.focus();
+      }, 100);
     } catch (err) {
-      console.error('Error sending OTP:', err);
-      setError('Failed to send OTP. Please try again.');
-      setIsLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
-
-    if (!otp || otp.length !== 6) {
-      setError('Please enter a valid 6-digit OTP');
-      setIsLoading(false);
-      return;
-    }
-
-    const inputType = detectInputType(emailOrPhone);
-
-    if (inputType === 'invalid') {
-      setError('Invalid email or phone number');
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const payload =
-        inputType === 'email'
-          ? { email: emailOrPhone.trim(), otp, phone: '' }
-          : {
-              phone: `+91${emailOrPhone.replace(/\D/g, '')}`,
-              otp: otp,
-              email: '',
-            };
-      const signInType = inputType === 'email' ? 'email-otp' : 'phone-otp';
-
-    
-      // Sign in with NextAuth
-      try {
-        const signInPayload = {
-          ...(inputType === 'email' && { email: emailOrPhone.trim() }),
-          ...(inputType === 'phone' && {
-            phone: `+91${emailOrPhone.replace(/\D/g, '')}`,
-          }),
-          otp,
-          redirect: false,
-        };
-
-        const signInResult = await signIn(signInType, signInPayload);
-
-        if (!signInResult?.ok) {
-          setError('Failed to sign in. Please try again.');
-          setIsLoading(false);
-          return;
-        }
-
-        // Update session
-        await updateSession({
-          ...session,
-          user: {
-            ...session?.user,
-            ...(inputType === 'email' && { email: emailOrPhone.trim() }),
-            ...(inputType === 'phone' && {
-              phone: `+91${emailOrPhone.replace(/\D/g, '')}`,
-            }),
-          },
-        });
-
-        setPhoneVerified(true);
-        setOtpSent(false);
-        setError('');
-        onOtpVerified(true);
-      } catch (signInError) {
-        console.error('Sign in error:', signInError);
-        setError('Failed to sign in. Please try again.');
-        setIsLoading(false);
-      }
-    } catch (err) {
-      console.error('Error verifying OTP:', err);
-      setError('Failed to verify OTP. Please try again.');
-      setIsLoading(false);
+      console.error('Send OTP error:', err);
+      setError('Unable to send OTP. Please try again.');
+    } finally {
+      setIsSendingOtp(false);
     }
   };
 
   const handleResendOtp = async () => {
+    if (!canResendOtp) return;
+
     setError('');
-    setIsLoading(true);
-
-    const inputType = detectInputType(emailOrPhone);
-
-    if (inputType === 'invalid') {
-      setError('Invalid email or phone number');
-      setIsLoading(false);
-      return;
-    }
-
-    if (resendCount >= 3) {
-      setError(
-        'Maximum OTP requests reached (3 attempts). Please try again after some time.'
-      );
-      setIsLoading(false);
-      return;
-    }
+    setIsSendingOtp(true);
 
     try {
-      const payload =
-        inputType === 'email'
-          ? { email: emailOrPhone.trim() }
-          : { phone: `+91${emailOrPhone.replace(/\D/g, '')}` };
-
-      const result = await sendOtpApi(payload);
+      const result = await sendOtpApi({
+        ...normalizedContact,
+      });
 
       if (!result.success) {
-        setError(result.error || 'Failed to resend OTP. Please try again.');
-        setIsLoading(false);
+        setError(result.error || 'Unable to resend OTP. Please try again.');
         return;
       }
 
-      setResendCount(resendCount + 1);
-      setResendTimer(60);
-      setError('');
+      setOtp('');
+      setResendTimer(RESEND_SECONDS);
+
+      setTimeout(() => {
+        otpRefs.current[0]?.focus();
+      }, 100);
     } catch (err) {
-      console.error('Error resending OTP:', err);
-      setError('Failed to resend OTP. Please try again.');
-      setIsLoading(false);
+      console.error('Resend OTP error:', err);
+      setError('Unable to resend OTP. Please try again.');
+    } finally {
+      setIsSendingOtp(false);
     }
   };
 
-  const detectInputType = (value: string): 'email' | 'phone' | 'invalid' => {
-    const trimmed = value.trim();
-    if (trimmed.includes('@') && trimmed.includes('.')) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (emailRegex.test(trimmed)) return 'email';
+  const handleVerifyOtp = async () => {
+    if (!canVerifyOtp) return;
+
+    setError('');
+    setIsVerifyingOtp(true);
+
+    try {
+      const provider = inputType === 'email' ? 'email-otp' : 'phone-otp';
+
+      const result = await signIn(provider, {
+        ...normalizedContact,
+        otp,
+        redirect: false,
+      });
+
+      if (!result?.ok) {
+        setError('Invalid OTP. Please check and try again.');
+        return;
+      }
+
+      await updateSession({
+        ...session,
+        user: {
+          ...session?.user,
+          ...normalizedContact,
+          onboardingIntent: intent,
+        },
+      });
+
+      await onSubmitForm({
+        ...normalizedContact,
+        intent,
+      });
+    } catch (err) {
+      console.error('Verify OTP error:', err);
+      setError('Unable to verify OTP. Please try again.');
+    } finally {
+      setIsVerifyingOtp(false);
     }
-    const digits = trimmed.replace(/\D/g, '');
-    if (/^\d{10}$/.test(digits)) return 'phone';
-    return 'invalid';
   };
 
-  const inputType = detectInputType(emailOrPhone);
-  const isValidInput = inputType !== 'invalid';
-  const isEmail = inputType === 'email';
-  const isPhone = inputType === 'phone';
+  const handleContactChange = (value: string) => {
+    setError('');
 
-  const otpArray = Array.from({ length: 6 }, (_, i) => otp[i] || '');
+    const rawDigits = value.replace(/\D/g, '');
 
-  const formatPhoneForDisplay = (phone: string) => {
-    const d = phone.replace(/\D/g, '');
-    if (d.length === 10) return `+91 ${d.slice(0, 5)} ${d.slice(5)}`;
-    return phone;
+    if (/^\d/.test(value)) {
+      const formatted = rawDigits
+        .slice(0, 10)
+        .replace(/(\d{5})(\d{0,5})/, '$1 $2')
+        .trim();
+
+      setEmailOrPhone(formatted);
+      return;
+    }
+
+    setEmailOrPhone(value);
   };
 
-  const canSendOtp = !otpSent && isValidInput && !isLoading && resendCount < 3;
+  const handleOtpChange = (index: number, value: string) => {
+    const digit = value.replace(/\D/g, '').slice(-1);
+    const otpArray = otp.split('');
 
-  const isOtpNumeric = /^[0-9]{6}$/.test(otp);
+    otpArray[index] = digit;
 
-  const canVerifyOtp = otpSent && isOtpNumeric && !isLoading && !error;
+    const nextOtp = Array.from(
+      { length: OTP_LENGTH },
+      (_, i) => otpArray[i] || ''
+    ).join('');
+
+    setOtp(nextOtp);
+    setError('');
+
+    if (digit && index < OTP_LENGTH - 1) {
+      otpRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (
+    index: number,
+    event: React.KeyboardEvent<HTMLInputElement>
+  ) => {
+    if (event.key === 'Backspace' && !otp[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleChangeContact = () => {
+    setOtpSent(false);
+    setOtp('');
+    setError('');
+    setResendTimer(0);
+  };
 
   return (
-    <div
-      style={{
-        maxWidth: '500px',
-        margin: '2rem auto',
-        padding: '2rem',
-        background: 'white',
-        borderRadius: '1rem',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-      }}
-    >
-      {/* HEADER */}
-      <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#1e293b' }}>
-          Welcome to Droooly
-        </h1>
-        <p style={{ fontSize: '0.95rem', color: '#64748b' }}>
-          Verify your identity to get started
+    <div style={styles.card}>
+      <div style={styles.header}>
+        <h1 style={styles.title}>Partner Onboarding</h1>
+        <p style={styles.subtitle}>
+          Verify your email or phone number to continue.
         </p>
       </div>
 
-      <form
-        onSubmit={otpSent ? handleVerifyOtp : handleSendOtp}
-        style={{ display: 'flex', flexDirection: 'column', gap: '1.4rem' }}
-      >
-        {/* EMAIL OR PHONE INPUT */}
-        {!otpSent ? (
+      <div style={styles.form}>
+        <div style={styles.fieldGroup}>
+          <label style={styles.label}>Email or phone number</label>
+
+          <input
+            type="text"
+            value={emailOrPhone}
+            disabled={otpSent || isSendingOtp || isVerifyingOtp}
+            onChange={(event) => handleContactChange(event.target.value)}
+            placeholder="you@example.com or 98765 43210"
+            style={{
+              ...styles.input,
+              ...(emailOrPhone && inputType !== 'invalid'
+                ? styles.inputValid
+                : {}),
+            }}
+          />
+        </div>
+
+        {!otpSent && (
+          <button
+            type="button"
+            onClick={handleSendOtp}
+            disabled={!canSendOtp}
+            style={{
+              ...styles.primaryButton,
+              ...(!canSendOtp ? styles.disabledButton : {}),
+            }}
+          >
+            {isSendingOtp ? 'Sending OTP...' : 'Send OTP'}
+          </button>
+        )}
+
+        {otpSent && (
           <>
-            <label style={{ fontWeight: 600 }}>Email or Phone</label>
-
-            <div style={{ position: 'relative' }}>
-              <div
-                style={{
-                  position: 'absolute',
-                  left: 12,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: '#667eea',
-                }}
-              >
-                {isPhone ? <Phone size={20} /> : <Mail size={20} />}
-              </div>
-
-              <input
-                autoFocus
-                disabled={isLoading}
-                value={emailOrPhone}
-                onChange={(e) => {
-                  let value = e.target.value;
-                  const digits = value.replace(/\D/g, '');
-                  if (/^\d+$/.test(value)) {
-                    if (digits.length <= 10) {
-                      value = digits.replace(/(\d{5})(\d{1,5})/, '$1 $2');
-                    }
-                  }
-                  setEmailOrPhone(value);
-                }}
-                placeholder="you@example.com or 98765 43210"
-                style={{
-                  width: '100%',
-                  padding: '0.875rem 1rem 0.875rem 2.75rem',
-                  borderRadius: '0.5rem',
-                  border: '2px solid #e5e7eb',
-                  ...(isValidInput && {
-                    borderColor: '#10b981',
-                    background: '#f0fdf4',
-                  }),
-                }}
-              />
-
-              {isValidInput && (
-                <CheckCircle
-                  size={20}
-                  style={{
-                    position: 'absolute',
-                    right: 12,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    color: '#10b981',
-                  }}
-                />
-              )}
+            <div style={styles.notice}>
+              OTP sent. Please enter the 6-digit code.
             </div>
-          </>
-        ) : (
-          <>
-            {/* OTP SECTION */}
-            <div
-              style={{
-                background: '#f9fafb',
-                padding: '1.5rem',
-                borderRadius: '0.75rem',
-                border: '1px solid #e5e7eb',
-              }}
-            >
-              <label style={{ fontWeight: 600 }}>Enter OTP</label>
 
-              <p style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                Sent to{' '}
-                {isEmail ? emailOrPhone : formatPhoneForDisplay(emailOrPhone)}
-              </p>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Verification code</label>
 
-              <div
-                style={{
-                  display: 'flex',
-                  gap: '0.75rem',
-                  justifyContent: 'center',
-                  marginTop: '1rem',
-                }}
-              >
-                {otpArray.map((v, i) => (
+              <div style={styles.otpGroup}>
+                {Array.from({ length: OTP_LENGTH }).map((_, index) => (
                   <input
-                    key={i}
-                    maxLength={1}
-                    value={v}
+                    key={index}
+                    ref={(element) => {
+                      if (element) otpRefs.current[index] = element;
+                    }}
+                    value={otp[index] || ''}
+                    onChange={(event) =>
+                      handleOtpChange(index, event.target.value)
+                    }
+                    onKeyDown={(event) => handleOtpKeyDown(index, event)}
                     inputMode="numeric"
-                    /* @ts-ignore */
-                    ref={(el) => (otpRefs.current[i] = el!)}
-                    onChange={(e) => {
-                      const d = e.target.value.replace(/\D/g, '');
-                      const arr = [...otpArray];
-
-                      if (d === '') arr[i] = '';
-                      else {
-                        arr[i] = d[0];
-                        if (i < 5) otpRefs.current[i + 1]?.focus();
-                      }
-
-                      setOtp(arr.join(''));
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Backspace' && !otpArray[i] && i > 0) {
-                        otpRefs.current[i - 1]?.focus();
-                      }
-                    }}
-                    style={{
-                      width: '3rem',
-                      height: '3rem',
-                      textAlign: 'center',
-                      fontSize: '1.5rem',
-                      borderRadius: '0.5rem',
-                      border: '2px solid #e5e7eb',
-                      transition: '0.15s',
-                      ...(error &&
-                        otp.length === 6 && {
-                          borderColor: '#dc2626',
-                          background: '#fee2e2',
-                        }),
-                    }}
+                    maxLength={1}
+                    disabled={isVerifyingOtp}
+                    style={styles.otpInput}
                   />
                 ))}
               </div>
             </div>
+
+            <button
+              type="button"
+              onClick={handleVerifyOtp}
+              disabled={!canVerifyOtp}
+              style={{
+                ...styles.primaryButton,
+                ...(!canVerifyOtp ? styles.disabledButton : {}),
+              }}
+            >
+              {isVerifyingOtp ? 'Verifying OTP...' : 'Verify OTP'}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleResendOtp}
+              disabled={!canResendOtp}
+              style={{
+                ...styles.secondaryButton,
+                ...(!canResendOtp ? styles.disabledSecondaryButton : {}),
+              }}
+            >
+              {resendTimer > 0
+                ? `Resend OTP in ${formatTimer(resendTimer)}`
+                : isSendingOtp
+                  ? 'Resending OTP...'
+                  : 'Resend OTP'}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleChangeContact}
+              disabled={isSendingOtp || isVerifyingOtp}
+              style={styles.linkButton}
+            >
+              Change email or phone
+            </button>
           </>
         )}
 
-        {/* ERROR BOX */}
-        {error && otpSent && (
-          <div
-            style={{
-              background: '#fee2e2',
-              border: '1px solid #fca5a5',
-              padding: '1rem',
-              borderRadius: '0.5rem',
-              display: 'flex',
-              gap: '0.75rem',
-              color: '#dc2626',
-            }}
-          >
-            <AlertCircle size={18} />
-            <p style={{ margin: 0 }}>{error}</p>
-          </div>
-        )}
-
-        {/* BUTTON */}
-        <button
-          type="submit"
-          style={{
-            width: '100%',
-            padding: '0.875rem',
-            background: '#667eea',
-            border: 'none',
-            borderRadius: '0.5rem',
-            color: 'white',
-            fontWeight: 600,
-            opacity: otpSent
-              ? !canVerifyOtp
-                ? 0.5
-                : 1
-              : !canSendOtp
-                ? 0.5
-                : 1,
-            cursor: otpSent
-              ? canVerifyOtp
-                ? 'pointer'
-                : 'not-allowed'
-              : canSendOtp
-                ? 'pointer'
-                : 'not-allowed',
-          }}
-        >
-          {isLoading
-            ? otpSent
-              ? '⏳ Verifying OTP...'
-              : '⏳ Sending OTP...'
-            : otpSent
-              ? '✓ Verify OTP'
-              : '→ Send OTP'}
-        </button>
-      </form>
+        {error && <div style={styles.error}>{error}</div>}
+      </div>
     </div>
   );
 }
+
+const styles: Record<string, React.CSSProperties> = {
+  card: {
+    maxWidth: '460px',
+    margin: '2rem auto',
+    padding: '2rem',
+    backgroundColor: '#ffffff',
+    borderRadius: '1.25rem',
+    boxShadow: '0 12px 32px rgba(15, 23, 42, 0.08)',
+  },
+
+  header: {
+    textAlign: 'center',
+    marginBottom: '2rem',
+  },
+
+  title: {
+    margin: 0,
+    fontSize: '1.75rem',
+    fontWeight: 800,
+    color: '#111827',
+  },
+
+  subtitle: {
+    marginTop: '0.5rem',
+    fontSize: '0.95rem',
+    color: '#6b7280',
+  },
+
+  form: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1rem',
+  },
+
+  fieldGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.5rem',
+  },
+
+  label: {
+    fontSize: '0.9rem',
+    fontWeight: 700,
+    color: '#374151',
+  },
+
+  input: {
+    width: '100%',
+    padding: '0.95rem 1rem',
+    borderRadius: '0.875rem',
+    border: '1.5px solid #d1d5db',
+    fontSize: '1rem',
+    outline: 'none',
+    transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+  },
+
+  inputValid: {
+    borderColor: '#10b981',
+    boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.12)',
+  },
+
+  primaryButton: {
+    width: '100%',
+    padding: '1rem',
+    border: 'none',
+    borderRadius: '0.875rem',
+    backgroundColor: '#f97316',
+    color: '#ffffff',
+    fontSize: '1rem',
+    fontWeight: 800,
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+  },
+
+  secondaryButton: {
+    width: '100%',
+    padding: '0.95rem',
+    borderRadius: '0.875rem',
+    border: '1.5px solid #d1d5db',
+    backgroundColor: '#ffffff',
+    color: '#374151',
+    fontSize: '0.95rem',
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
+
+  disabledButton: {
+    backgroundColor: '#d1d5db',
+    cursor: 'not-allowed',
+  },
+
+  disabledSecondaryButton: {
+    color: '#9ca3af',
+    backgroundColor: '#f9fafb',
+    cursor: 'not-allowed',
+  },
+
+  notice: {
+    padding: '0.875rem',
+    borderRadius: '0.875rem',
+    backgroundColor: '#fff7ed',
+    color: '#9a3412',
+    fontSize: '0.9rem',
+    fontWeight: 600,
+  },
+
+  otpGroup: {
+    display: 'flex',
+    justifyContent: 'center',
+    gap: '0.5rem',
+  },
+
+  otpInput: {
+    width: '3rem',
+    height: '3rem',
+    borderRadius: '9999px',
+    border: '1.5px solid #d1d5db',
+    textAlign: 'center',
+    fontSize: '1.2rem',
+    fontWeight: 800,
+    outline: 'none',
+  },
+
+  linkButton: {
+    border: 'none',
+    background: 'transparent',
+    color: '#6b7280',
+    fontSize: '0.9rem',
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
+
+  error: {
+    padding: '0.875rem',
+    borderRadius: '0.875rem',
+    backgroundColor: '#fef2f2',
+    color: '#dc2626',
+    fontSize: '0.9rem',
+    fontWeight: 600,
+  },
+};

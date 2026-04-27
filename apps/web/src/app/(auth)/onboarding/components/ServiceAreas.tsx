@@ -1,903 +1,678 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { AlertCircle, Plus, Trash2, MapPin, Check, XCircle, Info } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import type { DeliveryServiceData, StepComponentProps } from '../types';
 
-interface ServiceArea {
-  pincode: string;
-  city: string;
-  state: string; // Added state to the mock data for completeness
-}
+type DistanceUnit = 'km' | 'mile';
 
-interface DeliverySettings {
-  freeDeliveryRadius: number | null; // Changed to null for initial empty state
-  maxDeliveryDistance: number | null; // Changed to null for initial empty state
-  extraChargePerKm: number | null; // Changed to null for initial empty state
-}
-
-interface ServiceAreasProps {
-  kitchenAddress: string;
-  kitchenPincode: string;
-  canServeEntireCity: boolean;
-  serviceAreas: ServiceArea[];
-  deliverySettings: DeliverySettings | null; // Can be null initially
-  isLoading: boolean;
-  error: string; // Passed error for global/server-side messages
-  onSubmit: (formData: ServiceAreasFormData) => Promise<void>;
-  onBack: () => void;
-  styles: { [key: string]: React.CSSProperties }; // Base styles from parent
-}
-
-interface ServiceAreasFormData {
-  kitchenAddress: string;
-  kitchenPincode: string;
-  canServeEntireCity: boolean;
-  serviceAreas: ServiceArea[];
-  deliverySettings: DeliverySettings; // Must be non-null on submit
-}
-
-interface CityData {
-  code: string;
+export interface CityData {
+  id: string;
+  code?: string;
   name: string;
-  pincodes: string[];
-  state: string; // Added state
+  state?: string;
+  countryCode: string;
+  pincodes?: string[];
 }
+
+export interface ServiceAreasProps
+  extends StepComponentProps<DeliveryServiceData> {
+  cities?: CityData[];
+}
+
+const DEFAULT_DATA: DeliveryServiceData = {
+  canServeEntireCity: false,
+  deliveryAvailable: true,
+  pickupAvailable: false,
+  freeDeliveryRadius: null,
+  maxDeliveryDistance: null,
+  distanceUnit: 'km',
+  extraChargePerDistanceUnit: null,
+  minOrderValue: null,
+  serviceAreas: [],
+};
 
 export default function ServiceAreas({
-  kitchenAddress,
-  kitchenPincode,
-  canServeEntireCity,
-  serviceAreas,
-  deliverySettings,
-  isLoading,
-  error: globalError, // Renamed for clarity
-  onSubmit,
+  initialData,
+  onSubmitForm,
   onBack,
-  styles,
+  isLoading = false,
+  error,
+  cities = [],
 }: ServiceAreasProps) {
-  // Local state for form fields
-  const [localKitchenAddress, setLocalKitchenAddress] = useState(kitchenAddress);
-  const [localKitchenPincode, setLocalKitchenPincode] = useState(kitchenPincode);
-  const [localCanServeEntireCity, setLocalCanServeEntireCity] = useState(canServeEntireCity);
-  const [localServiceAreas, setLocalServiceAreas] = useState<ServiceArea[]>(serviceAreas);
-  const [localNewPincode, setLocalNewPincode] = useState('');
-  const [pincodeValidationMessage, setPincodeValidationMessage] = useState('');
-  const [localDeliverySettings, setLocalDeliverySettings] = useState<DeliverySettings>(
-    deliverySettings || {
-      freeDeliveryRadius: null,
-      maxDeliveryDistance: null,
-      extraChargePerKm: null,
+  const [formData, setFormData] = useState<DeliveryServiceData>({
+    ...DEFAULT_DATA,
+    ...initialData,
+    serviceAreas: initialData?.serviceAreas || [],
+  });
+
+  const [newPincode, setNewPincode] = useState('');
+  const [pincodeMessage, setPincodeMessage] = useState('');
+
+  const distanceLabel = formData.distanceUnit === 'mile' ? 'mile' : 'km';
+
+  const isFormValid = useMemo(() => {
+    if (!formData.deliveryAvailable && !formData.pickupAvailable) return false;
+
+    if (formData.deliveryAvailable && !formData.canServeEntireCity) {
+      return formData.serviceAreas.length > 0;
     }
-  );
 
-  // Validation State variables
-  const [kitchenAddressError, setKitchenAddressError] = useState(false);
-  const [kitchenPincodeError, setKitchenPincodeError] = useState(false);
-  const [serviceAreasSelectionError, setServiceAreasSelectionError] = useState(false);
-  const [deliverySettingsError, setDeliverySettingsError] = useState(''); // Specific message for delivery issues
-  const [formError, setFormError] = useState(''); // General and initial submission error
-
-  // Mock pincode validation - replace with real API call
-  const validatePincode = (pincode: string): CityData | null => {
-    // In a real app, this would be an API call
-    const validPincodes: Record<string, CityData> = {
-      '110001': {
-        code: 'delhi',
-        name: 'Delhi',
-        pincodes: ['110001', '110002'],
-        state: 'Delhi',
-      },
-      '400001': {
-        code: 'mumbai',
-        name: 'Mumbai',
-        pincodes: ['400001', '400002'],
-        state: 'Maharashtra',
-      },
-      '560001': {
-        code: 'bangalore',
-        name: 'Bengaluru',
-        pincodes: ['560001', '560002'],
-        state: 'Karnataka',
-      },
-      '600001': {
-        code: 'chennai',
-        name: 'Chennai',
-        pincodes: ['600001', '600002'],
-        state: 'Tamil Nadu',
-      }
-      // Add more fake pincodes for testing
-    };
-    return validPincodes[pincode] || null;
-  };
-
-  // Derived validation states
-  const isKitchenLocationValid =
-    localKitchenAddress.trim().length > 0 && localKitchenPincode.trim().length === 6;
-
-  const isServiceAreasSectionValid =
-    isKitchenLocationValid &&
-    (localCanServeEntireCity || (localServiceAreas && localServiceAreas.length > 0));
-
-  // Delivery settings validation
-  const isDeliverySettingsPopulated =
-    localDeliverySettings.freeDeliveryRadius !== null &&
-    localDeliverySettings.freeDeliveryRadius > 0 ||
-    localDeliverySettings.maxDeliveryDistance !== null &&
-    localDeliverySettings.maxDeliveryDistance > 0 ||
-    localDeliverySettings.extraChargePerKm !== null &&
-    localDeliverySettings.extraChargePerKm > 0;
-
-  const isDeliverySettingsValid = (function () {
-    if (!isDeliverySettingsPopulated) return true; // It's optional
-
-    const free = localDeliverySettings.freeDeliveryRadius ?? 0;
-    const max = localDeliverySettings.maxDeliveryDistance ?? 0;
-    const charge = localDeliverySettings.extraChargePerKm ?? 0;
-
-    if (free < 0 || max < 0 || charge < 0) {
-      setDeliverySettingsError('Values cannot be negative.');
-      return false;
-    }
-    if (max > 0 && free >= max) {
-      setDeliverySettingsError('Max delivery distance must be greater than free delivery radius.');
-      return false;
-    }
-    if (free > 0 && max === 0) {
-      // If free delivery is set, max delivery should also be set (and > free)
-      setDeliverySettingsError('If free delivery is set, please also set a max delivery distance.');
-      return false;
-    }
-    setDeliverySettingsError(''); // Clear error if logic passes
     return true;
-  })();
+  }, [formData]);
 
-  const isFormValid = isServiceAreasSectionValid && isDeliverySettingsValid;
-
-  // Clear specific errors on input change
-  useEffect(() => {
-    if (localKitchenAddress.trim().length > 0) setKitchenAddressError(false);
-    if (localKitchenPincode.trim().length === 6) setKitchenPincodeError(false);
-    if (localCanServeEntireCity || localServiceAreas.length > 0) setServiceAreasSelectionError(false);
-  }, [localKitchenAddress, localKitchenPincode, localCanServeEntireCity, localServiceAreas, localDeliverySettings]);
-
-
-  const handleAddServicePincode = () => {
-    // Clear previous message
-    setPincodeValidationMessage('');
-
-    if (!localNewPincode.trim() || localNewPincode.trim().length !== 6) {
-      setPincodeValidationMessage('Invalid 6-digit pincode.');
-      return;
-    }
-
-    const cityData = validatePincode(localNewPincode.trim());
-    if (!cityData) {
-      setPincodeValidationMessage('Pincode not serviceable.');
-      return;
-    }
-
-    // Check if already added
-    if (localServiceAreas.some((area) => area.pincode === localNewPincode.trim())) {
-      setPincodeValidationMessage('Pincode already added.');
-      return;
-    }
-
-    // Add to service areas
-    setLocalServiceAreas([
-      ...localServiceAreas,
-      {
-        pincode: localNewPincode.trim(),
-        city: cityData.name,
-        state: cityData.state,
-      },
-    ]);
-
-    // Reset input
-    setLocalNewPincode('');
-    setPincodeValidationMessage('');
-    setServiceAreasSelectionError(false); // Clear error if new area added
+  const updateField = <K extends keyof DeliveryServiceData>(
+    field: K,
+    value: DeliveryServiceData[K]
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
   };
 
-  const handleRemoveServiceArea = (pincode: string) => {
-    setLocalServiceAreas(
-      localServiceAreas.filter((area) => area.pincode !== pincode)
+  const toNumberOrNull = (value: string) => {
+    if (value.trim() === '') return null;
+    const parsed = Number(value);
+    return Number.isNaN(parsed) ? null : parsed;
+  };
+
+  const validatePincode = (pincode: string): CityData | null => {
+    return cities.find((city) => city.pincodes?.includes(pincode)) || null;
+  };
+
+  const handleAddPincode = () => {
+    const cleanPincode = newPincode.trim();
+
+    if (!/^\d{6}$/.test(cleanPincode)) {
+      setPincodeMessage('Enter a valid 6-digit pincode.');
+      return;
+    }
+
+    const city = validatePincode(cleanPincode);
+
+    if (!city) {
+      setPincodeMessage('This pincode is not currently serviceable.');
+      return;
+    }
+
+    const alreadyExists = formData.serviceAreas.some(
+      (area) =>
+        area.pincode === cleanPincode &&
+        area.cityId === city.id
     );
-  };
 
-
-  // Handle form submission
-  const handleSubmit = async () => {
-    // Manual validation for feedback
-    let formHasErrors = false;
-
-    if (localKitchenAddress.trim().length === 0) {
-      setKitchenAddressError(true);
-      formHasErrors = true;
-    }
-    if (localKitchenPincode.trim().length !== 6) {
-      setKitchenPincodeError(true);
-      formHasErrors = true;
-    }
-    if (!localCanServeEntireCity && localServiceAreas.length === 0) {
-      setServiceAreasSelectionError(true);
-      formHasErrors = true;
-    }
-
-    // Re-evaluate delivery settings validity (will update localDeliverySettingsError)
-    const currentDeliveryValid = (function () {
-        if (!isDeliverySettingsPopulated) return true;
-
-        const free = localDeliverySettings.freeDeliveryRadius ?? 0;
-        const max = localDeliverySettings.maxDeliveryDistance ?? 0;
-        const charge = localDeliverySettings.extraChargePerKm ?? 0;
-
-        if (free < 0 || max < 0 || charge < 0) {
-            setDeliverySettingsError('Values cannot be negative.');
-            return false;
-        }
-        if (max > 0 && free >= max) {
-            setDeliverySettingsError('Max delivery distance must be greater than free delivery radius.');
-            return false;
-        }
-        if (free > 0 && max === 0) {
-             setDeliverySettingsError('If free delivery is set, please also set a maximum delivery distance.');
-             return false;
-        }
-        setDeliverySettingsError('');
-        return true;
-    })();
-
-    if (!currentDeliveryValid) {
-        formHasErrors = true;
-    }
-
-
-    if (formHasErrors) {
-      setFormError('Please correct the highlighted fields before continuing.');
+    if (alreadyExists) {
+      setPincodeMessage('This pincode is already added.');
       return;
     }
 
+    setFormData((prev) => ({
+      ...prev,
+      serviceAreas: [
+        ...prev.serviceAreas,
+        {
+          id: crypto.randomUUID(),
+          pincode: cleanPincode,
+          cityId: city.id,
+          countryCode: city.countryCode || 'IN',
+          latitude: null,
+          longitude: null,
+        },
+      ],
+    }));
 
-    const formData: ServiceAreasFormData = {
-      kitchenAddress: localKitchenAddress.trim(),
-      kitchenPincode: localKitchenPincode.trim(),
-      canServeEntireCity: localCanServeEntireCity,
-      serviceAreas: localServiceAreas,
-      deliverySettings: {
-        freeDeliveryRadius: localDeliverySettings.freeDeliveryRadius !== null ? localDeliverySettings.freeDeliveryRadius : 0,
-        maxDeliveryDistance: localDeliverySettings.maxDeliveryDistance !== null ? localDeliverySettings.maxDeliveryDistance : 0,
-        extraChargePerKm: localDeliverySettings.extraChargePerKm !== null ? localDeliverySettings.extraChargePerKm : 0,
-      },
-    };
-
-    setFormError(''); // Clear general error before submitting
-    await onSubmit(formData);
+    setNewPincode('');
+    setPincodeMessage('');
   };
 
+  const handleRemoveServiceArea = (id?: string) => {
+    if (!id) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      serviceAreas: prev.serviceAreas.filter((area) => area.id !== id),
+    }));
+  };
+
+  const handleSubmit = async () => {
+    if (!isFormValid || isLoading) return;
+
+    await onSubmitForm({
+      ...formData,
+      serviceAreas: formData.canServeEntireCity
+        ? []
+        : formData.serviceAreas,
+    });
+  };
 
   return (
-    <>
+    <div style={styles.card}>
       <div style={styles.header}>
-        <h1 style={styles.title}>Service Coverage</h1>
+        <h1 style={styles.title}>Delivery & Service Areas</h1>
         <p style={styles.subtitle}>
-          Define your service area and delivery options to reach the right
-          customers.
+          Define where you can serve customers and how delivery should work.
         </p>
       </div>
 
-      <div style={styles.profileForm}>
-        {/* SECTION 1: Kitchen Location */}
-        <div style={profileStyles.stepSection}>
-            <div style={profileStyles.stepHeader}>
-                <h2 style={profileStyles.stepTitle}>
-                    <MapPin size={24} style={{ marginRight: '0.6rem', color: '#4f46e5' }} />
-                    Kitchen Location
-                </h2>
-            </div>
-          <p style={styles.helpText}>
-            Where is your kitchen based? This is your central point for delivery calculations and customer visibility.
+      <div style={styles.form}>
+        <section style={styles.section}>
+          <label style={styles.label}>Service availability</label>
+          <p style={styles.helperText}>
+            Choose whether customers can request delivery, pickup, or both.
           </p>
 
-          {/* Kitchen Address */}
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Kitchen Address *</label>
-            <textarea
-              value={localKitchenAddress}
-              onChange={(e) => {
-                setLocalKitchenAddress(e.target.value);
-                setKitchenAddressError(false);
-              }}
-              onBlur={() => setKitchenAddressError(localKitchenAddress.trim().length === 0)}
-              placeholder="e.g., 123 Main Street, Building A, Floor 2"
-              style={{
-                ...styles.input,
-                minHeight: '80px',
-                resize: 'vertical',
-                borderColor: kitchenAddressError ? '#ef4444' : styles.input.borderColor,
-              }}
+          <div style={styles.segmentGroup}>
+            <button
+              type="button"
               disabled={isLoading}
-              required
-            />
-            <p style={styles.charCounter}>{localKitchenAddress.length}/255</p>
-            {kitchenAddressError && (
-              <p style={profileStyles.validationError}>
-                <AlertCircle size={16} style={{ marginRight: '0.4rem', flexShrink: 0 }} /> Kitchen address is required.
-              </p>
-            )}
-          </div>
-
-          {/* Kitchen Pincode */}
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Pincode *</label>
-            <input
-              type="text"
-              value={localKitchenPincode}
-              onChange={(e) => {
-                const value = e.target.value.replace(/[^\d]/g, '');
-                if (value.length <= 6) setLocalKitchenPincode(value);
-                setKitchenPincodeError(false);
-              }}
-              onBlur={() => {
-                const isValid = localKitchenPincode.trim().length === 6 && validatePincode(localKitchenPincode.trim());
-                setKitchenPincodeError(!isValid);
-              }}
-              placeholder="Enter 6-digit pincode"
+              onClick={() =>
+                updateField('deliveryAvailable', !formData.deliveryAvailable)
+              }
               style={{
-                ...styles.input,
-                borderColor: kitchenPincodeError ? '#ef4444' : styles.input.borderColor,
+                ...styles.segmentButton,
+                ...(formData.deliveryAvailable
+                  ? styles.segmentButtonActive
+                  : {}),
               }}
+            >
+              Delivery
+            </button>
+
+            <button
+              type="button"
               disabled={isLoading}
-              maxLength={6}
-              required
-            />
-            {(localKitchenPincode.length === 6 && !validatePincode(localKitchenPincode.trim())) && (
-                <p style={profileStyles.validationError}>
-                    <AlertCircle size={16} style={{ marginRight: '0.4rem', flexShrink: 0 }} /> Pincode is invalid or not serviceable.
-                </p>
-            )}
-            {(localKitchenPincode.length === 6 && validatePincode(localKitchenPincode.trim())) && (
-                <p style={{...profileStyles.selectionSummary, marginTop: '0.5rem'}}>
-                    <Check size={16} style={{ marginRight: '0.4rem', flexShrink: 0 }} /> Pincode identified: {validatePincode(localKitchenPincode.trim())?.name}, {validatePincode(localKitchenPincode.trim())?.state}
-                </p>
-            )}
-            {!kitchenPincodeError && localKitchenPincode.length < 6 && (
-                <p style={styles.charCounter}>{localKitchenPincode.length}/6 digits</p>
-            )}
-            {kitchenPincodeError && (
-              <p style={profileStyles.validationError}>
-                <AlertCircle size={16} style={{ marginRight: '0.4rem', flexShrink: 0 }} /> A valid 6-digit pincode is required.
-              </p>
-            )}
+              onClick={() =>
+                updateField('pickupAvailable', !formData.pickupAvailable)
+              }
+              style={{
+                ...styles.segmentButton,
+                ...(formData.pickupAvailable
+                  ? styles.segmentButtonActive
+                  : {}),
+              }}
+            >
+              Pickup
+            </button>
           </div>
-        </div>
+        </section>
 
-        {/* SECTION 2: Service Coverage */}
-        {isKitchenLocationValid && (
-          <div style={profileStyles.stepSection}>
-            <div style={profileStyles.stepHeader}>
-                <h2 style={profileStyles.stepTitle}>
-                    <Info size={24} style={{ marginRight: '0.6rem', color: '#4f46e5' }} />
-                    Service Coverage
-                </h2>
-            </div>
-            <p style={styles.helpText}>
-              Define the areas exactly where you can deliver. This determines which customers can find your services.
-            </p>
+        {formData.deliveryAvailable && (
+          <>
+            <section style={styles.section}>
+              <label style={styles.label}>Delivery coverage</label>
+              <p style={styles.helperText}>
+                Choose whether you can serve the entire city or only selected
+                pincodes.
+              </p>
 
-            {/* Can Serve Entire City Toggle */}
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Where can you serve?</label>
-              <div style={profileStyles.toggleSwitch}>
-                  <button
-                    type="button"
-                    onClick={() => setLocalCanServeEntireCity(true)}
-                    style={{
-                      ...profileStyles.toggleButton,
-                      ...(localCanServeEntireCity
-                        ? profileStyles.toggleButtonActive
-                        : profileStyles.toggleButtonInactive),
-                      ...(!isLoading && {':hover': profileStyles.toggleButtonHover}),
-                    }}
+              <div style={styles.segmentGroup}>
+                <button
+                  type="button"
+                  disabled={isLoading}
+                  onClick={() => updateField('canServeEntireCity', true)}
+                  style={{
+                    ...styles.segmentButton,
+                    ...(formData.canServeEntireCity
+                      ? styles.segmentButtonActive
+                      : {}),
+                  }}
+                >
+                  Entire city
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isLoading}
+                  onClick={() => updateField('canServeEntireCity', false)}
+                  style={{
+                    ...styles.segmentButton,
+                    ...(!formData.canServeEntireCity
+                      ? styles.segmentButtonActive
+                      : {}),
+                  }}
+                >
+                  Selected pincodes
+                </button>
+              </div>
+            </section>
+
+            <section style={styles.section}>
+              <label style={styles.label}>Distance settings</label>
+              <p style={styles.helperText}>
+                These settings help calculate delivery availability and charges.
+              </p>
+
+              <div style={styles.twoColumnGrid}>
+                <div style={styles.fieldGroup}>
+                  <label style={styles.smallLabel}>Distance unit</label>
+                  <select
+                    value={formData.distanceUnit}
                     disabled={isLoading}
+                    onChange={(event) =>
+                      updateField(
+                        'distanceUnit',
+                        event.target.value as DistanceUnit
+                      )
+                    }
+                    style={styles.input}
                   >
-                    Entire City
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setLocalCanServeEntireCity(false)}
-                    style={{
-                      ...profileStyles.toggleButton,
-                      ...(!localCanServeEntireCity
-                        ? profileStyles.toggleButtonActive
-                        : profileStyles.toggleButtonInactive),
-                      ...(!isLoading && {':hover': profileStyles.toggleButtonHover}),
-                    }}
+                    <option value="km">Kilometres</option>
+                    <option value="mile">Miles</option>
+                  </select>
+                </div>
+
+                <div style={styles.fieldGroup}>
+                  <label style={styles.smallLabel}>
+                    Max delivery distance
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
                     disabled={isLoading}
-                  >
-                    Specific Pincodes
-                  </button>
+                    value={formData.maxDeliveryDistance ?? ''}
+                    onChange={(event) =>
+                      updateField(
+                        'maxDeliveryDistance',
+                        toNumberOrNull(event.target.value)
+                      )
+                    }
+                    placeholder={`Example: 10 ${distanceLabel}`}
+                    style={styles.input}
+                  />
+                </div>
+
+                <div style={styles.fieldGroup}>
+                  <label style={styles.smallLabel}>
+                    Free delivery radius
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    disabled={isLoading}
+                    value={formData.freeDeliveryRadius ?? ''}
+                    onChange={(event) =>
+                      updateField(
+                        'freeDeliveryRadius',
+                        toNumberOrNull(event.target.value)
+                      )
+                    }
+                    placeholder={`Example: 3 ${distanceLabel}`}
+                    style={styles.input}
+                  />
+                </div>
+
+                <div style={styles.fieldGroup}>
+                  <label style={styles.smallLabel}>
+                    Extra charge per {distanceLabel}
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    disabled={isLoading}
+                    value={formData.extraChargePerDistanceUnit ?? ''}
+                    onChange={(event) =>
+                      updateField(
+                        'extraChargePerDistanceUnit',
+                        toNumberOrNull(event.target.value)
+                      )
+                    }
+                    placeholder="Example: 20"
+                    style={styles.input}
+                  />
+                </div>
+
+                <div style={styles.fieldGroup}>
+                  <label style={styles.smallLabel}>Minimum order value</label>
+                  <input
+                    type="number"
+                    min={0}
+                    disabled={isLoading}
+                    value={formData.minOrderValue ?? ''}
+                    onChange={(event) =>
+                      updateField(
+                        'minOrderValue',
+                        toNumberOrNull(event.target.value)
+                      )
+                    }
+                    placeholder="Example: 500"
+                    style={styles.input}
+                  />
                 </div>
               </div>
+            </section>
 
-              {localCanServeEntireCity && (
-                <p style={profileStyles.infoNote}>
-                  <Info size={16} style={{ marginRight: '0.4rem', verticalAlign: 'middle' }} />
-                  You will be visible to all customers in the city associated with your kitchen pincode.
-                </p>
-              )}
-
-            {/* Specific Pincodes Section */}
-            {!localCanServeEntireCity && (
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Specific Pincodes You Cover *</label>
-                <p style={styles.helpText}>
-                  Add each 6-digit pincode where you can deliver. Customers in these areas will see your services.
+            {!formData.canServeEntireCity && (
+              <section style={styles.section}>
+                <label style={styles.label}>Service pincodes</label>
+                <p style={styles.helperText}>
+                  Add valid pincodes you can currently serve. The city will be
+                  matched from master data.
                 </p>
 
-                {/* Pincode Input */}
-                <div style={profileStyles.pincodeInputGroup}>
+                <div style={styles.pincodeRow}>
                   <input
-                    type="text"
-                    value={localNewPincode}
-                    onChange={(e) => {
-                      const value = e.target.value.replace(/[^\d]/g, '');
-                      setLocalNewPincode(value);
-                      if (value.length === 6) {
-                        const cityData = validatePincode(value);
-                        if (cityData) {
-                          setPincodeValidationMessage(<span style={{ color: '#15803d' }}><Check size={16} /> Valid Pincode: {cityData.name}, {cityData.state}</span>);
-                        } else {
-                          setPincodeValidationMessage(<span style={{ color: '#dc2626' }}><XCircle size={16} /> Pincode not serviceable.</span>);
-                        }
-                      } else {
-                        setPincodeValidationMessage('');
-                      }
-                    }}
-                    onKeyDown={(e) => { // Allow adding with Enter key
-                        if (e.key === 'Enter' && !isLoading && !pincodeValidationMessage.includes('✗') && localNewPincode.trim().length === 6) {
-                            e.preventDefault();
-                            handleAddServicePincode();
-                        }
+                    value={newPincode}
+                    disabled={isLoading}
+                    onChange={(event) => {
+                      setNewPincode(
+                        event.target.value.replace(/\D/g, '').slice(0, 6)
+                      );
+                      setPincodeMessage('');
                     }}
                     placeholder="Enter 6-digit pincode"
-                    style={{
-                      ...styles.input,
-                      flex: 1, // Take up remaining space
-                      borderColor: (pincodeValidationMessage.includes('✗') || serviceAreasSelectionError) ? '#ef4444' : styles.input.borderColor,
-                    }}
-                    disabled={isLoading}
-                    maxLength={6}
+                    style={styles.input}
                   />
+
                   <button
                     type="button"
-                    onClick={handleAddServicePincode}
-                    disabled={
-                      isLoading ||
-                      !localNewPincode.trim() ||
-                      localNewPincode.trim().length !== 6 ||
-                      pincodeValidationMessage.includes('✗') // Disable if validation message shows error
-                    }
+                    onClick={handleAddPincode}
+                    disabled={isLoading || newPincode.length !== 6}
                     style={{
-                      ...profileStyles.addButton,
-                      ...(isLoading || !localNewPincode.trim() || localNewPincode.trim().length !== 6 || pincodeValidationMessage.includes('✗') ? profileStyles.buttonDisabled : {}),
+                      ...styles.addButton,
+                      ...(isLoading || newPincode.length !== 6
+                        ? styles.disabledButton
+                        : {}),
                     }}
                   >
-                    <Plus size={18} /> Add
+                    Add
                   </button>
                 </div>
 
-                {pincodeValidationMessage && (
-                  <p style={{...styles.helpText, marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem'}}>
-                    {pincodeValidationMessage}
-                  </p>
-                )}
-                {serviceAreasSelectionError && (
-                    <p style={profileStyles.validationError}>
-                        <AlertCircle size={16} style={{ marginRight: '0.4rem', flexShrink: 0 }} /> Please add at least one service pincode.
-                    </p>
+                {pincodeMessage && (
+                  <p style={styles.validationMessage}>{pincodeMessage}</p>
                 )}
 
+                {formData.serviceAreas.length > 0 ? (
+                  <div style={styles.areaList}>
+                    {formData.serviceAreas.map((area) => {
+                      const city = cities.find(
+                        (item) => item.id === area.cityId
+                      );
 
-                {/* Service Areas List */}
-                {localServiceAreas && localServiceAreas.length > 0 && (
-                  <div style={profileStyles.listContainer}>
-                    <h3 style={profileStyles.listTitle}>
-                      Currently Serving ({localServiceAreas.length})
-                    </h3>
-                    <div style={profileStyles.tagGrid}>
-                      {localServiceAreas.map((area) => (
-                        <div key={area.pincode} style={profileStyles.serviceAreaTag}>
-                          <div style={profileStyles.tagContent}>
-                            <h4 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 'bold' }}>{area.pincode}</h4>
-                            <p style={{ margin: 0, fontSize: '0.8rem', color: '#6b7280' }}>{area.city}, {area.state}</p>
+                      return (
+                        <div
+                          key={area.id || `${area.cityId}-${area.pincode}`}
+                          style={styles.areaItem}
+                        >
+                          <div>
+                            <strong style={styles.areaTitle}>
+                              {area.pincode}
+                            </strong>
+                            <p style={styles.areaMeta}>
+                              {city?.name || 'Unknown city'}
+                              {city?.state ? `, ${city.state}` : ''}
+                            </p>
                           </div>
+
                           <button
                             type="button"
-                            onClick={() => handleRemoveServiceArea(area.pincode)}
                             disabled={isLoading}
-                            style={profileStyles.tagRemoveButton}
-                            title="Remove this pincode"
+                            onClick={() => handleRemoveServiceArea(area.id)}
+                            style={styles.removeButton}
                           >
-                            <Trash2 size={16} />
+                            Remove
                           </button>
                         </div>
-                      ))}
-                    </div>
+                      );
+                    })}
                   </div>
+                ) : (
+                  <p style={styles.emptyText}>
+                    No service pincodes added yet.
+                  </p>
                 )}
-              </div>
+              </section>
             )}
-          </div>
+          </>
         )}
 
-        {/* SECTION 3: Delivery Settings (Optional) */}
-        {isServiceAreasSectionValid && (
-          <div style={profileStyles.stepSection}>
-            <div style={profileStyles.stepHeader}>
-                <h2 style={profileStyles.stepTitle}>
-                    <Info size={24} style={{ marginRight: '0.6rem', color: '#4f46e5' }} />
-                    Delivery Charges <span style={{ color: '#6b7280', fontSize: '0.9em' }}>(Optional)</span>
-                </h2>
-            </div>
-            <p style={styles.helpText}>
-              Set your delivery radius and charges. This helps manage customer expectations and delivery fees.
-            </p>
+        {error && <div style={styles.error}>{error}</div>}
 
-            <div style={profileStyles.deliveryGrid}>
-              <div style={profileStyles.deliveryFormGroup}>
-                <label style={styles.label}>Free Delivery Radius (km)</label>
-                <input
-                  type="number"
-                  value={localDeliverySettings.freeDeliveryRadius ?? ''}
-                  onChange={(e) =>
-                    setLocalDeliverySettings({
-                      ...localDeliverySettings,
-                      freeDeliveryRadius: e.target.value
-                        ? Math.max(0, parseInt(e.target.value, 10))
-                        : null,
-                    })
-                  }
-                  onBlur={() => setDeliverySettingsError('')} // Re-validate on blur
-                  placeholder="e.g., 5"
-                  style={{
-                    ...styles.input,
-                    ...(deliverySettingsError && profileStyles.inputError),
-                  }}
-                  disabled={isLoading}
-                  min="0"
-                />
-                <p style={styles.helpText}>
-                  Customers within this radius get free delivery. Enter 0 or leave blank for no free delivery.
-                </p>
-              </div>
-
-              <div style={profileStyles.deliveryFormGroup}>
-                <label style={styles.label}>Max Delivery Distance (km)</label>
-                <input
-                  type="number"
-                  value={localDeliverySettings.maxDeliveryDistance ?? ''}
-                  onChange={(e) =>
-                    setLocalDeliverySettings({
-                      ...localDeliverySettings,
-                      maxDeliveryDistance: e.target.value
-                        ? Math.max(0, parseInt(e.target.value, 10))
-                        : null,
-                    })
-                  }
-                  onBlur={() => setDeliverySettingsError('')} // Re-validate on blur
-                  placeholder="e.g., 20"
-                  style={{
-                    ...styles.input,
-                    ...(deliverySettingsError && profileStyles.inputError),
-                  }}
-                  disabled={isLoading}
-                  min="0"
-                />
-                <p style={styles.helpText}>
-                  You won't deliver beyond this distance.
-                </p>
-              </div>
-
-              <div style={profileStyles.deliveryFormGroup}>
-                <label style={styles.label}>Extra Charge per km (₹)</label>
-                <input
-                  type="number"
-                  value={localDeliverySettings.extraChargePerKm ?? ''}
-                  onChange={(e) =>
-                    setLocalDeliverySettings({
-                      ...localDeliverySettings,
-                      extraChargePerKm: e.target.value
-                        ? Math.max(0, parseFloat(e.target.value))
-                        : null,
-                    })
-                  }
-                  onBlur={() => setDeliverySettingsError('')} // Re-validate on blur
-                  placeholder="e.g., 10"
-                  style={{
-                    ...styles.input,
-                    ...(deliverySettingsError && profileStyles.inputError),
-                  }}
-                  disabled={isLoading}
-                  min="0"
-                  step="0.5"
-                />
-                <p style={styles.helpText}>
-                  Charge per km beyond the free delivery radius. Enter 0 for no extra charge.
-                </p>
-              </div>
-            </div>
-            {deliverySettingsError && (
-              <p style={profileStyles.validationError}>
-                <AlertCircle size={16} style={{ marginRight: '0.4rem', flexShrink: 0 }} /> Delivery settings error: {deliverySettingsError}
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* Combined Error Message */}
-        {(globalError || formError) && (
-          <div style={styles.errorMessage}>
-            <AlertCircle size={18} style={{ marginRight: '0.5rem' }} />
-            {globalError || formError}
-          </div>
-        )}
-
-        {/* Buttons */}
-        <div style={profileStyles.buttonGroup}>
-          <div>
-          <button
-            type="button"
-            onClick={onBack}
-            disabled={isLoading}
-            style={profileStyles.backButton}
-          >
-            Back
-          </button>
-          </div>
-          <div>
+        <div style={styles.buttonGroup}>
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={isLoading || !isFormValid}
+            disabled={!isFormValid || isLoading}
             style={{
-              ...styles.submitButton, // Using parent's submit button base style
-              ...(!isFormValid && profileStyles.buttonDisabled),
-              ...(isLoading && profileStyles.buttonDisabled),
-              position: 'relative', // For spinner
+              ...styles.primaryButton,
+              ...(!isFormValid || isLoading ? styles.disabledButton : {}),
             }}
           >
-            {isLoading ? (
-              <>
-                <span style={profileStyles.spinner}></span>
-                Saving...
-              </>
-            ) : (
-              'Save and Continue'
-            )}
+            {isLoading ? 'Saving...' : 'Save and Continue'}
           </button>
-          </div>
+
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              disabled={isLoading}
+              style={styles.secondaryButton}
+            >
+              Back
+            </button>
+          )}
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
-// Re-using common profile styles for consistency
-const profileStyles: { [key: string]: React.CSSProperties } = {
-  stepSection: {
-    marginBottom: '2.5rem',
-    paddingBottom: '2rem',
-    borderBottom: '1px solid #e5e7eb',
-    position: 'relative',
+const styles: Record<string, React.CSSProperties> = {
+  card: {
+    maxWidth: '820px',
+    margin: '2rem auto',
+    padding: '2rem',
+    backgroundColor: '#ffffff',
+    borderRadius: '1.25rem',
+    boxShadow: '0 12px 32px rgba(15, 23, 42, 0.08)',
   },
 
-  stepHeader: { // Re-using from previous component for consistent header style
-    display: 'flex',
-    alignItems: 'center', // Align icon and title
-    marginBottom: '1.5rem',
+  header: {
+    marginBottom: '2rem',
   },
 
-  stepTitle: { // Re-using from previous component for consistent title style
-    fontSize: '1.25rem',
-    fontWeight: '700',
-    color: '#1f2937',
+  title: {
     margin: 0,
-    display: 'flex', // Allow icon and text to align
-    alignItems: 'center',
+    fontSize: '1.75rem',
+    fontWeight: 800,
+    color: '#111827',
   },
 
-  validationError: {
-    fontSize: '0.85rem',
-    color: '#ef4444',
-    margin: '0.5rem 0 0 0',
-    fontWeight: '500',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.4rem',
-  },
-
-  infoNote: {
-    fontSize: '0.85rem',
-    color: '#0284c7',
-    margin: '1rem 0 0 0',
-    fontStyle: 'italic',
-    padding: '0.75rem',
-    backgroundColor: '#eff6ff',
-    borderRadius: '0.375rem',
-    border: '1px solid #bfdbfe',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.4rem',
-  },
-
-  // Toggle Switch for Service Coverage
-  toggleSwitch: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    borderRadius: '0.5rem',
-    backgroundColor: '#e5e7eb',
-    padding: '0.25rem',
-    gap: '0.25rem',
-    marginTop: '0.75rem',
-  },
-  toggleButton: {
-    flex: 1,
-    padding: '0.75rem 1rem',
-    textAlign: 'center',
-    borderRadius: '0.375rem',
-    border: 'none',
-    fontSize: '0.9rem',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease-in-out',
-    outline: 'none',
-    backgroundColor: 'transparent',
-    color: '#4b5563',
-  },
-  toggleButtonActive: {
-    backgroundColor: 'white',
-    color: '#4f46e5',
-    boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
-  },
-  toggleButtonInactive: {
-    backgroundColor: 'transparent',
+  subtitle: {
+    marginTop: '0.5rem',
+    fontSize: '0.95rem',
     color: '#6b7280',
   },
-  toggleButtonHover: {
-    backgroundColor: '#d1d5db',
-    // color: '#1f2937',
+
+  form: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1.25rem',
   },
 
+  section: {
+    padding: '1.25rem',
+    border: '1px solid #e5e7eb',
+    borderRadius: '1rem',
+    backgroundColor: '#ffffff',
+  },
 
-  // Pincode Input Group
-  pincodeInputGroup: {
+  label: {
+    display: 'block',
+    fontSize: '1rem',
+    fontWeight: 800,
+    color: '#111827',
+    marginBottom: '0.35rem',
+  },
+
+  smallLabel: {
+    fontSize: '0.875rem',
+    fontWeight: 700,
+    color: '#374151',
+  },
+
+  helperText: {
+    margin: '0 0 1rem 0',
+    fontSize: '0.875rem',
+    color: '#6b7280',
+    lineHeight: 1.5,
+  },
+
+  fieldGroup: {
     display: 'flex',
+    flexDirection: 'column',
+    gap: '0.5rem',
+  },
+
+  twoColumnGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+    gap: '1rem',
+  },
+
+  segmentGroup: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
     gap: '0.75rem',
-    marginTop: '0.75rem',
-    alignItems: 'stretch', // Ensure items stretch to fill container height
-  },
-  addButton: {
-    padding: '0.75rem 1.25rem',
-    borderRadius: '0.5rem',
-    border: 'none',
-    backgroundColor: '#10b981', // Green for add button
-    color: 'white',
-    fontSize: '0.9rem',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'background-color 0.2s ease-in-out',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.4rem',
-    flexShrink: 0, // Prevent button from shrinking
-    boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)',
-    '&:hover': {
-        backgroundColor: '#059669',
-    },
   },
 
-  // Service Area Tags (similar to multi-select tags)
-  listContainer: {
-    marginTop: '1.5rem',
+  segmentButton: {
     padding: '1rem',
+    borderRadius: '0.875rem',
+    border: '1.5px solid #d1d5db',
+    backgroundColor: '#ffffff',
+    color: '#374151',
+    fontSize: '0.95rem',
+    fontWeight: 800,
+    cursor: 'pointer',
+  },
+
+  segmentButtonActive: {
+    borderColor: '#f97316',
+    backgroundColor: '#fff7ed',
+    color: '#c2410c',
+  },
+
+  input: {
+    width: '100%',
+    padding: '0.95rem 1rem',
+    borderRadius: '0.875rem',
+    border: '1.5px solid #d1d5db',
+    fontSize: '1rem',
+    outline: 'none',
+    backgroundColor: '#ffffff',
+  },
+
+  pincodeRow: {
+    display: 'grid',
+    gridTemplateColumns: '1fr auto',
+    gap: '0.75rem',
+    alignItems: 'center',
+  },
+
+  addButton: {
+    padding: '0.95rem 1.25rem',
+    border: 'none',
+    borderRadius: '0.875rem',
+    backgroundColor: '#f97316',
+    color: '#ffffff',
+    fontWeight: 800,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  },
+
+  areaList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.75rem',
+    marginTop: '1rem',
+  },
+
+  areaItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '1rem',
+    padding: '0.875rem',
+    borderRadius: '0.875rem',
     backgroundColor: '#f9fafb',
-    borderRadius: '0.5rem',
     border: '1px solid #e5e7eb',
   },
-  listTitle: {
-    fontSize: '1.05rem',
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: '1rem',
+
+  areaTitle: {
+    color: '#111827',
+    fontSize: '0.95rem',
   },
-  tagGrid: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '0.75rem',
+
+  areaMeta: {
+    margin: '0.25rem 0 0 0',
+    color: '#6b7280',
+    fontSize: '0.85rem',
   },
-  serviceAreaTag: {
-    display: 'flex',
-    alignItems: 'center',
-    padding: '0.6rem 0.8rem',
-    borderRadius: '9999px', // Pill shape
-    border: '1px solid #d1d5db',
-    backgroundColor: '#fefefe',
-    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-  },
-  tagContent: {
-    marginRight: '0.5rem',
-  },
-  tagRemoveButton: {
-    background: 'none',
+
+  removeButton: {
     border: 'none',
-    color: '#9ca3af',
+    backgroundColor: 'transparent',
+    color: '#dc2626',
+    fontWeight: 800,
     cursor: 'pointer',
-    padding: '0.2rem',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: '50%',
-    transition: 'color 0.2s ease-in-out',
-    ':hover': {
-        color: '#ef4444',
-        backgroundColor: '#fee2e2',
-    },
   },
 
-  // Delivery Settings Grid
-  deliveryGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-    gap: '1.5rem',
-    marginTop: '1.5rem',
-  },
-  deliveryFormGroup: { // Re-scoped formGroup for smaller elements within grid
-    marginBottom: '0', // No bottom margin for these inner groups
-  },
-  inputError: {
-    borderColor: '#ef4444', // Red border for error state
+  validationMessage: {
+    margin: '0.75rem 0 0 0',
+    color: '#dc2626',
+    fontSize: '0.875rem',
+    fontWeight: 600,
   },
 
-  // General Button Styles
+  emptyText: {
+    margin: '1rem 0 0 0',
+    color: '#6b7280',
+    fontSize: '0.875rem',
+  },
+
   buttonGroup: {
     display: 'flex',
-    justifyContent: 'flex-end', // Aligned to right for primary action
-    gap: '1rem',
-    marginTop: '2.5rem',
-    borderTop: '1px solid #e5e7eb',
-    paddingTop: '1.5rem',
+    flexDirection: 'column',
+    gap: '0.875rem',
+    marginTop: '0.5rem',
   },
-  backButton: {
-    padding: '0.75rem 1.5rem',
-    borderRadius: '0.5rem',
-    border: '1px solid #d1d5db',
-    backgroundColor: 'white',
+
+  primaryButton: {
+    width: '100%',
+    padding: '1rem',
+    border: 'none',
+    borderRadius: '0.875rem',
+    backgroundColor: '#f97316',
+    color: '#ffffff',
+    fontSize: '1rem',
+    fontWeight: 800,
+    cursor: 'pointer',
+  },
+
+  secondaryButton: {
+    width: '100%',
+    padding: '1rem',
+    borderRadius: '0.875rem',
+    border: '1.5px solid #d1d5db',
+    backgroundColor: '#ffffff',
     color: '#374151',
     fontSize: '1rem',
-    fontWeight: '600',
+    fontWeight: 700,
     cursor: 'pointer',
-    transition: 'all 0.2s ease-in-out',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-    ':hover': {
-      backgroundColor: '#f3f4f6',
-      borderColor: '#9ca3af',
-      boxShadow: '0 4px 8px rgba(0,0,0,0.08)',
-    },
   },
-  buttonDisabled: { // General disabled style
-    opacity: 0.6,
+
+  disabledButton: {
+    backgroundColor: '#d1d5db',
     cursor: 'not-allowed',
-    boxShadow: 'none',
   },
-  spinner: {
-    border: '3px solid rgba(255, 255, 255, 0.3)',
-    borderTop: '3px solid #fff',
-    borderRadius: '50%',
-    width: '18px',
-    height: '18px',
-    animation: 'spin 1s linear infinite', // Needs @keyframes spin in CSS
-    display: 'inline-block',
-    marginRight: '0.5rem',
-    verticalAlign: 'middle',
+
+  error: {
+    padding: '0.875rem',
+    borderRadius: '0.875rem',
+    backgroundColor: '#fef2f2',
+    color: '#dc2626',
+    fontSize: '0.9rem',
+    fontWeight: 600,
   },
 };

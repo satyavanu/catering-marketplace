@@ -1,635 +1,424 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { AlertCircle, Check, Info } from 'lucide-react'; // Added Check and Info for consistent feedback
+import React, { useMemo, useState } from 'react';
+import type { BusinessDetailsData, StepComponentProps } from '../types';
 import type { OnboardingMasterData } from '@catering-marketplace/query-client';
 
-interface Cuisine {
+type MasterOption = {
   id: string;
   key: string;
   label: string;
-  type: 'cuisine' | 'specialization';
-}
+  type?: 'cuisine' | 'specialization';
+  category?: string;
+};
 
-interface DietType {
-  id: string;
-  key: string;
-  label: string;
-}
-
-interface CapacityRange {
-  id: string;
-  key: string;
-  label: string;
-  min_guests: number;
-  max_guests: number | null;
-}
-
-interface BusinessDetailsFormData {
-  yearsInBusiness: string;
-  cuisines: string[];
-  specializations: string[];
-  dietTypes: string[];
-  capacityRange: string;
-  baseCity: string;
-}
-
-interface BusinessDetailsProps {
-  yearsInBusiness: string;
-  cuisines: string[];
-  specializations: string[];
-  dietTypes: string[];
-  capacityRange: string;
-  baseCity: string;
-  isLoading: boolean;
-  error: string; // This passed error can be used for server-side or global errors
-  onFormDataChange: (formData: BusinessDetailsFormData, isValid: boolean) => void;
-  onBack: () => void;
-  styles: { [key: string]: React.CSSProperties }; // Base styles passed from parent
+interface BusinessDetailsProps
+  extends StepComponentProps<BusinessDetailsData> {
   masterData?: OnboardingMasterData;
 }
 
+const DEFAULT_DATA: BusinessDetailsData = {
+  businessTypeIds: [],
+  cuisineIds: [],
+  eventTypeIds: [],
+  dietTypeIds: [],
+  serviceStyleIds: [],
+};
+
 export default function BusinessDetails({
-  yearsInBusiness,
-  cuisines,
-  specializations,
-  dietTypes,
-  capacityRange,
-  baseCity,
-  isLoading,
-  error: globalError, // Renamed to avoid conflict with local formError
-  onFormDataChange,
+  initialData,
+  onSubmitForm,
   onBack,
-  styles, // Base component styles
+  isLoading = false,
+  error,
   masterData,
 }: BusinessDetailsProps) {
-  // Local state for form fields
-  const [localYearsInBusiness, setLocalYearsInBusiness] = useState(yearsInBusiness);
-  const [localCuisines, setLocalCuisines] = useState<string[]>(cuisines);
-  const [localSpecializations, setLocalSpecializations] = useState<string[]>(specializations);
-  const [localDietTypes, setLocalDietTypes] = useState<string[]>(dietTypes);
-  const [localCapacityRange, setLocalCapacityRange] = useState(capacityRange);
-  const [localBaseCity, setLocalBaseCity] = useState(baseCity);
+  const [formData, setFormData] = useState<BusinessDetailsData>({
+    ...DEFAULT_DATA,
+    ...initialData,
+  });
 
-  // Validation state variables
-  const [yearsInBusinessError, setYearsInBusinessError] = useState(false);
-  const [cuisinesError, setCuisinesError] = useState(false);
-  // specializations are optional, so no error state for them
-  const [dietTypesError, setDietTypesError] = useState(false);
-  const [capacityRangeError, setCapacityRangeError] = useState(false);
-  const [baseCityError, setBaseCityError] = useState(false);
-  const [formError, setFormError] = useState(''); // For general form submission errors
+  const businessTypes = masterData?.business_types || [];
+  const eventTypes = masterData?.event_types || [];
+  const cuisines = masterData?.cuisines || [];
+  const dietTypes = masterData?.diet_types || [];
+  const serviceStyles = masterData?.service_styles || [];
 
-  // Get data from master data props
-  const cuisinesList = masterData?.cuisines || [];
-  const cuisinesOnly = cuisinesList.filter((c) => c.type === 'cuisine');
-  const specializationsOnly = cuisinesList.filter((c) => c.type === 'specialization');
-  const dietTypesList = masterData?.diet_types || [];
-  const capacityRangesList = masterData?.capacity_ranges || [];
+  const cuisinesOnly = cuisines.filter((item) => item.type === 'cuisine');
+  const specializationsOnly = cuisines.filter(
+    (item) => item.type === 'specialization'
+  );
 
-  // Get cities list
-  const citiesList = [
-    { code: 'delhi', name: 'Delhi' },
-    { code: 'mumbai', name: 'Mumbai' },
-    { code: 'bangalore', name: 'Bangalore' },
-    { code: 'hyderabad', name: 'Hyderabad' },
-    { code: 'pune', name: 'Pune' },
-    { code: 'kolkata', name: 'Kolkata' },
-    { code: 'chennai', name: 'Chennai' },
-    { code: 'ahmedabad', name: 'Ahmedabad' },
-  ];
+  const eventsByCategory = useMemo(() => {
+    return eventTypes.reduce<Record<string, typeof eventTypes>>((acc, item) => {
+      const category = item.category || 'other';
+      acc[category] = acc[category] || [];
+      acc[category].push(item);
+      return acc;
+    }, {});
+  }, [eventTypes]);
 
-  // Form validation logic, runs on state changes
-  const isFormValid = React.useMemo(() => {
-    return !!(
-      localYearsInBusiness.trim() &&
-      (localCuisines.length > 0 || localSpecializations.length > 0) && // At least one cuisine OR specialization
-      localDietTypes.length > 0 &&
-      localCapacityRange.trim() &&
-      localBaseCity.trim()
+  const isFormValid = useMemo(() => {
+    return (
+      formData.businessTypeIds.length > 0 &&
+      formData.cuisineIds.length > 0 &&
+      formData.eventTypeIds.length > 0 &&
+      formData.dietTypeIds.length > 0 &&
+      formData.serviceStyleIds.length > 0
     );
-  }, [
-    localYearsInBusiness,
-    localCuisines,
-    localSpecializations,
-    localDietTypes,
-    localCapacityRange,
-    localBaseCity,
-  ]);
+  }, [formData]);
 
-  // Pass form data and validity back to parent whenever local state changes
-  useEffect(() => {
-    const formData: BusinessDetailsFormData = {
-      yearsInBusiness: localYearsInBusiness,
-      cuisines: localCuisines,
-      specializations: localSpecializations,
-      dietTypes: localDietTypes,
-      capacityRange: localCapacityRange,
-      baseCity: localBaseCity,
-    };
-    onFormDataChange(formData, isFormValid);
+  const toggleValue = <K extends keyof BusinessDetailsData>(
+    field: K,
+    value: string
+  ) => {
+    setFormData((prev) => {
+      const currentValues = prev[field] as string[];
+      const nextValues = currentValues.includes(value)
+        ? currentValues.filter((item) => item !== value)
+        : [...currentValues, value];
 
-    // Clear specific errors if input becomes valid
-    if (localYearsInBusiness.trim()) setYearsInBusinessError(false);
-    if (localCuisines.length > 0 || localSpecializations.length > 0) setCuisinesError(false);
-    if (localDietTypes.length > 0) setDietTypesError(false);
-    if (localCapacityRange.trim()) setCapacityRangeError(false);
-    if (localBaseCity.trim()) setBaseCityError(false);
-
-  }, [
-    localYearsInBusiness,
-    localCuisines,
-    localSpecializations,
-    localDietTypes,
-    localCapacityRange,
-    localBaseCity,
-    isFormValid,
-    onFormDataChange,
-  ]);
-
-  // Handle cuisine toggle
-  const handleCuisineToggle = (cuisineId: string) => {
-    setLocalCuisines((prev) =>
-      prev.includes(cuisineId) ? prev.filter((id) => id !== cuisineId) : [...prev, cuisineId]
-    );
-    setCuisinesError(false); // Clear error on interaction
+      return {
+        ...prev,
+        [field]: nextValues,
+      };
+    });
   };
 
-  // Handle specialization toggle
-  const handleSpecializationToggle = (specializationId: string) => {
-    setLocalSpecializations((prev) =>
-      prev.includes(specializationId)
-        ? prev.filter((id) => id !== specializationId)
-        : [...prev, specializationId]
-    );
-    // Note: specializations are optional, no error to clear
+  const handleSubmit = async () => {
+    if (!isFormValid || isLoading) return;
+    await onSubmitForm(formData);
   };
 
-  // Handle diet type toggle
-  const handleDietTypeToggle = (dietTypeId: string) => {
-    setLocalDietTypes((prev) =>
-      prev.includes(dietTypeId) ? prev.filter((id) => id !== dietTypeId) : [...prev, dietTypeId]
-    );
-    setDietTypesError(false); // Clear error on interaction
-  };
-
-  // Handle continue button click
-  const handleContinue = () => {
-    // Manually trigger validation for immediate feedback
-    const yearsValid = localYearsInBusiness.trim() !== '';
-    const cuisinesOrSpecializationsValid = (localCuisines.length > 0 || localSpecializations.length > 0);
-    const dietTypesValid = localDietTypes.length > 0;
-    const capacityValid = localCapacityRange.trim() !== '';
-    const cityValid = localBaseCity.trim() !== '';
-
-    setYearsInBusinessError(!yearsValid);
-    setCuisinesError(!cuisinesOrSpecializationsValid);
-    setDietTypesError(!dietTypesValid);
-    setCapacityRangeError(!capacityValid);
-    setBaseCityError(!cityValid);
-
-    if (isFormValid) {
-      setFormError(''); // Clear any generic form errors
-      onFormDataChange({
-        yearsInBusiness: localYearsInBusiness,
-        cuisines: localCuisines,
-        specializations: localSpecializations,
-        dietTypes: localDietTypes,
-        capacityRange: localCapacityRange,
-        baseCity: localBaseCity,
-      }, true);
-      // Parent will handle navigation to the next step
-    } else {
-      setFormError('Please correct the highlighted fields before continuing.');
+  const renderOptionGrid = (
+    options: MasterOption[],
+    selectedIds: string[],
+    field: keyof BusinessDetailsData,
+    emptyText: string
+  ) => {
+    if (!options.length) {
+      return <p style={styles.helperText}>{emptyText}</p>;
     }
+
+    return (
+      <div style={styles.optionGrid}>
+        {options.map((option) => {
+          const selected = selectedIds.includes(option.id);
+
+          return (
+            <button
+              key={option.id}
+              type="button"
+              disabled={isLoading}
+              onClick={() => toggleValue(field, option.id)}
+              style={{
+                ...styles.optionButton,
+                ...(selected ? styles.optionButtonSelected : {}),
+              }}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+    );
   };
 
   return (
-    <>
+    <div style={styles.card}>
       <div style={styles.header}>
-        <h1 style={styles.title}>Showcase Your Expertise</h1>
+        <h1 style={styles.title}>Business Details</h1>
         <p style={styles.subtitle}>
-          Share your culinary specialties, dietary offerings, and service capacity. This helps us
-          match you with the perfect events and clients who appreciate your unique skills.
+          Choose the services, food categories, and event types you can support.
         </p>
       </div>
 
-      <div style={styles.profileForm}> {/* Using a div here, form doesn't actually submit */}
-        {/* Years in Business */}
-        <div style={profileStyles.stepSection}>
-          <label style={styles.label}>Years of Catering Experience *</label>
-          <select
-            value={localYearsInBusiness}
-            onChange={(e) => {
-              setLocalYearsInBusiness(e.target.value);
-              setYearsInBusinessError(false);
-            }}
-            onBlur={() => setYearsInBusinessError(localYearsInBusiness.trim() === '')}
-            style={{
-              ...styles.input,
-              borderColor: yearsInBusinessError ? '#ef4444' : styles.input.borderColor,
-            }}
-            disabled={isLoading}
-            required
-          >
-            <option value="">Select your experience level</option>
-            <option value="less-than-1">Less than 1 year</option>
-            <option value="1-3">1-3 years</option>
-            <option value="3-5">3-5 years</option>
-            <option value="5-10">5-10 years</option>
-            <option value="more-than-10">More than 10 years</option>
-          </select>
-          <p style={styles.helpText}>
-            Your experience helps clients understand your expertise level
+      <div style={styles.form}>
+        <section style={styles.section}>
+          <label style={styles.label}>Business types</label>
+          <p style={styles.helperText}>
+            Select all formats that match your work.
           </p>
-          {yearsInBusinessError && (
-             <p style={profileStyles.validationError}>
-                <AlertCircle size={16} style={{ marginRight: '0.4rem', flexShrink: 0 }} /> Please select your years of experience.
-             </p>
-          )}
-        </div>
 
-        {/* Cuisines - Multi Select */}
-        <div style={profileStyles.stepSection}>
-          <label style={styles.label}>
-            Cuisines You Specialize In * <span style={{ fontSize: '0.875rem', color: '#666' }}>
-              (Select at least 1)
-            </span>
-          </label>
-          <p style={styles.helpText}>
-            Choose all the cuisines you can prepare. This helps clients find caterers matching
-            their food preferences.
+          {renderOptionGrid(
+            businessTypes,
+            formData.businessTypeIds,
+            'businessTypeIds',
+            'No business types available.'
+          )}
+
+          <SelectionCount count={formData.businessTypeIds.length} />
+        </section>
+
+        <section style={styles.section}>
+          <label style={styles.label}>Cuisines</label>
+          <p style={styles.helperText}>
+            Select the cuisines you regularly prepare.
           </p>
-          <div style={profileStyles.categoryGrid}>
-            {cuisinesOnly.map((cuisine) => (
-              <button
-                key={cuisine.id}
-                type="button"
-                onClick={() => handleCuisineToggle(cuisine.id)}
-                style={{
-                  ...profileStyles.tagButton,
-                  ...(localCuisines.includes(cuisine.id)
-                    ? profileStyles.tagButtonActive
-                    : profileStyles.tagButtonInactive),
-                  ...(cuisinesError && profileStyles.tagErrorOutline),
-                  ...(!isLoading && {
-                    ':hover': profileStyles.tagButtonHover,
-                  }),
-                }}
-                disabled={isLoading}
-              >
-                {localCuisines.includes(cuisine.id) && (
-                  <Check size={14} style={{ marginRight: '0.5rem' }} />
-                )}
-                {cuisine.label}
-              </button>
-            ))}
-          </div>
-          {(localCuisines.length > 0 || localSpecializations.length > 0) && (
-            <p style={profileStyles.selectionSummary}>
-              <Check size={16} style={{ marginRight: '0.4rem', flexShrink: 0 }} /> {localCuisines.length + localSpecializations.length} specialisation(s) selected
-            </p>
-          )}
-          {cuisinesError && (
-             <p style={profileStyles.validationError}>
-                <AlertCircle size={16} style={{ marginRight: '0.4rem', flexShrink: 0 }} /> Please select at least one cuisine or specialization.
-             </p>
-          )}
-        </div>
 
-        {/* Specializations - Multi Select */}
-        <div style={profileStyles.stepSection}>
-          <label style={styles.label}>
-            Special Services & Offerings{' '}
-            <span style={{ fontSize: '0.875rem', color: '#666' }}>(Optional)</span>
-          </label>
-          <p style={styles.helpText}>
-            Highlight any unique services like live cooking, themed menus, dietary customizations,
-            or special event concepts.
+          {renderOptionGrid(
+            cuisinesOnly,
+            formData.cuisineIds,
+            'cuisineIds',
+            'No cuisines available.'
+          )}
+
+          <SelectionCount count={formData.cuisineIds.length} />
+        </section>
+
+        <section style={styles.section}>
+          <label style={styles.label}>Specializations</label>
+          <p style={styles.helperText}>
+            Optional: select any special food categories or signature offerings.
           </p>
-          <div style={profileStyles.categoryGrid}>
-            {specializationsOnly.map((specialization) => (
-              <button
-                key={specialization.id}
-                type="button"
-                onClick={() => handleSpecializationToggle(specialization.id)}
-                style={{
-                  ...profileStyles.tagButton,
-                  ...(localSpecializations.includes(specialization.id)
-                    ? profileStyles.tagButtonActive
-                    : profileStyles.tagButtonInactive),
-                  ...(!isLoading && {
-                    ':hover': profileStyles.tagButtonHover,
-                  }),
-                }}
-                disabled={isLoading}
-              >
-                {localSpecializations.includes(specialization.id) && (
-                  <Check size={14} style={{ marginRight: '0.5rem' }} />
-                )}
-                {specialization.label}
-              </button>
-            ))}
-          </div>
-          {localSpecializations.length > 0 && (
-            <p style={profileStyles.selectionSummary}>
-              <Check size={16} style={{ marginRight: '0.4rem', flexShrink: 0 }} /> {localSpecializations.length} service(s) selected
-            </p>
-          )}
-        </div>
 
-        {/* Diet Types - Multi Select */}
-        <div style={profileStyles.stepSection}>
-          <label style={styles.label}>
-            Dietary Options You Offer * <span style={{ fontSize: '0.875rem', color: '#666' }}>
-              (Select at least 1)
-            </span>
-          </label>
-          <p style={styles.helpText}>
-            Choose all dietary preferences you can accommodate (vegetarian, vegan, gluten-free,
-            etc.). This expands your client base.
+          {renderOptionGrid(
+            specializationsOnly,
+            formData.cuisineIds,
+            'cuisineIds',
+            'No specializations available.'
+          )}
+        </section>
+
+        <section style={styles.section}>
+          <label style={styles.label}>Dietary options</label>
+          <p style={styles.helperText}>
+            Select dietary preferences you can safely support.
           </p>
-          <div style={profileStyles.categoryGrid}>
-            {dietTypesList.map((dietType) => (
-              <button
-                key={dietType.id}
-                type="button"
-                onClick={() => handleDietTypeToggle(dietType.id)}
-                style={{
-                  ...profileStyles.tagButton,
-                  ...(localDietTypes.includes(dietType.id)
-                    ? profileStyles.tagButtonActive
-                    : profileStyles.tagButtonInactive),
-                  ...(dietTypesError && profileStyles.tagErrorOutline),
-                  ...(!isLoading && {
-                    ':hover': profileStyles.tagButtonHover,
-                  }),
-                }}
-                disabled={isLoading}
-              >
-                {localDietTypes.includes(dietType.id) && (
-                  <Check size={14} style={{ marginRight: '0.5rem' }} />
-                )}
-                {dietType.label}
-              </button>
-            ))}
-          </div>
-          {localDietTypes.length > 0 && (
-            <p style={profileStyles.selectionSummary}>
-              <Check size={16} style={{ marginRight: '0.4rem', flexShrink: 0 }} /> {localDietTypes.length} option(s) selected
-            </p>
-          )}
-          {dietTypesError && (
-             <p style={profileStyles.validationError}>
-                <AlertCircle size={16} style={{ marginRight: '0.4rem', flexShrink: 0 }} /> Please select at least one dietary option.
-             </p>
-          )}
-        </div>
 
-        {/* Capacity Range */}
-        <div style={profileStyles.stepSection}>
-          <label style={styles.label}>Maximum Guest Capacity *</label>
-          <select
-            value={localCapacityRange}
-            onChange={(e) => {
-              setLocalCapacityRange(e.target.value);
-              setCapacityRangeError(false);
-            }}
-            onBlur={() => setCapacityRangeError(localCapacityRange.trim() === '')}
-            style={{
-              ...styles.input,
-              borderColor: capacityRangeError ? '#ef4444' : styles.input.borderColor,
-            }}
-            disabled={isLoading || capacityRangesList.length === 0}
-            required
-          >
-            <option value="">Select your serving capacity</option>
-            {capacityRangesList.map((range) => (
-              <option key={range.id} value={range.id}>
-                {range.label}
-              </option>
-            ))}
-          </select>
-          <p style={styles.helpText}>
-            This is the maximum number of guests you can comfortably serve at once. Clients will
-            search for caterers based on their event size.
+          {renderOptionGrid(
+            dietTypes,
+            formData.dietTypeIds,
+            'dietTypeIds',
+            'No diet types available.'
+          )}
+
+          <SelectionCount count={formData.dietTypeIds.length} />
+        </section>
+
+        <section style={styles.section}>
+          <label style={styles.label}>Event types</label>
+          <p style={styles.helperText}>
+            Select the event categories you can handle.
           </p>
-          {capacityRangeError && (
-             <p style={profileStyles.validationError}>
-                <AlertCircle size={16} style={{ marginRight: '0.4rem', flexShrink: 0 }} /> Please select your maximum guest capacity.
-             </p>
-          )}
-        </div>
 
-        {/* Base City */}
-        <div style={profileStyles.stepSection}>
-          <label style={styles.label}>Primary Service City *</label>
-          <select
-            value={localBaseCity}
-            onChange={(e) => {
-              setLocalBaseCity(e.target.value);
-              setBaseCityError(false);
-            }}
-            onBlur={() => setBaseCityError(localBaseCity.trim() === '')}
-            style={{
-              ...styles.input,
-              borderColor: baseCityError ? '#ef4444' : styles.input.borderColor,
-            }}
-            disabled={isLoading}
-            required
-          >
-            <option value="">Select your primary city</option>
-            {citiesList.map((city) => (
-              <option key={city.code} value={city.code}>
-                {city.name}
-              </option>
-            ))}
-          </select>
-          <p style={styles.helpText}>
-            Choose the city where you're primarily based. You can expand to additional cities
-            later. Clients will see you based on their event location.
+          {Object.entries(eventsByCategory).map(([category, items]) => (
+            <div key={category} style={styles.categoryBlock}>
+              <h3 style={styles.categoryTitle}>{formatCategory(category)}</h3>
+
+              {renderOptionGrid(
+                items,
+                formData.eventTypeIds,
+                'eventTypeIds',
+                'No event types available.'
+              )}
+            </div>
+          ))}
+
+          <SelectionCount count={formData.eventTypeIds.length} />
+        </section>
+
+        <section style={styles.section}>
+          <label style={styles.label}>Service styles</label>
+          <p style={styles.helperText}>
+            Select how you can serve customers.
           </p>
-          {baseCityError && (
-             <p style={profileStyles.validationError}>
-                <AlertCircle size={16} style={{ marginRight: '0.4rem', flexShrink: 0 }} /> Please select your primary service city.
-             </p>
+
+          {renderOptionGrid(
+            serviceStyles,
+            formData.serviceStyleIds,
+            'serviceStyleIds',
+            'No service styles available.'
           )}
-        </div>
 
-        {/* Global Error Message from props or local form error */}
-        {(globalError || formError) && (
-          <div style={styles.errorMessage}>
-            <AlertCircle size={18} style={{ marginRight: '0.5rem' }} />
-            {globalError || formError}
-          </div>
-        )}
+          <SelectionCount count={formData.serviceStyleIds.length} />
+        </section>
 
-        {/* Action Buttons */}
-        <div style={profileStyles.buttonGroup}>
+        {error && <div style={styles.error}>{error}</div>}
+
+        <div style={styles.buttonGroup}>
           <button
             type="button"
-            onClick={onBack}
-            disabled={isLoading}
+            onClick={handleSubmit}
+            disabled={!isFormValid || isLoading}
             style={{
-              ...styles.submitButton, // Using parent's submit button base style
-              ...(!isFormValid && { opacity: 0.6, cursor: 'not-allowed' }),
-              ...(isLoading && { opacity: 0.6, cursor: 'not-allowed' }),
-              position: 'relative', // For spinner
-              ...styles.backButton, // Specific styles for back button
+              ...styles.primaryButton,
+              ...(!isFormValid || isLoading ? styles.disabledButton : {}),
             }}
           >
-            Back
+            {isLoading ? 'Saving...' : 'Save and Continue'}
           </button>
 
-          <button
-            type="button"
-            onClick={handleContinue}
-            disabled={isLoading || !isFormValid}
-            style={{
-              ...styles.submitButton, // Using parent's submit button base style
-              ...(!isFormValid && { opacity: 0.6, cursor: 'not-allowed' }),
-              ...(isLoading && { opacity: 0.6, cursor: 'not-allowed' }),
-              position: 'relative', // For spinner
-            }}
-          >
-            {isLoading ? (
-              <>
-                <span style={profileStyles.spinner}></span>
-                Saving...
-              </>
-            ) : (
-              'Continue'
-            )}
-          </button>
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              disabled={isLoading}
+              style={styles.secondaryButton}
+            >
+              Back
+            </button>
+          )}
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
-// Additional styles for a professional and modern look
-const profileStyles: { [key: string]: React.CSSProperties } = {
-  stepSection: {
+function SelectionCount({ count }: { count: number }) {
+  if (count === 0) return null;
+
+  return (
+    <p style={styles.selectionCount}>
+      {count} selected
+    </p>
+  );
+}
+
+function formatCategory(category: string) {
+  return category
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+const styles: Record<string, React.CSSProperties> = {
+  card: {
+    maxWidth: '820px',
+    margin: '2rem auto',
+    padding: '2rem',
+    backgroundColor: '#ffffff',
+    borderRadius: '1.25rem',
+    boxShadow: '0 12px 32px rgba(15, 23, 42, 0.08)',
+  },
+
+  header: {
     marginBottom: '2rem',
-    paddingBottom: '1.5rem',
-    borderBottom: '1px solid #e5e7eb',
-    position: 'relative', // For absolute positioning of error icons if needed
   },
 
-  // Reusing validationError from previous component
-  validationError: {
-    fontSize: '0.85rem',
-    color: '#ef4444',
-    margin: '0.5rem 0 0 0', // Adjusted margin for inline errors
-    fontWeight: '500',
+  title: {
+    margin: 0,
+    fontSize: '1.75rem',
+    fontWeight: 800,
+    color: '#111827',
+  },
+
+  subtitle: {
+    marginTop: '0.5rem',
+    fontSize: '0.95rem',
+    color: '#6b7280',
+  },
+
+  form: {
     display: 'flex',
-    alignItems: 'center',
+    flexDirection: 'column',
+    gap: '1.5rem',
   },
 
-  infoNote: {
-    fontSize: '0.85rem',
-    color: '#0284c7',
-    margin: '0.75rem 0 0 0',
-    fontStyle: 'italic',
-    padding: '0.75rem',
-    backgroundColor: '#eff6ff',
-    borderRadius: '0.375rem',
-    border: '1px solid #bfdbfe',
-    display: 'flex',
-    alignItems: 'center',
+  section: {
+    padding: '1.25rem',
+    border: '1px solid #e5e7eb',
+    borderRadius: '1rem',
+    backgroundColor: '#ffffff',
   },
 
-  // Styles for Multi-Select Tags (Cuisines, Specializations, Diet Types)
-  categoryGrid: {
+  label: {
+    display: 'block',
+    fontSize: '1rem',
+    fontWeight: 800,
+    color: '#111827',
+    marginBottom: '0.35rem',
+  },
+
+  helperText: {
+    margin: '0 0 1rem 0',
+    fontSize: '0.875rem',
+    color: '#6b7280',
+    lineHeight: 1.5,
+  },
+
+  optionGrid: {
     display: 'flex',
     flexWrap: 'wrap',
     gap: '0.75rem',
-    marginTop: '0.5rem', // Slightly less margin than main form groups
-    marginBottom: '1rem', // Space before summary/error
   },
 
-  tagButton: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    padding: '0.75rem 1.25rem',
-    borderRadius: '9999px',
-    border: '1px solid #d1d5db',
-    backgroundColor: '#f9fafb', // Very light gray for inactive
+  optionButton: {
+    padding: '0.75rem 1rem',
+    borderRadius: '999px',
+    border: '1.5px solid #d1d5db',
+    backgroundColor: '#ffffff',
     color: '#374151',
     fontSize: '0.9rem',
-    fontWeight: '500',
+    fontWeight: 700,
     cursor: 'pointer',
-    transition: 'all 0.2s ease-in-out',
-    outline: 'none',
-    boxShadow: '0 1px 2px rgba(0,0,0,0.03)', // Subtle shadow
   },
 
-  tagButtonActive: {
-    borderColor: '#4f46e5',
-    backgroundColor: '#eef2ff',
-    color: '#3730a3',
-    boxShadow: '0 2px 5px rgba(79, 70, 229, 0.1)',
+  optionButtonSelected: {
+    borderColor: '#f97316',
+    backgroundColor: '#fff7ed',
+    color: '#c2410c',
   },
 
-  tagButtonInactive: {
-    // Already defined in tagButton, keeping it explicit for clarity
+  categoryBlock: {
+    marginTop: '1rem',
   },
 
-  tagButtonHover: { // For standard inline styling, you'd use onMouseEnter/onMouseLeave
-    borderColor: '#93c5fd', // Lighter blue on hover
-    backgroundColor: '#e0f2fe', // Even lighter background on hover
-    color: '#2563eb', // Deeper blue text
-    boxShadow: '0 2px 5px rgba(37, 99, 235, 0.08)',
-  },
-
-  tagErrorOutline: {
-    border: '1px solid #ef4444', // Red border for unselected tags in an invalid section
-    boxShadow: '0 0 0 2px rgba(239, 68, 68, 0.2)', // Red glow
-  },
-
-  selectionSummary: {
-    display: 'flex',
-    alignItems: 'center',
-    marginTop: '0.5rem', // Closer to the tags
+  categoryTitle: {
+    margin: '0 0 0.75rem 0',
     fontSize: '0.9rem',
-    fontWeight: '500',
-    color: '#10b981',
+    fontWeight: 800,
+    color: '#374151',
   },
 
-  spinner: {
-    border: '3px solid rgba(255, 255, 255, 0.3)',
-    borderTop: '3px solid #fff',
-    borderRadius: '50%',
-    width: '18px',
-    height: '18px',
-    animation: 'spin 1s linear infinite', // Requires `@keyframes spin` in CSS
-    display: 'inline-block',
-    marginRight: '0.5rem',
-    verticalAlign: 'middle',
+  selectionCount: {
+    margin: '0.875rem 0 0 0',
+    fontSize: '0.85rem',
+    fontWeight: 700,
+    color: '#16a34a',
   },
-  // Keyframes for spin animation should be in a global CSS file or equivalent:
-  // @keyframes spin {
-  //   from { transform: rotate(0deg); }
-  //   to { transform: rotate(360deg); }
-  // }
 
   buttonGroup: {
     display: 'flex',
-    justifyContent: 'space-between',
-    marginTop: '2.5rem',
-    gap: '1rem',
+    flexDirection: 'column',
+    gap: '0.875rem',
+    marginTop: '0.5rem',
   },
 
-  backButton: {
-    padding: '0.75rem 1.5rem',
-    borderRadius: '0.5rem',
-    border: '1px solid #d1d5db',
-    backgroundColor: 'white',
+  primaryButton: {
+    width: '100%',
+    padding: '1rem',
+    border: 'none',
+    borderRadius: '0.875rem',
+    backgroundColor: '#f97316',
+    color: '#ffffff',
+    fontSize: '1rem',
+    fontWeight: 800,
+    cursor: 'pointer',
+  },
+
+  secondaryButton: {
+    width: '100%',
+    padding: '1rem',
+    borderRadius: '0.875rem',
+    border: '1.5px solid #d1d5db',
+    backgroundColor: '#ffffff',
     color: '#374151',
     fontSize: '1rem',
-    fontWeight: '600',
+    fontWeight: 700,
     cursor: 'pointer',
-    transition: 'all 0.2s ease-in-out',
-    flex: '1',
-  }
+  },
+
+  disabledButton: {
+    backgroundColor: '#d1d5db',
+    cursor: 'not-allowed',
+  },
+
+  error: {
+    padding: '0.875rem',
+    borderRadius: '0.875rem',
+    backgroundColor: '#fef2f2',
+    color: '#dc2626',
+    fontSize: '0.9rem',
+    fontWeight: 600,
+  },
 };
