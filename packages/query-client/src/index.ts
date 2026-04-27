@@ -6,6 +6,7 @@ export { queryClient, createQueryClient } from './config/query-client';
 export { apiClient } from './config/axios';
 
 // Query Hooks
+export * from "./hooks";
 export * from './queries/caterers';
 export * from './queries/venues';
 export * from './queries/decorations';
@@ -18,6 +19,7 @@ export * from "./queries/consents";
 export * from "./queries/packages-menu";
 export * from  "./queries/caterer-menu-items"
 export * from "./queries/static-data";
+export * from "./queries/onboardingUpload";
 // Mutation Hooks
 export * from './mutations/newsletter';
 
