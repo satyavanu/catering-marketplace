@@ -2,8 +2,11 @@
 
 import React, { useMemo, useRef, useState } from 'react';
 import type { AgreementData, StepComponentProps } from '../types';
+import { getOnboardingPresignedUploadUrl, uploadFileToS3 } from '@catering-marketplace/query-client';
 
-type PartnerAgreementProps = StepComponentProps<AgreementData>;
+type PartnerAgreementProps = StepComponentProps<AgreementData> & {
+  sessionId: string;
+};
 
 const DEFAULT_DATA: AgreementData = {
   agreementVersionId: '',
@@ -17,6 +20,7 @@ const DEFAULT_DATA: AgreementData = {
 
 export default function PartnerAgreement({
   initialData,
+  sessionId,
   onSubmitForm,
   onBack,
   isLoading = false,
@@ -32,7 +36,7 @@ export default function PartnerAgreement({
 
   const [showFullAgreement, setShowFullAgreement] = useState(false);
   const [localError, setLocalError] = useState('');
-
+  const [isUploading, setIsUploading] = useState(false);
   const agreementText = useMemo(() => generateAgreementText(), []);
 
   const isFormValid =
@@ -114,17 +118,52 @@ export default function PartnerAgreement({
   };
 
   const handleSubmit = async () => {
-    if (!isFormValid || isLoading) {
-      setLocalError(
-        'Please review the agreement, accept the required terms, and add your signature.'
-      );
+    if (!isFormValid || isLoading || isUploading) {
+      setLocalError('Please accept the agreement and add your signature.');
       return;
     }
 
-    await onSubmitForm({
-      ...formData,
-      acceptedAt: new Date().toISOString(),
-    });
+    try {
+      setLocalError('');
+      setIsUploading(true);
+
+      const acceptedAt = new Date().toISOString();
+
+      const signedAgreementPayload = {
+        agreementVersionId: formData.agreementVersionId,
+        termsAccepted: formData.termsAccepted,
+        privacyAccepted: formData.privacyAccepted,
+        otpVerified: formData.otpVerified,
+        acceptedAt,
+        signatureImage: formData.signatureImage,
+        signedBy: 'partner',
+      };
+
+      const agreementBlob = new Blob(
+        [JSON.stringify(signedAgreementPayload, null, 2)],
+        { type: 'application/json' }
+      );
+
+      const { uploadUrl, fileKey } = await getOnboardingPresignedUploadUrl({
+        sessionId,
+        documentType: 'partner_agreement',
+        fileName: `partner-agreement-${Date.now()}.json`,
+        contentType: 'application/json',
+        fileSize: agreementBlob.size,
+      });
+
+      await uploadFileToS3(uploadUrl, agreementBlob);
+
+      await onSubmitForm({
+        ...formData,
+        acceptedAt,
+        signedDocumentUrl: fileKey,
+      });
+    } catch (err: any) {
+      setLocalError(err?.message || 'Failed to sign agreement.');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -185,8 +224,8 @@ export default function PartnerAgreement({
         <section style={styles.section}>
           <h2 style={styles.sectionTitle}>Agreement version</h2>
           <p style={styles.helperText}>
-            In production, this should come from your active
-            agreement_versions row.
+            In production, this should come from your active agreement_versions
+            row.
           </p>
 
           <input
@@ -280,7 +319,9 @@ export default function PartnerAgreement({
         <section style={styles.summaryBox}>
           <h3 style={styles.summaryTitle}>What happens after this?</h3>
           <ul style={styles.summaryList}>
-            <li>Your signature can be uploaded to S3 in the final submit flow.</li>
+            <li>
+              Your signature can be uploaded to S3 in the final submit flow.
+            </li>
             <li>The returned S3 URL should be stored as signedDocumentUrl.</li>
             <li>The backend should create the partner agreement record.</li>
           </ul>
@@ -294,13 +335,17 @@ export default function PartnerAgreement({
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={!isFormValid || isLoading}
+            disabled={!isFormValid || isLoading || isUploading}
             style={{
               ...styles.primaryButton,
               ...(!isFormValid || isLoading ? styles.disabledButton : {}),
             }}
           >
-            {isLoading ? 'Submitting...' : 'Agree and Continue'}
+            {isUploading
+              ? 'Uploading agreement...'
+              : isLoading
+                ? 'Saving...'
+                : 'Sign & Continue'}
           </button>
 
           {onBack && (
@@ -317,8 +362,14 @@ export default function PartnerAgreement({
       </div>
 
       {showFullAgreement && (
-        <div style={styles.modalOverlay} onClick={() => setShowFullAgreement(false)}>
-          <div style={styles.modal} onClick={(event) => event.stopPropagation()}>
+        <div
+          style={styles.modalOverlay}
+          onClick={() => setShowFullAgreement(false)}
+        >
+          <div
+            style={styles.modal}
+            onClick={(event) => event.stopPropagation()}
+          >
             <div style={styles.modalHeader}>
               <h2 style={styles.modalTitle}>Droooly Partner Agreement</h2>
               <button

@@ -455,21 +455,22 @@ export default function OnboardingPage() {
       case 'agreement':
         return (
           <PartnerAgreement
-            initialData={
-              onboardingData.agreement ?? {
-                agreementVersionId: activeAgreementVersionId,
-                termsAccepted: false,
-                privacyAccepted: false,
-                signatureImage: null,
-                otpVerified: true,
-                signedDocumentUrl: null,
-                acceptedAt: null,
-              }
+          sessionId={sessionId!}
+          initialData={
+            onboardingData.agreement ?? {
+              agreementVersionId: activeAgreementVersionId,
+              termsAccepted: false,
+              privacyAccepted: false,
+              signatureImage: null,
+              otpVerified: true,
+              signedDocumentUrl: null,
+              acceptedAt: null,
             }
-            onSubmitForm={handleAgreementSubmit}
-            onBack={handleBack}
-            isLoading={isSubmitting}
-            error={globalError}
+          }
+          onSubmitForm={handleAgreementSubmit}
+          onBack={handleBack}
+          isLoading={isSubmitting}
+          error={globalError}
           />
         );
 

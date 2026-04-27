@@ -3,6 +3,7 @@ export type PresignUploadRequest = {
     documentType: string;
     fileName: string;
     contentType: string;
+    fileSize?: number;
 };
 
 export type PresignUploadResponse = {

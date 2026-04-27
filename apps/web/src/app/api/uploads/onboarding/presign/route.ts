@@ -104,12 +104,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const userId =
-      // adjust based on your NextAuth session shape
-      (session.user as any).id ||
-      (session.user as any).userId ||
-      session.user.email;
-
+    const userId = (session.user as any).id 
     if (!userId) {
       return NextResponse.json(
         { error: 'user id not found in session' },
