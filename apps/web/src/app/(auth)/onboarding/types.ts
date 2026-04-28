@@ -7,6 +7,7 @@ export type OnboardingStep =
   | 'delivery_service'
   | 'operations'
   | 'kyc_bank'
+  | 'documents_kyc'
   | 'agreement'
   | 'completion';
 
@@ -97,7 +98,7 @@ export interface ServiceAreaInput {
   id?: string;
   pincode: string;
   cityId: string;
-  countryCode: string;
+  countryCode?: string;
   latitude?: number | null;
   longitude?: number | null;
 }

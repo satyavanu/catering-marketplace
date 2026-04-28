@@ -79,7 +79,7 @@ const NEXT_BACKEND_STEP: Record<OnboardingStep, string> = {
   completion: 'completed',
 };
 
-const activeAgreementVersionId = 'partner-agreement-v1';
+const activeAgreementVersionId = 'ce318c3c-779e-46c1-a7c1-82fa37e1afa2';
 
 const DEFAULT_ONBOARDING_DATA: PartnerOnboardingPayload & {
   auth: AuthVerificationData;
@@ -145,7 +145,7 @@ export default function OnboardingPage() {
   const hasBootstrappedSessionRef = useRef(false);
 
   const {
-    data: masterData,
+    masterData,
     isLoading: isStaticDataLoading,
     error: staticDataError,
   } = useOnboardingMasterDataContext();
@@ -432,7 +432,7 @@ export default function OnboardingPage() {
         return (
           <ServiceAreas
             initialData={onboardingData.delivery}
-            cities={masterData?.cities || []}
+            baseCityId={onboardingData.profile.baseCityId}
             onSubmitForm={handleDeliveryServiceSubmit}
             onBack={handleBack}
             isLoading={isSubmitting}

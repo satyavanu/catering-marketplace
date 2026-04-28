@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import type { BasicProfileData, StepComponentProps } from '../types';
+import { useOnboardingMasterDataContext } from '@/app/context/OnboardingMasterDataContext';
 
 type BasicProfileProps = StepComponentProps<BasicProfileData>;
 
@@ -25,12 +26,62 @@ export default function BasicProfile({
   isLoading = false,
   error,
 }: BasicProfileProps) {
+  const { locations, masterData, isLoading: isLoadingContext } = useOnboardingMasterDataContext();
+  
   const [formData, setFormData] = useState<BasicProfileData>({
     ...DEFAULT_DATA,
     ...initialData,
   });
 
+  const [availableCities, setAvailableCities] = useState<any[]>([]);
+  const [availableCountries, setAvailableCountries] = useState<any[]>([]);
+  const [availableCapacityRanges, setAvailableCapacityRanges] = useState<any[]>([]);
+
   const isBusiness = formData.partnerType === 'business';
+
+  // Load countries from locations data
+  useEffect(() => {
+    if (locations?.countries) {
+      setAvailableCountries(locations.countries);
+    }
+  }, [locations]);
+
+  // Load cities based on selected country
+  useEffect(() => {
+    if (!locations?.countries) return;
+
+    const selectedCountry = locations.countries.find(
+      (c) => c.code === formData.countryCode
+    );
+
+    if (selectedCountry) {
+      // Flatten all cities from all states in the country
+      const citiesInCountry = selectedCountry.states.reduce(
+        (acc: any[], state) => [...acc, ...state.cities],
+        []
+      );
+      setAvailableCities(citiesInCountry);
+
+      // Reset city selection when country changes
+      if (formData.baseCityId) {
+        const cityExists = citiesInCountry.some(
+          (c) => c.id === formData.baseCityId
+        );
+        if (!cityExists) {
+          setFormData((prev) => ({ ...prev, baseCityId: '' }));
+        }
+      }
+    } else {
+      setAvailableCities([]);
+    }
+  }, [formData.countryCode, locations]);
+
+  // Load capacity ranges from master data
+  useEffect(() => {
+    if (masterData?.capacity_ranges) {
+      setAvailableCapacityRanges(masterData.capacity_ranges);
+    }
+  }, [masterData]);
 
   const isFormValid = useMemo(() => {
     if (!formData.partnerType) return false;
@@ -55,7 +106,7 @@ export default function BasicProfile({
   };
 
   const handleSubmit = async () => {
-    if (!isFormValid || isLoading) return;
+    if (!isFormValid || isLoading || isLoadingContext) return;
 
     await onSubmitForm({
       ...formData,
@@ -65,6 +116,20 @@ export default function BasicProfile({
       kitchenAddress: formData.kitchenAddress.trim(),
     });
   };
+
+  const selectedCity = availableCities.find(
+    (c) => c.id === formData.baseCityId
+  );
+
+  if (isLoadingContext) {
+    return (
+      <div style={styles.card}>
+        <div style={styles.loadingContainer}>
+          <p style={styles.loadingText}>Loading form data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.card}>
@@ -164,11 +229,16 @@ export default function BasicProfile({
             <label style={styles.label}>Country</label>
             <select
               value={formData.countryCode}
-              disabled={isLoading}
+              disabled={isLoading || availableCountries.length === 0}
               onChange={(e) => updateField('countryCode', e.target.value)}
               style={styles.input}
             >
-              <option value="IN">India</option>
+              <option value="">Select country</option>
+              {availableCountries.map((country) => (
+                <option key={country.code} value={country.code}>
+                  {country.name} ({country.currencySymbol})
+                </option>
+              ))}
             </select>
           </div>
 
@@ -176,17 +246,27 @@ export default function BasicProfile({
             <label style={styles.label}>Base city</label>
             <select
               value={formData.baseCityId}
-              disabled={isLoading}
+              disabled={isLoading || availableCities.length === 0}
               onChange={(e) => updateField('baseCityId', e.target.value)}
               style={styles.input}
             >
-              <option value="">Select city</option>
-              {/* Replace with DB/API cities */}
-              <option value="hyderabad-city-id">Hyderabad</option>
-              <option value="bangalore-city-id">Bengaluru</option>
-              <option value="mumbai-city-id">Mumbai</option>
-              <option value="delhi-city-id">Delhi</option>
+              <option value="">
+                {availableCities.length === 0
+                  ? 'No cities available'
+                  : 'Select city'}
+              </option>
+              {availableCities.map((city) => (
+                <option key={city.id} value={city.id}>
+                  {city.name} 
+                </option>
+              ))}
             </select>
+            {selectedCity && (
+              <p style={styles.helperText}>
+                📍 {selectedCity.name} - {availableCities.find((c) => c.id === formData.baseCityId)?.latitude.toFixed(2)}°, 
+                {availableCities.find((c) => c.id === formData.baseCityId)?.longitude.toFixed(2)}°
+              </p>
+            )}
           </div>
         </div>
 
@@ -210,16 +290,21 @@ export default function BasicProfile({
           <label style={styles.label}>Capacity range</label>
           <select
             value={formData.capacityRangeId}
-            disabled={isLoading}
+            disabled={isLoading || availableCapacityRanges.length === 0}
             onChange={(e) => updateField('capacityRangeId', e.target.value)}
             style={styles.input}
           >
             <option value="">Select capacity</option>
-            {/* Replace with DB/API capacity ranges */}
-            <option value="1-10-id">1–10 People</option>
-            <option value="10-50-id">10–50 People</option>
-            <option value="50-200-id">50–200 People</option>
-            <option value="200-plus-id">200+ People</option>
+            {availableCapacityRanges.map((range) => (
+              <option key={range.id} value={range.id}>
+                {range.label}
+                {range.min_guests && range.max_guests
+                  ? ` (${range.min_guests}–${range.max_guests} people)`
+                  : range.min_guests
+                  ? ` (${range.min_guests}+ people)`
+                  : ''}
+              </option>
+            ))}
           </select>
           <p style={styles.helperText}>
             Select the usual order size you can comfortably handle.
@@ -402,5 +487,16 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#dc2626',
     fontSize: '0.9rem',
     fontWeight: 600,
+  },
+
+  loadingContainer: {
+    padding: '2rem',
+    textAlign: 'center',
+  },
+
+  loadingText: {
+    margin: 0,
+    fontSize: '1rem',
+    color: '#6b7280',
   },
 };

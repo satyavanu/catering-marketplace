@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const userId = (session.user as any).id 
+    const userId = (session.user as any).id  || (session.user as any).email
     if (!userId) {
       return NextResponse.json(
         { error: 'user id not found in session' },

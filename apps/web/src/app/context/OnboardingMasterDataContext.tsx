@@ -3,13 +3,20 @@
 import React, { createContext, useContext, ReactNode } from 'react';
 import {
   useOnboardingMasterData,
+  useOnboardingLocations,
   type OnboardingMasterData,
+  type OnboardingLocations,
 } from '@catering-marketplace/query-client';
 
 interface OnboardingMasterDataContextType {
-  data: OnboardingMasterData | undefined;
+  masterData: OnboardingMasterData | undefined;
+  locations: OnboardingLocations | undefined;
+  isLoadingMasterData: boolean;
+  isLoadingLocations: boolean;
   isLoading: boolean;
   error: Error | null;
+  masterDataError: Error | null;
+  locationsError: Error | null;
 }
 
 const OnboardingMasterDataContext = createContext<
@@ -21,12 +28,33 @@ export function OnboardingMasterDataProvider({
 }: {
   children: ReactNode;
 }) {
-  const { data, isLoading, error } = useOnboardingMasterData();
+  const {
+    data: masterData,
+    isLoading: isLoadingMasterData,
+    error: masterDataError,
+  } = useOnboardingMasterData();
+
+  const {
+    data: locations,
+    isLoading: isLoadingLocations,
+    error: locationsError,
+  } = useOnboardingLocations();
+
+  console.log('Master Data:', masterData);
+  console.log('Locations Data:', locations);
+
+  const isLoading = isLoadingMasterData || isLoadingLocations;
+  const error = (masterDataError || locationsError) as Error | null;
 
   const value: OnboardingMasterDataContextType = {
-    data,
+    masterData,
+    locations,
+    isLoadingMasterData,
+    isLoadingLocations,
     isLoading,
-    error: error || null,
+    error,
+    masterDataError: masterDataError || null,
+    locationsError: locationsError || null,
   };
 
   return (
@@ -38,7 +66,7 @@ export function OnboardingMasterDataProvider({
 
 /**
  * Hook to use onboarding master data context
- * @returns Context value with master data, loading state, and error
+ * @returns Context value with master data, locations, loading states, and errors
  */
 export function useOnboardingMasterDataContext() {
   const context = useContext(OnboardingMasterDataContext);

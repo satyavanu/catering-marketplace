@@ -1,22 +1,14 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import type { DeliveryServiceData, StepComponentProps } from '../types';
+import { useServiceAreas } from '@catering-marketplace/query-client';
+import { useOnboardingMasterDataContext } from '@/app/context/OnboardingMasterDataContext';
 
 type DistanceUnit = 'km' | 'mile';
 
-export interface CityData {
-  id: string;
-  code?: string;
-  name: string;
-  state?: string;
-  countryCode: string;
-  pincodes?: string[];
-}
-
-export interface ServiceAreasProps
-  extends StepComponentProps<DeliveryServiceData> {
-  cities?: CityData[];
+export interface ServiceAreasProps extends StepComponentProps<DeliveryServiceData> {
+  baseCityId?: string;
 }
 
 const DEFAULT_DATA: DeliveryServiceData = {
@@ -37,16 +29,46 @@ export default function ServiceAreas({
   onBack,
   isLoading = false,
   error,
-  cities = [],
+  baseCityId = '',
 }: ServiceAreasProps) {
+  const { locations } = useOnboardingMasterDataContext();
+
+  const {
+    data: cityServiceAreas,
+    isLoading: isLoadingServiceAreas,
+  } = useServiceAreas(baseCityId);
+
   const [formData, setFormData] = useState<DeliveryServiceData>({
     ...DEFAULT_DATA,
     ...initialData,
     serviceAreas: initialData?.serviceAreas || [],
   });
 
-  const [newPincode, setNewPincode] = useState('');
-  const [pincodeMessage, setPincodeMessage] = useState('');
+  const [newPostalCode, setNewPostalCode] = useState('');
+  const [postalCodeMessage, setPostalCodeMessage] = useState('');
+  const [availableServiceAreas, setAvailableServiceAreas] = useState<any[]>([]);
+
+  // Get current city details
+  const currentCity = useMemo(() => {
+    if (!baseCityId || !locations?.countries) return null;
+
+    for (const country of locations.countries) {
+      for (const state of country.states) {
+        const city = state.cities.find((c) => c.id === baseCityId);
+        if (city) {
+          return city;
+        }
+      }
+    }
+    return null;
+  }, [baseCityId, locations]);
+
+  // Update available service areas when fetched
+  useEffect(() => {
+    if (cityServiceAreas) {
+      setAvailableServiceAreas(cityServiceAreas);
+    }
+  }, [cityServiceAreas]);
 
   const distanceLabel = formData.distanceUnit === 'mile' ? 'mile' : 'km';
 
@@ -76,58 +98,66 @@ export default function ServiceAreas({
     return Number.isNaN(parsed) ? null : parsed;
   };
 
-  const validatePincode = (pincode: string): CityData | null => {
-    return cities.find((city) => city.pincodes?.includes(pincode)) || null;
+  /**
+   * Validate postal code against available service areas
+   * Returns the matching service area if found
+   */
+  const validatePostalCode = (postalCode: string): any | null => {
+    if (!availableServiceAreas || availableServiceAreas.length === 0) {
+      return null;
+    }
+
+    return availableServiceAreas.find(
+      (area) => area.postalCode === postalCode
+    ) || null;
   };
 
-  const handleAddPincode = () => {
-    const cleanPincode = newPincode.trim();
+  const handleAddServiceArea = () => {
+    const cleanPostalCode = newPostalCode.trim();
 
-    if (!/^\d{6}$/.test(cleanPincode)) {
-      setPincodeMessage('Enter a valid 6-digit pincode.');
+    // Validate pincode format (Indian 6-digit)
+    if (!/^\d{6}$/.test(cleanPostalCode)) {
+      setPostalCodeMessage('Enter a valid 6-digit postal code.');
       return;
     }
 
-    const city = validatePincode(cleanPincode);
+    // Validate against available service areas
+    const serviceArea = validatePostalCode(cleanPostalCode);
 
-    if (!city) {
-      setPincodeMessage('This pincode is not currently serviceable.');
+    if (!serviceArea) {
+      setPostalCodeMessage(
+        `Postal code ${cleanPostalCode} is not available in ${currentCity?.name || 'this city'}.`
+      );
       return;
     }
 
+    // Check for duplicates
     const alreadyExists = formData.serviceAreas.some(
-      (area) =>
-        area.pincode === cleanPincode &&
-        area.cityId === city.id
+      (area) => area.pincode === cleanPostalCode && area.id === serviceArea.id
     );
 
     if (alreadyExists) {
-      setPincodeMessage('This pincode is already added.');
+      setPostalCodeMessage('This service area is already added.');
       return;
     }
 
-    setFormData((prev) => ({
-      ...prev,
-      serviceAreas: [
-        ...prev.serviceAreas,
-        {
-          id: crypto.randomUUID(),
-          pincode: cleanPincode,
-          cityId: city.id,
-          countryCode: city.countryCode || 'IN',
-          latitude: null,
-          longitude: null,
-        },
-      ],
-    }));
+    setFormData((prev: any) => ({
+          ...prev,
+          serviceAreas: [
+            ...prev.serviceAreas,
+            {
+              id: serviceArea.id,
+              pincode: cleanPostalCode,
+              name: serviceArea.name,
+            },
+          ],
+        }));
 
-    setNewPincode('');
-    setPincodeMessage('');
+    setNewPostalCode('');
+    setPostalCodeMessage('');
   };
 
-  const handleRemoveServiceArea = (id?: string) => {
-    if (!id) return;
-
+  const handleRemoveServiceArea = (id: string) => {
     setFormData((prev) => ({
       ...prev,
       serviceAreas: prev.serviceAreas.filter((area) => area.id !== id),
@@ -139,11 +169,11 @@ export default function ServiceAreas({
 
     await onSubmitForm({
       ...formData,
-      serviceAreas: formData.canServeEntireCity
-        ? []
-        : formData.serviceAreas,
+      serviceAreas: formData.canServeEntireCity ? [] : formData.serviceAreas,
     });
   };
+
+  const isLoadingData = isLoadingServiceAreas || isLoading;
 
   return (
     <div style={styles.card}>
@@ -152,6 +182,11 @@ export default function ServiceAreas({
         <p style={styles.subtitle}>
           Define where you can serve customers and how delivery should work.
         </p>
+        {currentCity && (
+          <p style={styles.cityInfo}>
+            📍 Service area for <strong>{currentCity.name}</strong>
+          </p>
+        )}
       </div>
 
       <div style={styles.form}>
@@ -164,7 +199,7 @@ export default function ServiceAreas({
           <div style={styles.segmentGroup}>
             <button
               type="button"
-              disabled={isLoading}
+              disabled={isLoadingData}
               onClick={() =>
                 updateField('deliveryAvailable', !formData.deliveryAvailable)
               }
@@ -180,7 +215,7 @@ export default function ServiceAreas({
 
             <button
               type="button"
-              disabled={isLoading}
+              disabled={isLoadingData}
               onClick={() =>
                 updateField('pickupAvailable', !formData.pickupAvailable)
               }
@@ -202,13 +237,13 @@ export default function ServiceAreas({
               <label style={styles.label}>Delivery coverage</label>
               <p style={styles.helperText}>
                 Choose whether you can serve the entire city or only selected
-                pincodes.
+                service areas.
               </p>
 
               <div style={styles.segmentGroup}>
                 <button
                   type="button"
-                  disabled={isLoading}
+                  disabled={isLoadingData}
                   onClick={() => updateField('canServeEntireCity', true)}
                   style={{
                     ...styles.segmentButton,
@@ -222,7 +257,7 @@ export default function ServiceAreas({
 
                 <button
                   type="button"
-                  disabled={isLoading}
+                  disabled={isLoadingData}
                   onClick={() => updateField('canServeEntireCity', false)}
                   style={{
                     ...styles.segmentButton,
@@ -231,7 +266,7 @@ export default function ServiceAreas({
                       : {}),
                   }}
                 >
-                  Selected pincodes
+                  Selected areas
                 </button>
               </div>
             </section>
@@ -247,7 +282,7 @@ export default function ServiceAreas({
                   <label style={styles.smallLabel}>Distance unit</label>
                   <select
                     value={formData.distanceUnit}
-                    disabled={isLoading}
+                    disabled={isLoadingData}
                     onChange={(event) =>
                       updateField(
                         'distanceUnit',
@@ -268,7 +303,7 @@ export default function ServiceAreas({
                   <input
                     type="number"
                     min={0}
-                    disabled={isLoading}
+                    disabled={isLoadingData}
                     value={formData.maxDeliveryDistance ?? ''}
                     onChange={(event) =>
                       updateField(
@@ -288,7 +323,7 @@ export default function ServiceAreas({
                   <input
                     type="number"
                     min={0}
-                    disabled={isLoading}
+                    disabled={isLoadingData}
                     value={formData.freeDeliveryRadius ?? ''}
                     onChange={(event) =>
                       updateField(
@@ -308,7 +343,7 @@ export default function ServiceAreas({
                   <input
                     type="number"
                     min={0}
-                    disabled={isLoading}
+                    disabled={isLoadingData}
                     value={formData.extraChargePerDistanceUnit ?? ''}
                     onChange={(event) =>
                       updateField(
@@ -326,7 +361,7 @@ export default function ServiceAreas({
                   <input
                     type="number"
                     min={0}
-                    disabled={isLoading}
+                    disabled={isLoadingData}
                     value={formData.minOrderValue ?? ''}
                     onChange={(event) =>
                       updateField(
@@ -343,83 +378,106 @@ export default function ServiceAreas({
 
             {!formData.canServeEntireCity && (
               <section style={styles.section}>
-                <label style={styles.label}>Service pincodes</label>
+                <label style={styles.label}>Service areas</label>
                 <p style={styles.helperText}>
-                  Add valid pincodes you can currently serve. The city will be
-                  matched from master data.
+                  Add service areas you can currently serve. These are validated
+                  against {currentCity?.name || 'your city'}'s service network.
                 </p>
 
-                <div style={styles.pincodeRow}>
-                  <input
-                    value={newPincode}
-                    disabled={isLoading}
-                    onChange={(event) => {
-                      setNewPincode(
-                        event.target.value.replace(/\D/g, '').slice(0, 6)
-                      );
-                      setPincodeMessage('');
-                    }}
-                    placeholder="Enter 6-digit pincode"
-                    style={styles.input}
-                  />
-
-                  <button
-                    type="button"
-                    onClick={handleAddPincode}
-                    disabled={isLoading || newPincode.length !== 6}
-                    style={{
-                      ...styles.addButton,
-                      ...(isLoading || newPincode.length !== 6
-                        ? styles.disabledButton
-                        : {}),
-                    }}
-                  >
-                    Add
-                  </button>
-                </div>
-
-                {pincodeMessage && (
-                  <p style={styles.validationMessage}>{pincodeMessage}</p>
-                )}
-
-                {formData.serviceAreas.length > 0 ? (
-                  <div style={styles.areaList}>
-                    {formData.serviceAreas.map((area) => {
-                      const city = cities.find(
-                        (item) => item.id === area.cityId
-                      );
-
-                      return (
-                        <div
-                          key={area.id || `${area.cityId}-${area.pincode}`}
-                          style={styles.areaItem}
-                        >
-                          <div>
-                            <strong style={styles.areaTitle}>
-                              {area.pincode}
-                            </strong>
-                            <p style={styles.areaMeta}>
-                              {city?.name || 'Unknown city'}
-                              {city?.state ? `, ${city.state}` : ''}
-                            </p>
-                          </div>
-
-                          <button
-                            type="button"
-                            disabled={isLoading}
-                            onClick={() => handleRemoveServiceArea(area.id)}
-                            style={styles.removeButton}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p style={styles.emptyText}>
-                    No service pincodes added yet.
+                {isLoadingServiceAreas ? (
+                  <p style={styles.loadingText}>
+                    Loading available service areas...
                   </p>
+                ) : availableServiceAreas.length === 0 ? (
+                  <p style={styles.emptyText}>
+                    No service areas available for {currentCity?.name}. Please
+                    select a different city.
+                  </p>
+                ) : (
+                  <>
+                    <div style={styles.pincodeRow}>
+                      <input
+                        value={newPostalCode}
+                        disabled={isLoadingData}
+                        onChange={(event) => {
+                          setNewPostalCode(
+                            event.target.value.replace(/\D/g, '').slice(0, 6)
+                          );
+                          setPostalCodeMessage('');
+                        }}
+                        placeholder="Enter service area postal code"
+                        style={styles.input}
+                      />
+
+                      <button
+                        type="button"
+                        onClick={handleAddServiceArea}
+                        disabled={isLoadingData || newPostalCode.length !== 6}
+                        style={{
+                          ...styles.addButton,
+                          ...(isLoadingData || newPostalCode.length !== 6
+                            ? styles.disabledButton
+                            : {}),
+                        }}
+                      >
+                        Add
+                      </button>
+                    </div>
+
+                    {postalCodeMessage && (
+                      <p style={styles.validationMessage}>
+                        {postalCodeMessage}
+                      </p>
+                    )}
+
+                    {formData.serviceAreas.length > 0 ? (
+                      <div style={styles.areaList}>
+                        {formData.serviceAreas.map((area: any) => (
+                          <div
+                            key={area.id}
+                            style={styles.areaItem}
+                          >
+                            <div>
+                              <strong style={styles.areaTitle}>
+                                {area.name}
+                              </strong>
+                              <p style={styles.areaMeta}>
+                                {area.pincode}
+                                </p>
+                            </div>
+
+                            <button
+                              type="button"
+                              disabled={isLoadingData}
+                              onClick={() => handleRemoveServiceArea(area.id)}
+                              style={styles.removeButton}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p style={styles.emptyText}>
+                        No service areas added yet.
+                      </p>
+                    )}
+
+                    <details style={styles.availableAreasDetails}>
+                      <summary style={styles.availableAreasSummary}>
+                        View all available service areas ({availableServiceAreas.length})
+                      </summary>
+                      <div style={styles.availableAreasList}>
+                        {availableServiceAreas.map((area) => (
+                          <div key={area.id} style={styles.availableAreaItem}>
+                            <span>
+                              <strong>{area.name}</strong> ({area.postalCode})
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  </>
                 )}
               </section>
             )}
@@ -432,20 +490,20 @@ export default function ServiceAreas({
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={!isFormValid || isLoading}
+            disabled={!isFormValid || isLoadingData}
             style={{
               ...styles.primaryButton,
-              ...(!isFormValid || isLoading ? styles.disabledButton : {}),
+              ...(!isFormValid || isLoadingData ? styles.disabledButton : {}),
             }}
           >
-            {isLoading ? 'Saving...' : 'Save and Continue'}
+            {isLoadingData ? 'Saving...' : 'Save and Continue'}
           </button>
 
           {onBack && (
             <button
               type="button"
               onClick={onBack}
-              disabled={isLoading}
+              disabled={isLoadingData}
               style={styles.secondaryButton}
             >
               Back
@@ -482,6 +540,13 @@ const styles: Record<string, React.CSSProperties> = {
     marginTop: '0.5rem',
     fontSize: '0.95rem',
     color: '#6b7280',
+  },
+
+  cityInfo: {
+    marginTop: '0.75rem',
+    fontSize: '0.9rem',
+    color: '#667eea',
+    fontWeight: 600,
   },
 
   form: {
@@ -568,6 +633,7 @@ const styles: Record<string, React.CSSProperties> = {
     gridTemplateColumns: '1fr auto',
     gap: '0.75rem',
     alignItems: 'center',
+    marginBottom: '1rem',
   },
 
   addButton: {
@@ -607,7 +673,13 @@ const styles: Record<string, React.CSSProperties> = {
   areaMeta: {
     margin: '0.25rem 0 0 0',
     color: '#6b7280',
+    fontSize: '0.82rem',
+  },
+
+  areaRadius: {
+    color: '#667eea',
     fontSize: '0.85rem',
+    fontWeight: 600,
   },
 
   removeButton: {
@@ -616,6 +688,7 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#dc2626',
     fontWeight: 800,
     cursor: 'pointer',
+    fontSize: '0.9rem',
   },
 
   validationMessage: {
@@ -625,8 +698,44 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600,
   },
 
+  availableAreasDetails: {
+    marginTop: '1.5rem',
+    paddingTop: '1rem',
+    borderTop: '1px solid #e5e7eb',
+  },
+
+  availableAreasSummary: {
+    cursor: 'pointer',
+    color: '#667eea',
+    fontWeight: 600,
+    fontSize: '0.9rem',
+  },
+
+  availableAreasList: {
+    marginTop: '0.75rem',
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gap: '0.75rem',
+  },
+
+  availableAreaItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '0.75rem',
+    backgroundColor: '#f0f4ff',
+    borderRadius: '0.5rem',
+    fontSize: '0.85rem',
+  },
+
   emptyText: {
     margin: '1rem 0 0 0',
+    color: '#6b7280',
+    fontSize: '0.875rem',
+  },
+
+  loadingText: {
+    margin: '1rem 0',
     color: '#6b7280',
     fontSize: '0.875rem',
   },

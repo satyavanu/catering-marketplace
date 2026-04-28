@@ -38,6 +38,8 @@ export default function BusinessDetails({
     ...initialData,
   });
 
+  console.log("masterdata for business", masterData);
+
   const businessTypes = masterData?.business_types || [];
   const eventTypes = masterData?.event_types || [];
   const cuisines = masterData?.cuisines || [];
