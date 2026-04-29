@@ -25,12 +25,13 @@ export default function AuthLayout({
           position: 'absolute',
           width: 'clamp(200px, 50vw, 400px)',
           height: 'clamp(200px, 50vw, 400px)',
-          background: 'rgba(102, 126, 234, 0.08)',
+          background: 'rgba(102, 126, 234, 0.12)',
           borderRadius: '50%',
           top: 'clamp(-50px, -15vw, -100px)',
           right: 'clamp(-50px, -15vw, -100px)',
           animation: 'float 8s ease-in-out infinite',
           filter: 'blur(40px)',
+          boxShadow: '0 0 80px rgba(102, 126, 234, 0.3)',
         }}
       />
       <div
@@ -38,12 +39,13 @@ export default function AuthLayout({
           position: 'absolute',
           width: 'clamp(150px, 40vw, 300px)',
           height: 'clamp(150px, 40vw, 300px)',
-          background: 'rgba(240, 147, 251, 0.06)',
+          background: 'rgba(240, 147, 251, 0.12)',
           borderRadius: '50%',
           bottom: 'clamp(-50px, -10vw, -50px)',
           left: 'clamp(-50px, -10vw, -50px)',
           animation: 'float 10s ease-in-out infinite reverse',
           filter: 'blur(40px)',
+          boxShadow: '0 0 60px rgba(240, 147, 251, 0.3)',
         }}
       />
 
@@ -55,6 +57,11 @@ export default function AuthLayout({
           maxWidth: '100%',
           padding: 'clamp(1rem, 5vw, 2rem)',
           boxSizing: 'border-box',
+          backdropFilter: 'blur(10px)',
+          borderRadius: '20px',
+          background: 'rgba(255, 255, 255, 0.08)',
+          border: '1px solid rgba(255, 255, 255, 0.15)',
+          boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.15)',
         }}
       >
         {children}
