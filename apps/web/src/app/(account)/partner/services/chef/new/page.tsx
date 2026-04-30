@@ -6,53 +6,70 @@ import {
   CalendarIcon,
   EarningsIcon,
   ApprovalIcon,
+  EditIcon,
+  RejectIcon,
 } from '@/components/Icons/DashboardIcons';
 import StatusBadge from '@/components/dashboard/StatusBadge';
 
-type StepKey = 1 | 2 | 3 | 4 | 5;
+type FoodType = 'veg' | 'non_veg' | 'both';
+type ServiceType = 'customer_home' | 'my_kitchen' | 'both';
+
+type ChefProfile = {
+  name: string;
+  avatarUrl: string;
+  experience: string;
+  cuisines: string[];
+  city: string;
+};
 
 type ChefServiceForm = {
   title: string;
   description: string;
-  experience: string;
   cuisines: string[];
-  foodType: 'veg' | 'non_veg' | 'both';
-  serviceType: 'customer_home' | 'my_kitchen' | 'both';
+  foodType: FoodType;
+  serviceType: ServiceType;
   days: string[];
   slots: string[];
   pricePerMeal: string;
-  weeklyPlanPrice: string;
-  monthlyPlanPrice: string;
+  sessionPrice: string;
+  weeklyPrice: string;
+  monthlyPrice: string;
   city: string;
   areas: string[];
   radiusKm: number;
+  images: string[];
 };
 
-const initialForm: ChefServiceForm = {
-  title: 'Home Chef for Daily Meals',
-  description:
-    'I provide hygienic, home-style meals with a focus on taste and nutrition.',
+const DEFAULT_PROFILE: ChefProfile = {
+  name: 'Anjali Sharma',
+  avatarUrl: '/dashboard/chef-service.png',
   experience: '5+ Years',
   cuisines: ['North Indian', 'South Indian', 'Jain'],
+  city: 'Hyderabad',
+};
+
+const DEFAULT_FORM: ChefServiceForm = {
+  title: 'Home Chef for Daily Meals',
+  description:
+    'Fresh, hygienic home-style meals prepared with care for families, professionals, and elderly customers.',
+  cuisines: ['North Indian', 'South Indian'],
   foodType: 'veg',
   serviceType: 'customer_home',
   days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
-  slots: ['Morning', 'Lunch'],
+  slots: ['Lunch', 'Dinner'],
   pricePerMeal: '250',
-  weeklyPlanPrice: '1200',
-  monthlyPlanPrice: '4500',
+  sessionPrice: '1200',
+  weeklyPrice: '5500',
+  monthlyPrice: '18000',
   city: 'Hyderabad',
-  areas: ['Jubilee Hills', 'Banjara Hills', 'Madhapur'],
-  radiusKm: 15,
+  areas: ['Jubilee Hills', 'Madhapur', 'Kondapur'],
+  radiusKm: 12,
+  images: [
+    '/dashboard/chef-service.png',
+    '/dashboard/meal-plan.png',
+    '/dashboard/catering.png',
+  ],
 };
-
-const steps = [
-  'Basic Info',
-  'Availability',
-  'Pricing',
-  'Service Area',
-  'Preview',
-];
 
 const cuisineOptions = [
   'North Indian',
@@ -61,48 +78,45 @@ const cuisineOptions = [
   'Gujarati',
   'Punjabi',
   'Bengali',
-  'Rajasthani',
-  'Other',
+  'Telugu',
+  'Healthy',
 ];
 
-const dayOptions = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const slotOptions = ['Morning', 'Lunch', 'Evening', 'Night'];
-const areaOptions = [
+const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const slots = ['Breakfast', 'Lunch', 'Dinner', 'Evening Snacks'];
+const areas = [
   'Jubilee Hills',
   'Banjara Hills',
   'Madhapur',
   'Hitech City',
-  'Gachibowli',
   'Kondapur',
+  'Gachibowli',
 ];
 
-export default function AddChefServiceFlow({
+export default function CreateChefServicePage({
+  profile = DEFAULT_PROFILE,
   onBack,
   onSubmit,
 }: {
+  profile?: ChefProfile;
   onBack?: () => void;
-  onSubmit?: (data: ChefServiceForm) => void;
+  onSubmit?: (payload: ChefServiceForm) => void;
 }) {
-  const [step, setStep] = useState<StepKey>(1);
-  const [form, setForm] = useState<ChefServiceForm>(initialForm);
+  const [form, setForm] = useState<ChefServiceForm>(DEFAULT_FORM);
+  const [areaInput, setAreaInput] = useState('');
 
-  const canContinue = useMemo(() => {
-    if (step === 1) {
-      return (
-        form.title.trim() &&
-        form.description.trim() &&
-        form.cuisines.length > 0 &&
-        form.foodType &&
-        form.serviceType
-      );
-    }
-
-    if (step === 2) return form.days.length > 0 && form.slots.length > 0;
-    if (step === 3) return form.pricePerMeal.trim();
-    if (step === 4) return form.city.trim() && form.areas.length > 0;
-
-    return true;
-  }, [form, step]);
+  const isValid = useMemo(() => {
+    return (
+      form.title.trim() &&
+      form.description.trim() &&
+      form.cuisines.length > 0 &&
+      form.days.length > 0 &&
+      form.slots.length > 0 &&
+      form.pricePerMeal.trim() &&
+      form.city.trim() &&
+      form.areas.length > 0
+    );
+  }, [form]);
 
   const update = <K extends keyof ChefServiceForm>(
     key: K,
@@ -127,492 +141,469 @@ export default function AddChefServiceFlow({
     });
   };
 
-  const goNext = () => {
-    if (!canContinue) return;
+  const removeImage = (image: string) => {
+    update(
+      'images',
+      form.images.filter((item) => item !== image)
+    );
+  };
 
-    if (step === 5) {
-      onSubmit?.(form);
-      return;
-    }
+  const addMockImage = () => {
+    const samples = [
+      '/dashboard/chef-service.png',
+      '/dashboard/meal-plan.png',
+      '/dashboard/catering.png',
+    ];
 
-    setStep((prev) => (prev + 1) as StepKey);
+    update('images', [...form.images, samples[form.images.length % 3]]);
   };
 
   return (
     <div style={styles.page}>
-      <button type="button" onClick={onBack} style={styles.backButton}>
-        ← Back
-      </button>
+      <div style={styles.topRow}>
+        <StatusBadge status="under_review" label="Draft Service" />
+      </div>
 
       <div style={styles.header}>
         <div style={styles.headerIcon}>
-          <ServicesIcon size={26} />
+          <ServicesIcon size={25} />
         </div>
 
         <div>
-          <h1 style={styles.title}>Add Chef Service</h1>
+          <h1 style={styles.title}>Create Chef Service</h1>
           <p style={styles.subtitle}>
-            Set up your chef service. You can edit this anytime.
+            Build a chef service listing using your profile, availability,
+            pricing, service area, and food photos.
           </p>
         </div>
       </div>
 
-      <Stepper activeStep={step} />
-
       <div style={styles.layout}>
-        <main style={styles.formColumn}>
-          {step === 1 && (
-            <StepBasicInfo
-              form={form}
-              update={update}
-              toggleArray={toggleArray}
-            />
-          )}
+        <main style={styles.left}>
+          <ProfileSnapshot
+            profile={profile}
+            onUploadAvatar={(file) => console.log('upload avatar', file)}
+          />
 
-          {step === 2 && (
-            <StepAvailability
-              form={form}
-              toggleArray={toggleArray}
-            />
-          )}
+          <Section
+            title="Basic service details"
+            subtitle="Tell customers what this chef service is about."
+          >
+            <div style={styles.grid2}>
+              <Field label="Service title" required>
+                <input
+                  value={form.title}
+                  onChange={(e) => update('title', e.target.value)}
+                  style={styles.input}
+                  placeholder="Example: Home Chef for Daily Meals"
+                />
+              </Field>
 
-          {step === 3 && (
-            <StepPricing
-              form={form}
-              update={update}
-            />
-          )}
-
-          {step === 4 && (
-            <StepServiceArea
-              form={form}
-              update={update}
-              toggleArray={toggleArray}
-            />
-          )}
-
-          {step === 5 && <StepFinalPreview form={form} />}
-        </main>
-
-        <aside style={styles.previewColumn}>
-          <ChefServicePreview form={form} />
-        </aside>
-      </div>
-
-      <div style={styles.actions}>
-        <button
-          type="button"
-          onClick={() => (step === 1 ? onBack?.() : setStep((step - 1) as StepKey))}
-          style={styles.secondaryButton}
-        >
-          {step === 1 ? 'Cancel' : 'Previous'}
-        </button>
-
-        <button
-          type="button"
-          onClick={goNext}
-          disabled={!canContinue}
-          style={{
-            ...styles.primaryButton,
-            ...(!canContinue ? styles.disabledButton : {}),
-          }}
-        >
-          {step === 5 ? 'Submit for Review' : 'Save & Continue'} →
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function Stepper({ activeStep }: { activeStep: StepKey }) {
-  return (
-    <div style={styles.stepper}>
-      {steps.map((label, index) => {
-        const stepNo = (index + 1) as StepKey;
-        const active = stepNo === activeStep;
-        const completed = stepNo < activeStep;
-
-        return (
-          <React.Fragment key={label}>
-            <div style={styles.stepItem}>
-              <span
-                style={{
-                  ...styles.stepCircle,
-                  ...(active ? styles.stepCircleActive : {}),
-                  ...(completed ? styles.stepCircleCompleted : {}),
-                }}
-              >
-                {completed ? '✓' : stepNo}
-              </span>
-
-              <span
-                style={{
-                  ...styles.stepLabel,
-                  ...(active ? styles.stepLabelActive : {}),
-                }}
-              >
-                {label}
-              </span>
+              <Field label="City" required>
+                <select
+                  value={form.city}
+                  onChange={(e) => update('city', e.target.value)}
+                  style={styles.input}
+                >
+                  <option>Hyderabad</option>
+                  <option>Bengaluru</option>
+                  <option>Mumbai</option>
+                  <option>Delhi</option>
+                  <option>Chennai</option>
+                  <option>Pune</option>
+                </select>
+              </Field>
             </div>
 
-            {index < steps.length - 1 && <span style={styles.stepLine} />}
-          </React.Fragment>
-        );
-      })}
+            <Field label="Short description" required>
+              <textarea
+                value={form.description}
+                onChange={(e) => update('description', e.target.value)}
+                rows={4}
+                maxLength={180}
+                style={styles.textarea}
+                placeholder="Describe your service in simple words."
+              />
+              <p style={styles.helper}>{form.description.length}/180</p>
+            </Field>
+
+            <div style={styles.block}>
+              <Label required>Cuisines</Label>
+              <ChipGrid>
+                {cuisineOptions.map((item) => (
+                  <Chip
+                    key={item}
+                    label={item}
+                    selected={form.cuisines.includes(item)}
+                    onClick={() => toggleArray('cuisines', item)}
+                  />
+                ))}
+              </ChipGrid>
+            </div>
+          </Section>
+
+          <Section
+            title="Service configuration"
+            subtitle="Choose food preference and where you provide the service."
+          >
+            <div style={styles.block}>
+              <Label required>Food preference</Label>
+              <ChipGrid>
+                <Chip
+                  label="Veg"
+                  selected={form.foodType === 'veg'}
+                  onClick={() => update('foodType', 'veg')}
+                />
+                <Chip
+                  label="Non-Veg"
+                  selected={form.foodType === 'non_veg'}
+                  onClick={() => update('foodType', 'non_veg')}
+                />
+                <Chip
+                  label="Both"
+                  selected={form.foodType === 'both'}
+                  onClick={() => update('foodType', 'both')}
+                />
+              </ChipGrid>
+            </div>
+
+            <div style={styles.optionGrid}>
+              <OptionCard
+                icon={<ServicesIcon size={18} />}
+                title="At customer’s home"
+                text="Cook at the customer’s location."
+                selected={form.serviceType === 'customer_home'}
+                onClick={() => update('serviceType', 'customer_home')}
+              />
+              <OptionCard
+                icon={<CalendarIcon size={18} />}
+                title="At my kitchen"
+                text="Prepare from your kitchen or pickup point."
+                selected={form.serviceType === 'my_kitchen'}
+                onClick={() => update('serviceType', 'my_kitchen')}
+              />
+              <OptionCard
+                icon={<ApprovalIcon size={18} />}
+                title="Both"
+                text="Support both customer home and kitchen service."
+                selected={form.serviceType === 'both'}
+                onClick={() => update('serviceType', 'both')}
+              />
+            </div>
+          </Section>
+
+          <Section
+            title="Availability"
+            subtitle="Select when customers can book this chef service."
+          >
+            <div style={styles.block}>
+              <Label required>Available days</Label>
+              <ChipGrid>
+                {days.map((day) => (
+                  <Chip
+                    key={day}
+                    label={day}
+                    selected={form.days.includes(day)}
+                    onClick={() => toggleArray('days', day)}
+                  />
+                ))}
+              </ChipGrid>
+            </div>
+
+            <div style={styles.block}>
+              <Label required>Available slots</Label>
+              <div style={styles.optionGrid}>
+                {slots.map((slot) => (
+                  <OptionCard
+                    key={slot}
+                    icon={<CalendarIcon size={17} />}
+                    title={slot}
+                    text={getSlotTiming(slot)}
+                    selected={form.slots.includes(slot)}
+                    onClick={() => toggleArray('slots', slot)}
+                  />
+                ))}
+              </div>
+            </div>
+          </Section>
+
+          <Section
+            title="Pricing"
+            subtitle="Set simple pricing. You can improve pricing rules later."
+          >
+            <div style={styles.grid2}>
+              <Field label="Price per meal" required>
+                <input
+                  value={form.pricePerMeal}
+                  onChange={(e) => update('pricePerMeal', e.target.value)}
+                  style={styles.input}
+                  placeholder="250"
+                />
+              </Field>
+
+              <Field label="Session price">
+                <input
+                  value={form.sessionPrice}
+                  onChange={(e) => update('sessionPrice', e.target.value)}
+                  style={styles.input}
+                  placeholder="1200"
+                />
+              </Field>
+
+              <Field label="Weekly package">
+                <input
+                  value={form.weeklyPrice}
+                  onChange={(e) => update('weeklyPrice', e.target.value)}
+                  style={styles.input}
+                  placeholder="5500"
+                />
+              </Field>
+
+              <Field label="Monthly package">
+                <input
+                  value={form.monthlyPrice}
+                  onChange={(e) => update('monthlyPrice', e.target.value)}
+                  style={styles.input}
+                  placeholder="18000"
+                />
+              </Field>
+            </div>
+          </Section>
+
+          <Section
+            title="Service area"
+            subtitle="Choose areas where customers can book this service."
+          >
+            <div style={styles.grid2}>
+              <Field label="City" required>
+                <select
+                  value={form.city}
+                  onChange={(e) => update('city', e.target.value)}
+                  style={styles.input}
+                >
+                  <option>Hyderabad</option>
+                  <option>Bengaluru</option>
+                  <option>Mumbai</option>
+                  <option>Delhi</option>
+                  <option>Chennai</option>
+                  <option>Pune</option>
+                </select>
+              </Field>
+
+              <Field label="Add custom area">
+                <div style={styles.inlineInput}>
+                  <input
+                    value={areaInput}
+                    onChange={(e) => setAreaInput(e.target.value)}
+                    style={styles.input}
+                    placeholder="Example: Kukatpally"
+                  />
+
+                  <button
+                    type="button"
+                    style={styles.inlineAddButton}
+                    onClick={() => {
+                      const value = areaInput.trim();
+                      if (!value) return;
+                      if (!form.areas.includes(value)) {
+                        update('areas', [...form.areas, value]);
+                      }
+                      setAreaInput('');
+                    }}
+                  >
+                    Add
+                  </button>
+                </div>
+              </Field>
+            </div>
+
+            <div style={styles.block}>
+              <Label required>Selected service areas</Label>
+
+              <ChipGrid>
+                {[...new Set([...areas, ...form.areas])].map((area) => (
+                  <Chip
+                    key={area}
+                    label={area}
+                    selected={form.areas.includes(area)}
+                    onClick={() => toggleArray('areas', area)}
+                  />
+                ))}
+              </ChipGrid>
+
+              <p style={styles.helper}>
+                Select at least one area. You can add more areas manually.
+              </p>
+            </div>
+          </Section>
+
+          <Section
+            title="Service images"
+            subtitle="Add food, kitchen, or chef work photos for this service."
+          >
+            <ServiceImageGallery
+              images={form.images}
+              onAdd={addMockImage}
+              onRemove={removeImage}
+            />
+          </Section>
+
+          <div style={styles.actions}>
+            <button type="button" onClick={onBack} style={styles.secondaryBtn}>
+              Cancel
+            </button>
+
+            <button
+              type="button"
+              disabled={!isValid}
+              onClick={() => onSubmit?.(form)}
+              style={{
+                ...styles.primaryBtn,
+                ...(!isValid ? styles.disabledBtn : {}),
+              }}
+            >
+              Submit for Review →
+            </button>
+          </div>
+        </main>
+
+        <aside style={styles.right}>
+          <ChefServicePreview profile={profile} form={form} />
+        </aside>
+      </div>
     </div>
   );
 }
 
-function StepBasicInfo({
+function ChefServicePreview({
+  profile,
   form,
-  update,
-  toggleArray,
 }: {
+  profile: ChefProfile;
   form: ChefServiceForm;
-  update: <K extends keyof ChefServiceForm>(
-    key: K,
-    value: ChefServiceForm[K]
-  ) => void;
-  toggleArray: <K extends keyof ChefServiceForm>(key: K, value: string) => void;
 }) {
   return (
-    <>
-      <Card title="Basic Information">
-        <div style={styles.twoColumn}>
-          <Field label="Service Title" required>
-            <input
-              value={form.title}
-              onChange={(e) => update('title', e.target.value)}
-              style={styles.input}
-            />
-          </Field>
-
-          <Field label="Short Description" required>
-            <textarea
-              value={form.description}
-              onChange={(e) => update('description', e.target.value)}
-              rows={4}
-              maxLength={150}
-              style={styles.textarea}
-            />
-            <p style={styles.counter}>{form.description.length}/150</p>
-          </Field>
-
-          <Field label="Experience">
-            <select
-              value={form.experience}
-              onChange={(e) => update('experience', e.target.value)}
-              style={styles.input}
-            >
-              <option>1+ Years</option>
-              <option>3+ Years</option>
-              <option>5+ Years</option>
-              <option>10+ Years</option>
-            </select>
-          </Field>
-        </div>
-      </Card>
-
-      <Card title="Cuisines You Specialize In" required>
-        <ChipGrid>
-          {cuisineOptions.map((item) => (
-            <Chip
-              key={item}
-              label={item}
-              selected={form.cuisines.includes(item)}
-              onClick={() => toggleArray('cuisines', item)}
-            />
-          ))}
-        </ChipGrid>
-
-        <div style={styles.fieldBlock}>
-          <p style={styles.sectionLabel}>Food Preference *</p>
-
-          <ChipGrid>
-            <Chip
-              label="Veg"
-              selected={form.foodType === 'veg'}
-              onClick={() => update('foodType', 'veg')}
-            />
-            <Chip
-              label="Non-Veg"
-              selected={form.foodType === 'non_veg'}
-              onClick={() => update('foodType', 'non_veg')}
-            />
-            <Chip
-              label="Both"
-              selected={form.foodType === 'both'}
-              onClick={() => update('foodType', 'both')}
-            />
-          </ChipGrid>
-        </div>
-      </Card>
-
-      <Card title="Service Type" required subtitle="Where will you provide your service?">
-        <div style={styles.serviceTypeGrid}>
-          <OptionCard
-            title="At Customer’s Home"
-            text="I will cook at the customer’s home"
-            selected={form.serviceType === 'customer_home'}
-            onClick={() => update('serviceType', 'customer_home')}
-          />
-          <OptionCard
-            title="At My Kitchen"
-            text="Customer picks up from my kitchen"
-            selected={form.serviceType === 'my_kitchen'}
-            onClick={() => update('serviceType', 'my_kitchen')}
-          />
-          <OptionCard
-            title="Both"
-            text="I can cook at home or at my kitchen"
-            selected={form.serviceType === 'both'}
-            onClick={() => update('serviceType', 'both')}
-          />
-        </div>
-      </Card>
-    </>
-  );
-}
-
-function StepAvailability({
-  form,
-  toggleArray,
-}: {
-  form: ChefServiceForm;
-  toggleArray: <K extends keyof ChefServiceForm>(key: K, value: string) => void;
-}) {
-  return (
-    <Card title="Set Your Availability" subtitle="Select days and slots when you are available.">
-      <p style={styles.sectionLabel}>Available Days *</p>
-      <ChipGrid>
-        {dayOptions.map((day) => (
-          <Chip
-            key={day}
-            label={day}
-            selected={form.days.includes(day)}
-            onClick={() => toggleArray('days', day)}
-          />
-        ))}
-      </ChipGrid>
-
-      <div style={styles.fieldBlock}>
-        <p style={styles.sectionLabel}>Time Slots *</p>
-        <div style={styles.slotGrid}>
-          {slotOptions.map((slot) => (
-            <OptionCard
-              key={slot}
-              title={slot}
-              text={
-                slot === 'Morning'
-                  ? '06:00 AM - 12:00 PM'
-                  : slot === 'Lunch'
-                    ? '12:00 PM - 04:00 PM'
-                    : slot === 'Evening'
-                      ? '04:00 PM - 09:00 PM'
-                      : '09:00 PM - 12:00 AM'
-              }
-              selected={form.slots.includes(slot)}
-              onClick={() => toggleArray('slots', slot)}
-            />
-          ))}
-        </div>
-      </div>
-    </Card>
-  );
-}
-
-function StepPricing({
-  form,
-  update,
-}: {
-  form: ChefServiceForm;
-  update: <K extends keyof ChefServiceForm>(
-    key: K,
-    value: ChefServiceForm[K]
-  ) => void;
-}) {
-  return (
-    <Card title="Set Your Pricing" subtitle="Define your basic chef service pricing.">
-      <div style={styles.twoColumn}>
-        <Field label="Price Per Meal" required>
-          <input
-            value={form.pricePerMeal}
-            onChange={(e) => update('pricePerMeal', e.target.value)}
-            style={styles.input}
-            placeholder="₹ 250"
-          />
-        </Field>
-
-        <Field label="Weekly Plan">
-          <input
-            value={form.weeklyPlanPrice}
-            onChange={(e) => update('weeklyPlanPrice', e.target.value)}
-            style={styles.input}
-            placeholder="₹ 1200"
-          />
-        </Field>
-
-        <Field label="Monthly Plan">
-          <input
-            value={form.monthlyPlanPrice}
-            onChange={(e) => update('monthlyPlanPrice', e.target.value)}
-            style={styles.input}
-            placeholder="₹ 4500"
-          />
-        </Field>
-      </div>
-    </Card>
-  );
-}
-
-function StepServiceArea({
-  form,
-  update,
-  toggleArray,
-}: {
-  form: ChefServiceForm;
-  update: <K extends keyof ChefServiceForm>(
-    key: K,
-    value: ChefServiceForm[K]
-  ) => void;
-  toggleArray: <K extends keyof ChefServiceForm>(key: K, value: string) => void;
-}) {
-  return (
-    <Card title="Select Your Service Area" subtitle="Choose where you can provide service.">
-      <Field label="City" required>
-        <select
-          value={form.city}
-          onChange={(e) => update('city', e.target.value)}
-          style={styles.input}
-        >
-          <option>Hyderabad</option>
-          <option>Bengaluru</option>
-          <option>Mumbai</option>
-          <option>Delhi</option>
-        </select>
-      </Field>
-
-      <div style={styles.fieldBlock}>
-        <p style={styles.sectionLabel}>Select Areas *</p>
-        <ChipGrid>
-          {areaOptions.map((area) => (
-            <Chip
-              key={area}
-              label={area}
-              selected={form.areas.includes(area)}
-              onClick={() => toggleArray('areas', area)}
-            />
-          ))}
-        </ChipGrid>
-      </div>
-
-      <div style={styles.fieldBlock}>
-        <p style={styles.sectionLabel}>Maximum Distance: {form.radiusKm} km</p>
-        <input
-          type="range"
-          min={5}
-          max={25}
-          value={form.radiusKm}
-          onChange={(e) => update('radiusKm', Number(e.target.value))}
-          style={styles.range}
-        />
-      </div>
-    </Card>
-  );
-}
-
-function StepFinalPreview({ form }: { form: ChefServiceForm }) {
-  return (
-    <Card title="Preview Your Chef Service" subtitle="Review your details before submitting.">
-      <div style={styles.reviewGrid}>
-        <Info label="Service" value={form.title} />
-        <Info label="Experience" value={form.experience} />
-        <Info label="Cuisines" value={form.cuisines.join(', ')} />
-        <Info label="Food Type" value={formatFoodType(form.foodType)} />
-        <Info label="Service Type" value={formatServiceType(form.serviceType)} />
-        <Info label="Availability" value={`${form.days.join(', ')} · ${form.slots.join(', ')}`} />
-        <Info label="Price" value={`₹${form.pricePerMeal} / meal`} />
-        <Info label="Service Area" value={`${form.areas.join(', ')} · ${form.radiusKm} km`} />
-      </div>
-
-      <div style={styles.submitNote}>
-        <ApprovalIcon size={18} />
-        Your service will be submitted for review before going live.
-      </div>
-    </Card>
-  );
-}
-
-function ChefServicePreview({ form }: { form: ChefServiceForm }) {
-  return (
-    <div style={styles.previewCard}>
+    <div style={styles.preview}>
       <div style={styles.previewHeader}>
-        <ApprovalIcon size={16} />
-        Preview
+        <span>Live preview</span>
+        <StatusBadge status="under_review" label="Draft" />
+      </div>
+
+      <div style={styles.previewCover}>
+        <img
+          src={form.images[0] || '/dashboard/chef-service.png'}
+          alt={form.title}
+          style={styles.previewCoverImg}
+        />
       </div>
 
       <div style={styles.previewBody}>
-        <img
-          src="/dashboard/chef-service.png"
-          alt="Chef Preview"
-          style={styles.previewImage}
-        />
+        <div style={styles.previewProfile}>
+          <img
+            src={profile.avatarUrl}
+            alt={profile.name}
+            style={styles.previewAvatar}
+          />
 
-        <h2 style={styles.previewTitle}>{form.title || 'Chef Service Title'}</h2>
-        <p style={styles.previewSub}>{form.experience} Experience</p>
+          <div>
+            <h2 style={styles.previewTitle}>
+              {form.title || 'Chef Service Title'}
+            </h2>
+            <p style={styles.previewSub}>By {profile.name}</p>
+          </div>
+        </div>
+
+        <p style={styles.previewDesc}>{form.description}</p>
 
         <div style={styles.previewTags}>
-          {form.cuisines.slice(0, 3).map((item) => (
+          {form.cuisines.slice(0, 4).map((item) => (
             <span key={item} style={styles.previewTag}>
               {item}
             </span>
           ))}
         </div>
 
-        <p style={styles.previewDesc}>{form.description}</p>
+        <div style={styles.previewInfo}>
+          <PreviewRow label="Food type" value={formatFoodType(form.foodType)} />
+          <PreviewRow
+            label="Service"
+            value={formatServiceType(form.serviceType)}
+          />
+          <PreviewRow
+            label="Availability"
+            value={`${form.days.length} days · ${form.slots.join(', ')}`}
+          />
+          <PreviewRow label="Pricing" value={`₹${form.pricePerMeal} / meal`} />
+          <PreviewRow
+  label="Area"
+  value={`${form.areas.length} selected · ${form.city}`}
+/>
+        </div>
 
-        <div style={styles.previewDivider} />
-
-        <PreviewRow label="Service Type" value={formatServiceType(form.serviceType)} />
-        <PreviewRow
-          label="Availability"
-          value={form.days.length ? `${form.days.length} days · ${form.slots.join(', ')}` : 'Will be set next step'}
-        />
-        <PreviewRow
-          label="Price"
-          value={form.pricePerMeal ? `₹${form.pricePerMeal} / meal` : 'Will be set next step'}
-        />
-        <PreviewRow
-          label="Service Area"
-          value={form.areas.length ? `${form.areas.length} areas in ${form.city}` : 'Will be set next step'}
-        />
-
-        <div style={styles.visibleNote}>
-          <StatusBadge status="approved" label="Visible after approval" />
+        <div style={styles.previewNote}>
+          <ApprovalIcon size={16} />
+          Goes live after Droooly approval.
         </div>
       </div>
     </div>
   );
 }
 
-function Card({
+function ServiceImageGallery({
+  images,
+  onAdd,
+  onRemove,
+}: {
+  images: string[];
+  onAdd: () => void;
+  onRemove: (image: string) => void;
+}) {
+  return (
+    <div>
+      <div style={styles.imageGrid}>
+        {images.map((image, index) => (
+          <div key={`${image}-${index}`} style={styles.imageTile}>
+            <img src={image} alt="Service" style={styles.image} />
+            <button
+              type="button"
+              onClick={() => onRemove(image)}
+              style={styles.removeImageBtn}
+            >
+              <RejectIcon size={13} />
+            </button>
+          </div>
+        ))}
+
+        <button type="button" onClick={onAdd} style={styles.addImageTile}>
+          + Add photo
+          <small>Food, kitchen or work photo</small>
+        </button>
+      </div>
+
+      <p style={styles.helper}>
+        For MVP this can use uploaded URLs later. UI is ready for Supabase
+        storage or S3.
+      </p>
+    </div>
+  );
+}
+
+function Section({
   title,
   subtitle,
-  required,
   children,
 }: {
   title: string;
   subtitle?: string;
-  required?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <section style={styles.card}>
-      <h2 style={styles.cardTitle}>
-        {title} {required && <span style={styles.required}>*</span>}
-      </h2>
-      {subtitle && <p style={styles.cardSubtitle}>{subtitle}</p>}
-      <div style={styles.cardBody}>{children}</div>
+    <section style={styles.section}>
+      <div style={styles.sectionHeader}>
+        <h2 style={styles.sectionTitle}>{title}</h2>
+        {subtitle && <p style={styles.sectionSub}>{subtitle}</p>}
+      </div>
+      <div style={styles.sectionBody}>{children}</div>
     </section>
   );
 }
@@ -628,11 +619,23 @@ function Field({
 }) {
   return (
     <label style={styles.field}>
-      <span style={styles.label}>
-        {label} {required && <span style={styles.required}>*</span>}
-      </span>
+      <Label required={required}>{label}</Label>
       {children}
     </label>
+  );
+}
+
+function Label({
+  children,
+  required,
+}: {
+  children: React.ReactNode;
+  required?: boolean;
+}) {
+  return (
+    <span style={styles.label}>
+      {children} {required && <span style={styles.required}>*</span>}
+    </span>
   );
 }
 
@@ -658,17 +661,20 @@ function Chip({
         ...(selected ? styles.chipSelected : {}),
       }}
     >
-      {label} {selected && '✓'}
+      {label}
+      {selected && <span>✓</span>}
     </button>
   );
 }
 
 function OptionCard({
+  icon,
   title,
   text,
   selected,
   onClick,
 }: {
+  icon: React.ReactNode;
   title: string;
   text: string;
   selected: boolean;
@@ -680,11 +686,12 @@ function OptionCard({
       onClick={onClick}
       style={{
         ...styles.optionCard,
-        ...(selected ? styles.optionCardSelected : {}),
+        ...(selected ? styles.optionSelected : {}),
       }}
     >
+      <span style={styles.optionIcon}>{icon}</span>
       <strong>{title}</strong>
-      <span>{text}</span>
+      <small>{text}</small>
     </button>
   );
 }
@@ -698,65 +705,69 @@ function PreviewRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Info({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={styles.infoBox}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
+function getSlotTiming(slot: string) {
+  if (slot === 'Breakfast') return '06:00 AM - 10:00 AM';
+  if (slot === 'Lunch') return '11:00 AM - 03:00 PM';
+  if (slot === 'Dinner') return '06:00 PM - 10:30 PM';
+  return '04:00 PM - 07:00 PM';
 }
 
-function formatFoodType(value: ChefServiceForm['foodType']) {
+function formatFoodType(value: FoodType) {
   if (value === 'veg') return 'Veg';
   if (value === 'non_veg') return 'Non-Veg';
   return 'Veg & Non-Veg';
 }
 
-function formatServiceType(value: ChefServiceForm['serviceType']) {
-  if (value === 'customer_home') return "At Customer's Home";
-  if (value === 'my_kitchen') return 'At My Kitchen';
-  return 'At Home or Kitchen';
+function formatServiceType(value: ServiceType) {
+  if (value === 'customer_home') return "Customer's home";
+  if (value === 'my_kitchen') return 'My kitchen';
+  return 'Home or kitchen';
 }
 
 const styles: Record<string, React.CSSProperties> = {
   page: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 22,
+    gap: 18,
+  },
+
+  topRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
 
   backButton: {
-    alignSelf: 'flex-start',
     border: 'none',
     background: 'transparent',
-    color: '#4b5563',
-    fontSize: 14,
-    fontWeight: 600,
+    color: '#64748b',
+    fontSize: 13,
+    fontWeight: 500,
     cursor: 'pointer',
   },
 
   header: {
     display: 'flex',
     alignItems: 'center',
-    gap: 16,
+    gap: 14,
   },
 
   headerIcon: {
-    width: 58,
-    height: 58,
-    borderRadius: 999,
-    background: 'linear-gradient(135deg, #4f9d35, #2f7d25)',
+    width: 52,
+    height: 52,
+    borderRadius: 18,
+    background: 'linear-gradient(135deg, #7c3aed, #5b21b6)',
     color: '#ffffff',
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: '0 12px 24px rgba(63,155,63,0.18)',
+    boxShadow: '0 12px 24px rgba(124, 58, 237, 0.16)',
+    flexShrink: 0,
   },
 
   title: {
     margin: 0,
-    fontSize: 28,
+    fontSize: 25,
     fontWeight: 700,
     color: '#151126',
     letterSpacing: '-0.03em',
@@ -765,118 +776,142 @@ const styles: Record<string, React.CSSProperties> = {
   subtitle: {
     margin: '6px 0 0',
     fontSize: 14,
+    lineHeight: 1.45,
     color: '#64748b',
-  },
-
-  stepper: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    flexWrap: 'wrap',
-  },
-
-  stepItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-  },
-
-  stepCircle: {
-    width: 26,
-    height: 26,
-    borderRadius: 999,
-    border: '1px solid #e5e7eb',
-    color: '#64748b',
-    background: '#ffffff',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 12,
-    fontWeight: 700,
-  },
-
-  stepCircleActive: {
-    background: '#7c3aed',
-    borderColor: '#7c3aed',
-    color: '#ffffff',
-  },
-
-  stepCircleCompleted: {
-    background: '#dcfce7',
-    borderColor: '#dcfce7',
-    color: '#15803d',
-  },
-
-  stepLabel: {
-    fontSize: 13,
-    color: '#64748b',
-    fontWeight: 600,
-  },
-
-  stepLabelActive: {
-    color: '#151126',
-  },
-
-  stepLine: {
-    width: 28,
-    height: 1,
-    background: '#e5e7eb',
   },
 
   layout: {
     display: 'grid',
-    gridTemplateColumns: 'minmax(0, 1fr) 330px',
-    gap: 24,
+    gridTemplateColumns: 'minmax(0, 1fr) 360px',
+    gap: 22,
     alignItems: 'start',
   },
 
-  formColumn: {
+  left: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 18,
+    gap: 16,
     minWidth: 0,
   },
 
-  previewColumn: {
+  right: {
     position: 'sticky',
-    top: 20,
+    top: 18,
   },
 
-  card: {
+  profileCard: {
+    display: 'flex',
+    gap: 14,
+    alignItems: 'center',
     background: '#ffffff',
     border: '1px solid #eee9f7',
     borderRadius: 20,
-    padding: 20,
-    boxShadow: '0 10px 28px rgba(17,24,39,0.035)',
+    padding: 16,
+    boxShadow: '0 8px 24px rgba(17, 24, 39, 0.035)',
   },
 
-  cardTitle: {
+  profileImg: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    objectFit: 'cover',
+    flexShrink: 0,
+  },
+
+  profileTop: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    gap: 12,
+    alignItems: 'center',
+  },
+
+  profileName: {
+    margin: 0,
+    fontSize: 17,
+    fontWeight: 700,
+    color: '#151126',
+  },
+
+  profileMeta: {
+    margin: '4px 0 9px',
+    color: '#64748b',
+    fontSize: 13,
+  },
+
+  editProfileBtn: {
+    border: '1px solid #eee9f7',
+    background: '#ffffff',
+    color: '#7c3aed',
+    borderRadius: 12,
+    height: 34,
+    padding: '0 11px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    cursor: 'pointer',
+    fontSize: 12,
+    fontWeight: 600,
+  },
+
+  miniTags: {
+    display: 'flex',
+    gap: 7,
+    flexWrap: 'wrap',
+  },
+
+  miniTag: {
+    padding: '5px 9px',
+    borderRadius: 999,
+    background: '#f3e8ff',
+    color: '#7c3aed',
+    fontSize: 11,
+    fontWeight: 600,
+  },
+
+  section: {
+    background: '#ffffff',
+    border: '1px solid #eee9f7',
+    borderRadius: 20,
+    boxShadow: '0 8px 24px rgba(17, 24, 39, 0.035)',
+    overflow: 'hidden',
+  },
+
+  sectionHeader: {
+    padding: '16px 18px',
+    borderBottom: '1px solid #f5f1fb',
+  },
+
+  sectionTitle: {
     margin: 0,
     fontSize: 15,
     fontWeight: 700,
     color: '#151126',
   },
 
-  cardSubtitle: {
-    margin: '6px 0 0',
-    fontSize: 13,
+  sectionSub: {
+    margin: '5px 0 0',
     color: '#64748b',
+    fontSize: 13,
+    lineHeight: 1.45,
   },
 
-  cardBody: {
-    marginTop: 18,
+  sectionBody: {
+    padding: 18,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 16,
   },
 
-  twoColumn: {
+  grid2: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
-    gap: 18,
+    gap: 14,
   },
 
   field: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 8,
+    gap: 7,
   },
 
   label: {
@@ -892,97 +927,103 @@ const styles: Record<string, React.CSSProperties> = {
   input: {
     width: '100%',
     height: 42,
-    borderRadius: 12,
     border: '1px solid #e5e7eb',
+    borderRadius: 12,
     padding: '0 12px',
-    fontSize: 14,
     outline: 'none',
+    fontSize: 14,
+    color: '#151126',
     background: '#ffffff',
   },
 
   textarea: {
     width: '100%',
     minHeight: 96,
-    borderRadius: 12,
     border: '1px solid #e5e7eb',
+    borderRadius: 12,
     padding: 12,
+    outline: 'none',
     fontSize: 14,
     fontFamily: 'inherit',
+    color: '#151126',
     resize: 'vertical',
-    outline: 'none',
   },
 
-  counter: {
-    textAlign: 'right',
-    margin: '-24px 12px 0 0',
+  helper: {
+    margin: 0,
     color: '#94a3b8',
     fontSize: 12,
+    lineHeight: 1.45,
   },
 
-  fieldBlock: {
-    marginTop: 22,
-  },
-
-  sectionLabel: {
-    margin: '0 0 10px',
-    fontSize: 13,
-    fontWeight: 600,
-    color: '#334155',
+  block: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
   },
 
   chipGrid: {
     display: 'flex',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 9,
   },
 
   chip: {
-    minWidth: 120,
-    borderRadius: 10,
-    border: '1px solid #e5e7eb',
+    border: '1px solid #eee9f7',
     background: '#ffffff',
-    color: '#334155',
-    padding: '10px 14px',
-    fontSize: 13,
-    fontWeight: 600,
+    color: '#475569',
+    borderRadius: 999,
+    minHeight: 34,
+    padding: '0 12px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 7,
     cursor: 'pointer',
+    fontSize: 13,
+    fontWeight: 500,
   },
 
   chipSelected: {
-    borderColor: '#65a34b',
-    background: '#f0f9ec',
-    color: '#2f7d25',
+    borderColor: '#c4b5fd',
+    background: '#f3e8ff',
+    color: '#6d28d9',
+    fontWeight: 600,
   },
 
-  serviceTypeGrid: {
+  optionGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
-    gap: 14,
-  },
-
-  slotGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-    gap: 14,
+    gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+    gap: 12,
   },
 
   optionCard: {
-    border: '1px solid #e5e7eb',
+    border: '1px solid #eee9f7',
     borderRadius: 16,
     background: '#ffffff',
-    padding: 16,
+    padding: 14,
     textAlign: 'left',
     cursor: 'pointer',
     display: 'flex',
     flexDirection: 'column',
-    gap: 6,
+    gap: 7,
     color: '#334155',
   },
 
-  optionCardSelected: {
-    borderColor: '#7c3aed',
-    background: '#f8f4ff',
+  optionSelected: {
+    borderColor: '#c4b5fd',
+    background: '#faf5ff',
     color: '#5b21b6',
+  },
+
+  optionIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    background: '#f3e8ff',
+    color: '#7c3aed',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   range: {
@@ -990,161 +1031,347 @@ const styles: Record<string, React.CSSProperties> = {
     accentColor: '#7c3aed',
   },
 
-  previewCard: {
+  imageGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+    gap: 12,
+  },
+
+  imageTile: {
+    position: 'relative',
+    height: 120,
+    borderRadius: 16,
+    overflow: 'hidden',
+    border: '1px solid #eee9f7',
+    background: '#faf8ff',
+  },
+
+  image: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+  },
+
+  removeImageBtn: {
+    position: 'absolute',
+    right: 8,
+    top: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 999,
+    border: 'none',
+    background: 'rgba(255,255,255,0.9)',
+    color: '#dc2626',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+  },
+
+  addImageTile: {
+    minHeight: 120,
+    borderRadius: 16,
+    border: '1.5px dashed #c4b5fd',
+    background: '#faf5ff',
+    color: '#7c3aed',
+    cursor: 'pointer',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 13,
+    fontWeight: 700,
+  },
+
+  actions: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: 12,
+    paddingTop: 4,
+  },
+
+  secondaryBtn: {
+    height: 42,
+    border: '1px solid #eee9f7',
+    background: '#ffffff',
+    color: '#475569',
+    borderRadius: 12,
+    padding: '0 16px',
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+
+  primaryBtn: {
+    height: 42,
+    border: 'none',
+    background: 'linear-gradient(135deg, #7c3aed, #5b21b6)',
+    color: '#ffffff',
+    borderRadius: 12,
+    padding: '0 18px',
+    fontSize: 13,
+    fontWeight: 700,
+    cursor: 'pointer',
+    boxShadow: '0 10px 22px rgba(124, 58, 237, 0.16)',
+  },
+
+  disabledBtn: {
+    opacity: 0.5,
+    cursor: 'not-allowed',
+    boxShadow: 'none',
+  },
+
+  preview: {
     background: '#ffffff',
     border: '1px solid #eee9f7',
-    borderRadius: 20,
+    borderRadius: 22,
     overflow: 'hidden',
-    boxShadow: '0 10px 28px rgba(17,24,39,0.035)',
+    boxShadow: '0 14px 34px rgba(17, 24, 39, 0.06)',
   },
 
   previewHeader: {
-    padding: '16px 18px',
-    background: '#f8fbf6',
-    borderBottom: '1px solid #eef4e9',
-    color: '#2f7d25',
+    padding: '15px 17px',
+    borderBottom: '1px solid #f5f1fb',
     display: 'flex',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 8,
-    fontWeight: 700,
-    fontSize: 14,
-  },
-
-  previewBody: {
-    padding: 20,
-    textAlign: 'center',
-  },
-
-  previewImage: {
-    width: 86,
-    height: 86,
-    borderRadius: 999,
-    objectFit: 'cover',
-    marginBottom: 14,
-  },
-
-  previewTitle: {
-    margin: 0,
-    fontSize: 18,
+    fontSize: 13,
     fontWeight: 700,
     color: '#151126',
   },
 
+  previewCover: {
+    height: 145,
+    background: '#faf5ff',
+  },
+
+  previewCoverImg: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+  },
+
+  previewBody: {
+    padding: 18,
+  },
+
+  previewProfile: {
+    display: 'flex',
+    gap: 12,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+
+  previewAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    objectFit: 'cover',
+    flexShrink: 0,
+  },
+
+  previewTitle: {
+    margin: 0,
+    fontSize: 17,
+    fontWeight: 700,
+    color: '#151126',
+    lineHeight: 1.25,
+  },
+
   previewSub: {
-    margin: '6px 0 12px',
+    margin: '4px 0 0',
     color: '#64748b',
+    fontSize: 12,
+  },
+
+  previewDesc: {
+    margin: '0 0 13px',
+    color: '#475569',
     fontSize: 13,
+    lineHeight: 1.5,
   },
 
   previewTags: {
     display: 'flex',
-    justifyContent: 'center',
-    gap: 8,
     flexWrap: 'wrap',
+    gap: 7,
     marginBottom: 14,
   },
 
   previewTag: {
-    padding: '6px 9px',
+    padding: '5px 9px',
     borderRadius: 999,
-    background: '#ecfdf3',
-    color: '#2f7d25',
+    background: '#f3e8ff',
+    color: '#7c3aed',
     fontSize: 11,
-    fontWeight: 700,
+    fontWeight: 600,
   },
 
-  previewDesc: {
-    color: '#475569',
-    fontSize: 13,
-    lineHeight: 1.5,
-    margin: 0,
-  },
-
-  previewDivider: {
-    height: 1,
-    background: '#f1edf8',
-    margin: '18px 0',
+  previewInfo: {
+    borderTop: '1px solid #f5f1fb',
+    paddingTop: 10,
   },
 
   previewRow: {
     display: 'flex',
     justifyContent: 'space-between',
     gap: 14,
-    textAlign: 'left',
+    padding: '8px 0',
     fontSize: 12,
     color: '#64748b',
-    padding: '8px 0',
   },
 
-  visibleNote: {
-    marginTop: 16,
+  previewNote: {
+    marginTop: 12,
     padding: 12,
     borderRadius: 14,
-    background: '#f0f9ec',
-  },
-
-  reviewGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-    gap: 14,
-  },
-
-  infoBox: {
-    border: '1px solid #eee9f7',
-    borderRadius: 14,
-    padding: 14,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 5,
-    fontSize: 13,
-    color: '#64748b',
-  },
-
-  submitNote: {
-    marginTop: 18,
-    padding: 14,
-    borderRadius: 14,
-    background: '#f3e8ff',
-    color: '#7c3aed',
+    background: '#ecfdf3',
+    color: '#15803d',
     display: 'flex',
     alignItems: 'center',
     gap: 8,
+    fontSize: 12,
+    fontWeight: 700,
+  },
+
+  profileAvatarButton: {
+    position: 'relative',
+    width: 72,
+    height: 72,
+    borderRadius: 999,
+    border: '3px solid #ffffff',
+    background: 'linear-gradient(135deg, #7c3aed, #a855f7)',
+    boxShadow: '0 10px 24px rgba(124, 58, 237, 0.18)',
+    overflow: 'visible',
+    cursor: 'pointer',
+    flexShrink: 0,
+  },
+
+  profileAvatarImg: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 999,
+    objectFit: 'cover',
+    display: 'block',
+  },
+
+  profileAvatarFallback: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 999,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#ffffff',
+    fontSize: 24,
+    fontWeight: 700,
+  },
+
+  profileCameraBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 24,
+    height: 24,
+    borderRadius: 999,
+    background: '#7c3aed',
+    color: '#ffffff',
+    border: '2px solid #ffffff',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 15,
+    fontWeight: 700,
+  },
+
+  profileHint: {
+    margin: '3px 0 0',
+    fontSize: 12,
+    color: '#94a3b8',
+  },
+
+  inlineInput: {
+    display: 'grid',
+    gridTemplateColumns: '1fr auto',
+    gap: 8,
+  },
+  
+  inlineAddButton: {
+    height: 42,
+    border: 'none',
+    borderRadius: 12,
+    padding: '0 14px',
+    background: '#f3e8ff',
+    color: '#7c3aed',
     fontSize: 13,
     fontWeight: 700,
-  },
-
-  actions: {
-    borderTop: '1px solid #eee9f7',
-    paddingTop: 18,
-    display: 'flex',
-    justifyContent: 'space-between',
-    gap: 14,
-  },
-
-  secondaryButton: {
-    border: '1px solid #e5e7eb',
-    background: '#ffffff',
-    color: '#334155',
-    borderRadius: 12,
-    padding: '12px 18px',
-    fontWeight: 600,
     cursor: 'pointer',
-  },
-
-  primaryButton: {
-    border: 'none',
-    background: 'linear-gradient(135deg, #4f9d35, #2f7d25)',
-    color: '#ffffff',
-    borderRadius: 12,
-    padding: '12px 22px',
-    fontWeight: 700,
-    cursor: 'pointer',
-    boxShadow: '0 10px 22px rgba(47,125,37,0.18)',
-  },
-
-  disabledButton: {
-    opacity: 0.5,
-    cursor: 'not-allowed',
-    boxShadow: 'none',
   },
 };
+
+function ProfileSnapshot({
+  profile,
+  onUploadAvatar,
+}: {
+  profile: ChefProfile;
+  onUploadAvatar?: (file: File) => void;
+}) {
+  const fileRef = React.useRef<HTMLInputElement | null>(null);
+
+  return (
+    <section style={styles.profileCard}>
+      <button
+        type="button"
+        onClick={() => fileRef.current?.click()}
+        style={styles.profileAvatarButton}
+      >
+        {profile.avatarUrl ? (
+          <img
+            src={profile.avatarUrl}
+            alt={profile.name}
+            style={styles.profileAvatarImg}
+          />
+        ) : (
+          <span style={styles.profileAvatarFallback}>
+            {profile.name.charAt(0).toUpperCase()}
+          </span>
+        )}
+
+        <span style={styles.profileCameraBadge}>＋</span>
+      </button>
+
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) onUploadAvatar?.(file);
+        }}
+      />
+
+      <div style={{ flex: 1 }}>
+        <div style={styles.profileTop}>
+          <h2 style={styles.profileName}>{profile.name}</h2>
+          <p style={styles.profileHint}>
+            Profile photo is reused across your chef services.
+          </p>
+        </div>
+
+        <p style={styles.profileMeta}>
+          {profile.experience} experience · {profile.city}
+        </p>
+
+        <div style={styles.miniTags}>
+          {profile.cuisines.map((item) => (
+            <span key={item} style={styles.miniTag}>
+              {item}
+            </span>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}

@@ -5,6 +5,7 @@ import {
   ServicesIcon,
   OrdersIcon,
   CalendarIcon,
+  ChevronIcon,
 } from '@/components/Icons/DashboardIcons';
 
 export type AddServiceType = 'chef' | 'meal_plan' | 'catering';
@@ -74,7 +75,7 @@ export default function AddServiceDropdown({
         style={styles.trigger}
       >
         {label}
-        <span style={styles.chevron}>{open ? '⌃' : '⌄'}</span>
+        <ChevronIcon open={open} />
       </button>
 
       {open && (
@@ -117,7 +118,7 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'linear-gradient(135deg, #7c3aed, #5b21b6)',
     color: '#ffffff',
     fontSize: 13,
-    fontWeight: 700,
+    fontWeight: 500,
     cursor: 'pointer',
     display: 'inline-flex',
     alignItems: 'center',

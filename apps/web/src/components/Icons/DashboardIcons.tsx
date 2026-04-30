@@ -177,3 +177,25 @@ export const EditIcon = (props: IconProps) => (
     <path d="M3 17.25V21h3.75L19.81 7.94l-3.75-3.75L3 17.25Z" />
   </Base>
 );
+
+
+export const ChevronIcon = ({ open }: { open: boolean }) => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    style={{
+      transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+      transition: '0.2s ease',
+    }}
+  >
+    <path
+      d="M6 9l6 6 6-6"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
