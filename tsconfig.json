@@ -38,7 +38,19 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "dist",
+    "build",
+    "out",
+    "public",
+    "coverage",
+    "scripts",
+    "storybook-static",
+    "storybook",
+    "packages/types",
+    "packages/themes",
+    "packages/shared",
+    "packages/ui",
   ],
   "references": [
     { "path": "./packages/types" },

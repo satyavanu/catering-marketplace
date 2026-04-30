@@ -4,6 +4,17 @@ import Footer from '@/components/Footer';
 import { Providers } from './providers';
 import './globals.css';
 import Script from 'next/script';
+import { Inter, Plus_Jakarta_Sans } from 'next/font/google';
+
+export const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+});
+
+export const jakarta = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  variable: '--font-jakarta',
+});
 
 export const metadata: Metadata = {
   title: 'Droooly - Find & Book Catering Services',
@@ -27,7 +38,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${inter.variable} ${jakarta.variable}`}>
       <head>
         <meta charSet="utf-8" />
         <meta name="theme-color" content="#667eea" />

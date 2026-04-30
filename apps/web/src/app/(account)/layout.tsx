@@ -1,855 +1,619 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { useRouter } from 'next/navigation';
-import { useSession, signOut } from 'next-auth/react';
+
 import {
   HomeIcon,
-  ClipboardDocumentListIcon,
-  HeartIcon,
-  CalendarDaysIcon,
-  ChatBubbleLeftRightIcon,
-  StarIcon,
-  CreditCardIcon,
-  UserCircleIcon,
+  CalendarIcon,
+  OrdersIcon,
+  ServicesIcon,
+  EarningsIcon,
+  ReviewsIcon,
+  MessagesIcon,
+  AnalyticsIcon,
+  SettingsIcon,
+  ApprovalIcon,
+  WorkersIcon,
   BellIcon,
-  MagnifyingGlassIcon,
-  ArrowLeftOnRectangleIcon,
-  ChevronRightIcon,
-  SparklesIcon,
-  ChevronLeftIcon,
-  DocumentCheckIcon,
-  Bars3Icon,
-  XMarkIcon,
-  GiftIcon,
-  ShieldCheckIcon,
-  BuildingOfficeIcon,
-  CheckCircleIcon,
-  ArrowPathIcon,
-  SwapIcon,
-} from '@heroicons/react/24/outline';
-import { handleLogout } from "@catering-marketplace/auth"
+  MenuIcon,
+  ChevronDownIcon,
+} from '@/components/Icons/DashboardIcons';
+import Breadcrumbs from '@/components/dashboard/BreadCrumbs';
 
-interface MenuItem {
-  name: string;
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  color: string;
-  path: string;
-  badge?: string;
-}
+type PartnerDashboardLayoutProps = {
+  children: React.ReactNode;
+  userName?: string;
+  avatarUrl?: string;
+  activeKey?: string;
+};
 
-type UserRole = 'customer' | 'caterer' | 'admin';
+type NavItem = {
+  key: string;
+  label: string;
+  href: string;
+  icon: React.ReactNode;
+  badge?: string | number;
+};
 
-export default function AccountLayout({ children }: { children: React.ReactNode }) {
+const navItems: NavItem[] = [
+  {
+    key: 'home',
+    label: 'Home',
+    href: '/partner',
+    icon: <HomeIcon />,
+  },
+  {
+    key: 'bookings',
+    label: 'Bookings',
+    href: '/partner/bookings',
+    icon: <CalendarIcon />,
+  },
+  {
+    key: 'orders',
+    label: 'Orders',
+    href: '/partner/orders',
+    icon: <OrdersIcon />,
+  },
+  {
+    key: 'services',
+    label: 'Services',
+    href: '/partner/services',
+    icon: <ServicesIcon />,
+  },
+  {
+    key: 'earnings',
+    label: 'Earnings',
+    href: '/partner/earnings',
+    icon: <EarningsIcon />,
+  },
+  {
+    key: 'reviews',
+    label: 'Reviews',
+    href: '/partner/reviews',
+    icon: <ReviewsIcon />,
+  },
+  {
+    key: 'messages',
+    label: 'Messages',
+    href: '/partner/messages',
+    icon: <MessagesIcon />,
+    badge: 3,
+  },
+  {
+    key: 'analytics',
+    label: 'Analytics',
+    href: '/partner/analytics',
+    icon: <AnalyticsIcon />,
+  },
+  {
+    key: 'approval',
+    label: 'Partner Approval',
+    href: '/partner/approval',
+    icon: <ApprovalIcon />,
+  },
+  {
+    key: 'workers',
+    label: 'Event Workers',
+    href: '/partner/workers',
+    icon: <WorkersIcon />,
+  },
+  {
+    key: 'settings',
+    label: 'Settings',
+    href: '/partner/settings',
+    icon: <SettingsIcon />,
+  },
+];
+
+export default function PartnerDashboardLayout({
+  children,
+  userName = 'Partner',
+  avatarUrl,
+  activeKey = 'home',
+}: PartnerDashboardLayoutProps) {
+  const pathname = usePathname();
   const router = useRouter();
-  const { data: session, status } = useSession();
-  const [activeMenu, setActiveMenu] = useState('Dashboard');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [userRole, setUserRole] = useState<UserRole>('caterer');
-  const [displayRole, setDisplayRole] = useState<'customer' | 'caterer'>('caterer');
 
-  // Detect mobile on mount and resize
-  useEffect(() => {
-    const checkMobile = () => {
-      const mobile = window.innerWidth < 1024;
-      setIsMobile(mobile);
-      if (mobile) {
-        setSidebarOpen(false);
-      }
-    };
-
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  // Set user role from session
-  useEffect(() => {
-    if (session?.user) {
-      const role = (session.user as any)?.role || 'caterer';
-      setUserRole(role as UserRole);
-      // Set display role to the actual role initially
-      if (role === 'customer' || role === 'caterer') {
-        setDisplayRole(role as 'customer' | 'caterer');
-      }
-    }
-  }, [session]);
-
-  // Handle role switch
-  const handleRoleSwitch = (newRole: 'customer' | 'caterer') => {
-    setDisplayRole(newRole);
-    setActiveMenu('Dashboard');
-    
-    // Navigate to the appropriate dashboard
-    if (newRole === 'customer') {
-      router.push('/customer/dashboard');
-    } else {
-      router.push('/caterer/dashboard');
-    }
-    
-    // Close mobile menu after navigation
-    setMobileMenuOpen(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const isActive = (href: string) => {
+    if (href === '/partner') return pathname === '/partner';
+    return pathname.startsWith(href);
   };
-
-  // Redirect to signin if not authenticated
-  if (status === 'loading') {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-          backgroundColor: '#f8fafc',
-        }}
-      >
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
-          <p style={{ fontSize: '16px', color: '#64748b', fontWeight: '500' }}>
-            Loading...
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (status === 'unauthenticated') {
-    router.push('/login');
-    return null;
-  }
-
-  // Menu configuration based on role
-  const getMenuByRole = (): MenuItem[] => {
-    const baseMenu: { [key in UserRole]: MenuItem[] } = {
-      customer: [
-        { name: 'Dashboard', icon: HomeIcon, color: 'from-blue-500 to-cyan-500', path: '/customer/dashboard' },
-        { name: 'My Quotes', icon: DocumentCheckIcon, color: 'from-green-500 to-emerald-500', path: '/customer/quotes' },
-        { name: 'My Subscriptions', icon: SparklesIcon, color: 'from-orange-500 to-yellow-500', path: '/customer/subscriptions', badge: 'New' },
-        { name: 'My Orders', icon: ClipboardDocumentListIcon, color: 'from-purple-500 to-pink-500', path: '/customer/orders' },
-        { name: 'Saved', icon: HeartIcon, color: 'from-red-500 to-pink-500', path: '/customer/saved' },
-        { name: 'Profile', icon: UserCircleIcon, color: 'from-pink-500 to-rose-500', path: '/profile' },
-      ],
-      caterer: [
-        { name: 'Dashboard', icon: HomeIcon, color: 'from-blue-500 to-cyan-500', path: '/caterer/dashboard' },
-        { name: 'Requests', icon: DocumentCheckIcon, color: 'from-green-500 to-emerald-500', path: '/caterer/requests', badge: '3' },
-        { name: 'Orders', icon: ClipboardDocumentListIcon, color: 'from-purple-500 to-pink-500', path: '/caterer/orders' },
-        { name: 'Packages', icon: GiftIcon, color: 'from-rose-500 to-pink-500', path: '/caterer/packages' },
-        { name: 'Plans', icon: SparklesIcon, color: 'from-orange-500 to-yellow-500', path: '/caterer/plans' },
-        { name: 'Calendar', icon: CalendarDaysIcon, color: 'from-yellow-500 to-amber-500', path: '/caterer/calendar' },
-        { name: 'Profile', icon: UserCircleIcon, color: 'from-pink-500 to-rose-500', path: '/profile' },
-      ],
-      admin: [
-        { name: 'Dashboard', icon: HomeIcon, color: 'from-blue-500 to-cyan-500', path: '/admin/dashboard' },
-        { name: 'Caterers', icon: BuildingOfficeIcon, color: 'from-orange-500 to-yellow-500', path: '/admin/caterers' },
-        { name: 'Bookings', icon: CalendarDaysIcon, color: 'from-purple-500 to-pink-500', path: '/admin/bookings' },
-        { name: 'Refunds', icon: ArrowPathIcon, color: 'from-red-500 to-orange-500', path: '/admin/refunds' },
-        { name: 'Payments', icon: CreditCardIcon, color: 'from-cyan-500 to-blue-500', path: '/admin/payments' },
-      ],
-    };
-
-    return baseMenu[displayRole];
-  };
-
-  const menu = getMenuByRole();
-
-  // Breadcrumbs configuration
-  const breadcrumbs: { [key: string]: string[] } = {
-    Dashboard: ['Home'],
-    Events: ['Home', 'Events'],
-    Meals: ['Home', 'Meals'],
-    Profile: ['Home', 'Profile'],
-    Requests: ['Home', 'Requests'],
-    Orders: ['Home', 'Orders'],
-    Plans: ['Home', 'Plans'],
-    Calendar: ['Home', 'Calendar'],
-    Caterers: ['Home', 'Caterers'],
-    Bookings: ['Home', 'Bookings'],
-    Refunds: ['Home', 'Refunds'],
-    Payments: ['Home', 'Payments'],
-    'My Quotes': ['Home', 'My Quotes'],
-    'My Subscriptions': ['Home', 'My Subscriptions'],
-    'My Orders': ['Home', 'My Orders'],
-    'Saved': ['Home', 'Saved'],
-  };
-
-  const handleMenuClick = (item: MenuItem) => {
-    setActiveMenu(item.name);
-    router.push(item.path);
-    setMobileMenuOpen(false);
-  };
-
-  const handleSignOut = async () => {
-    await signOut({ callbackUrl: '/' });
-  };
-
-  // Get role badge
-  const getRoleBadge = () => {
-    const badges: { [key in 'customer' | 'caterer']: { label: string; bg: string; color: string; icon: string } } = {
-      customer: { label: 'Customer', bg: '#dbeafe', color: '#0c4a6e', icon: '👤' },
-      caterer: { label: 'Caterer', bg: '#fef3c7', color: '#92400e', icon: '👨‍🍳' },
-    };
-
-    return badges[displayRole];
-  };
-
-  const currentRoleBadge = getRoleBadge();
-
-  // Check if user has both roles
-  const canSwitchRoles = (session?.user as any)?.roles?.includes('customer') && (session?.user as any)?.roles?.includes('caterer');
-
   return (
-    <div style={{ display: 'flex', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
-      {/* MOBILE OVERLAY */}
-      {mobileMenuOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            zIndex: 30,
-            animation: 'fadeIn 0.2s ease',
-          }}
-          onClick={() => setMobileMenuOpen(false)}
+    <div style={styles.shell}>
+      <style>{responsiveCss}</style>
+
+      {isMobileOpen && (
+        <button
+          type="button"
+          aria-label="Close sidebar"
+          onClick={() => setIsMobileOpen(false)}
+          style={styles.overlay}
         />
       )}
 
-      {/* SIDEBAR - Desktop & Mobile */}
       <aside
-        style={{
-          position: isMobile && mobileMenuOpen ? 'fixed' : 'relative',
-          left: 0,
-          top: 0,
-          width: isMobile ? (mobileMenuOpen ? '280px' : '0px') : sidebarOpen ? '260px' : '80px',
-          backgroundColor: 'white',
-          borderRight: '1px solid #e2e8f0',
-          padding: isMobile ? (mobileMenuOpen ? '20px 12px' : '0px') : '20px 12px',
-          overflow: 'hidden',
-          transition: isMobile ? 'width 0.3s ease, padding 0.3s ease' : 'all 0.3s ease',
-          boxShadow: isMobile && mobileMenuOpen ? '0 20px 25px rgba(0, 0, 0, 0.15)' : '0 4px 6px rgba(0, 0, 0, 0.07)',
-          height: isMobile && mobileMenuOpen ? '100vh' : 'auto',
-          minHeight: '100vh',
-          zIndex: isMobile ? (mobileMenuOpen ? 40 : -1) : 40,
-          display: 'flex',
-          flexDirection: 'column',
-        }}
+        className={isMobileOpen ? 'partner-sidebar open' : 'partner-sidebar'}
+        style={styles.sidebar}
       >
-        {/* Header with Toggle - REMOVED LOGO */}
-        <div
-          style={{
-            marginBottom: '24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '10px',
-            paddingBottom: '16px',
-            borderBottom: '1px solid #e2e8f0',
-            opacity: isMobile && !mobileMenuOpen ? 0 : 1,
-            transition: 'opacity 0.3s ease',
-            flexShrink: 0,
-          }}
-        >
-          {(sidebarOpen || (isMobile && mobileMenuOpen)) && (
-            <div>
-              <h1
-                style={{
-                  fontSize: '16px',
-                  fontWeight: '800',
-                  color: '#1e293b',
-                  margin: 0,
-                  whiteSpace: 'nowrap',
-                  letterSpacing: '1px',
-                }}
-              >
-                Menu
-              </h1>
-            </div>
-          )}
-          {isMobile && mobileMenuOpen ? (
-            <button
-              onClick={() => setMobileMenuOpen(false)}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '8px',
-                borderRadius: '8px',
-                color: '#94a3b8',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 0.2s ease',
-                marginLeft: 'auto',
-                flexShrink: 0,
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#f1f5f9';
-                e.currentTarget.style.color = '#667eea';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.color = '#94a3b8';
-              }}
-              title="Close menu"
-            >
-              <XMarkIcon style={{ width: '20px', height: '20px' }} />
-            </button>
-          ) : !isMobile ? (
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '8px',
-                borderRadius: '8px',
-                color: '#94a3b8',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 0.2s ease',
-                marginLeft: sidebarOpen ? 'auto' : '0',
-                flexShrink: 0,
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#f1f5f9';
-                e.currentTarget.style.color = '#667eea';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.color = '#94a3b8';
-              }}
-              title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-            >
-              {sidebarOpen ? (
-                <ChevronLeftIcon style={{ width: '18px', height: '18px' }} />
-              ) : (
-                <ChevronRightIcon style={{ width: '18px', height: '18px' }} />
-              )}
-            </button>
-          ) : null}
-        </div>
-
-        {/* Role Switcher - Only show if user has both roles */}
-        {canSwitchRoles && (
-          <div
-            style={{
-              marginBottom: '20px',
-              padding: '10px 8px',
-              backgroundColor: '#f8fafc',
-              borderRadius: '10px',
-              border: '1px solid #e2e8f0',
-              display: 'flex',
-              flexDirection: (sidebarOpen || (isMobile && mobileMenuOpen)) ? 'column' : 'column',
-              gap: '8px',
-              flexShrink: 0,
-            }}
-          >
-            {(sidebarOpen || (isMobile && mobileMenuOpen)) && (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  marginBottom: '6px',
-                }}
-              >
-                <SwapIcon
-                  style={{
-                    width: '13px',
-                    height: '13px',
-                    color: '#667eea',
-                    flexShrink: 0,
-                  }}
-                />
-                <span
-                  style={{
-                    fontSize: '10px',
-                    fontWeight: '700',
-                    color: '#667eea',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                  }}
-                >
-                  Switch Role
-                </span>
-              </div>
-            )}
-
-            {/* Role Buttons */}
-            <div
-              style={{
-                display: 'flex',
-                gap: '6px',
-                flexDirection: 'row',
-              }}
-            >
-              {/* Customer Button */}
-              <button
-                onClick={() => handleRoleSwitch('customer')}
-                style={{
-                  flex: 1,
-                  padding: (sidebarOpen || (isMobile && mobileMenuOpen)) ? '8px 10px' : '8px',
-                  borderRadius: '8px',
-                  border: displayRole === 'customer' ? '2px solid #0c4a6e' : '1px solid #cbd5e1',
-                  backgroundColor: displayRole === 'customer' ? '#dbeafe' : 'white',
-                  color: displayRole === 'customer' ? '#0c4a6e' : '#64748b',
-                  cursor: 'pointer',
-                  fontWeight: displayRole === 'customer' ? '700' : '600',
-                  fontSize: '11px',
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '4px',
-                  minHeight: '32px',
-                }}
-                onMouseEnter={(e) => {
-                  if (displayRole !== 'customer') {
-                    e.currentTarget.style.backgroundColor = '#f0fdf4';
-                    e.currentTarget.style.borderColor = '#0c4a6e';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (displayRole !== 'customer') {
-                    e.currentTarget.style.backgroundColor = 'white';
-                    e.currentTarget.style.borderColor = '#cbd5e1';
-                  }
-                }}
-                title="Switch to Customer"
-              >
-                <span>👤</span>
-                {(sidebarOpen || (isMobile && mobileMenuOpen)) && 'Customer'}
-              </button>
-
-              {/* Caterer Button */}
-              <button
-                onClick={() => handleRoleSwitch('caterer')}
-                style={{
-                  flex: 1,
-                  padding: (sidebarOpen || (isMobile && mobileMenuOpen)) ? '8px 10px' : '8px',
-                  borderRadius: '8px',
-                  border: displayRole === 'caterer' ? '2px solid #92400e' : '1px solid #cbd5e1',
-                  backgroundColor: displayRole === 'caterer' ? '#fef3c7' : 'white',
-                  color: displayRole === 'caterer' ? '#92400e' : '#64748b',
-                  cursor: 'pointer',
-                  fontWeight: displayRole === 'caterer' ? '700' : '600',
-                  fontSize: '11px',
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '4px',
-                  minHeight: '32px',
-                }}
-                onMouseEnter={(e) => {
-                  if (displayRole !== 'caterer') {
-                    e.currentTarget.style.backgroundColor = '#fef3c7';
-                    e.currentTarget.style.borderColor = '#92400e';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (displayRole !== 'caterer') {
-                    e.currentTarget.style.backgroundColor = 'white';
-                    e.currentTarget.style.borderColor = '#cbd5e1';
-                  }
-                }}
-                title="Switch to Caterer"
-              >
-                <span>👨‍🍳</span>
-                {(sidebarOpen || (isMobile && mobileMenuOpen)) && 'Caterer'}
-              </button>
-            </div>
+        <div>
+          <div style={styles.logoWrap}>
+            <img
+              src="https://ckklrguidafoseanzmdk.supabase.co/storage/v1/object/public/assets/logo/logo_rounded.png"
+              alt="Droooly"
+              style={styles.logo}
+            />
           </div>
-        )}
 
-        {/* Navigation Menu - Scrollable */}
-        <nav
-          style={{
-            flex: 1,
-            overflow: isMobile && mobileMenuOpen ? 'auto' : 'hidden',
-            marginBottom: '16px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '6px',
-            minHeight: 0,
-          }}
-        >
-          {menu.map((item) => (
-            <button
-              key={item.name}
-              onClick={() => handleMenuClick(item)}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: (sidebarOpen || (isMobile && mobileMenuOpen)) ? 'flex-start' : 'center',
-                gap: '12px',
-                padding: (sidebarOpen || (isMobile && mobileMenuOpen)) ? '11px 12px' : '11px',
-                borderRadius: '10px',
-                border: activeMenu === item.name ? '1.5px solid #667eea' : '1.5px solid transparent',
-                cursor: 'pointer',
-                backgroundColor: activeMenu === item.name ? '#eef2ff' : 'transparent',
-                transition: 'all 0.2s ease',
-                position: 'relative',
-                minHeight: '44px',
-                fontSize: '14px',
-                opacity: isMobile && !mobileMenuOpen && !sidebarOpen ? 0 : 1,
-                flexShrink: 0,
-              }}
-              title={(!sidebarOpen && !isMobile) ? item.name : undefined}
-              onMouseEnter={(e) => {
-                if (activeMenu !== item.name) {
-                  e.currentTarget.style.backgroundColor = '#f8fafc';
-                  e.currentTarget.style.borderColor = '#e2e8f0';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (activeMenu !== item.name) {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                  e.currentTarget.style.borderColor = 'transparent';
-                }
-              }}
-            >
-              {/* Icon with gradient background - FIXED COLOR */}
-              <div
-                style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '8px',
-                  background: activeMenu === item.name
-                    ? `linear-gradient(135deg, #667eea 0%, #764ba2 100%)`
-                    : '#f1f5f9',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                <item.icon
+          <nav style={styles.nav}>
+            {navItems.map((item) => {
+             
+
+              const active = isActive(item.href);
+
+              return (
+                <button
+                  key={item.key}
+                  type="button"
                   style={{
-                    width: '18px',
-                    height: '18px',
-                    color: activeMenu === item.name ? '#667eea' : '#94a3b8',
-                    transition: 'color 0.2s ease',
-                    flexShrink: 0,
-                    fontWeight: 'bold',
-                    stroke: 'currentColor',
-                    strokeWidth: activeMenu === item.name ? '2.5' : '2',
+                    ...styles.navItem,
+                    ...(active ? styles.navItemActive : {}),
                   }}
-                />
-              </div>
-
-              {(sidebarOpen || (isMobile && mobileMenuOpen)) && (
-                <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span
-                      style={{
-                        fontSize: '13px',
-                        fontWeight: activeMenu === item.name ? '600' : '500',
-                        color: activeMenu === item.name ? '#667eea' : '#475569',
-                        transition: 'color 0.2s ease',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {item.name}
-                    </span>
-                    {item.badge && (
-                      <span
-                        style={{
-                          fontSize: '10px',
-                          fontWeight: '700',
-                          backgroundColor: '#667eea',
-                          color: 'white',
-                          padding: '2px 6px',
-                          borderRadius: '4px',
-                          minWidth: '20px',
-                          textAlign: 'center',
-                          flexShrink: 0,
-                        }}
-                      >
-                        {item.badge}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
-            </button>
-          ))}
-        </nav>
-
-        {/* Bottom section is now empty - moved to top bar */}
-      </aside>
-
-      {/* MAIN CONTENT */}
-      <main
-        style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          padding: isMobile ? '16px' : '24px 32px',
-          minHeight: '100vh',
-          overflowX: 'hidden',
-        }}
-      >
-        {/* TOP BAR WITH HAMBURGER & ACTIONS - Responsive */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '24px',
-            gap: '16px',
-            flexShrink: 0,
-            flexWrap: 'wrap',
-          }}
-        >
-          {/* Left Section - Mobile Hamburger + Breadcrumbs */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              flex: '1 1 auto',
-              minWidth: '150px',
-            }}
-          >
-            {/* Mobile Hamburger */}
-            {isMobile && (
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: '8px',
-                  borderRadius: '8px',
-                  color: '#64748b',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.2s ease',
-                  flexShrink: 0,
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#f1f5f9';
-                  e.currentTarget.style.color = '#667eea';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                  e.currentTarget.style.color = '#64748b';
-                }}
-                title="Toggle menu"
-              >
-                {mobileMenuOpen ? (
-                  <XMarkIcon style={{ width: '24px', height: '24px' }} />
-                ) : (
-                  <Bars3Icon style={{ width: '24px', height: '24px' }} />
-                )}
-              </button>
-            )}
-
-            {/* Breadcrumbs */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                flex: '1 1 auto',
-                overflowX: 'auto',
-              }}
-            >
-              {breadcrumbs[activeMenu]?.map((crumb, idx) => (
-                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                  <button
+                  title={item?.title || item.label}
+                  onClick={() => router.push(item.href)}
+                >
+                  <span
                     style={{
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      color: idx === breadcrumbs[activeMenu].length - 1 ? '#667eea' : '#94a3b8',
-                      fontSize: isMobile ? '12px' : '13px',
-                      fontWeight: idx === breadcrumbs[activeMenu].length - 1 ? '600' : '500',
-                      transition: 'all 0.2s ease',
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      whiteSpace: 'nowrap',
-                    }}
-                    onMouseEnter={(e) => {
-                      if (idx !== breadcrumbs[activeMenu].length - 1) {
-                        e.currentTarget.style.backgroundColor = '#f1f5f9';
-                        e.currentTarget.style.color = '#667eea';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (idx !== breadcrumbs[activeMenu].length - 1) {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                        e.currentTarget.style.color = '#94a3b8';
-                      }
+                      ...styles.navIcon,
+                      ...(active ? styles.navIconActive : {}),
                     }}
                   >
-                    {crumb}
-                  </button>
-                  {idx < breadcrumbs[activeMenu].length - 1 && (
-                    <ChevronRightIcon style={{ width: '16px', height: '16px', color: '#cbd5e1', flexShrink: 0 }} />
+                    {item.icon}
+                  </span>
+
+                  <span style={styles.navLabel}>{item.label}</span>
+
+                  {item.badge && (
+                    <span style={styles.navBadge}>{item.badge}</span>
                   )}
-                </div>
-              ))}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+
+        <div style={styles.helpCard}>
+          <div style={styles.helpIcon}>
+            <MessagesIcon />
+          </div>
+
+          <div>
+            <strong style={styles.helpTitle}>Need Help?</strong>
+            <p style={styles.helpText}>
+              Our team is here to help with approvals and setup.
+            </p>
+          </div>
+
+          <button type="button" style={styles.helpButton}>
+            Contact Support
+          </button>
+        </div>
+      </aside>
+
+      <main style={styles.main}>
+        <header style={styles.topbar}>
+          <div style={styles.topLeft}>
+            <button
+              type="button"
+              className="mobile-menu-btn"
+              onClick={() => setIsMobileOpen(true)}
+              style={styles.mobileMenuButton}
+            >
+              <MenuIcon />
+            </button>
+
+            <div>
+              <h1 style={styles.welcomeTitle}>Welcome, {userName}! 👋</h1>
+              <p style={styles.welcomeSubtitle}>
+                Here’s what’s happening with your partners and event workers.
+              </p>
             </div>
           </div>
 
-          {/* Right Section - Role Badge + Support + Logout */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              flexShrink: 0,
-              flexWrap: 'wrap',
-              justifyContent: 'flex-end',
-            }}
-          >
-            {/* Current Role Badge */}
-            {canSwitchRoles && (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '6px 12px',
-                  backgroundColor: currentRoleBadge.bg,
-                  color: currentRoleBadge.color,
-                  borderRadius: '20px',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  flexShrink: 0,
-                }}
-              >
-                <span>{currentRoleBadge.icon}</span>
-                <span>{currentRoleBadge.label}</span>
-              </div>
-            )}
-
-            {/* Support Button */}
-            <button
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '8px 14px',
-                borderRadius: '10px',
-                border: '1.5px solid #e2e8f0',
-                backgroundColor: 'white',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                fontSize: '13px',
-                fontWeight: '500',
-                color: '#64748b',
-                minHeight: '40px',
-                whiteSpace: 'nowrap',
-              }}
-              title="24/7 Support"
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#f0f9ff';
-                e.currentTarget.style.borderColor = '#667eea';
-                e.currentTarget.style.color = '#667eea';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'white';
-                e.currentTarget.style.borderColor = '#e2e8f0';
-                e.currentTarget.style.color = '#64748b';
-              }}
-            >
-              <SparklesIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} />
-              <span>Support</span>
+          <div style={styles.topActions}>
+            <button type="button" style={styles.notificationButton}>
+              <BellIcon />
+              <span style={styles.notificationBadge}>3</span>
             </button>
 
-            {/* Logout Button */}
-            <button
-              onClick={handleSignOut}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '8px 14px',
-                borderRadius: '10px',
-                border: '1.5px solid #fee2e2',
-                backgroundColor: 'white',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                fontSize: '13px',
-                fontWeight: '500',
-                color: '#dc2626',
-                minHeight: '40px',
-                whiteSpace: 'nowrap',
-              }}
-              title="Sign Out"
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#fee2e2';
-                e.currentTarget.style.borderColor = '#dc2626';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'white';
-                e.currentTarget.style.borderColor = '#fee2e2';
-              }}
-            >
-              <ArrowLeftOnRectangleIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} />
-              <span>Logout</span>
+            <button type="button" style={styles.avatarButton}>
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={userName} style={styles.avatar} />
+              ) : (
+                <span style={styles.avatarFallback}>
+                  {userName.charAt(0).toUpperCase()}
+                </span>
+              )}
+
+              <span className="avatar-name" style={styles.avatarName}>
+                {userName}
+              </span>
+
+              <ChevronDownIcon size={16} />
             </button>
           </div>
-        </div>
+        </header>
 
-        {/* CONTENT AREA */}
-        <div
-          style={{
-            flex: 1,
-            overflow: 'auto',
-            paddingRight: '8px',
-          }}
-        >
+        <section style={styles.content}>
+          <Breadcrumbs />
+
           {children}
-        </div>
+        </section>
       </main>
-
-      {/* Scrollbar styling & animations */}
-      <style>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-
-        div::-webkit-scrollbar {
-          width: 8px;
-        }
-        
-        div::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        
-        div::-webkit-scrollbar-thumb {
-          background: #cbd5e1;
-          border-radius: 4px;
-        }
-        
-        div::-webkit-scrollbar-thumb:hover {
-          background: #94a3b8;
-        }
-
-        /* Mobile menu smooth transition */
-        @media (max-width: 1023px) {
-          aside {
-            box-shadow: ${mobileMenuOpen ? '0 20px 25px rgba(0, 0, 0, 0.15)' : 'none'};
-          }
-        }
-      `}</style>
     </div>
   );
 }
+
+const styles: Record<string, React.CSSProperties> = {
+  shell: {
+    minHeight: '100vh',
+    display: 'flex',
+    background:
+      'radial-gradient(circle at top left, rgba(124, 58, 237, 0.10), transparent 34%), radial-gradient(circle at top right, rgba(255, 90, 61, 0.06), transparent 28%), #fbf8ff',
+    color: '#151126',
+  },
+
+  sidebar: {
+    width: 235,
+    minHeight: '100vh',
+    position: 'fixed',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    zIndex: 40,
+    padding: '12px 0',
+    background: 'rgba(255, 255, 255, 0.94)',
+    borderRight: '1px solid rgba(124, 58, 237, 0.12)',
+    boxShadow: '14px 0 38px rgba(91, 33, 182, 0.06)',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+  },
+
+  logoWrap: {
+    padding: '0 6px',
+    marginBottom: 0,
+  },
+
+  logo: {
+    width: 162,
+    height: 'auto',
+    objectFit: 'contain',
+  },
+
+  nav: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 2,
+  },
+
+  navItem: {
+    width: '100%',
+    minHeight: 48,
+    padding: '4px 12px',
+    borderRadius: 0,
+    border: '1px solid transparent',
+    background: 'transparent',
+    color: '#4b5563',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    cursor: 'pointer',
+    fontSize: 14,
+    fontWeight: 500,
+    textAlign: 'left',
+  },
+
+  navItemActive: {
+    color: '#6d28d9',
+    background:
+      'linear-gradient(135deg, rgba(124, 58, 237, 0.13), rgba(255, 90, 61, 0.06))',
+    border: '1px solid rgba(124, 58, 237, 0.16)',
+    boxShadow: '0 10px 22px rgba(124, 58, 237, 0.09)',
+  },
+
+  navIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: '#fafafa',
+    color: '#64748b',
+    flexShrink: 0,
+  },
+
+  navIconActive: {
+    color: '#7c3aed',
+    background: '#ffffff',
+    boxShadow: '0 8px 18px rgba(124, 58, 237, 0.14)',
+  },
+
+  navLabel: {
+    flex: 1,
+  },
+
+  navBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 999,
+    background: '#ff5a3d',
+    color: '#ffffff',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 11,
+    fontWeight: 900,
+  },
+
+  helpCard: {
+    padding: 16,
+    borderRadius: 24,
+    background:
+      'linear-gradient(135deg, rgba(124, 58, 237, 0.11), rgba(255, 90, 61, 0.07))',
+    border: '1px solid rgba(124, 58, 237, 0.14)',
+  },
+
+  helpIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 999,
+    background: '#ffffff',
+    color: '#7c3aed',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    boxShadow: '0 8px 18px rgba(124, 58, 237, 0.14)',
+  },
+
+  helpTitle: {
+    display: 'block',
+    fontSize: 14,
+    color: '#151126',
+    marginBottom: 4,
+  },
+
+  helpText: {
+    margin: 0,
+    fontSize: 12.5,
+    color: '#6b7280',
+    lineHeight: 1.5,
+  },
+
+  helpButton: {
+    width: '100%',
+    marginTop: 14,
+    border: 'none',
+    borderRadius: 14,
+    padding: '11px 12px',
+    background: 'linear-gradient(135deg, #7c3aed, #5b21b6)',
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: 850,
+    cursor: 'pointer',
+    boxShadow: '0 12px 22px rgba(124, 58, 237, 0.2)',
+  },
+
+  main: {
+    flex: 1,
+    marginLeft: 230,
+    minWidth: 0,
+  },
+
+  topbar: {
+    height: 88,
+    position: 'sticky',
+    top: 0,
+    zIndex: 25,
+    padding: '0 32px',
+    background: 'rgba(255, 255, 255, 0.88)',
+    borderBottom: '1px solid rgba(124, 58, 237, 0.12)',
+    backdropFilter: 'blur(18px)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  topLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 14,
+  },
+
+  mobileMenuButton: {
+    display: 'none',
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    border: '1px solid rgba(124, 58, 237, 0.14)',
+    background: '#ffffff',
+    color: '#7c3aed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+  },
+
+  welcomeTitle: {
+    margin: 0,
+    fontSize: 21,
+    fontWeight: 600,
+    letterSpacing: '-0.03em',
+    color: '#151126',
+  },
+
+  welcomeSubtitle: {
+    margin: '6px 0 0',
+    fontSize: 14,
+    color: '#6b7280',
+  },
+
+  topActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+  },
+
+  notificationButton: {
+    position: 'relative',
+    width: 44,
+    height: 44,
+    borderRadius: 15,
+    border: '1px solid rgba(124, 58, 237, 0.12)',
+    background: '#ffffff',
+    color: '#151126',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    boxShadow: '0 8px 18px rgba(17, 24, 39, 0.04)',
+  },
+
+  notificationBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -4,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 999,
+    background: '#ff5a3d',
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: 900,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: '2px solid #ffffff',
+  },
+
+  avatarButton: {
+    height: 46,
+    borderRadius: 999,
+    border: '1px solid rgba(124, 58, 237, 0.12)',
+    background: '#ffffff',
+    color: '#151126',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 9,
+    padding: '4px 10px 4px 4px',
+    cursor: 'pointer',
+    boxShadow: '0 8px 18px rgba(17, 24, 39, 0.04)',
+  },
+
+  avatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 999,
+    objectFit: 'cover',
+  },
+
+  avatarFallback: {
+    width: 38,
+    height: 38,
+    borderRadius: 999,
+    background: 'linear-gradient(135deg, #7c3aed, #a855f7)',
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: 900,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  avatarName: {
+    fontSize: 13,
+    fontWeight: 850,
+    color: '#151126',
+  },
+
+  content: {
+    padding: 32,
+  },
+
+  overlay: {
+    position: 'fixed',
+    inset: 0,
+    zIndex: 35,
+    border: 'none',
+    background: 'rgba(15, 23, 42, 0.42)',
+  },
+};
+
+const responsiveCss = `
+  @media (max-width: 1024px) {
+    .partner-sidebar {
+      transform: translateX(-100%);
+      transition: transform 180ms ease;
+    }
+
+    .partner-sidebar.open {
+      transform: translateX(0);
+    }
+
+    .mobile-menu-btn {
+      display: inline-flex !important;
+    }
+  }
+
+  @media (max-width: 1024px) {
+    main {
+      margin-left: 0 !important;
+    }
+  }
+
+  @media (max-width: 768px) {
+    header {
+      height: auto !important;
+      min-height: 78px !important;
+      padding: 14px 16px !important;
+      align-items: flex-start !important;
+      gap: 12px !important;
+    }
+
+    section {
+      padding: 18px !important;
+    }
+
+    .partner-sidebar {
+      width: 84vw !important;
+      max-width: 310px !important;
+    }
+
+    .avatar-name {
+      display: none !important;
+    }
+  }
+
+  @media (max-width: 520px) {
+    header {
+      padding: 12px !important;
+    }
+
+    h1 {
+      font-size: 17px !important;
+    }
+
+    header p {
+      font-size: 12px !important;
+      max-width: 210px;
+      line-height: 1.4;
+    }
+
+    section {
+      padding: 14px !important;
+    }
+  }
+`;

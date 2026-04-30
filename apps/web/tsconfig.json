@@ -1,11 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "lib": [
-      "ES2020",
-      "dom",
-      "dom.iterable"
-    ],
+    "lib": ["ES2020", "dom", "dom.iterable"],
     "jsx": "preserve",
     "module": "ESNext",
     "moduleResolution": "bundler",
@@ -17,45 +13,43 @@
     "isolatedModules": true,
     "noEmit": true,
     "allowSyntheticDefaultImports": true,
+    "incremental": true,
+    "allowJs": false,
+    "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./src/*"
-      ],
-      "@catering/types": [
-        "../../packages/types/src"
-      ],
-      "@catering/shared": [
-        "../../packages/shared/src"
-      ],
-      "@catering/ui": [
-        "../../packages/ui/src"
-      ],
-      "@catering/themes": [
-        "../../packages/themes/src"
-      ],
-      "@catering-marketplace/query-client": [
-        "../../packages/query-client/src"
-      ],
-      "@catering-marketplace/auth": [
-        "../../packages/auth/src"
-      ]
+      "@/*": ["./src/*"],
+      "@catering/types": ["../../packages/types/src"],
+      "@catering/shared": ["../../packages/shared/src"],
+      "@catering/ui": ["../../packages/ui/src"],
+      "@catering/themes": ["../../packages/themes/src"],
+      "@catering-marketplace/query-client": ["../../packages/query-client/src"],
+      "@catering-marketplace/auth": ["../../packages/auth/src"]
     },
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
-    "allowJs": true,
-    "incremental": true
+    "plugins": [{ "name": "next" }]
   },
   "include": [
     "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "pages/**/*.ts",
+    "pages/**/*.tsx",
+    "components/**/*.ts",
+    "components/**/*.tsx"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    ".next",
+    "out",
+    "dist",
+    "build",
+    "coverage",
+    ".turbo",
+    ".vercel",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx"
   ]
 }

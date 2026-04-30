@@ -5,7 +5,6 @@ export type OnboardingStep =
   | 'basic_profile'
   | 'business_details'
   | 'delivery_service'
-  | 'operations'
   | 'kyc_bank'
   | 'documents_kyc'
   | 'agreement'

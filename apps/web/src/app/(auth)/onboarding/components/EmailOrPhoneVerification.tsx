@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { signIn, useSession } from 'next-auth/react';
 import { sendOtpApi } from '@catering-marketplace/query-client';
+import { PhoneWithShield } from '@/components/SVGS';
 
 type AuthIntent = 'partner_onboarding';
 type InputType = 'email' | 'phone' | 'invalid';
@@ -84,6 +85,17 @@ export default function EmailOrPhoneVerification({
     return {};
   }, [emailOrPhone, inputType]);
 
+  const contactLabel = inputType === 'email' ? 'Email address' : 'Mobile number';
+  const contactDisplay =
+    inputType === 'phone'
+      ? `+91 ${emailOrPhone.replace(/\D/g, '').replace(/(\d{5})(\d{0,5})/, '$1 $2')}`
+      : emailOrPhone.trim();
+
+  const securityText =
+    inputType === 'email'
+      ? 'Your email address is safe with us. We only use it to verify and secure your partner account.'
+      : 'Your phone number is safe with us. We only use it to verify and secure your partner account.';
+
   const canSendOtp =
     inputType !== 'invalid' &&
     !otpSent &&
@@ -106,7 +118,6 @@ export default function EmailOrPhoneVerification({
   const formatTimer = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
-
     return `${minutes}:${String(remainingSeconds).padStart(2, '0')}`;
   };
 
@@ -267,74 +278,102 @@ export default function EmailOrPhoneVerification({
 
   return (
     <div style={styles.card}>
-      <div style={styles.header}>
-        <h1 style={styles.title}>Partner Onboarding</h1>
-        <p style={styles.subtitle}>
-          Verify your email or phone number to continue.
-        </p>
+      <div style={styles.hero}>
+        <div style={styles.iconWrap}>
+          <PhoneWithShield />
+        </div>
+
+        <div>
+          <h1 style={styles.title}>
+            {otpSent ? 'Enter OTP' : 'Verify your number'}
+          </h1>
+
+          <p style={styles.subtitle}>
+            {otpSent
+              ? `We’ve sent a 6-digit OTP to ${contactDisplay}. Enter it below to continue your Droooly partner onboarding.`
+              : 'Enter your mobile number or email address to get started with Droooly.'}
+          </p>
+        </div>
       </div>
 
       <div style={styles.form}>
-        <div style={styles.fieldGroup}>
-          <label style={styles.label}>Email or phone number</label>
-
-          <input
-            type="text"
-            value={emailOrPhone}
-            disabled={otpSent || isSendingOtp || isVerifyingOtp}
-            onChange={(event) => handleContactChange(event.target.value)}
-            placeholder="you@example.com or 98765 43210"
-            style={{
-              ...styles.input,
-              ...(emailOrPhone && inputType !== 'invalid'
-                ? styles.inputValid
-                : {}),
-            }}
-          />
-        </div>
-
         {!otpSent && (
-          <button
-            type="button"
-            onClick={handleSendOtp}
-            disabled={!canSendOtp}
-            style={{
-              ...styles.primaryButton,
-              ...(!canSendOtp ? styles.disabledButton : {}),
-            }}
-          >
-            {isSendingOtp ? 'Sending OTP...' : 'Send OTP'}
-          </button>
+          <>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>{contactLabel}</label>
+
+              <div
+                style={{
+                  ...styles.inputShell,
+                  ...(emailOrPhone && inputType !== 'invalid'
+                    ? styles.inputShellValid
+                    : {}),
+                }}
+              >
+                {inputType !== 'email' && (
+                  <div style={styles.countryCode}>
+                    <span>🇮🇳</span>
+                    <span>+91</span>
+                  </div>
+                )}
+
+                <input
+                  type="text"
+                  value={emailOrPhone}
+                  disabled={isSendingOtp || isVerifyingOtp}
+                  onChange={(event) => handleContactChange(event.target.value)}
+                  placeholder="98765 43210 or you@example.com"
+                  style={styles.input}
+                />
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSendOtp}
+              disabled={!canSendOtp}
+              style={{
+                ...styles.primaryButton,
+                ...(!canSendOtp ? styles.disabledButton : {}),
+              }}
+            >
+              {isSendingOtp ? 'Sending OTP...' : 'Send OTP'}
+            </button>
+          </>
         )}
 
         {otpSent && (
           <>
-            <div style={styles.notice}>
-              OTP sent. Please enter the 6-digit code.
+            <div style={styles.otpHeader}>
+              <div style={styles.noticeTitle}>Verification code</div>
+              <button
+                type="button"
+                onClick={handleChangeContact}
+                disabled={isSendingOtp || isVerifyingOtp}
+                style={styles.changeButton}
+              >
+                Change
+              </button>
             </div>
 
-            <div style={styles.fieldGroup}>
-              <label style={styles.label}>Verification code</label>
-
-              <div style={styles.otpGroup}>
-                {Array.from({ length: OTP_LENGTH }).map((_, index) => (
-                  <input
-                    key={index}
-                    ref={(element) => {
-                      if (element) otpRefs.current[index] = element;
-                    }}
-                    value={otp[index] || ''}
-                    onChange={(event) =>
-                      handleOtpChange(index, event.target.value)
-                    }
-                    onKeyDown={(event) => handleOtpKeyDown(index, event)}
-                    inputMode="numeric"
-                    maxLength={1}
-                    disabled={isVerifyingOtp}
-                    style={styles.otpInput}
-                  />
-                ))}
-              </div>
+            <div style={styles.otpGroup}>
+              {Array.from({ length: OTP_LENGTH }).map((_, index) => (
+                <input
+                  key={index}
+                  ref={(element) => {
+                    if (element) otpRefs.current[index] = element;
+                  }}
+                  value={otp[index] || ''}
+                  onChange={(event) =>
+                    handleOtpChange(index, event.target.value)
+                  }
+                  onKeyDown={(event) => handleOtpKeyDown(index, event)}
+                  inputMode="numeric"
+                  maxLength={1}
+                  disabled={isVerifyingOtp}
+                  style={styles.otpInput}
+                />
+              ))}
             </div>
 
             <button
@@ -346,7 +385,7 @@ export default function EmailOrPhoneVerification({
                 ...(!canVerifyOtp ? styles.disabledButton : {}),
               }}
             >
-              {isVerifyingOtp ? 'Verifying OTP...' : 'Verify OTP'}
+              {isVerifyingOtp ? 'Verifying OTP...' : 'Verify & Continue'}
             </button>
 
             <button
@@ -364,19 +403,26 @@ export default function EmailOrPhoneVerification({
                   ? 'Resending OTP...'
                   : 'Resend OTP'}
             </button>
-
-            <button
-              type="button"
-              onClick={handleChangeContact}
-              disabled={isSendingOtp || isVerifyingOtp}
-              style={styles.linkButton}
-            >
-              Change email or phone
-            </button>
           </>
         )}
 
+        <div style={styles.safeBox}>
+          <div style={styles.safeIcon}>🛡️</div>
+          <p style={styles.safeText}>{securityText}</p>
+        </div>
+
         {error && <div style={styles.error}>{error}</div>}
+
+        <div style={styles.signInText}>
+          Already have an account?{' '}
+          <button
+            type="button"
+            onClick={() => signIn()}
+            style={styles.signInButton}
+          >
+            Sign in
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -384,30 +430,45 @@ export default function EmailOrPhoneVerification({
 
 const styles: Record<string, React.CSSProperties> = {
   card: {
-    maxWidth: '460px',
+    width: '100%',
+    maxWidth: '430px',
     margin: '2rem auto',
-    padding: '2rem',
+    padding: '1.75rem',
     backgroundColor: '#ffffff',
     borderRadius: '1.25rem',
-    boxShadow: '0 12px 32px rgba(15, 23, 42, 0.08)',
+    border: '1px solid #e5e7eb',
+    boxShadow: '0 18px 48px rgba(15, 23, 42, 0.08)',
   },
 
-  header: {
-    textAlign: 'center',
-    marginBottom: '2rem',
+  hero: {
+    display: 'grid',
+    gridTemplateColumns: '88px 1fr',
+    gap: '1.25rem',
+    alignItems: 'center',
+    marginBottom: '1.5rem',
+  },
+
+  iconWrap: {
+    width: '88px',
+    height: '88px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   title: {
     margin: 0,
-    fontSize: '1.75rem',
+    fontSize: '1.15rem',
     fontWeight: 800,
     color: '#111827',
+    letterSpacing: '-0.02em',
   },
 
   subtitle: {
-    marginTop: '0.5rem',
-    fontSize: '0.95rem',
-    color: '#6b7280',
+    margin: '0.4rem 0 0',
+    fontSize: '0.92rem',
+    lineHeight: 1.55,
+    color: '#667085',
   },
 
   form: {
@@ -419,107 +480,176 @@ const styles: Record<string, React.CSSProperties> = {
   fieldGroup: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.5rem',
+    gap: '0.45rem',
   },
 
   label: {
-    fontSize: '0.9rem',
+    fontSize: '0.82rem',
     fontWeight: 700,
-    color: '#374151',
+    color: '#344054',
+  },
+
+  inputShell: {
+    minHeight: '46px',
+    display: 'flex',
+    alignItems: 'center',
+    overflow: 'hidden',
+    borderRadius: '0.65rem',
+    border: '1px solid #d0d5dd',
+    backgroundColor: '#ffffff',
+    transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+  },
+
+  inputShellValid: {
+    borderColor: '#4f9f38',
+    boxShadow: '0 0 0 3px rgba(79, 159, 56, 0.12)',
+  },
+
+  countryCode: {
+    height: '46px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.45rem',
+    padding: '0 0.75rem',
+    borderRight: '1px solid #e5e7eb',
+    color: '#475467',
+    fontSize: '0.9rem',
+    fontWeight: 600,
+    backgroundColor: '#f9fafb',
   },
 
   input: {
     width: '100%',
-    padding: '0.95rem 1rem',
-    borderRadius: '0.875rem',
-    border: '1.5px solid #d1d5db',
-    fontSize: '1rem',
+    border: 'none',
     outline: 'none',
-    transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
-  },
-
-  inputValid: {
-    borderColor: '#10b981',
-    boxShadow: '0 0 0 3px rgba(16, 185, 129, 0.12)',
+    padding: '0.8rem 0.9rem',
+    fontSize: '0.95rem',
+    color: '#111827',
+    backgroundColor: 'transparent',
   },
 
   primaryButton: {
     width: '100%',
-    padding: '1rem',
+    minHeight: '48px',
     border: 'none',
-    borderRadius: '0.875rem',
-    backgroundColor: '#f97316',
+    borderRadius: '0.65rem',
+    background: 'linear-gradient(135deg, #56A13A 0%, #3F8F2F 100%)',
     color: '#ffffff',
-    fontSize: '1rem',
+    fontSize: '0.95rem',
     fontWeight: 800,
     cursor: 'pointer',
-    transition: 'all 0.2s ease',
+    boxShadow: '0 10px 24px rgba(63, 143, 47, 0.22)',
+  },
+
+  disabledButton: {
+    background: '#d0d5dd',
+    boxShadow: 'none',
+    cursor: 'not-allowed',
   },
 
   secondaryButton: {
     width: '100%',
-    padding: '0.95rem',
-    borderRadius: '0.875rem',
-    border: '1.5px solid #d1d5db',
+    minHeight: '46px',
+    borderRadius: '0.65rem',
+    border: '1px solid #d0d5dd',
     backgroundColor: '#ffffff',
-    color: '#374151',
-    fontSize: '0.95rem',
+    color: '#344054',
+    fontSize: '0.9rem',
     fontWeight: 700,
     cursor: 'pointer',
   },
 
-  disabledButton: {
-    backgroundColor: '#d1d5db',
-    cursor: 'not-allowed',
-  },
-
   disabledSecondaryButton: {
-    color: '#9ca3af',
+    color: '#98a2b3',
     backgroundColor: '#f9fafb',
     cursor: 'not-allowed',
   },
 
-  notice: {
-    padding: '0.875rem',
-    borderRadius: '0.875rem',
-    backgroundColor: '#fff7ed',
-    color: '#9a3412',
-    fontSize: '0.9rem',
-    fontWeight: 600,
+  otpHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  noticeTitle: {
+    fontSize: '0.85rem',
+    fontWeight: 800,
+    color: '#344054',
+  },
+
+  changeButton: {
+    border: 'none',
+    background: 'transparent',
+    color: '#ef6820',
+    fontSize: '0.84rem',
+    fontWeight: 800,
+    cursor: 'pointer',
   },
 
   otpGroup: {
     display: 'flex',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     gap: '0.5rem',
   },
 
   otpInput: {
-    width: '3rem',
-    height: '3rem',
-    borderRadius: '9999px',
-    border: '1.5px solid #d1d5db',
+    width: '48px',
+    height: '52px',
+    borderRadius: '0.75rem',
+    border: '1.5px solid #d0d5dd',
     textAlign: 'center',
     fontSize: '1.2rem',
     fontWeight: 800,
+    color: '#111827',
     outline: 'none',
+    backgroundColor: '#ffffff',
   },
 
-  linkButton: {
-    border: 'none',
-    background: 'transparent',
-    color: '#6b7280',
-    fontSize: '0.9rem',
-    fontWeight: 700,
-    cursor: 'pointer',
+  safeBox: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '0.65rem',
+    padding: '0.85rem',
+    borderRadius: '0.85rem',
+    backgroundColor: '#f0fdf4',
+    border: '1px solid #dcfce7',
+  },
+
+  safeIcon: {
+    fontSize: '1rem',
+    lineHeight: 1.4,
+  },
+
+  safeText: {
+    margin: 0,
+    fontSize: '0.82rem',
+    lineHeight: 1.45,
+    color: '#3f6212',
+    fontWeight: 600,
   },
 
   error: {
-    padding: '0.875rem',
-    borderRadius: '0.875rem',
+    padding: '0.85rem',
+    borderRadius: '0.75rem',
     backgroundColor: '#fef2f2',
     color: '#dc2626',
-    fontSize: '0.9rem',
-    fontWeight: 600,
+    fontSize: '0.88rem',
+    fontWeight: 650,
+  },
+
+  signInText: {
+    textAlign: 'center',
+    fontSize: '0.85rem',
+    color: '#667085',
+  },
+
+  signInButton: {
+    border: 'none',
+    background: 'transparent',
+    color: '#ef6820',
+    fontSize: '0.85rem',
+    fontWeight: 800,
+    cursor: 'pointer',
+    padding: 0,
   },
 };

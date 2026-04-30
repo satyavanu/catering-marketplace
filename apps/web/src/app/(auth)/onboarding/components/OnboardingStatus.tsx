@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import type { PartnerOnboardingPayload } from '../types';
 
 interface OnboardingStatusProps {
@@ -12,477 +12,264 @@ interface OnboardingStatusProps {
 }
 
 export default function OnboardingStatus({
-  onboardingData,
   isLoading = false,
   error,
   onComplete,
   onBack,
 }: OnboardingStatusProps) {
-  const summary = useMemo(() => {
-    return {
-      businessTypes: onboardingData.business.businessTypeIds.length,
-      cuisines: onboardingData.business.cuisineIds.length,
-      eventTypes: onboardingData.business.eventTypeIds.length,
-      dietTypes: onboardingData.business.dietTypeIds.length,
-      serviceStyles: onboardingData.business.serviceStyleIds.length,
-      serviceAreas: onboardingData.delivery.canServeEntireCity
-        ? 'Entire city'
-        : `${onboardingData.delivery.serviceAreas.length} pincodes`,
-      hasKyc: Boolean(onboardingData.kycBank.panNumber),
-      hasBank: Boolean(
-        onboardingData.kycBank.accountNumber &&
-          onboardingData.kycBank.ifscCode
-      ),
-      hasAgreement: Boolean(onboardingData.agreement?.termsAccepted),
-    };
-  }, [onboardingData]);
-
   return (
     <div style={styles.card}>
-      <div style={styles.header}>
-        <div style={styles.statusPill}>Final review</div>
 
-        <h1 style={styles.title}>Your partner profile is ready to submit</h1>
+     
 
-        <p style={styles.subtitle}>
-          Review the final onboarding summary below. Once submitted, Droooly will
-          verify your details and activate your partner profile after approval.
-        </p>
+      <h1 style={styles.title}>Almost there!</h1>
+
+      <p style={styles.subtitle}>
+        Your partner profile is ready. We’ll verify your documents and enable
+        payouts after approval.
+      </p>
+
+      <div style={styles.nextStepsBox}>
+        <div style={styles.nextStepsHeader}>
+          <span style={styles.shieldIcon}>🛡️</span>
+          <span>Next steps</span>
+        </div>
+
+        <div style={styles.nextStep}>
+          <span style={styles.tick}>✓</span>
+          Verify PAN & GST
+        </div>
+
+        <div style={styles.nextStep}>
+          <span style={styles.tick}>✓</span>
+          Verify bank account
+        </div>
+
+        <div style={styles.nextStep}>
+          <span style={styles.tick}>✓</span>
+          Activate your dashboard
+        </div>
+
+        <div style={styles.nextStep}>
+          <span style={styles.tick}>✓</span>
+          Start receiving booking requests
+        </div>
       </div>
-
-      <section style={styles.section}>
-        <h2 style={styles.sectionTitle}>Profile summary</h2>
-
-        <div style={styles.summaryGrid}>
-          <SummaryItem
-            label="Partner name"
-            value={onboardingData.profile.contactName || 'Not provided'}
-          />
-          <SummaryItem
-            label="Partner type"
-            value={formatValue(onboardingData.profile.partnerType)}
-          />
-          <SummaryItem
-            label="Business name"
-            value={onboardingData.profile.businessName || 'Not provided'}
-          />
-          <SummaryItem
-            label="Country"
-            value={onboardingData.profile.countryCode}
-          />
-          <SummaryItem
-            label="Kitchen address"
-            value={onboardingData.profile.kitchenAddress || 'Not provided'}
-          />
-        </div>
-      </section>
-
-      <section style={styles.section}>
-        <h2 style={styles.sectionTitle}>Business selections</h2>
-
-        <div style={styles.metricGrid}>
-          <Metric label="Business types" value={summary.businessTypes} />
-          <Metric label="Cuisines & specializations" value={summary.cuisines} />
-          <Metric label="Event types" value={summary.eventTypes} />
-          <Metric label="Dietary options" value={summary.dietTypes} />
-          <Metric label="Service styles" value={summary.serviceStyles} />
-        </div>
-      </section>
-
-      <section style={styles.section}>
-        <h2 style={styles.sectionTitle}>Delivery & operations</h2>
-
-        <div style={styles.summaryGrid}>
-          <SummaryItem
-            label="Delivery"
-            value={onboardingData.delivery.deliveryAvailable ? 'Enabled' : 'Disabled'}
-          />
-          <SummaryItem
-            label="Pickup"
-            value={onboardingData.delivery.pickupAvailable ? 'Enabled' : 'Disabled'}
-          />
-          <SummaryItem label="Service areas" value={summary.serviceAreas} />
-          <SummaryItem
-            label="Max delivery distance"
-            value={
-              onboardingData.delivery.maxDeliveryDistance
-                ? `${onboardingData.delivery.maxDeliveryDistance} ${onboardingData.delivery.distanceUnit}`
-                : 'Not set'
-            }
-          />
-          <SummaryItem
-            label="Advance notice"
-            value={`${onboardingData.operations.advanceNoticeHours} hours`}
-          />
-          <SummaryItem
-            label="Custom orders"
-            value={
-              onboardingData.operations.allowsCustomOrders
-                ? 'Allowed'
-                : 'Not allowed'
-            }
-          />
-        </div>
-      </section>
-
-      <section style={styles.section}>
-        <h2 style={styles.sectionTitle}>Verification readiness</h2>
-
-        <div style={styles.checkList}>
-          <CheckRow
-            title="KYC details"
-            description="PAN and optional compliance details are captured."
-            completed={summary.hasKyc}
-          />
-          <CheckRow
-            title="Bank details"
-            description="Payout account details are captured."
-            completed={summary.hasBank}
-          />
-          <CheckRow
-            title="Partner agreement"
-            description="Agreement acceptance and signature are captured."
-            completed={summary.hasAgreement}
-          />
-        </div>
-      </section>
-
-      <section style={styles.infoBox}>
-        <h3 style={styles.infoTitle}>What happens next?</h3>
-        <ol style={styles.nextStepsList}>
-          <li>Droooly reviews your profile, KYC, service areas, and agreement.</li>
-          <li>You will receive updates by your registered email or phone.</li>
-          <li>After approval, your partner dashboard will be enabled.</li>
-        </ol>
-      </section>
 
       {error && <div style={styles.error}>{error}</div>}
 
-      <div style={styles.buttonGroup}>
-        <button
-          type="button"
-          onClick={onComplete}
-          disabled={isLoading}
-          style={{
-            ...styles.primaryButton,
-            ...(isLoading ? styles.disabledButton : {}),
-          }}
-        >
-          {isLoading ? 'Submitting onboarding...' : 'Submit Onboarding'}
-        </button>
-
-        {onBack && (
-          <button
-            type="button"
-            onClick={onBack}
-            disabled={isLoading}
-            style={styles.secondaryButton}
-          >
-            Back
-          </button>
-        )}
-      </div>
-
-      <p style={styles.footerNote}>
-        You can update business, delivery, and payout details later from your
-        partner dashboard.
-      </p>
-    </div>
-  );
-}
-
-function SummaryItem({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | number;
-}) {
-  return (
-    <div style={styles.summaryItem}>
-      <p style={styles.summaryLabel}>{label}</p>
-      <p style={styles.summaryValue}>{value}</p>
-    </div>
-  );
-}
-
-function Metric({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | number;
-}) {
-  return (
-    <div style={styles.metricCard}>
-      <p style={styles.metricValue}>{value}</p>
-      <p style={styles.metricLabel}>{label}</p>
-    </div>
-  );
-}
-
-function CheckRow({
-  title,
-  description,
-  completed,
-}: {
-  title: string;
-  description: string;
-  completed: boolean;
-}) {
-  return (
-    <div style={styles.checkRow}>
-      <div
+      <button
+        type="button"
+        onClick={onComplete}
+        disabled={isLoading}
         style={{
-          ...styles.checkDot,
-          backgroundColor: completed ? '#16a34a' : '#f59e0b',
+          ...styles.primaryButton,
+          ...(isLoading ? styles.disabledButton : {}),
         }}
-      />
-      <div>
-        <p style={styles.checkTitle}>{title}</p>
-        <p style={styles.checkDescription}>
-          {completed ? description : 'Needs review before final activation.'}
-        </p>
+      >
+        {isLoading ? 'Submitting...' : 'Save & Continue'}
+        <span>→</span>
+      </button>
+
+      <div style={styles.footerNote}>
+        <div style={styles.footerIcon}>🔒</div>
+        <div>
+          <strong>Your information is safe with us.</strong>
+          <p>Documents are used only for partner verification and payouts.</p>
+        </div>
       </div>
     </div>
   );
-}
-
-function formatValue(value?: string | null) {
-  if (!value) return 'Not provided';
-
-  return value
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 const styles: Record<string, React.CSSProperties> = {
   card: {
-    maxWidth: '900px',
+    position: 'relative',
+    maxWidth: '520px',
     margin: '2rem auto',
-    padding: '2rem',
+    padding: '1.5rem',
     backgroundColor: '#ffffff',
     borderRadius: '1.25rem',
-    boxShadow: '0 12px 32px rgba(15, 23, 42, 0.08)',
+    border: '1px solid #f1f1f1',
+    boxShadow: '0 16px 40px rgba(17, 24, 39, 0.08)',
   },
 
-  header: {
-    textAlign: 'center',
-    marginBottom: '2rem',
-  },
-
-  statusPill: {
-    display: 'inline-flex',
-    padding: '0.45rem 0.85rem',
-    borderRadius: '999px',
-    backgroundColor: '#fff7ed',
-    color: '#c2410c',
-    fontSize: '0.8rem',
-    fontWeight: 800,
+  logo: {
+    fontSize: '1.05rem',
+    fontWeight: 900,
+    color: '#ff4b1f',
     marginBottom: '1rem',
+  },
+
+  stepPill: {
+    position: 'absolute',
+    top: '1.25rem',
+    right: '1.25rem',
+    padding: '0.35rem 0.7rem',
+    borderRadius: '999px',
+    backgroundColor: '#eef9e8',
+    color: '#3f8f2f',
+    fontSize: '0.72rem',
+    fontWeight: 800,
+  },
+
+  backButton: {
+    border: 'none',
+    background: 'transparent',
+    color: '#4b5563',
+    fontSize: '0.85rem',
+    fontWeight: 700,
+    cursor: 'pointer',
+    padding: 0,
+    marginBottom: '1.25rem',
+  },
+
+  heroIcon: {
+    width: '76px',
+    height: '76px',
+    margin: '0 auto 1.15rem',
+    borderRadius: '999px',
+    background: 'linear-gradient(135deg, #7c3aed 0%, #9333ea 100%)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 16px 30px rgba(124, 58, 237, 0.28)',
+  },
+
+  check: {
+    color: '#ffffff',
+    fontSize: '2.2rem',
+    fontWeight: 900,
   },
 
   title: {
     margin: 0,
-    fontSize: '1.9rem',
+    textAlign: 'center',
+    fontSize: '1.45rem',
     fontWeight: 900,
     color: '#111827',
     letterSpacing: '-0.03em',
   },
 
   subtitle: {
-    maxWidth: '620px',
-    margin: '0.75rem auto 0',
-    fontSize: '0.98rem',
+    maxWidth: '390px',
+    margin: '0.65rem auto 1.4rem',
+    textAlign: 'center',
+    fontSize: '0.92rem',
     color: '#6b7280',
     lineHeight: 1.6,
   },
 
-  section: {
-    padding: '1.25rem',
-    border: '1px solid #e5e7eb',
+  nextStepsBox: {
+    padding: '1.1rem',
     borderRadius: '1rem',
-    backgroundColor: '#ffffff',
+    background:
+      'linear-gradient(135deg, rgba(124, 58, 237, 0.06), rgba(255, 75, 31, 0.06))',
+    border: '1px solid rgba(124, 58, 237, 0.12)',
     marginBottom: '1.25rem',
   },
 
-  sectionTitle: {
-    margin: '0 0 1rem 0',
-    fontSize: '1.1rem',
+  nextStepsHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    marginBottom: '0.8rem',
+    color: '#111827',
+    fontSize: '0.9rem',
     fontWeight: 850,
-    color: '#111827',
   },
 
-  summaryGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-    gap: '1rem',
-  },
-
-  summaryItem: {
-    padding: '0.95rem',
-    borderRadius: '0.875rem',
-    backgroundColor: '#f9fafb',
-    border: '1px solid #e5e7eb',
-  },
-
-  summaryLabel: {
-    margin: '0 0 0.35rem 0',
-    fontSize: '0.78rem',
-    fontWeight: 800,
-    color: '#6b7280',
-    textTransform: 'uppercase',
-    letterSpacing: '0.04em',
-  },
-
-  summaryValue: {
-    margin: 0,
-    fontSize: '0.95rem',
-    fontWeight: 750,
-    color: '#111827',
-    lineHeight: 1.45,
-  },
-
-  metricGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-    gap: '1rem',
-  },
-
-  metricCard: {
-    padding: '1rem',
-    borderRadius: '1rem',
-    backgroundColor: '#f9fafb',
-    border: '1px solid #e5e7eb',
-    textAlign: 'center',
-  },
-
-  metricValue: {
-    margin: 0,
-    fontSize: '1.65rem',
-    fontWeight: 900,
-    color: '#f97316',
-  },
-
-  metricLabel: {
-    margin: '0.35rem 0 0 0',
-    fontSize: '0.83rem',
-    fontWeight: 700,
-    color: '#6b7280',
-  },
-
-  checkList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.875rem',
-  },
-
-  checkRow: {
-    display: 'flex',
-    gap: '0.875rem',
-    alignItems: 'flex-start',
-    padding: '0.95rem',
-    borderRadius: '0.875rem',
-    backgroundColor: '#f9fafb',
-    border: '1px solid #e5e7eb',
-  },
-
-  checkDot: {
-    width: '0.75rem',
-    height: '0.75rem',
+  shieldIcon: {
+    width: '28px',
+    height: '28px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: '999px',
-    marginTop: '0.35rem',
+    backgroundColor: '#ffffff',
+    boxShadow: '0 6px 16px rgba(17, 24, 39, 0.08)',
+  },
+
+  nextStep: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.55rem',
+    color: '#374151',
+    fontSize: '0.88rem',
+    fontWeight: 700,
+    marginTop: '0.55rem',
+  },
+
+  tick: {
+    width: '18px',
+    height: '18px',
+    borderRadius: '999px',
+    backgroundColor: '#e8f7df',
+    color: '#3f8f2f',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '0.7rem',
+    fontWeight: 900,
     flexShrink: 0,
   },
 
-  checkTitle: {
-    margin: 0,
-    fontSize: '0.95rem',
-    fontWeight: 800,
-    color: '#111827',
-  },
-
-  checkDescription: {
-    margin: '0.25rem 0 0 0',
-    fontSize: '0.85rem',
-    color: '#6b7280',
-    lineHeight: 1.45,
-  },
-
-  infoBox: {
-    padding: '1.25rem',
-    borderRadius: '1rem',
-    backgroundColor: '#fff7ed',
-    border: '1px solid #fed7aa',
-    marginBottom: '1.25rem',
-  },
-
-  infoTitle: {
-    margin: '0 0 0.75rem 0',
-    fontSize: '1rem',
-    fontWeight: 850,
-    color: '#9a3412',
-  },
-
-  nextStepsList: {
-    margin: 0,
-    paddingLeft: '1.25rem',
-    color: '#9a3412',
-    fontSize: '0.9rem',
-    lineHeight: 1.7,
-  },
-
   error: {
-    padding: '0.875rem',
-    borderRadius: '0.875rem',
+    padding: '0.85rem',
+    borderRadius: '0.85rem',
     backgroundColor: '#fef2f2',
     color: '#dc2626',
-    fontSize: '0.9rem',
-    fontWeight: 650,
+    fontSize: '0.88rem',
+    fontWeight: 700,
     marginBottom: '1rem',
-  },
-
-  buttonGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.875rem',
-    marginTop: '0.5rem',
   },
 
   primaryButton: {
     width: '100%',
-    padding: '1rem',
+    padding: '0.95rem 1rem',
     border: 'none',
-    borderRadius: '0.875rem',
-    backgroundColor: '#f97316',
+    borderRadius: '0.85rem',
+    background: 'linear-gradient(135deg, #4f9d35 0%, #2f7d25 100%)',
     color: '#ffffff',
-    fontSize: '1rem',
+    fontSize: '0.95rem',
     fontWeight: 850,
     cursor: 'pointer',
-  },
-
-  secondaryButton: {
-    width: '100%',
-    padding: '1rem',
-    borderRadius: '0.875rem',
-    border: '1.5px solid #d1d5db',
-    backgroundColor: '#ffffff',
-    color: '#374151',
-    fontSize: '1rem',
-    fontWeight: 750,
-    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '0.55rem',
+    boxShadow: '0 12px 24px rgba(47, 125, 37, 0.22)',
   },
 
   disabledButton: {
-    backgroundColor: '#d1d5db',
+    opacity: 0.65,
     cursor: 'not-allowed',
+    boxShadow: 'none',
   },
 
   footerNote: {
-    margin: '1rem 0 0 0',
-    textAlign: 'center',
-    fontSize: '0.85rem',
-    color: '#6b7280',
-    lineHeight: 1.5,
+    marginTop: '1rem',
+    padding: '0.95rem',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.8rem',
+    borderRadius: '1rem',
+    backgroundColor: '#fff8f3',
+    border: '1px solid #ffe2d3',
+    color: '#374151',
+    fontSize: '0.83rem',
+    lineHeight: 1.45,
+  },
+
+  footerIcon: {
+    width: '34px',
+    height: '34px',
+    borderRadius: '999px',
+    backgroundColor: '#ffffff',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 8px 18px rgba(255, 75, 31, 0.12)',
+    flexShrink: 0,
   },
 };

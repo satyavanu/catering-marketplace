@@ -37,6 +37,7 @@ import {
   KycBankData,
   AgreementData,
 } from './types';
+import { Logo } from '@/components/Logo';
 
 const STEP_ORDER: OnboardingStep[] = [
   'phone_verification',
@@ -455,22 +456,22 @@ export default function OnboardingPage() {
       case 'agreement':
         return (
           <PartnerAgreement
-          sessionId={sessionId!}
-          initialData={
-            onboardingData.agreement ?? {
-              agreementVersionId: activeAgreementVersionId,
-              termsAccepted: false,
-              privacyAccepted: false,
-              signatureImage: null,
-              otpVerified: true,
-              signedDocumentUrl: null,
-              acceptedAt: null,
+            sessionId={sessionId!}
+            initialData={
+              onboardingData.agreement ?? {
+                agreementVersionId: activeAgreementVersionId,
+                termsAccepted: false,
+                privacyAccepted: false,
+                signatureImage: null,
+                otpVerified: true,
+                signedDocumentUrl: null,
+                acceptedAt: null,
+              }
             }
-          }
-          onSubmitForm={handleAgreementSubmit}
-          onBack={handleBack}
-          isLoading={isSubmitting}
-          error={globalError}
+            onSubmitForm={handleAgreementSubmit}
+            onBack={handleBack}
+            isLoading={isSubmitting}
+            error={globalError}
           />
         );
 
@@ -574,21 +575,15 @@ export default function OnboardingPage() {
   return (
     <div style={styles.container}>
       <div style={styles.content}>
-        <div style={styles.progressContainer}>
-          <div
-            style={{
-              ...styles.progressBar,
-              width: `${progressPercentage}%`,
-            }}
-          />
-        </div>
-
+        <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexDirection:'row'}}>
+        <Logo />
         <div style={styles.stepIndicator}>
           <span style={styles.stepNumber}>
             Step {Math.max(currentStepIndex + 1, 1)} of {STEP_ORDER.length}
           </span>
         </div>
-
+        </div>
+        
         {renderCurrentStep()}
       </div>
     </div>
