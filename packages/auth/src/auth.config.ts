@@ -38,6 +38,7 @@ export type UserRole =
   | 'customer'
   | 'caterer'
   | 'admin'
+  | 'super_admin'
   | 'moderator'
   | 'support'
   | 'partner';
@@ -68,6 +69,18 @@ const rolePermissions: Record<UserRole, string[]> = {
     'update:subscription',
   ],
   admin: [
+    'read:all',
+    'write:all',
+    'delete:all',
+    'manage:users',
+    'manage:roles',
+    'manage:permissions',
+    'read:analytics',
+    'read:reports',
+    'moderate:platform',
+    'read:system',
+  ],
+  super_admin: [
     'read:all',
     'write:all',
     'delete:all',
@@ -115,6 +128,7 @@ function normalizeUserRole(role: unknown): UserRole {
     'customer',
     'caterer',
     'admin',
+    'super_admin',
     'moderator',
     'support',
     'partner',
@@ -123,6 +137,15 @@ function normalizeUserRole(role: unknown): UserRole {
   return allowedRoles.includes(role as UserRole)
     ? (role as UserRole)
     : 'customer';
+}
+
+function getAccountHomePath(role: unknown): string {
+  const normalizedRole = normalizeUserRole(role);
+  if (normalizedRole === 'customer') return '/customer';
+  if (normalizedRole === 'admin' || normalizedRole === 'super_admin') {
+    return '/admin';
+  }
+  return '/partner';
 }
 
 async function verifyOtpWithBackend(credentials: any): Promise<any> {
@@ -339,8 +362,12 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
 
-    async redirect({ baseUrl }: any) {
-      return `${baseUrl}/partner`;
+    async redirect({ url, baseUrl, user }: any) {
+      if (url === baseUrl || url === '/' || url === `${baseUrl}/`) {
+        return baseUrl;
+      }
+
+      return `${baseUrl}${getAccountHomePath(user?.role)}`;
     },
 
     async jwt({ token, user, account, profile }: any) {

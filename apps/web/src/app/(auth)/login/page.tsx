@@ -49,6 +49,12 @@ type ContactMethod = 'email' | 'phone' | 'invalid';
 const OTP_LENGTH = 6;
 const RESEND_SECONDS = 30;
 
+const getAccountHomePath = (role?: string | null) => {
+  if (role === 'customer') return '/customer';
+  if (role === 'admin' || role === 'super_admin') return '/admin';
+  return '/partner';
+};
+
 export default function LoginPage() {
   const router = useRouter();
   const { data: session, status, update: updateSession } = useSession();
@@ -98,7 +104,7 @@ export default function LoginPage() {
         return;
       } */
 
-      router.push('/partner');
+      router.push(getAccountHomePath(session.user.role));
     }
   }, [status, session, mounted, router, isRedirecting]);
 

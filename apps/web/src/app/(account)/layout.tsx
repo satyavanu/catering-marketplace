@@ -16,6 +16,7 @@ import {
   AnalyticsIcon,
   SettingsIcon,
   ApprovalIcon,
+  PendingIcon,
   WorkersIcon,
   BellIcon,
   MenuIcon,
@@ -38,7 +39,9 @@ type NavItem = {
   badge?: string | number;
 };
 
-const navItems: NavItem[] = [
+type AccountRole = 'customer' | 'partner' | 'admin' | 'super_admin';
+
+const partnerNavItems: NavItem[] = [
   {
     key: 'home',
     label: 'Home',
@@ -108,6 +111,117 @@ const navItems: NavItem[] = [
   },
 ];
 
+const customerNavItems: NavItem[] = [
+  {
+    key: 'home',
+    label: 'Home',
+    href: '/customer',
+    icon: <HomeIcon />,
+  },
+  {
+    key: 'bookings',
+    label: 'Bookings',
+    href: '/customer/bookings',
+    icon: <CalendarIcon />,
+  },
+  {
+    key: 'orders',
+    label: 'Orders',
+    href: '/customer/orders',
+    icon: <OrdersIcon />,
+  },
+  {
+    key: 'messages',
+    label: 'Messages',
+    href: '/customer/messages',
+    icon: <MessagesIcon />,
+  },
+  {
+    key: 'reviews',
+    label: 'Reviews',
+    href: '/customer/reviews',
+    icon: <ReviewsIcon />,
+  },
+  {
+    key: 'profile',
+    label: 'Profile',
+    href: '/customer/profile',
+    icon: <SettingsIcon />,
+  },
+];
+
+const adminNavItems: NavItem[] = [
+  {
+    key: 'home',
+    label: 'Admin Home',
+    href: '/admin',
+    icon: <HomeIcon />,
+  },
+  {
+    key: 'users',
+    label: 'Users',
+    href: '/admin/users',
+    icon: <WorkersIcon />,
+  },
+  {
+    key: 'partners',
+    label: 'Partners',
+    href: '/admin/partners',
+    icon: <ApprovalIcon />,
+  },
+  {
+    key: 'approvals',
+    label: 'Approvals',
+    href: '/admin/approvals',
+    icon: <PendingIcon />,
+  },
+  {
+    key: 'events',
+    label: 'Events',
+    href: '/admin/events',
+    icon: <CalendarIcon />,
+  },
+  {
+    key: 'workers',
+    label: 'Event Workers',
+    href: '/admin/workers',
+    icon: <WorkersIcon />,
+  },
+  {
+    key: 'analytics',
+    label: 'Analytics',
+    href: '/admin/analytics',
+    icon: <AnalyticsIcon />,
+  },
+  {
+    key: 'settings',
+    label: 'Settings',
+    href: '/admin/settings',
+    icon: <SettingsIcon />,
+  },
+];
+
+const navItemsByRole: Record<AccountRole, NavItem[]> = {
+  customer: customerNavItems,
+  partner: partnerNavItems,
+  admin: adminNavItems,
+  super_admin: adminNavItems,
+};
+
+const roleHomePath: Record<AccountRole, string> = {
+  customer: '/customer',
+  partner: '/partner',
+  admin: '/admin',
+  super_admin: '/admin',
+};
+
+function normalizeAccountRole(role?: string | null): AccountRole {
+  if (role === 'customer') return 'customer';
+  if (role === 'admin') return 'admin';
+  if (role === 'super_admin') return 'super_admin';
+  return 'partner';
+}
+
 const notifications = [
   {
     id: 'approval',
@@ -137,7 +251,7 @@ export default function PartnerDashboardLayout({
 }: PartnerDashboardLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const menuAreaRef = useRef<HTMLDivElement>(null);
 
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -150,14 +264,19 @@ export default function PartnerDashboardLayout({
         name?: string | null;
         email?: string | null;
         image?: string | null;
+        role?: string | null;
       }
     | undefined;
+  const accountRole = normalizeAccountRole(sessionUser?.role);
+  const roleNavItems = navItemsByRole[accountRole];
+  const accountHomePath = roleHomePath[accountRole];
+  const profilePath = `${accountHomePath}/profile`;
   const displayName =
     sessionUser?.fullName || sessionUser?.name || userName || 'Partner';
   const displayAvatar = sessionUser?.image || avatarUrl;
   const userInitial = displayName.trim().charAt(0).toUpperCase() || 'P';
   const isActive = (href: string) => {
-    if (href === '/partner') return pathname === '/partner';
+    if (href === accountHomePath) return pathname === href;
     return pathname.startsWith(href);
   };
 
@@ -175,6 +294,12 @@ export default function PartnerDashboardLayout({
     return () => window.removeEventListener('pointerdown', handlePointerDown);
   }, []);
 
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.replace('/login');
+    }
+  }, [router, status]);
+
   const toggleMenu = (menu: 'notifications' | 'profile') => {
     setOpenMenu((current) => (current === menu ? null : menu));
   };
@@ -183,6 +308,15 @@ export default function PartnerDashboardLayout({
     setOpenMenu(null);
     router.push(href);
   };
+
+  if (status === 'loading' || status === 'unauthenticated') {
+    return (
+      <div style={styles.authGate}>
+        <style>{responsiveCss}</style>
+        <div style={styles.authGatePanel}>Loading account...</div>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.shell}>
@@ -211,7 +345,7 @@ export default function PartnerDashboardLayout({
           </div>
 
           <nav style={styles.nav}>
-            {navItems.map((item) => {
+            {roleNavItems.map((item) => {
               const active = isActive(item.href);
 
               return (
@@ -305,7 +439,9 @@ export default function PartnerDashboardLayout({
                     <button
                       type="button"
                       style={styles.dropdownLink}
-                      onClick={() => navigateFromMenu('/partner/messages')}
+                      onClick={() =>
+                        navigateFromMenu(`${accountHomePath}/messages`)
+                      }
                     >
                       View all
                     </button>
@@ -318,7 +454,9 @@ export default function PartnerDashboardLayout({
                         key={notification.id}
                         role="menuitem"
                         style={styles.notificationItem}
-                        onClick={() => navigateFromMenu('/partner/messages')}
+                        onClick={() =>
+                          navigateFromMenu(`${accountHomePath}/messages`)
+                        }
                       >
                         <span style={styles.notificationDot} />
 
@@ -380,7 +518,7 @@ export default function PartnerDashboardLayout({
                     type="button"
                     role="menuitem"
                     style={styles.profileMenuItem}
-                    onClick={() => navigateFromMenu('/partner/profile')}
+                    onClick={() => navigateFromMenu(profilePath)}
                   >
                     Profile
                   </button>
@@ -388,9 +526,9 @@ export default function PartnerDashboardLayout({
                     type="button"
                     role="menuitem"
                     style={styles.profileMenuItem}
-                    onClick={() => navigateFromMenu('/partner/approval')}
+                    onClick={() => navigateFromMenu(accountHomePath)}
                   >
-                    Approval status
+                    Account home
                   </button>
                   <button
                     type="button"
@@ -398,7 +536,7 @@ export default function PartnerDashboardLayout({
                     style={styles.profileMenuItemDanger}
                     onClick={() => {
                       setOpenMenu(null);
-                      signOut({ callbackUrl: '/login' });
+                      signOut({ callbackUrl: '/' });
                     }}
                   >
                     Sign out
@@ -426,6 +564,25 @@ const styles: Record<string, React.CSSProperties> = {
     background:
       'radial-gradient(circle at top left, rgba(124, 58, 237, 0.10), transparent 34%), radial-gradient(circle at top right, rgba(255, 90, 61, 0.06), transparent 28%), #fbf8ff',
     color: '#151126',
+  },
+
+  authGate: {
+    minHeight: '100vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: '#fbf8ff',
+    color: '#151126',
+  },
+
+  authGatePanel: {
+    padding: '16px 18px',
+    borderRadius: 8,
+    background: '#ffffff',
+    border: '1px solid rgba(124, 58, 237, 0.12)',
+    boxShadow: '0 14px 30px rgba(17, 24, 39, 0.06)',
+    fontSize: 14,
+    fontWeight: 800,
   },
 
   sidebar: {
