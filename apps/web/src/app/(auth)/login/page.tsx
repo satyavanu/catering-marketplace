@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { signIn, useSession } from 'next-auth/react';
 import {
   sendOtpApi,
@@ -51,7 +51,6 @@ const RESEND_SECONDS = 30;
 
 export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { data: session, status, update: updateSession } = useSession();
   const completeOnboardingMutation = useCompleteOnboarding();
   const otpInputRef = useRef<HTMLInputElement>(null);
@@ -90,7 +89,7 @@ export default function LoginPage() {
 
     if (status === 'authenticated' && session?.user && mounted) {
       setIsRedirecting(true);
-/*
+      /*
       if (
         session.user.termsAccepted === false ||
         session.user.privacyAccepted === false
@@ -99,16 +98,9 @@ export default function LoginPage() {
         return;
       } */
 
-      const callbackUrl = searchParams?.get('callbackUrl');
-      const role = session.user.role || 'customer';
-
-      if (callbackUrl && !callbackUrl.includes('/login')) {
-        router.push(callbackUrl);
-      } else {
-        router.push(`/partner`);
-      }
+      router.push('/partner');
     }
-  }, [status, session, mounted, router, searchParams, isRedirecting]);
+  }, [status, session, mounted, router, isRedirecting]);
 
   const contactMethod = useMemo<ContactMethod>(() => {
     const value = contact.trim();
@@ -181,7 +173,11 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const result = await sendOtpApi(normalizedContact);
+      const result = await sendOtpApi({
+        ...normalizedContact,
+        intent: authMode,
+        ...(isSignup ? { full_name: fullName.trim() } : {}),
+      });
 
       if (!result.success) {
         setError(result.error || 'Unable to send OTP. Please try again.');
@@ -214,6 +210,8 @@ export default function LoginPage() {
       const result = await signIn(provider, {
         ...normalizedContact,
         otp,
+        intent: authMode,
+        ...(isSignup ? { full_name: fullName.trim() } : {}),
         redirect: false,
       });
 
@@ -239,12 +237,11 @@ export default function LoginPage() {
 
         try {
           await completeOnboardingMutation.mutateAsync({
-            agree_terms: true,
-            agree_privacy: true,
-            marketing_email: marketingEmail,
-            marketing_sms: marketingSms,
-            marketing_push: false,
-            marketing_whatsapp: false,
+            agreeTerms: true,
+            agreePrivacy: true,
+            emailMarketing: marketingEmail,
+            smsMarketing: marketingSms,
+            pushNotifications: false,
           });
         } catch (consentError) {
           console.error('Consent save error:', consentError);
@@ -265,7 +262,7 @@ export default function LoginPage() {
     try {
       const result = await signIn(provider, {
         redirect: false,
-        callbackUrl: '/login',
+        callbackUrl: '/partner',
       });
 
       if (result?.error) {

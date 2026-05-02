@@ -9,6 +9,7 @@ declare module 'next-auth' {
     permissions?: string[];
     refreshToken?: string;
     accessToken?: string;
+    fullName?: string;
     tokenExpiresIn?: number;
     tokenExpiresAt?: number;
     access_token?: string;
@@ -21,6 +22,7 @@ declare module 'next-auth' {
     permissions?: string[];
     refreshToken?: string;
     accessToken?: string;
+    fullName?: string;
     tokenExpiresIn?: number;
     tokenExpiresAt?: number;
     access_token?: string;
@@ -32,7 +34,13 @@ declare module 'next-auth' {
 import { verifyOtpApi } from '../../query-client/src';
 
 // Role types
-export type UserRole = 'customer' | 'caterer' | 'admin' | 'moderator' | 'support' | 'partner';
+export type UserRole =
+  | 'customer'
+  | 'caterer'
+  | 'admin'
+  | 'moderator'
+  | 'support'
+  | 'partner';
 export type OnboardingStatus = 'pending' | 'in_progress' | 'completed';
 
 const rolePermissions: Record<UserRole, string[]> = {
@@ -102,7 +110,22 @@ const rolePermissions: Record<UserRole, string[]> = {
   ],
 };
 
-async function verifyOtpWithBackend(credentials): Promise<any> {
+function normalizeUserRole(role: unknown): UserRole {
+  const allowedRoles: UserRole[] = [
+    'customer',
+    'caterer',
+    'admin',
+    'moderator',
+    'support',
+    'partner',
+  ];
+
+  return allowedRoles.includes(role as UserRole)
+    ? (role as UserRole)
+    : 'customer';
+}
+
+async function verifyOtpWithBackend(credentials: any): Promise<any> {
   try {
     if (!credentials.otp || credentials?.otp?.length < 6) {
       return { success: false, verified: false, message: 'OTP is required' };
@@ -117,7 +140,6 @@ async function verifyOtpWithBackend(credentials): Promise<any> {
     };
   }
 }
-
 
 async function authorizeOtpUser(
   credentials: any,
@@ -145,13 +167,16 @@ async function authorizeOtpUser(
     }
 
     const userData = otpVerification.data?.data || {};
-    const userRole = userData.role || ('customer' as UserRole);
+    const userRole = normalizeUserRole(userData.role);
     const onboardingStatus = userData.onboarding_status || 'pending';
+    const fullName =
+      userData.full_name || userData.name || credentials.full_name || '';
 
     const returnUser = {
       id: userData.user_id || `${otpType}-${Date.now()}`,
       email: userData.email || credentials.email || '',
-      name: userData.name || '',
+      name: fullName,
+      fullName,
       image: userData.image || '',
       phone: credentials.phone || userData.phone || '',
       role: userRole,
@@ -164,8 +189,7 @@ async function authorizeOtpUser(
       onboarding: {
         status: onboardingStatus as OnboardingStatus,
         selectedRole: userRole,
-        completedAt:
-          onboardingStatus === 'completed' ? new Date() : undefined,
+        completedAt: onboardingStatus === 'completed' ? new Date() : undefined,
       },
       isOnboardingCompleted: onboardingStatus === 'completed',
       accessToken: userData.access_token || '',
@@ -187,8 +211,6 @@ async function authorizeOtpUser(
     );
   }
 }
-
-
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -225,6 +247,8 @@ export const authOptions: NextAuthOptions = {
         email: { label: 'Email', type: 'email' },
         otp: { label: 'OTP', type: 'text' },
         phone: { label: 'Phone', type: 'text' },
+        intent: { label: 'Intent', type: 'text' },
+        full_name: { label: 'Full name', type: 'text' },
       },
       async authorize(credentials) {
         return await authorizeOtpUser(credentials, 'email');
@@ -236,11 +260,13 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         phone: { label: 'Phone', type: 'text' },
         otp: { label: 'OTP', type: 'text' },
+        intent: { label: 'Intent', type: 'text' },
+        full_name: { label: 'Full name', type: 'text' },
       },
       async authorize(credentials) {
         return await authorizeOtpUser(credentials, 'phone');
       },
-    })
+    }),
   ],
   pages: {
     signIn: '/login',
@@ -251,6 +277,7 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id;
         session.user.email = token.email;
         session.user.name = token.name;
+        session.user.fullName = token.fullName || token.name;
         session.user.image = token.image;
         session.user.phone = token.phone;
         session.user.role = token.role || ('customer' as UserRole);
@@ -266,7 +293,9 @@ export const authOptions: NextAuthOptions = {
         session.user.accessToken = token.accessToken || '';
         session.user.refreshToken = token.refreshToken || '';
         session.user.tokenExpiresIn = token.tokenExpiresIn || 3600;
-        session.user.tokenExpiresAt = token.tokenExpiresAt || Date.now() + (token.tokenExpiresIn || 3600) * 1000;
+        session.user.tokenExpiresAt =
+          token.tokenExpiresAt ||
+          Date.now() + (token.tokenExpiresIn || 3600) * 1000;
         session.user.tokenType = token.tokenType || 'Bearer';
         session.user.error = token.error || null;
 
@@ -310,31 +339,16 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
 
-    async redirect({ url, baseUrl, user }: any) {
-      if (user?.role) {
-        return `${baseUrl}/${user.role}/dashboard`;
-      }
-
-      if (url.includes('callbackUrl')) {
-        return url;
-      }
-
-      if (url.startsWith('/')) return `${baseUrl}${url}`;
-      else if (new URL(url).origin === baseUrl) return url;
-
-      // Default to customer dashboard
-      return `${baseUrl}/customer1/dashboard`;
+    async redirect({ baseUrl }: any) {
+      return `${baseUrl}/partner`;
     },
 
-
     async jwt({ token, user, account, profile }: any) {
-      
-
       if (user) {
-       
         token.id = user.id;
         token.email = user.email;
-        token.name = user.name;
+        token.name = user.name || user.fullName;
+        token.fullName = user.fullName || user.name;
         token.image = user.image;
         token.phone = user.phone;
         token.role = user.role || ('customer' as UserRole);
@@ -351,9 +365,9 @@ export const authOptions: NextAuthOptions = {
         token.accessToken = user.accessToken || '';
         token.refreshToken = user.refreshToken || '';
         token.tokenExpiresIn = user.tokenExpiresIn || 3600;
-        token.tokenExpiresAt = Date.now() + ((user.tokenExpiresIn || 3600) * 1000);
+        token.tokenExpiresAt =
+          Date.now() + (user.tokenExpiresIn || 3600) * 1000;
         token.tokenType = user.tokenType || 'Bearer';
-
 
         token.termsAccepted = user.termsAccepted ?? false;
         token.privacyAccepted = user.privacyAccepted ?? false;
@@ -364,22 +378,21 @@ export const authOptions: NextAuthOptions = {
         token.consentsProvided = user.consentsProvided ?? false;
 
         token.isOnboardingCompleted =
-          user.isOnboardingCompleted || token.onboarding?.status === 'completed';
-       
+          user.isOnboardingCompleted ||
+          token.onboarding?.status === 'completed';
       }
 
       if (
         token.tokenExpiresAt &&
         Date.now() > (token.tokenExpiresAt as number)
       ) {
-
         try {
           const response = await fetch(
             `${process.env.BACKEND_URL}/api/auth/refresh`,
             {
-              method: "POST",
+              method: 'POST',
               headers: {
-                "Content-Type": "application/json",
+                'Content-Type': 'application/json',
               },
               body: JSON.stringify({
                 refreshToken: token.refreshToken,
@@ -391,37 +404,39 @@ export const authOptions: NextAuthOptions = {
             const data = await response.json();
 
             // ✅ Normalize snake_case from backend to camelCase
-            token.accessToken = data.access_token || data.accessToken || token.accessToken;
-            token.refreshToken = data.refresh_token || data.refreshToken || token.refreshToken;
-            token.tokenExpiresIn = data.expires_in || data.expiresIn || token.tokenExpiresIn;
-            token.tokenExpiresAt = Date.now() + ((data.expires_in || data.expiresIn || 3600) * 1000);
+            token.accessToken =
+              data.access_token || data.accessToken || token.accessToken;
+            token.refreshToken =
+              data.refresh_token || data.refreshToken || token.refreshToken;
+            token.tokenExpiresIn =
+              data.expires_in || data.expiresIn || token.tokenExpiresIn;
+            token.tokenExpiresAt =
+              Date.now() + (data.expires_in || data.expiresIn || 3600) * 1000;
           } else {
-            console.error("SATYA 8D - Refresh failed:", response.statusText);
-            token.error = "RefreshAccessTokenError";
+            console.error('SATYA 8D - Refresh failed:', response.statusText);
+            token.error = 'RefreshAccessTokenError';
           }
         } catch (error) {
-          console.error("SATYA 8D - Error refreshing token:", error);
-          token.error = "RefreshAccessTokenError";
+          console.error('SATYA 8D - Error refreshing token:', error);
+          token.error = 'RefreshAccessTokenError';
         }
       }
 
-
-
       // Google social login - overrides OAuth data above
-      if (account?.provider === "google") {
-        console.log("SATYA 8F - Google social login detected");
+      if (account?.provider === 'google') {
+        console.log('SATYA 8F - Google social login detected');
 
         try {
           const res = await fetch(
             `${process.env.NEXT_PUBLIC_API_URL}/api/auth/social-login`,
             {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 email: token.email,
                 name: token.name,
                 image: token.picture,
-                provider: "google",
+                provider: 'google',
                 token: account.id_token,
               }),
             }
@@ -434,15 +449,19 @@ export const authOptions: NextAuthOptions = {
           const response = await res.json();
           const data = response.data || response;
           token.id = data.user_id || token.id;
-          token.role = 'caterer' //data.role || 'customer';
+          token.name = data.full_name || data.name || token.name;
+          token.fullName = data.full_name || data.name || token.fullName;
+          token.role = 'caterer'; //data.role || 'customer';
           token.status = data.status || 'active';
           token.isVerified = data.email_verified ?? false;
-          token.permissions = rolePermissions[data.role || 'customer'] || [];
+          const backendRole = normalizeUserRole(data.role);
+          token.permissions = rolePermissions[backendRole] || [];
 
           token.onboarding = {
             status: (data.onboarding_status || 'pending') as OnboardingStatus,
-            selectedRole: data.role || 'customer',
-            completedAt: data.onboarding_status === 'completed' ? new Date() : undefined,
+            selectedRole: backendRole,
+            completedAt:
+              data.onboarding_status === 'completed' ? new Date() : undefined,
           };
           token.isOnboardingCompleted = data.onboarding_status === 'completed';
           token.isNewUser = data.is_new_user ?? false;
@@ -453,7 +472,7 @@ export const authOptions: NextAuthOptions = {
           token.refreshToken = data.refresh_token || '';
           token.tokenType = data.token_type || 'Bearer';
           token.tokenExpiresIn = data.expires_in || 900;
-          token.tokenExpiresAt = Date.now() + ((data.expires_in || 900) * 1000);
+          token.tokenExpiresAt = Date.now() + (data.expires_in || 900) * 1000;
 
           token.termsAccepted = data.terms_accepted ?? false;
           token.privacyAccepted = data.privacy_accepted ?? false;
@@ -462,14 +481,12 @@ export const authOptions: NextAuthOptions = {
           token.marketingPush = data.marketing_push ?? false;
           token.marketingWhatsapp = data.marketing_whatsapp ?? false;
           token.consentsProvided = data.consents_provided ?? false;
-       }
-        catch (error) {
-          token.error = "GoogleLoginError";
+        } catch (error) {
+          token.error = 'GoogleLoginError';
         }
       }
       return token;
-    }
-
+    },
   },
   session: {
     strategy: 'jwt' as const,

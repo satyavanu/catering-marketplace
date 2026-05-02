@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useRouter } from 'next/navigation';
+import { signOut, useSession } from 'next-auth/react';
 
 import {
   HomeIcon,
@@ -107,6 +108,27 @@ const navItems: NavItem[] = [
   },
 ];
 
+const notifications = [
+  {
+    id: 'approval',
+    title: 'Partner approval updated',
+    description: 'Your latest approval workflow has new activity.',
+    time: '5m ago',
+  },
+  {
+    id: 'worker',
+    title: 'Event worker assigned',
+    description: 'A worker accepted the upcoming event shift.',
+    time: '18m ago',
+  },
+  {
+    id: 'message',
+    title: 'New message',
+    description: 'You have a new message from support.',
+    time: '1h ago',
+  },
+];
+
 export default function PartnerDashboardLayout({
   children,
   userName = 'Partner',
@@ -115,12 +137,53 @@ export default function PartnerDashboardLayout({
 }: PartnerDashboardLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { data: session } = useSession();
+  const menuAreaRef = useRef<HTMLDivElement>(null);
 
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [openMenu, setOpenMenu] = useState<'notifications' | 'profile' | null>(
+    null
+  );
+  const sessionUser = session?.user as
+    | {
+        fullName?: string | null;
+        name?: string | null;
+        email?: string | null;
+        image?: string | null;
+      }
+    | undefined;
+  const displayName =
+    sessionUser?.fullName || sessionUser?.name || userName || 'Partner';
+  const displayAvatar = sessionUser?.image || avatarUrl;
+  const userInitial = displayName.trim().charAt(0).toUpperCase() || 'P';
   const isActive = (href: string) => {
     if (href === '/partner') return pathname === '/partner';
     return pathname.startsWith(href);
   };
+
+  useEffect(() => {
+    const handlePointerDown = (event: PointerEvent) => {
+      if (
+        menuAreaRef.current &&
+        !menuAreaRef.current.contains(event.target as Node)
+      ) {
+        setOpenMenu(null);
+      }
+    };
+
+    window.addEventListener('pointerdown', handlePointerDown);
+    return () => window.removeEventListener('pointerdown', handlePointerDown);
+  }, []);
+
+  const toggleMenu = (menu: 'notifications' | 'profile') => {
+    setOpenMenu((current) => (current === menu ? null : menu));
+  };
+
+  const navigateFromMenu = (href: string) => {
+    setOpenMenu(null);
+    router.push(href);
+  };
+
   return (
     <div style={styles.shell}>
       <style>{responsiveCss}</style>
@@ -149,8 +212,6 @@ export default function PartnerDashboardLayout({
 
           <nav style={styles.nav}>
             {navItems.map((item) => {
-             
-
               const active = isActive(item.href);
 
               return (
@@ -161,7 +222,7 @@ export default function PartnerDashboardLayout({
                     ...styles.navItem,
                     ...(active ? styles.navItemActive : {}),
                   }}
-                  title={item?.title || item.label}
+                  title={item.label}
                   onClick={() => router.push(item.href)}
                 >
                   <span
@@ -222,27 +283,129 @@ export default function PartnerDashboardLayout({
             </div>
           </div>
 
-          <div style={styles.topActions}>
-            <button type="button" style={styles.notificationButton}>
-              <BellIcon />
-              <span style={styles.notificationBadge}>3</span>
-            </button>
-
-            <button type="button" style={styles.avatarButton}>
-              {avatarUrl ? (
-                <img src={avatarUrl} alt={userName} style={styles.avatar} />
-              ) : (
-                <span style={styles.avatarFallback}>
-                  {userName.charAt(0).toUpperCase()}
+          <div ref={menuAreaRef} style={styles.topActions}>
+            <div style={styles.menuWrap}>
+              <button
+                type="button"
+                aria-expanded={openMenu === 'notifications'}
+                aria-haspopup="menu"
+                style={styles.notificationButton}
+                onClick={() => toggleMenu('notifications')}
+              >
+                <BellIcon />
+                <span style={styles.notificationBadge}>
+                  {notifications.length}
                 </span>
+              </button>
+
+              {openMenu === 'notifications' && (
+                <div style={styles.notificationMenu} role="menu">
+                  <div style={styles.dropdownHeader}>
+                    <strong style={styles.dropdownTitle}>Notifications</strong>
+                    <button
+                      type="button"
+                      style={styles.dropdownLink}
+                      onClick={() => navigateFromMenu('/partner/messages')}
+                    >
+                      View all
+                    </button>
+                  </div>
+
+                  <div style={styles.notificationList}>
+                    {notifications.map((notification) => (
+                      <button
+                        type="button"
+                        key={notification.id}
+                        role="menuitem"
+                        style={styles.notificationItem}
+                        onClick={() => navigateFromMenu('/partner/messages')}
+                      >
+                        <span style={styles.notificationDot} />
+
+                        <span style={styles.notificationCopy}>
+                          <strong style={styles.notificationTitle}>
+                            {notification.title}
+                          </strong>
+                          <span style={styles.notificationDescription}>
+                            {notification.description}
+                          </span>
+                          <span style={styles.notificationTime}>
+                            {notification.time}
+                          </span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
+            </div>
 
-              <span className="avatar-name" style={styles.avatarName}>
-                {userName}
-              </span>
+            <div style={styles.menuWrap}>
+              <button
+                type="button"
+                aria-expanded={openMenu === 'profile'}
+                aria-haspopup="menu"
+                style={styles.avatarButton}
+                onClick={() => toggleMenu('profile')}
+              >
+                {displayAvatar ? (
+                  <img
+                    src={displayAvatar}
+                    alt={displayName}
+                    style={styles.avatar}
+                  />
+                ) : (
+                  <span style={styles.avatarFallback}>{userInitial}</span>
+                )}
 
-              <ChevronDownIcon size={16} />
-            </button>
+                <span className="avatar-name" style={styles.avatarName}>
+                  {displayName}
+                </span>
+
+                <ChevronDownIcon size={16} />
+              </button>
+
+              {openMenu === 'profile' && (
+                <div style={styles.profileMenu} role="menu">
+                  <div style={styles.profileHeader}>
+                    <span style={styles.profileName}>{displayName}</span>
+                    {sessionUser?.email && (
+                      <span style={styles.profileEmail}>
+                        {sessionUser.email}
+                      </span>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    style={styles.profileMenuItem}
+                    onClick={() => navigateFromMenu('/partner/profile')}
+                  >
+                    Profile
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    style={styles.profileMenuItem}
+                    onClick={() => navigateFromMenu('/partner/approval')}
+                  >
+                    Approval status
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    style={styles.profileMenuItemDanger}
+                    onClick={() => {
+                      setOpenMenu(null);
+                      signOut({ callbackUrl: '/login' });
+                    }}
+                  >
+                    Sign out
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
@@ -467,6 +630,11 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 12,
   },
 
+  menuWrap: {
+    position: 'relative',
+    display: 'inline-flex',
+  },
+
   notificationButton: {
     position: 'relative',
     width: 44,
@@ -537,6 +705,164 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 13,
     fontWeight: 850,
     color: '#151126',
+    maxWidth: 132,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+
+  notificationMenu: {
+    position: 'absolute',
+    top: 'calc(100% + 10px)',
+    right: 0,
+    width: 340,
+    maxWidth: 'calc(100vw - 32px)',
+    borderRadius: 16,
+    border: '1px solid rgba(124, 58, 237, 0.13)',
+    background: '#ffffff',
+    boxShadow: '0 22px 60px rgba(17, 24, 39, 0.14)',
+    padding: 12,
+    zIndex: 60,
+  },
+
+  dropdownHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '4px 4px 10px',
+    borderBottom: '1px solid #f1f5f9',
+  },
+
+  dropdownTitle: {
+    fontSize: 14,
+    color: '#151126',
+  },
+
+  dropdownLink: {
+    border: 'none',
+    background: 'transparent',
+    color: '#7c3aed',
+    fontSize: 12,
+    fontWeight: 800,
+    cursor: 'pointer',
+  },
+
+  notificationList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+    paddingTop: 8,
+  },
+
+  notificationItem: {
+    width: '100%',
+    border: 'none',
+    borderRadius: 12,
+    background: 'transparent',
+    padding: 10,
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 10,
+    cursor: 'pointer',
+    textAlign: 'left',
+  },
+
+  notificationDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 999,
+    background: '#ff5a3d',
+    marginTop: 5,
+    flexShrink: 0,
+  },
+
+  notificationCopy: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 3,
+  },
+
+  notificationTitle: {
+    fontSize: 13,
+    color: '#151126',
+  },
+
+  notificationDescription: {
+    fontSize: 12,
+    color: '#64748b',
+    lineHeight: 1.4,
+  },
+
+  notificationTime: {
+    fontSize: 11,
+    color: '#94a3b8',
+    fontWeight: 700,
+  },
+
+  profileMenu: {
+    position: 'absolute',
+    top: 'calc(100% + 10px)',
+    right: 0,
+    width: 230,
+    borderRadius: 16,
+    border: '1px solid rgba(124, 58, 237, 0.13)',
+    background: '#ffffff',
+    boxShadow: '0 22px 60px rgba(17, 24, 39, 0.14)',
+    padding: 8,
+    zIndex: 60,
+  },
+
+  profileHeader: {
+    padding: '10px 10px 12px',
+    borderBottom: '1px solid #f1f5f9',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 3,
+  },
+
+  profileName: {
+    fontSize: 14,
+    fontWeight: 850,
+    color: '#151126',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+
+  profileEmail: {
+    fontSize: 12,
+    color: '#64748b',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+
+  profileMenuItem: {
+    width: '100%',
+    minHeight: 40,
+    border: 'none',
+    borderRadius: 10,
+    background: 'transparent',
+    color: '#334155',
+    fontSize: 13,
+    fontWeight: 750,
+    cursor: 'pointer',
+    textAlign: 'left',
+    padding: '0 10px',
+  },
+
+  profileMenuItemDanger: {
+    width: '100%',
+    minHeight: 40,
+    border: 'none',
+    borderRadius: 10,
+    background: 'transparent',
+    color: '#dc2626',
+    fontSize: 13,
+    fontWeight: 800,
+    cursor: 'pointer',
+    textAlign: 'left',
+    padding: '0 10px',
   },
 
   content: {

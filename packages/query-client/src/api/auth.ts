@@ -6,12 +6,16 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 interface SendOtpPayload {
   email?: string;
   phone?: string;
+  intent?: 'login' | 'signup';
+  full_name?: string;
 }
 
 interface VerifyOtpPayload {
   email?: string;
   phone?: string;
   otp: string;
+  intent?: 'login' | 'signup';
+  full_name?: string;
 }
 
 interface LogoutPayload {
@@ -31,8 +35,8 @@ async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
   if (!response.ok) {
     return {
       success: false,
-      error: data.message || 'An error occurred',
-      message: data.message,
+      error: data.error || data.message || 'An error occurred',
+      message: data.message || data.error,
     };
   }
 
@@ -90,7 +94,6 @@ export function useVerifyOtp() {
     mutationFn: (payload: VerifyOtpPayload) => verifyOtpApi(payload),
   });
 }
-
 
 async function logoutApi(payload: LogoutPayload): Promise<ApiResponse> {
   try {
