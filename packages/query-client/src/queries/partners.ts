@@ -1,13 +1,16 @@
-import { useQuery, useMutation, UseQueryOptions, UseMutationOptions, useQueryClient } from '@tanstack/react-query';
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  UseMutationOptions,
+  UseQueryOptions,
+} from '@tanstack/react-query';
 import { getSession } from 'next-auth/react';
 
-// API base
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '[localhost](http://localhost:8080)';
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
-// =====================
-// Auth ഹെൽപ്പർ
-// =====================
-async function getAuthHeaders(includeContentType: boolean = true): Promise<HeadersInit> {
+async function getAuthHeaders(includeContentType = true): Promise<HeadersInit> {
   const session = await getSession();
   const headers = new Headers();
 
@@ -15,140 +18,197 @@ async function getAuthHeaders(includeContentType: boolean = true): Promise<Heade
     headers.set('Content-Type', 'application/json');
   }
 
-  if (session?.user?.accessToken) {
-    headers.set('Authorization', `Bearer ${session.user.accessToken}`);
+  const accessToken = session?.user?.accessToken;
+
+  if (accessToken) {
+    headers.set('Authorization', `Bearer ${accessToken}`);
   }
 
   return headers;
 }
 
-// =====================
-// Types
-// =====================
+async function parseApiError(res: Response, fallback: string) {
+  try {
+    const data = await res.json();
+    return data?.message || data?.error || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+async function apiGet<T>(path: string): Promise<T> {
+  const headers = await getAuthHeaders(false);
+
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'GET',
+    headers,
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseApiError(res, 'Request failed'));
+  }
+
+  const json = await res.json();
+  return json?.data ?? json;
+}
+
+async function apiPost<T>(path: string, body?: unknown): Promise<T> {
+  const headers = await getAuthHeaders(true);
+
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseApiError(res, 'Action failed'));
+  }
+
+  const json = await res.json();
+  return json?.data ?? json;
+}
+
+async function apiPatch<T>(path: string, body: unknown): Promise<T> {
+  const headers = await getAuthHeaders(true);
+
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseApiError(res, 'Update failed'));
+  }
+
+  const json = await res.json();
+  return json?.data ?? json;
+}
+
+export type PartnerStatus =
+  | 'pending'
+  | 'under_review'
+  | 'approved'
+  | 'rejected'
+  | 'suspended'
+  | 'deactivated';
+
+export type VerificationStatus =
+  | 'missing'
+  | 'pending'
+  | 'uploaded'
+  | 'verified'
+  | 'rejected'
+  | 'invalid'
+  | 'not_applicable';
+
+export interface AdminPartnerRow {
+  id: string;
+  userId?: string;
+  name: string;
+  countryCode?: string;
+  businessName: string;
+  businessType: string;
+  city?: string;
+  email?: string;
+  phone?: string;
+  status: PartnerStatus;
+  submittedOn?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  documentsUploaded?: number;
+  documentsRequired?: number;
+  panStatus?: VerificationStatus;
+  gstStatus?: VerificationStatus;
+  fssaiStatus?: VerificationStatus;
+}
+
+export interface PartnerDocument {
+  id: string;
+  type: string;
+  status: VerificationStatus;
+  fileName?: string;
+  fileUrl?: string;
+  uploadedAt?: string;
+  rejectionReason?: string;
+}
+
+export interface AdminPartnerDetail extends AdminPartnerRow {
+  profile?: {
+    legalName?: string;
+    address?: string;
+    serviceAreas?: string[];
+    cuisines?: string[];
+    description?: string;
+  };
+  documents?: PartnerDocument[];
+}
+
 export interface Partner {
   id: string;
   name: string;
   email: string;
   phone?: string;
-  status: 'pending' | 'approved' | 'rejected' | 'suspended' | 'deactivated';
+  status: PartnerStatus;
   createdAt: string;
   updatedAt: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
-export interface PartnerListResponse {
-  data: Partner[];
-  success: boolean;
-  message?: string;
+export interface RejectPartnerPayload {
+  partnerId: string;
+  reason: string;
+  notifyPartner?: boolean;
 }
 
-// =====================
-// Query Keys
-// =====================
+export interface UpdatePartnerPayload {
+  partnerId: string;
+  payload: Partial<Partner>;
+}
+
 export const partnerQueryKeys = {
   all: ['partners'] as const,
   me: () => [...partnerQueryKeys.all, 'me'] as const,
-  detail: (partnerId: string) => [...partnerQueryKeys.all, 'detail', partnerId] as const,
+  detail: (partnerId: string) =>
+    [...partnerQueryKeys.all, 'detail', partnerId] as const,
   adminList: () => [...partnerQueryKeys.all, 'admin-list'] as const,
-  adminDetail: (partnerId: string) => [...partnerQueryKeys.all, 'admin-detail', partnerId] as const,
+  adminDetail: (partnerId: string) =>
+    [...partnerQueryKeys.all, 'admin-detail', partnerId] as const,
 };
 
-// =====================
-// API Calls
-// =====================
+const fetchMyPartner = () => apiGet<Partner>('/api/v1/partners/me');
 
-// Get my profile
-const fetchMyPartner = async (): Promise<Partner> => {
-  const headers = await getAuthHeaders(false);
+const fetchPartnerById = (partnerId: string) =>
+  apiGet<Partner>(`/api/v1/partners/${partnerId}`);
 
-  const res = await fetch(`${API_BASE_URL}/api/v1/partners/me`, {
-    method: 'GET',
-    headers,
+const updatePartner = ({ partnerId, payload }: UpdatePartnerPayload) =>
+  apiPatch(`/api/v1/partners/${partnerId}`, payload);
+
+const fetchAdminPartners = () =>
+  apiGet<AdminPartnerRow[]>('/api/v1/admin/partners');
+
+const fetchAdminPartnerById = (partnerId: string) =>
+  apiGet<AdminPartnerDetail>(`/api/v1/admin/partners/${partnerId}`);
+
+const approvePartner = (partnerId: string) =>
+  apiPost(`/api/v1/admin/partners/${partnerId}/approve`);
+
+const rejectPartner = ({
+  partnerId,
+  reason,
+  notifyPartner = true,
+}: RejectPartnerPayload) =>
+  apiPost(`/api/v1/admin/partners/${partnerId}/reject`, {
+    reason,
+    notifyPartner,
   });
 
-  if (!res.ok) throw new Error('Failed to fetch partner profile');
+const suspendPartner = (partnerId: string) =>
+  apiPost(`/api/v1/admin/partners/${partnerId}/suspend`);
 
-  const data = await res.json();
-  return data.data;
-};
-
-// Get partner by ID
-const fetchPartnerById = async (partnerId: string): Promise<Partner> => {
-  const headers = await getAuthHeaders(false);
-
-  const res = await fetch(`${API_BASE_URL}/api/v1/partners/${partnerId}`, {
-    method: 'GET',
-    headers,
-  });
-
-  if (!res.ok) throw new Error('Failed to fetch partner');
-
-  const data = await res.json();
-  return data.data;
-};
-
-// Update partner
-const updatePartner = async ({ partnerId, payload }: { partnerId: string; payload: Partial<Partner> }) => {
-  const headers = await getAuthHeaders();
-
-  const res = await fetch(`${API_BASE_URL}/api/v1/partners/${partnerId}`, {
-    method: 'PATCH',
-    headers,
-    body: JSON.stringify(payload),
-  });
-
-  if (!res.ok) throw new Error('Failed to update partner');
-
-  return res.json();
-};
-
-// Admin: list partners
-const fetchAdminPartners = async (): Promise<Partner[]> => {
-  const headers = await getAuthHeaders(false);
-
-  const res = await fetch(`${API_BASE_URL}/api/v1/admin/partners`, {
-    method: 'GET',
-    headers,
-  });
-
-  if (!res.ok) throw new Error('Failed to fetch partners');
-
-  const data = await res.json();
-  return data.data;
-};
-
-// Admin: get partner
-const fetchAdminPartnerById = async (partnerId: string): Promise<Partner> => {
-  const headers = await getAuthHeaders(false);
-
-  const res = await fetch(`${API_BASE_URL}/api/v1/admin/partners/${partnerId}`, {
-    method: 'GET',
-    headers,
-  });
-
-  if (!res.ok) throw new Error('Failed to fetch partner');
-
-  const data = await res.json();
-  return data.data;
-};
-
-// Admin actions (approve/reject/suspend/deactivate)
-const adminAction = async (url: string) => {
-  const headers = await getAuthHeaders(false);
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers,
-  });
-
-  if (!res.ok) throw new Error('Action failed');
-
-  return res.json();
-};
-
-// =====================
-// Query Hooks
-// =====================
+const deactivatePartner = (partnerId: string) =>
+  apiPost(`/api/v1/admin/partners/${partnerId}/deactivate`);
 
 export const useMyPartner = (options?: UseQueryOptions<Partner, Error>) =>
   useQuery({
@@ -158,97 +218,131 @@ export const useMyPartner = (options?: UseQueryOptions<Partner, Error>) =>
     ...options,
   });
 
-export const usePartner = (partnerId: string, options?: UseQueryOptions<Partner, Error>) =>
+export const usePartner = (
+  partnerId: string,
+  options?: UseQueryOptions<Partner, Error>
+) =>
   useQuery({
     queryKey: partnerQueryKeys.detail(partnerId),
     queryFn: () => fetchPartnerById(partnerId),
-    enabled: !!partnerId,
+    enabled: Boolean(partnerId),
     ...options,
   });
 
-export const useAdminPartners = (options?: UseQueryOptions<Partner[], Error>) =>
+export const useAdminPartners = (
+  options?: UseQueryOptions<AdminPartnerRow[], Error>
+) =>
   useQuery({
     queryKey: partnerQueryKeys.adminList(),
     queryFn: fetchAdminPartners,
+    staleTime: 30 * 1000,
     ...options,
   });
 
-export const useAdminPartner = (partnerId: string, options?: UseQueryOptions<Partner, Error>) =>
+export const useAdminPartner = (
+  partnerId?: string,
+  options?: UseQueryOptions<AdminPartnerDetail, Error>
+) =>
   useQuery({
-    queryKey: partnerQueryKeys.adminDetail(partnerId),
-    queryFn: () => fetchAdminPartnerById(partnerId),
-    enabled: !!partnerId,
+    queryKey: partnerQueryKeys.adminDetail(partnerId || ''),
+    queryFn: () => fetchAdminPartnerById(partnerId || ''),
+    enabled: Boolean(partnerId),
     ...options,
   });
-
-// =====================
-// Mutations
-// =====================
 
 export const useUpdatePartner = (
-  options?: UseMutationOptions<any, Error, { partnerId: string; payload: Partial<Partner> }>
+  options?: UseMutationOptions<unknown, Error, UpdatePartnerPayload>
 ) => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: updatePartner,
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: partnerQueryKeys.detail(variables.partnerId) });
-      queryClient.invalidateQueries({ queryKey: partnerQueryKeys.me() });
+      queryClient.invalidateQueries({
+        queryKey: partnerQueryKeys.detail(variables.partnerId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: partnerQueryKeys.me(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: partnerQueryKeys.adminList(),
+      });
     },
     ...options,
   });
 };
 
-// Admin Actions Hooks
-
-export const useApprovePartner = (options?: UseMutationOptions<any, Error, string>) => {
+export const useApprovePartner = (
+  options?: UseMutationOptions<unknown, Error, string>
+) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (partnerId: string) =>
-      adminAction(`${API_BASE_URL}/api/v1/admin/partners/${partnerId}/approve`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: partnerQueryKeys.adminList() });
+    mutationFn: approvePartner,
+    onSuccess: (_, partnerId) => {
+      queryClient.invalidateQueries({
+        queryKey: partnerQueryKeys.adminList(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: partnerQueryKeys.adminDetail(partnerId),
+      });
     },
     ...options,
   });
 };
 
-export const useRejectPartner = (options?: UseMutationOptions<any, Error, string>) => {
+export const useRejectPartner = (
+  options?: UseMutationOptions<unknown, Error, RejectPartnerPayload>
+) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (partnerId: string) =>
-      adminAction(`${API_BASE_URL}/api/v1/admin/partners/${partnerId}/reject`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: partnerQueryKeys.adminList() });
+    mutationFn: rejectPartner,
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: partnerQueryKeys.adminList(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: partnerQueryKeys.adminDetail(variables.partnerId),
+      });
     },
     ...options,
   });
 };
 
-export const useSuspendPartner = (options?: UseMutationOptions<any, Error, string>) => {
+export const useSuspendPartner = (
+  options?: UseMutationOptions<unknown, Error, string>
+) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (partnerId: string) =>
-      adminAction(`${API_BASE_URL}/api/v1/admin/partners/${partnerId}/suspend`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: partnerQueryKeys.adminList() });
+    mutationFn: suspendPartner,
+    onSuccess: (_, partnerId) => {
+      queryClient.invalidateQueries({
+        queryKey: partnerQueryKeys.adminList(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: partnerQueryKeys.adminDetail(partnerId),
+      });
     },
     ...options,
   });
 };
 
-export const useDeactivatePartner = (options?: UseMutationOptions<any, Error, string>) => {
+export const useDeactivatePartner = (
+  options?: UseMutationOptions<unknown, Error, string>
+) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (partnerId: string) =>
-      adminAction(`${API_BASE_URL}/api/v1/admin/partners/${partnerId}/deactivate`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: partnerQueryKeys.adminList() });
+    mutationFn: deactivatePartner,
+    onSuccess: (_, partnerId) => {
+      queryClient.invalidateQueries({
+        queryKey: partnerQueryKeys.adminList(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: partnerQueryKeys.adminDetail(partnerId),
+      });
     },
     ...options,
   });

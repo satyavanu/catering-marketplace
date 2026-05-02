@@ -17,7 +17,10 @@ export type BadgeStatus =
   | 'active'
   | 'scheduled'
   | 'paid'
+  | 'suspended'
+  | 'canceled'
   | 'unpaid'
+  | 'deactivated'
   | 'under_review'
   | 'completed';
 
@@ -102,6 +105,24 @@ const statusConfig: Record<
     color: '#dc2626',
     icon: <RejectIcon size={13} />,
   },
+  deactivated: {
+    label: 'Deactivated',
+    bg: '#fee2e2',
+    color: '#dc2626',
+    icon: <RejectIcon size={13} />,
+  },
+  suspended: {
+    label: 'Suspended',
+    bg: '#fee2e2',
+    color: '#dc2626',
+    icon: <RejectIcon size={13} />,
+  },
+  canceled: {
+    label: 'Canceled',
+    bg: '#fee2e2',
+    color: '#dc2626',
+    icon: <RejectIcon size={13} />,
+  },
 };
 
 export default function StatusBadge({
@@ -109,7 +130,7 @@ export default function StatusBadge({
   label,
   showIcon = true,
 }: StatusBadgeProps) {
-  const item = statusConfig[status];
+  const item: any = statusConfig[status];
 
   return (
     <span
@@ -119,15 +140,15 @@ export default function StatusBadge({
         gap: 5,
         padding: '5px 9px',
         borderRadius: 999,
-        background: item.bg,
-        color: item.color,
+        background: item?.bg || '#e5e7eb',
+        color: item?.color || '#374151',
         fontSize: 11,
         fontWeight: 500,
         whiteSpace: 'nowrap',
       }}
     >
-      {showIcon && item.icon}
-      {label || item.label}
+      {showIcon && item?.icon}
+      {label || item?.label}
     </span>
   );
 }

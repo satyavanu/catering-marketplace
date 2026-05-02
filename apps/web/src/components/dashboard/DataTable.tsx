@@ -14,6 +14,7 @@ export type DataTableAction<T> = {
   label: string;
   icon?: React.ReactNode;
   variant?: 'primary' | 'secondary' | 'danger';
+  disabled?: boolean | ((row: T) => boolean);
   onClick: (row: T) => void;
 };
 
@@ -81,47 +82,63 @@ export default function DataTable<T>({
                 </td>
               </tr>
             ) : (
-              data.map((row) => (
-                <tr key={getRowKey(row)} style={styles.tr}>
-                  {columns.map((column) => (
-                    <td
-                      key={column.key}
-                      style={{
-                        ...styles.td,
-                        textAlign: column.align || 'left',
-                      }}
-                    >
-                      {column.render ? column.render(row) : null}
-                    </td>
-                  ))}
+              data.map((row, rowIndex) => {
+                const rowKey = String(getRowKey(row) || `row-${rowIndex}`);
 
-                  {actions.length > 0 && (
-                    <td style={{ ...styles.td, textAlign: 'right' }}>
-                      <div style={styles.actions}>
-                        {actions.map((action) => (
-                          <button
-                            key={action.label}
-                            type="button"
-                            onClick={() => action.onClick(row)}
-                            style={{
-                              ...styles.actionButton,
-                              ...(action.variant === 'primary'
-                                ? styles.primaryAction
-                                : {}),
-                              ...(action.variant === 'danger'
-                                ? styles.dangerAction
-                                : {}),
-                            }}
-                          >
-                            {action.icon}
-                            {action.label}
-                          </button>
-                        ))}
-                      </div>
-                    </td>
-                  )}
-                </tr>
-              ))
+                return (
+                  <tr key={rowKey} style={styles.tr}>
+                    {columns.map((column, columnIndex) => (
+                      <td
+                        key={`${rowKey}-${column.key}-${columnIndex}`}
+                        style={{
+                          ...styles.td,
+                          textAlign: column.align || 'left',
+                        }}
+                      >
+                        {column.render ? column.render(row) : null}
+                      </td>
+                    ))}
+
+                    {actions.length > 0 && (
+                      <td style={{ ...styles.td, textAlign: 'right' }}>
+                        <div style={styles.actions}>
+                          {actions.map((action, actionIndex) => {
+                            const isDisabled =
+                              typeof action.disabled === 'function'
+                                ? action.disabled(row)
+                                : Boolean(action.disabled);
+
+                            return (
+                              <button
+                                key={`${rowKey}-action-${actionIndex}-${action.label || 'icon'}`}
+                                type="button"
+                                disabled={isDisabled}
+                                onClick={() => {
+                                  if (isDisabled) return;
+                                  action.onClick(row);
+                                }}
+                                style={{
+                                  ...styles.actionButton,
+                                  ...(action.variant === 'primary'
+                                    ? styles.primaryAction
+                                    : {}),
+                                  ...(action.variant === 'danger'
+                                    ? styles.dangerAction
+                                    : {}),
+                                  ...(isDisabled ? styles.disabledAction : {}),
+                                }}
+                              >
+                                {action.icon}
+                                {action.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -228,5 +245,11 @@ const styles: Record<string, React.CSSProperties> = {
     background: '#fff1f2',
     color: '#dc2626',
     border: '1px solid #fecdd3',
+  },
+
+  disabledAction: {
+    opacity: 0.45,
+    cursor: 'not-allowed',
+    pointerEvents: 'none',
   },
 };

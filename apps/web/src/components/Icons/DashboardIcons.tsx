@@ -199,3 +199,76 @@ export const ChevronIcon = ({ open }: { open: boolean }) => (
     />
   </svg>
 );
+
+
+export const  PartnersIcons = () => (
+  <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="[w3.org](http://www.w3.org/2000/svg)">
+
+  <circle cx="40" cy="40" r="12" stroke="#10B981" stroke-width="3"/>
+  <path d="M20 80C20 65 60 65 60 80" stroke="#10B981" stroke-width="3" stroke-linecap="round"/>
+
+  <circle cx="80" cy="40" r="12" stroke="#10B981" stroke-width="3"/>
+  <path d="M60 80C60 65 100 65 100 80" stroke="#10B981" stroke-width="3" stroke-linecap="round"/>
+  <path d="M52 40H68" stroke="#10B981" stroke-width="3" stroke-linecap="round"/>
+</svg>
+)
+
+
+
+
+
+
+const gradientId = "drooly-gradient";
+
+const GradientDef = () => (
+  <defs>
+    <linearGradient id={gradientId} x1="0" y1="0" x2="120" y2="120">
+      <stop offset="0%" stopColor="rgb(168, 85, 247)" />
+      <stop offset="100%" stopColor="rgb(124, 58, 237)" />
+    </linearGradient>
+  </defs>
+);
+
+
+
+export const ApprovedIcon: React.FC<IconProps> = ({ size = 64, className }: any) => (
+  <svg width={size} height={size} viewBox="0 0 120 120" fill="none" className={className}>
+    <GradientDef />
+    <circle cx="60" cy="60" r="42" stroke={`url(#${gradientId})`} strokeWidth="3.5" />
+    <path
+      d="M42 62L55 75L78 48"
+      stroke={`url(#${gradientId})`}
+      strokeWidth="3.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+
+
+export const RejectedIcon: React.FC<IconProps> = ({ size = 64, className }: any) => (
+  <svg width={size} height={size} viewBox="0 0 120 120" fill="none" className={className}>
+    <GradientDef />
+    <circle cx="60" cy="60" r="42" stroke={`url(#${gradientId})`} strokeWidth="3.5" />
+    <path
+      d="M46 46L74 74M74 46L46 74"
+      stroke={`url(#${gradientId})`}
+      strokeWidth="3.5"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
+export const UnderReviewIcon: React.FC<IconProps> = ({ size = 64, className }: any) => (
+  <svg width={size} height={size} viewBox="0 0 120 120" fill="none" className={className}>
+    <GradientDef />
+    <circle cx="52" cy="52" r="26" stroke={`url(#${gradientId})`} strokeWidth="3.5" />
+    <path
+      d="M70 70L88 88"
+      stroke={`url(#${gradientId})`}
+      strokeWidth="3.5"
+      strokeLinecap="round"
+    />
+  </svg>
+);
