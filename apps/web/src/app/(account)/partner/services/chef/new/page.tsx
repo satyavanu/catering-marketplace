@@ -1,18 +1,26 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   ServicesIcon,
   CalendarIcon,
-  EarningsIcon,
   ApprovalIcon,
-  EditIcon,
   RejectIcon,
 } from '@/components/Icons/DashboardIcons';
 import StatusBadge from '@/components/dashboard/StatusBadge';
+import {
+  type City,
+  type PartnerServicePayload,
+  type ServiceArea,
+  useCreatePartnerService,
+  useSubmitPartnerService,
+} from '@catering-marketplace/query-client';
+import { useOnboardingMasterDataContext } from '@/app/context/OnboardingMasterDataContext';
+import { useServiceCatalogMetaContext } from '@/app/context/ServiceCatalogMetaContext';
 
 type FoodType = 'veg' | 'non_veg' | 'both';
-type ServiceType = 'customer_home' | 'my_kitchen' | 'both';
+type ServiceLocation = 'customer_home' | 'my_kitchen' | 'both';
 
 type ChefProfile = {
   name: string;
@@ -25,15 +33,19 @@ type ChefProfile = {
 type ChefServiceForm = {
   title: string;
   description: string;
+  experienceTypeKey: string;
   cuisines: string[];
+  dietTypes: string[];
+  serviceStyles: string[];
   foodType: FoodType;
-  serviceType: ServiceType;
+  serviceType: ServiceLocation;
   days: string[];
   slots: string[];
   pricePerMeal: string;
   sessionPrice: string;
   weeklyPrice: string;
   monthlyPrice: string;
+  cityId: string;
   city: string;
   areas: string[];
   radiusKm: number;
@@ -52,7 +64,10 @@ const DEFAULT_FORM: ChefServiceForm = {
   title: 'Home Chef for Daily Meals',
   description:
     'Fresh, hygienic home-style meals prepared with care for families, professionals, and elderly customers.',
-  cuisines: ['North Indian', 'South Indian'],
+  experienceTypeKey: 'private_dining',
+  cuisines: ['north_indian', 'south_indian'],
+  dietTypes: ['vegetarian'],
+  serviceStyles: ['on_site_cooking'],
   foodType: 'veg',
   serviceType: 'customer_home',
   days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
@@ -61,6 +76,7 @@ const DEFAULT_FORM: ChefServiceForm = {
   sessionPrice: '1200',
   weeklyPrice: '5500',
   monthlyPrice: '18000',
+  cityId: '',
   city: 'Hyderabad',
   areas: ['Jubilee Hills', 'Madhapur', 'Kondapur'],
   radiusKm: 12,
@@ -71,27 +87,114 @@ const DEFAULT_FORM: ChefServiceForm = {
   ],
 };
 
-const cuisineOptions = [
-  'North Indian',
-  'South Indian',
-  'Jain',
-  'Gujarati',
-  'Punjabi',
-  'Bengali',
-  'Telugu',
-  'Healthy',
-];
-
 const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const slots = ['Breakfast', 'Lunch', 'Dinner', 'Evening Snacks'];
-const areas = [
-  'Jubilee Hills',
-  'Banjara Hills',
-  'Madhapur',
-  'Hitech City',
-  'Kondapur',
-  'Gachibowli',
+
+const fallbackCuisineOptions = [
+  { key: 'north_indian', label: 'North Indian' },
+  { key: 'south_indian', label: 'South Indian' },
+  { key: 'jain_food', label: 'Jain Food' },
+  { key: 'hyderabadi', label: 'Hyderabadi' },
 ];
+
+const fallbackDietTypeOptions = [
+  { key: 'vegetarian', label: 'Vegetarian' },
+  { key: 'non_vegetarian', label: 'Non-Vegetarian' },
+  { key: 'vegan', label: 'Vegan' },
+  { key: 'jain', label: 'Jain Food' },
+];
+
+const fallbackServiceStyleOptions = [
+  { key: 'on_site_cooking', label: 'On-site Cooking' },
+  { key: 'delivery_only', label: 'Delivery Only' },
+  { key: 'pickup', label: 'Pickup Available' },
+];
+
+function getAllCities(locations?: {
+  countries: { states: { cities: City[] }[] }[];
+}) {
+  return (
+    locations?.countries.flatMap((country) =>
+      country.states.flatMap((state) => state.cities)
+    ) || []
+  );
+}
+
+function parseMoney(value: string): number | null {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function buildCreateChefPayload(
+  form: ChefServiceForm,
+  serviceAreaOptions: ServiceArea[]
+): PartnerServicePayload {
+  const basePrice = parseMoney(form.pricePerMeal);
+  const sessionPrice = parseMoney(form.sessionPrice);
+  const weeklyPrice = parseMoney(form.weeklyPrice);
+  const monthlyPrice = parseMoney(form.monthlyPrice);
+  const selectedServiceAreas = form.areas.map((areaName) => {
+    const matchedArea = serviceAreaOptions.find(
+      (area) => area.name === areaName
+    );
+
+    return {
+      city_id: form.cityId || null,
+      city: form.city,
+      service_area_id: matchedArea?.id || null,
+      area: areaName,
+      postal_code: matchedArea?.postalCode || null,
+      latitude: matchedArea?.latitude || null,
+      longitude: matchedArea?.longitude || null,
+      radius_km: matchedArea?.radiusKm || form.radiusKm,
+    };
+  });
+
+  return {
+    service_key: 'chef',
+    experience_type_key: form.experienceTypeKey,
+    title: form.title.trim(),
+    short_description: form.description.trim(),
+    description: form.description.trim(),
+    booking_type: 'instant',
+    pricing_model: 'per_person',
+    base_price: basePrice,
+    currency_code: 'INR',
+    min_guests: 1,
+    max_guests: null,
+    advance_notice_hours: 24,
+    service_areas: selectedServiceAreas,
+    media: form.images.map((url, index) => ({
+      url,
+      type: index === 0 ? 'cover' : 'gallery',
+      sort_order: index,
+    })),
+    attributes: {
+      cuisines: form.cuisines,
+      diet_types: form.dietTypes,
+      service_styles: form.serviceStyles,
+      food_type: form.foodType,
+      service_location: form.serviceType,
+      availability: {
+        days: form.days,
+        slots: form.slots,
+      },
+      pricing: {
+        price_per_meal: basePrice,
+        session_price: sessionPrice,
+        weekly_price: weeklyPrice,
+        monthly_price: monthlyPrice,
+      },
+      city: form.city,
+      city_id: form.cityId || null,
+      service_radius_km: form.radiusKm,
+      includes: ['cooking'],
+      menu_style: 'customizable',
+      occasion_tags: [],
+    },
+    is_active: true,
+  };
+}
 
 export default function CreateChefServicePage({
   profile = DEFAULT_PROFILE,
@@ -100,16 +203,72 @@ export default function CreateChefServicePage({
 }: {
   profile?: ChefProfile;
   onBack?: () => void;
-  onSubmit?: (payload: ChefServiceForm) => void;
+  onSubmit?: (payload: PartnerServicePayload) => void;
 }) {
+  const router = useRouter();
+  const { masterData, locations } = useOnboardingMasterDataContext();
+  const { getExperienceTypesForService } = useServiceCatalogMetaContext();
   const [form, setForm] = useState<ChefServiceForm>(DEFAULT_FORM);
   const [areaInput, setAreaInput] = useState('');
+  const [submitError, setSubmitError] = useState('');
+
+  const createServiceMutation = useCreatePartnerService();
+  const submitServiceMutation = useSubmitPartnerService();
+  const isSubmitting =
+    createServiceMutation.isPending || submitServiceMutation.isPending;
+  const chefExperienceTypes = useMemo(
+    () => getExperienceTypesForService('chef').filter((item) => item.is_active),
+    [getExperienceTypesForService]
+  );
+  const cuisineOptions = masterData?.cuisines || fallbackCuisineOptions;
+  const dietTypeOptions = masterData?.diet_types || fallbackDietTypeOptions;
+  const serviceStyleOptions =
+    masterData?.service_styles || fallbackServiceStyleOptions;
+  const cityOptions = useMemo(() => getAllCities(locations), [locations]);
+  const selectedCity = useMemo(
+    () =>
+      cityOptions.find((city) => city.id === form.cityId) ||
+      cityOptions.find((city) => city.name === form.city),
+    [cityOptions, form.city, form.cityId]
+  );
+  const serviceAreaOptions = selectedCity?.serviceAreas || [];
+
+  useEffect(() => {
+    const firstExperience = chefExperienceTypes[0];
+    if (!firstExperience) return;
+
+    const hasSelectedExperience = chefExperienceTypes.some(
+      (item) => item.key === form.experienceTypeKey
+    );
+
+    if (!hasSelectedExperience) {
+      setForm((prev) => ({
+        ...prev,
+        experienceTypeKey: firstExperience.key,
+      }));
+    }
+  }, [chefExperienceTypes, form.experienceTypeKey]);
+
+  useEffect(() => {
+    if (form.cityId || cityOptions.length === 0) return;
+
+    const defaultCity =
+      cityOptions.find((city) => city.name === form.city) || cityOptions[0];
+
+    setForm((prev) => ({
+      ...prev,
+      cityId: defaultCity.id,
+      city: defaultCity.name,
+    }));
+  }, [cityOptions, form.city, form.cityId]);
 
   const isValid = useMemo(() => {
     return (
       form.title.trim() &&
       form.description.trim() &&
+      form.experienceTypeKey &&
       form.cuisines.length > 0 &&
+      form.dietTypes.length > 0 &&
       form.days.length > 0 &&
       form.slots.length > 0 &&
       form.pricePerMeal.trim() &&
@@ -158,6 +317,26 @@ export default function CreateChefServicePage({
     update('images', [...form.images, samples[form.images.length % 3]]);
   };
 
+  const handleSubmit = async () => {
+    if (!isValid || isSubmitting) return;
+
+    const payload = buildCreateChefPayload(form, serviceAreaOptions);
+    setSubmitError('');
+
+    try {
+      onSubmit?.(payload);
+      const createdService = await createServiceMutation.mutateAsync(payload);
+      await submitServiceMutation.mutateAsync(createdService.id);
+      router.push('/partner/services');
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to create chef service. Please try again.'
+      );
+    }
+  };
+
   return (
     <div style={styles.page}>
       <div style={styles.topRow}>
@@ -201,16 +380,28 @@ export default function CreateChefServicePage({
 
               <Field label="City" required>
                 <select
-                  value={form.city}
-                  onChange={(e) => update('city', e.target.value)}
+                  value={form.cityId}
+                  onChange={(e) => {
+                    const nextCity = cityOptions.find(
+                      (city) => city.id === e.target.value
+                    );
+                    setForm((prev) => ({
+                      ...prev,
+                      cityId: nextCity?.id || '',
+                      city: nextCity?.name || prev.city,
+                      areas: [],
+                    }));
+                  }}
                   style={styles.input}
                 >
-                  <option>Hyderabad</option>
-                  <option>Bengaluru</option>
-                  <option>Mumbai</option>
-                  <option>Delhi</option>
-                  <option>Chennai</option>
-                  <option>Pune</option>
+                  {cityOptions.length === 0 && (
+                    <option value={form.cityId}>{form.city}</option>
+                  )}
+                  {cityOptions.map((city) => (
+                    <option key={city.id} value={city.id}>
+                      {city.name}
+                    </option>
+                  ))}
                 </select>
               </Field>
             </div>
@@ -232,10 +423,10 @@ export default function CreateChefServicePage({
               <ChipGrid>
                 {cuisineOptions.map((item) => (
                   <Chip
-                    key={item}
-                    label={item}
-                    selected={form.cuisines.includes(item)}
-                    onClick={() => toggleArray('cuisines', item)}
+                    key={item.key}
+                    label={item.label}
+                    selected={form.cuisines.includes(item.key)}
+                    onClick={() => toggleArray('cuisines', item.key)}
                   />
                 ))}
               </ChipGrid>
@@ -246,6 +437,23 @@ export default function CreateChefServicePage({
             title="Service configuration"
             subtitle="Choose food preference and where you provide the service."
           >
+            <Field label="Experience type" required>
+              <select
+                value={form.experienceTypeKey}
+                onChange={(e) => update('experienceTypeKey', e.target.value)}
+                style={styles.input}
+              >
+                {chefExperienceTypes.length === 0 && (
+                  <option value="private_dining">Private Dining</option>
+                )}
+                {chefExperienceTypes.map((experienceType) => (
+                  <option key={experienceType.key} value={experienceType.key}>
+                    {experienceType.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
             <div style={styles.block}>
               <Label required>Food preference</Label>
               <ChipGrid>
@@ -264,6 +472,34 @@ export default function CreateChefServicePage({
                   selected={form.foodType === 'both'}
                   onClick={() => update('foodType', 'both')}
                 />
+              </ChipGrid>
+            </div>
+
+            <div style={styles.block}>
+              <Label required>Diet tags</Label>
+              <ChipGrid>
+                {dietTypeOptions.map((item) => (
+                  <Chip
+                    key={item.key}
+                    label={item.label}
+                    selected={form.dietTypes.includes(item.key)}
+                    onClick={() => toggleArray('dietTypes', item.key)}
+                  />
+                ))}
+              </ChipGrid>
+            </div>
+
+            <div style={styles.block}>
+              <Label>Service styles</Label>
+              <ChipGrid>
+                {serviceStyleOptions.map((item) => (
+                  <Chip
+                    key={item.key}
+                    label={item.label}
+                    selected={form.serviceStyles.includes(item.key)}
+                    onClick={() => toggleArray('serviceStyles', item.key)}
+                  />
+                ))}
               </ChipGrid>
             </div>
 
@@ -377,16 +613,28 @@ export default function CreateChefServicePage({
             <div style={styles.grid2}>
               <Field label="City" required>
                 <select
-                  value={form.city}
-                  onChange={(e) => update('city', e.target.value)}
+                  value={form.cityId}
+                  onChange={(e) => {
+                    const nextCity = cityOptions.find(
+                      (city) => city.id === e.target.value
+                    );
+                    setForm((prev) => ({
+                      ...prev,
+                      cityId: nextCity?.id || '',
+                      city: nextCity?.name || prev.city,
+                      areas: [],
+                    }));
+                  }}
                   style={styles.input}
                 >
-                  <option>Hyderabad</option>
-                  <option>Bengaluru</option>
-                  <option>Mumbai</option>
-                  <option>Delhi</option>
-                  <option>Chennai</option>
-                  <option>Pune</option>
+                  {cityOptions.length === 0 && (
+                    <option value={form.cityId}>{form.city}</option>
+                  )}
+                  {cityOptions.map((city) => (
+                    <option key={city.id} value={city.id}>
+                      {city.name}
+                    </option>
+                  ))}
                 </select>
               </Field>
 
@@ -421,7 +669,12 @@ export default function CreateChefServicePage({
               <Label required>Selected service areas</Label>
 
               <ChipGrid>
-                {[...new Set([...areas, ...form.areas])].map((area) => (
+                {[
+                  ...new Set([
+                    ...serviceAreaOptions.map((area) => area.name),
+                    ...form.areas,
+                  ]),
+                ].map((area) => (
                   <Chip
                     key={area}
                     label={area}
@@ -455,20 +708,31 @@ export default function CreateChefServicePage({
 
             <button
               type="button"
-              disabled={!isValid}
-              onClick={() => onSubmit?.(form)}
+              disabled={!isValid || isSubmitting}
+              onClick={handleSubmit}
               style={{
                 ...styles.primaryBtn,
-                ...(!isValid ? styles.disabledBtn : {}),
+                ...(!isValid || isSubmitting ? styles.disabledBtn : {}),
               }}
             >
-              Submit for Review →
+              {isSubmitting ? 'Submitting...' : 'Submit for Review →'}
             </button>
           </div>
+
+          {submitError && <p style={styles.errorText}>{submitError}</p>}
         </main>
 
         <aside style={styles.right}>
-          <ChefServicePreview profile={profile} form={form} />
+          <ChefServicePreview
+            profile={profile}
+            form={form}
+            cuisineOptions={cuisineOptions}
+            experienceLabel={
+              chefExperienceTypes.find(
+                (item) => item.key === form.experienceTypeKey
+              )?.label || 'Private Dining'
+            }
+          />
         </aside>
       </div>
     </div>
@@ -478,10 +742,18 @@ export default function CreateChefServicePage({
 function ChefServicePreview({
   profile,
   form,
+  cuisineOptions,
+  experienceLabel,
 }: {
   profile: ChefProfile;
   form: ChefServiceForm;
+  cuisineOptions: { key: string; label: string }[];
+  experienceLabel: string;
 }) {
+  const cuisineLabelByKey = new Map(
+    cuisineOptions.map((item) => [item.key, item.label])
+  );
+
   return (
     <div style={styles.preview}>
       <div style={styles.previewHeader}>
@@ -518,12 +790,13 @@ function ChefServicePreview({
         <div style={styles.previewTags}>
           {form.cuisines.slice(0, 4).map((item) => (
             <span key={item} style={styles.previewTag}>
-              {item}
+              {cuisineLabelByKey.get(item) || item}
             </span>
           ))}
         </div>
 
         <div style={styles.previewInfo}>
+          <PreviewRow label="Experience" value={experienceLabel} />
           <PreviewRow label="Food type" value={formatFoodType(form.foodType)} />
           <PreviewRow
             label="Service"
@@ -535,9 +808,9 @@ function ChefServicePreview({
           />
           <PreviewRow label="Pricing" value={`₹${form.pricePerMeal} / meal`} />
           <PreviewRow
-  label="Area"
-  value={`${form.areas.length} selected · ${form.city}`}
-/>
+            label="Area"
+            value={`${form.areas.length} selected · ${form.city}`}
+          />
         </div>
 
         <div style={styles.previewNote}>
@@ -1122,6 +1395,14 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: 'none',
   },
 
+  errorText: {
+    margin: 0,
+    color: '#dc2626',
+    fontSize: 13,
+    fontWeight: 600,
+    textAlign: 'right',
+  },
+
   preview: {
     background: '#ffffff',
     border: '1px solid #eee9f7',
@@ -1296,7 +1577,7 @@ const styles: Record<string, React.CSSProperties> = {
     gridTemplateColumns: '1fr auto',
     gap: 8,
   },
-  
+
   inlineAddButton: {
     height: 42,
     border: 'none',

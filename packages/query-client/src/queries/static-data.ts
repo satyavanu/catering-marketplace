@@ -1,5 +1,6 @@
 import { useQuery, UseQueryOptions } from '@tanstack/react-query';
 import { apiClient } from '../config/axios';
+import type { ExperienceType, ServiceType } from './service-catalog';
 
 // API Configuration
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
@@ -45,7 +46,6 @@ export interface CapacityRange extends MasterDataItem {
   min_guests: number;
   max_guests: number | null;
 }
-
 
 // Location-related Types
 export interface ServiceArea {
@@ -110,40 +110,71 @@ export interface OnboardingMasterDataResponse {
   message?: string;
 }
 
+export interface ServiceCatalogStaticData {
+  service_types: ServiceType[];
+  experience_types: ExperienceType[];
+}
+
+export interface ServiceCatalogStaticDataResponse {
+  data: ServiceCatalogStaticData;
+  success?: boolean;
+  message?: string;
+}
+
 // Query keys
 export const staticDataQueryKeys = {
   all: ['static-data'] as const,
-  onboardingMasterData: () => [...staticDataQueryKeys.all, 'onboarding-master-data'] as const,
+  onboardingMasterData: () =>
+    [...staticDataQueryKeys.all, 'onboarding-master-data'] as const,
   businessTypes: () => [...staticDataQueryKeys.all, 'business-types'] as const,
   eventTypes: () => [...staticDataQueryKeys.all, 'event-types'] as const,
   cuisines: () => [...staticDataQueryKeys.all, 'cuisines'] as const,
   dietTypes: () => [...staticDataQueryKeys.all, 'diet-types'] as const,
   serviceStyles: () => [...staticDataQueryKeys.all, 'service-styles'] as const,
-  capacityRanges: () => [...staticDataQueryKeys.all, 'capacity-ranges'] as const,
-  onboardingLocations: () => [...staticDataQueryKeys.all, 'onboarding-locations'] as const,
+  capacityRanges: () =>
+    [...staticDataQueryKeys.all, 'capacity-ranges'] as const,
+  serviceCatalog: () =>
+    [...staticDataQueryKeys.all, 'service-catalog'] as const,
+  serviceCatalogServiceTypes: () =>
+    [...staticDataQueryKeys.serviceCatalog(), 'service-types'] as const,
+  serviceCatalogExperienceTypes: (serviceKey?: string) =>
+    serviceKey
+      ? ([
+          ...staticDataQueryKeys.serviceCatalog(),
+          'experience-types',
+          serviceKey,
+        ] as const)
+      : ([
+          ...staticDataQueryKeys.serviceCatalog(),
+          'experience-types',
+        ] as const),
+  onboardingLocations: () =>
+    [...staticDataQueryKeys.all, 'onboarding-locations'] as const,
   countries: () => [...staticDataQueryKeys.all, 'countries'] as const,
   states: (countryCode?: string) =>
     countryCode
-      ? [...staticDataQueryKeys.all, 'states', countryCode] as const
-      : [...staticDataQueryKeys.all, 'states'] as const,
+      ? ([...staticDataQueryKeys.all, 'states', countryCode] as const)
+      : ([...staticDataQueryKeys.all, 'states'] as const),
   cities: (countryCode?: string, stateCode?: string) =>
     countryCode && stateCode
-      ? [...staticDataQueryKeys.all, 'cities', countryCode, stateCode] as const
-      : [...staticDataQueryKeys.all, 'cities'] as const,
+      ? ([
+          ...staticDataQueryKeys.all,
+          'cities',
+          countryCode,
+          stateCode,
+        ] as const)
+      : ([...staticDataQueryKeys.all, 'cities'] as const),
   serviceAreas: (cityId?: string) =>
     cityId
-      ? [...staticDataQueryKeys.all, 'service-areas', cityId] as const
-      : [...staticDataQueryKeys.all, 'service-areas'] as const,
+      ? ([...staticDataQueryKeys.all, 'service-areas', cityId] as const)
+      : ([...staticDataQueryKeys.all, 'service-areas'] as const),
 };
 
 // API Functions
 const fetchOnboardingMasterData = async (): Promise<OnboardingMasterData> => {
   const response = await apiClient.get<OnboardingMasterDataResponse>(
-    `${API_BASE_URL}/api/master-data/onboarding`,
+    `${API_BASE_URL}/api/master-data/onboarding`
   );
-
-
-
 
   if (!response.data?.data) {
     throw new Error('Invalid response format from onboarding master data API');
@@ -151,6 +182,21 @@ const fetchOnboardingMasterData = async (): Promise<OnboardingMasterData> => {
 
   return response.data.data;
 };
+
+export const fetchServiceCatalogStaticData =
+  async (): Promise<ServiceCatalogStaticData> => {
+    const response = await apiClient.get<ServiceCatalogStaticDataResponse>(
+      `${API_BASE_URL}/api/static?meta=service_catalog`
+    );
+
+    if (!response.data?.data) {
+      throw new Error(
+        'Invalid response format from service catalog static data API'
+      );
+    }
+
+    return response.data.data;
+  };
 
 // Query Hooks
 /**
@@ -166,6 +212,56 @@ export const useOnboardingMasterData = (
     queryFn: fetchOnboardingMasterData,
     staleTime: 60 * 60 * 1000, // 1 hour
     gcTime: 24 * 60 * 60 * 1000, // 24 hours
+    retry: 1,
+    ...options,
+  });
+};
+
+export const useServiceCatalogStaticData = (
+  options?: UseQueryOptions<ServiceCatalogStaticData, Error>
+) => {
+  return useQuery<ServiceCatalogStaticData, Error>({
+    queryKey: staticDataQueryKeys.serviceCatalog(),
+    queryFn: fetchServiceCatalogStaticData,
+    staleTime: 60 * 60 * 1000,
+    gcTime: 24 * 60 * 60 * 1000,
+    retry: 1,
+    ...options,
+  });
+};
+
+export const useStaticServiceTypes = (
+  options?: UseQueryOptions<ServiceType[], Error>
+) => {
+  return useQuery<ServiceType[], Error>({
+    queryKey: staticDataQueryKeys.serviceCatalogServiceTypes(),
+    queryFn: async () => {
+      const data = await fetchServiceCatalogStaticData();
+      return data.service_types;
+    },
+    staleTime: 60 * 60 * 1000,
+    gcTime: 24 * 60 * 60 * 1000,
+    retry: 1,
+    ...options,
+  });
+};
+
+export const useStaticExperienceTypes = (
+  serviceKey?: string,
+  options?: UseQueryOptions<ExperienceType[], Error>
+) => {
+  return useQuery<ExperienceType[], Error>({
+    queryKey: staticDataQueryKeys.serviceCatalogExperienceTypes(serviceKey),
+    queryFn: async () => {
+      const data = await fetchServiceCatalogStaticData();
+      return serviceKey
+        ? data.experience_types.filter(
+            (item) => item.service_key === serviceKey
+          )
+        : data.experience_types;
+    },
+    staleTime: 60 * 60 * 1000,
+    gcTime: 24 * 60 * 60 * 1000,
     retry: 1,
     ...options,
   });
@@ -218,9 +314,7 @@ export const useEventTypes = (
  * @param options - Additional query options
  * @returns Query result with cuisines array
  */
-export const useCuisines = (
-  options?: UseQueryOptions<Cuisine[], Error>
-) => {
+export const useCuisines = (options?: UseQueryOptions<Cuisine[], Error>) => {
   return useQuery<Cuisine[], Error>({
     queryKey: staticDataQueryKeys.cuisines(),
     queryFn: async () => {
@@ -239,9 +333,7 @@ export const useCuisines = (
  * @param options - Additional query options
  * @returns Query result with diet types array
  */
-export const useDietTypes = (
-  options?: UseQueryOptions<DietType[], Error>
-) => {
+export const useDietTypes = (options?: UseQueryOptions<DietType[], Error>) => {
   return useQuery<DietType[], Error>({
     queryKey: staticDataQueryKeys.dietTypes(),
     queryFn: async () => {
@@ -297,15 +389,13 @@ export const useCapacityRanges = (
   });
 };
 
-
-
 /**
  * Fetch onboarding locations with countries, states, cities, and service areas
  * @returns Promise with onboarding locations data
  */
 const fetchOnboardingLocations = async (): Promise<OnboardingLocations> => {
   const response = await apiClient.get<OnboardingLocationsResponse>(
-    `${API_BASE_URL}/api/static?meta=onboarding_locations`,
+    `${API_BASE_URL}/api/static?meta=onboarding_locations`
   );
 
   if (!response.data?.data) {
@@ -314,8 +404,6 @@ const fetchOnboardingLocations = async (): Promise<OnboardingLocations> => {
 
   return response.data.data;
 };
-
-
 
 // Query Hooks - Locations
 /**
@@ -336,15 +424,12 @@ export const useOnboardingLocations = (
   });
 };
 
-
 /**
  * Hook to fetch all countries
  * @param options - Additional query options
  * @returns Query result with countries array
  */
-export const useCountries = (
-  options?: UseQueryOptions<Country[], Error>
-) => {
+export const useCountries = (options?: UseQueryOptions<Country[], Error>) => {
   return useQuery<Country[], Error>({
     queryKey: staticDataQueryKeys.countries(),
     queryFn: async () => {
@@ -357,7 +442,6 @@ export const useCountries = (
     ...options,
   });
 };
-
 
 /**
  * Hook to fetch states for a specific country
@@ -389,7 +473,6 @@ export const useStates = (
   });
 };
 
-
 /**
  * Hook to fetch cities for a specific country and state
  * @param countryCode - ISO country code (e.g., 'IN')
@@ -415,7 +498,9 @@ export const useCities = (
       const state = country.states.find((s) => s.code === stateCode);
 
       if (!state) {
-        throw new Error(`State with code ${stateCode} not found in ${countryCode}`);
+        throw new Error(
+          `State with code ${stateCode} not found in ${countryCode}`
+        );
       }
 
       return state.cities;
@@ -434,7 +519,6 @@ export const useCities = (
  * @param options - Additional query options
  * @returns Query result with service areas array
  */
-
 
 export const useServiceAreas = (
   cityId: string,
@@ -468,7 +552,6 @@ export const useServiceAreas = (
     ...options,
   });
 };
-
 
 /**
  * Hook to fetch a specific city by ID with all its service areas
@@ -504,7 +587,6 @@ export const useCity = (
     ...options,
   });
 };
-
 
 /**
  * Hook to search for cities by name across all countries and states
@@ -547,7 +629,6 @@ export const useSearchCities = (
   });
 };
 
-
 /**
  * Hook to fetch all cities for a specific country (across all states)
  * @param countryCode - ISO country code (e.g., 'IN')
@@ -581,13 +662,3 @@ export const useCitiesByCountry = (
     ...options,
   });
 };
-
-
-
-
-
-
-
-
-
-

@@ -149,7 +149,7 @@ export const fetchServiceType = (key: string) =>
 export const fetchExperienceTypes = (serviceKey?: string) =>
   serviceKey
     ? apiGet<ExperienceType[]>(
-        `/api/v1/service-types/${serviceKey}/experience-types`
+        `/api/v1/experience-types/by-service/${serviceKey}`
       )
     : apiGet<ExperienceType[]>('/api/v1/experience-types');
 

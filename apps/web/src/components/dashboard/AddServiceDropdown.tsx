@@ -5,17 +5,31 @@ import {
   ServicesIcon,
   OrdersIcon,
   CalendarIcon,
+  EarningsIcon,
   ChevronIcon,
 } from '@/components/Icons/DashboardIcons';
+import {
+  useServiceTypes,
+  type ServiceType as CatalogServiceType,
+} from '@catering-marketplace/query-client';
 
-export type AddServiceType = 'chef' | 'meal_plan' | 'catering';
+export enum ServiceTypeKey {
+  Chef = 'chef',
+  MealPlan = 'meal_plan',
+  Catering = 'catering',
+  RestaurantPrivateEvent = 'restaurant_private_event',
+}
+
+export type AddServiceType = ServiceTypeKey | string;
 
 export type AddServiceOption = {
   label: string;
   description?: string;
   value: AddServiceType;
   icon: React.ReactNode;
-  href: string;
+  href?: string;
+  isActive?: boolean;
+  sortOrder?: number;
 };
 
 type AddServiceDropdownProps = {
@@ -24,37 +38,88 @@ type AddServiceDropdownProps = {
   onSelect: (option: AddServiceOption) => void;
 };
 
-const defaultOptions: AddServiceOption[] = [
+const serviceTypeIconMap: Record<ServiceTypeKey, React.ReactNode> = {
+  [ServiceTypeKey.Chef]: <ServicesIcon size={16} />,
+  [ServiceTypeKey.MealPlan]: <OrdersIcon size={16} />,
+  [ServiceTypeKey.Catering]: <CalendarIcon size={16} />,
+  [ServiceTypeKey.RestaurantPrivateEvent]: <EarningsIcon size={16} />,
+};
+
+const serviceTypeHrefMap: Partial<Record<ServiceTypeKey, string>> = {
+  [ServiceTypeKey.Chef]: '/partner/services/chef/new',
+  [ServiceTypeKey.MealPlan]: '/partner/services/meal-plans/new',
+  [ServiceTypeKey.Catering]: '/partner/services/catering/new',
+};
+
+const fallbackOptions: AddServiceOption[] = [
   {
-    label: 'Add Chef Service',
+    label: 'Private Chef',
     description: 'Personal chef or home cooking',
-    value: 'chef',
-    icon: <ServicesIcon size={16} />,
-    href: '/partner/services/chef/new',
+    value: ServiceTypeKey.Chef,
+    icon: serviceTypeIconMap[ServiceTypeKey.Chef],
+    href: serviceTypeHrefMap[ServiceTypeKey.Chef],
+    isActive: true,
+    sortOrder: 1,
   },
   {
-    label: 'Create Meal Plan',
-    description: 'Weekly or monthly tiffin plans',
-    value: 'meal_plan',
-    icon: <OrdersIcon size={16} />,
-    href: '/partner/services/meal-plans/new',
-  },
-  {
-    label: 'Add Catering Offering',
+    label: 'Catering',
     description: 'Events, parties and bulk orders',
-    value: 'catering',
-    icon: <CalendarIcon size={16} />,
-    href: '/partner/services/catering/new',
+    value: ServiceTypeKey.Catering,
+    icon: serviceTypeIconMap[ServiceTypeKey.Catering],
+    href: serviceTypeHrefMap[ServiceTypeKey.Catering],
+    isActive: true,
+    sortOrder: 2,
+  },
+  {
+    label: 'Meal Plans',
+    description: 'Weekly or monthly meal plans',
+    value: ServiceTypeKey.MealPlan,
+    icon: serviceTypeIconMap[ServiceTypeKey.MealPlan],
+    href: serviceTypeHrefMap[ServiceTypeKey.MealPlan],
+    isActive: false,
+    sortOrder: 3,
   },
 ];
 
+function isKnownServiceTypeKey(key: string): key is ServiceTypeKey {
+  return Object.values(ServiceTypeKey).includes(key as ServiceTypeKey);
+}
+
+function mapServiceTypeToOption(
+  serviceType: CatalogServiceType
+): AddServiceOption {
+  const knownKey = isKnownServiceTypeKey(serviceType.key)
+    ? serviceType.key
+    : undefined;
+
+  return {
+    label: serviceType.label,
+    description: serviceType.description,
+    value: serviceType.key,
+    icon: knownKey ? serviceTypeIconMap[knownKey] : <ServicesIcon size={16} />,
+    href: knownKey ? serviceTypeHrefMap[knownKey] : undefined,
+    isActive: serviceType.is_active,
+    sortOrder: serviceType.sort_order,
+  };
+}
+
 export default function AddServiceDropdown({
   label = '+ Add New Service',
-  options = defaultOptions,
+  options,
   onSelect,
 }: AddServiceDropdownProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
+  const { data: rawServiceTypes, isLoading } = useServiceTypes();
+  const serviceTypes = rawServiceTypes as CatalogServiceType[] | undefined;
+  const dropdownOptions = (
+    options ??
+    (serviceTypes?.length
+      ? serviceTypes.map(mapServiceTypeToOption)
+      : fallbackOptions)
+  )
+    .slice()
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 
   useEffect(() => {
     const onClickOutside = (event: MouseEvent) => {
@@ -80,24 +145,54 @@ export default function AddServiceDropdown({
 
       {open && (
         <div style={styles.menu}>
-          {options.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                onSelect(option);
-              }}
-              style={styles.option}
-            >
-              <span style={styles.icon}>{option.icon}</span>
+          {isLoading && !serviceTypes?.length && (
+            <div style={styles.loading}>Loading services...</div>
+          )}
 
-              <span style={styles.text}>
-                <strong>{option.label}</strong>
-                {option.description && <small>{option.description}</small>}
-              </span>
-            </button>
-          ))}
+          {dropdownOptions.map((option) => {
+            const disabled = option.isActive === false || !option.href;
+
+            return (
+              <button
+                key={option.value}
+                type="button"
+                disabled={disabled}
+                onClick={() => {
+                  if (disabled) return;
+                  setOpen(false);
+                  onSelect(option);
+                }}
+                style={{
+                  ...styles.option,
+                  ...(disabled ? styles.optionDisabled : {}),
+                }}
+              >
+                <span
+                  style={{
+                    ...styles.icon,
+                    ...(disabled ? styles.iconDisabled : {}),
+                  }}
+                >
+                  {option.icon}
+                </span>
+
+                <span
+                  style={{
+                    ...styles.text,
+                    ...(disabled ? styles.textDisabled : {}),
+                  }}
+                >
+                  <strong>{option.label}</strong>
+                  {option.description && <small>{option.description}</small>}
+                  {disabled && (
+                    <small style={styles.disabledLabel}>
+                      {option.isActive === false ? 'Inactive' : 'Coming soon'}
+                    </small>
+                  )}
+                </span>
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
@@ -157,6 +252,11 @@ const styles: Record<string, React.CSSProperties> = {
     textAlign: 'left',
   },
 
+  optionDisabled: {
+    cursor: 'not-allowed',
+    opacity: 0.62,
+  },
+
   icon: {
     width: 34,
     height: 34,
@@ -169,11 +269,31 @@ const styles: Record<string, React.CSSProperties> = {
     flexShrink: 0,
   },
 
+  iconDisabled: {
+    background: '#f1f5f9',
+    color: '#94a3b8',
+  },
+
   text: {
     display: 'flex',
     flexDirection: 'column',
     gap: 3,
     color: '#151126',
+    fontSize: 13,
+  },
+
+  textDisabled: {
+    color: '#64748b',
+  },
+
+  disabledLabel: {
+    color: '#94a3b8',
+    fontSize: 11,
+  },
+
+  loading: {
+    padding: '10px 12px',
+    color: '#64748b',
     fontSize: 13,
   },
 };

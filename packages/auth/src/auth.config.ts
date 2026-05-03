@@ -4,6 +4,25 @@ import FacebookProvider from 'next-auth/providers/facebook';
 import AppleProvider from 'next-auth/providers/apple';
 import type { NextAuthOptions, User as NextAuthUser } from 'next-auth';
 
+export type PartnerSessionProfile = {
+  id: string;
+  userId: string;
+  contactName?: string;
+  businessName?: string | null;
+  businessDescription?: string | null;
+  kitchenAddress?: string | null;
+  baseCityId?: string | null;
+  capacityRangeId?: string | null;
+  onboardingId?: string | null;
+  status?: string;
+  countryCode?: string;
+  timezone?: string;
+  rating?: number | null;
+  totalReviews?: number;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 declare module 'next-auth' {
   interface User {
     permissions?: string[];
@@ -16,6 +35,8 @@ declare module 'next-auth' {
     refresh_token?: string;
     expires_in?: number;
     isOnboardingCompleted?: boolean;
+    isPartner?: boolean;
+    partner?: PartnerSessionProfile | null;
   }
 
   interface CustomUser extends NextAuthUser {
@@ -29,6 +50,8 @@ declare module 'next-auth' {
     refresh_token?: string;
     expires_in?: number;
     isOnboardingCompleted?: boolean;
+    isPartner?: boolean;
+    partner?: PartnerSessionProfile | null;
   }
 }
 import { verifyOtpApi } from '../../query-client/src';
@@ -146,6 +169,77 @@ function getAccountHomePath(role: unknown): string {
     return '/admin';
   }
   return '/partner';
+}
+
+function isAdminRole(role: unknown): boolean {
+  return role === 'admin' || role === 'super_admin';
+}
+
+function getApiBaseUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_API_URL ||
+    process.env.BACKEND_URL ||
+    'http://localhost:8080'
+  );
+}
+
+async function fetchMyPartnerProfile(
+  accessToken?: unknown
+): Promise<PartnerSessionProfile | null> {
+  if (!accessToken || typeof accessToken !== 'string') {
+    return null;
+  }
+
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/api/v1/partners/me`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (response.status === 404 || response.status === 401) {
+      return null;
+    }
+
+    if (!response.ok) {
+      console.error('Failed to fetch partner profile:', response.statusText);
+      return null;
+    }
+
+    const payload = await response.json();
+    return payload?.data || null;
+  } catch (error) {
+    console.error('Error fetching partner profile:', error);
+    return null;
+  }
+}
+
+async function applyPartnerRoleFromProfile(token: any): Promise<any> {
+  const currentRole = normalizeUserRole(token.role);
+
+  if (isAdminRole(currentRole)) {
+    token.role = currentRole;
+    token.isPartner = false;
+    token.partner = null;
+    token.permissions = rolePermissions[currentRole] || [];
+    return token;
+  }
+
+  const partner = await fetchMyPartnerProfile(token.accessToken);
+
+  if (partner?.id) {
+    token.role = 'partner';
+    token.isPartner = true;
+    token.partner = partner;
+    token.permissions = rolePermissions.partner;
+    return token;
+  }
+
+  token.role = 'customer';
+  token.isPartner = false;
+  token.partner = null;
+  token.permissions = rolePermissions.customer;
+  return token;
 }
 
 async function verifyOtpWithBackend(credentials: any): Promise<any> {
@@ -305,6 +399,7 @@ export const authOptions: NextAuthOptions = {
         session.user.phone = token.phone;
         session.user.role = token.role || ('customer' as UserRole);
         session.user.permissions = token.permissions || [];
+        session.user.partner = token.partner || null;
         session.user.isVerified = token.isVerified ?? true;
         session.user.status = token.status || 'active';
         session.user.onboarding = token.onboarding || {
@@ -335,7 +430,7 @@ export const authOptions: NextAuthOptions = {
         session.user.isCustomer = token.role === 'customer';
         session.user.isModerator = token.role === 'moderator';
         session.user.isSupport = token.role === 'support';
-        session.user.isPartner = token.role === 'partner';
+        session.user.isPartner = Boolean(token.isPartner);
 
         // Onboarding status flags
         session.user.isOnboardingCompleted =
@@ -380,6 +475,8 @@ export const authOptions: NextAuthOptions = {
         token.phone = user.phone;
         token.role = user.role || ('customer' as UserRole);
         token.permissions = user.permissions || [];
+        token.partner = user.partner || null;
+        token.isPartner = user.isPartner || false;
         token.isVerified = user.isVerified ?? true;
         token.status = user.status || 'active';
         token.onboarding = user.onboarding || {
@@ -478,10 +575,10 @@ export const authOptions: NextAuthOptions = {
           token.id = data.user_id || token.id;
           token.name = data.full_name || data.name || token.name;
           token.fullName = data.full_name || data.name || token.fullName;
-          token.role = 'caterer'; //data.role || 'customer';
+          const backendRole = normalizeUserRole(data.role);
+          token.role = backendRole;
           token.status = data.status || 'active';
           token.isVerified = data.email_verified ?? false;
-          const backendRole = normalizeUserRole(data.role);
           token.permissions = rolePermissions[backendRole] || [];
 
           token.onboarding = {
@@ -512,7 +609,7 @@ export const authOptions: NextAuthOptions = {
           token.error = 'GoogleLoginError';
         }
       }
-      return token;
+      return applyPartnerRoleFromProfile(token);
     },
   },
   session: {

@@ -170,6 +170,12 @@ const adminNavItems: NavItem[] = [
     icon: <PendingIcon />,
   },
   {
+    key: 'service-approvals',
+    label: 'Service Approvals',
+    href: '/admin/service-approvals',
+    icon: <ServicesIcon />,
+  },
+  {
     key: 'analytics',
     label: 'Analytics',
     href: '/admin/analytics',

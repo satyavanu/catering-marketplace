@@ -34,14 +34,17 @@ function getRouteArea(pathname: string): RouteArea | null {
   return null;
 }
 
-function normalizeRole(role: unknown): AccountRole {
-  if (
-    role === 'partner' ||
-    role === 'caterer' ||
-    role === 'admin' ||
-    role === 'super_admin'
-  ) {
+function normalizeRole(role: unknown, isPartner: unknown): AccountRole {
+  if (role === 'admin' || role === 'super_admin') {
     return role;
+  }
+
+  if (role === 'partner' && isPartner === true) {
+    return 'partner';
+  }
+
+  if (role === 'caterer' && isPartner === true) {
+    return 'caterer';
   }
 
   return 'customer';
@@ -65,7 +68,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  const role = normalizeRole(token.role);
+  const role = normalizeRole(token.role, token.isPartner);
   const allowedRoles = routeAccess[routeArea];
 
   if (!allowedRoles.includes(role)) {
