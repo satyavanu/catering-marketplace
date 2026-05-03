@@ -65,10 +65,21 @@ export interface FetchAccountNotificationsOptions {
   unread_only?: boolean;
 }
 
+export interface NotificationPreference {
+  email_enabled: boolean;
+  push_enabled: boolean;
+  sms_enabled: boolean;
+  whatsapp_enabled: boolean;
+}
+
+export type UpdateNotificationPreferencePayload =
+  Partial<NotificationPreference>;
+
 export const accountNotificationKeys = {
   all: ['account-notifications'] as const,
   list: (options?: FetchAccountNotificationsOptions) =>
     [...accountNotificationKeys.all, 'list', options ?? {}] as const,
+  preferences: () => [...accountNotificationKeys.all, 'preferences'] as const,
 };
 
 export const registerNotificationDeviceToken = async (
@@ -168,6 +179,46 @@ export const markAllAccountNotificationsRead = async () => {
   return res.json();
 };
 
+export const fetchNotificationPreference =
+  async (): Promise<NotificationPreference> => {
+    const headers = await getAuthHeaders();
+    const res = await fetch(
+      `${API_BASE_URL}/api/v1/notifications/preferences`,
+      {
+        headers,
+      }
+    );
+
+    if (!res.ok) {
+      throw new Error(
+        await parseApiError(res, 'Failed to fetch notification preferences')
+      );
+    }
+
+    const json = await res.json();
+    return json?.data ?? json;
+  };
+
+export const updateNotificationPreference = async (
+  payload: UpdateNotificationPreferencePayload
+): Promise<NotificationPreference> => {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/api/v1/notifications/preferences`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    throw new Error(
+      await parseApiError(res, 'Failed to update notification preferences')
+    );
+  }
+
+  const json = await res.json();
+  return json?.data ?? json;
+};
+
 export const useAccountNotifications = (
   options?: FetchAccountNotificationsOptions,
   queryOptions?: { enabled?: boolean }
@@ -201,6 +252,26 @@ export const useMarkAllAccountNotificationsRead = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: accountNotificationKeys.all,
+      });
+    },
+  });
+};
+
+export const useNotificationPreference = () =>
+  useQuery({
+    queryKey: accountNotificationKeys.preferences(),
+    queryFn: fetchNotificationPreference,
+    staleTime: 60_000,
+  });
+
+export const useUpdateNotificationPreference = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updateNotificationPreference,
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: accountNotificationKeys.preferences(),
       });
     },
   });

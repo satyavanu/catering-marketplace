@@ -11,6 +11,7 @@ import {
   type AccountNotificationItem,
 } from '@catering-marketplace/query-client';
 
+import FirebaseNotificationRegistration from '@/components/notifications/FirebaseNotificationRegistration';
 import {
   HomeIcon,
   CalendarIcon,
@@ -401,6 +402,7 @@ export default function PartnerDashboardLayout({
   return (
     <div style={styles.shell}>
       <style>{responsiveCss}</style>
+      <FirebaseNotificationRegistration />
 
       {isMobileOpen && (
         <button
