@@ -4,6 +4,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
+import {
+  useAccountNotifications,
+  useMarkAccountNotificationRead,
+  useMarkAllAccountNotificationsRead,
+  type AccountNotificationItem,
+} from '@catering-marketplace/query-client';
 
 import {
   HomeIcon,
@@ -226,26 +232,41 @@ function getRouteAccountRole(pathname: string): AccountRole | null {
   return null;
 }
 
-const notifications = [
-  {
-    id: 'approval',
-    title: 'Partner approval updated',
-    description: 'Your latest approval workflow has new activity.',
-    time: '5m ago',
-  },
-  {
-    id: 'worker',
-    title: 'Event worker assigned',
-    description: 'A worker accepted the upcoming event shift.',
-    time: '18m ago',
-  },
-  {
-    id: 'message',
-    title: 'New message',
-    description: 'You have a new message from support.',
-    time: '1h ago',
-  },
-];
+function formatNotificationTime(value?: string | null) {
+  if (!value) return '';
+
+  const createdAt = new Date(value).getTime();
+  if (Number.isNaN(createdAt)) return '';
+
+  const diffMs = Date.now() - createdAt;
+  const diffMinutes = Math.max(0, Math.floor(diffMs / 60_000));
+
+  if (diffMinutes < 1) return 'Just now';
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+
+  return new Intl.DateTimeFormat('en-IN', {
+    day: 'numeric',
+    month: 'short',
+  }).format(new Date(value));
+}
+
+function getNotificationHref(
+  notification: AccountNotificationItem,
+  accountHomePath: string,
+  isAdminAccount: boolean
+) {
+  if (notification.entity_type === 'partner_service') {
+    return isAdminAccount ? '/admin/service-approvals' : '/partner/services';
+  }
+
+  return `${accountHomePath}/messages`;
+}
 
 export default function PartnerDashboardLayout({
   children,
@@ -257,6 +278,12 @@ export default function PartnerDashboardLayout({
   const router = useRouter();
   const { data: session, status } = useSession();
   const menuAreaRef = useRef<HTMLDivElement>(null);
+  const notificationQuery = useAccountNotifications(
+    { limit: 8 },
+    { enabled: status === 'authenticated' }
+  );
+  const markNotificationRead = useMarkAccountNotificationRead();
+  const markAllNotificationsRead = useMarkAllAccountNotificationsRead();
 
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<'notifications' | 'profile' | null>(
@@ -302,43 +329,8 @@ export default function PartnerDashboardLayout({
     : isAdminAccount
       ? 'Our team is here to help with approvals, partners, and platform setup.'
       : 'Our team is here to help with services, bookings, and setup.';
-  const accountNotifications = isAdminAccount
-    ? notifications
-    : isCustomerAccount
-      ? [
-          {
-            id: 'booking',
-            title: 'Booking update',
-            description: 'Your latest booking has new activity.',
-            time: '5m ago',
-          },
-          {
-            id: 'message',
-            title: 'New message',
-            description: 'You have a new message from support.',
-            time: '1h ago',
-          },
-        ]
-      : [
-          {
-            id: 'booking',
-            title: 'Booking update',
-            description: 'A booking has new activity.',
-            time: '5m ago',
-          },
-          {
-            id: 'worker',
-            title: 'Event worker assigned',
-            description: 'A worker accepted the upcoming event shift.',
-            time: '18m ago',
-          },
-          {
-            id: 'message',
-            title: 'New message',
-            description: 'You have a new message from support.',
-            time: '1h ago',
-          },
-        ];
+  const accountNotifications = notificationQuery.data?.items ?? [];
+  const unreadNotificationCount = notificationQuery.data?.unread_count ?? 0;
   const isActive = (href: string) => {
     if (href === accountHomePath) return pathname === href;
     return pathname.startsWith(href);
@@ -376,6 +368,16 @@ export default function PartnerDashboardLayout({
   const navigateFromMenu = (href: string) => {
     setOpenMenu(null);
     router.push(href);
+  };
+
+  const openNotification = (notification: AccountNotificationItem) => {
+    if (!notification.is_read) {
+      markNotificationRead.mutate(notification.id);
+    }
+
+    navigateFromMenu(
+      getNotificationHref(notification, accountHomePath, isAdminAccount)
+    );
   };
 
   if (status === 'loading' || status === 'unauthenticated') {
@@ -501,9 +503,13 @@ export default function PartnerDashboardLayout({
                 onClick={() => toggleMenu('notifications')}
               >
                 <BellIcon />
-                <span style={styles.notificationBadge}>
-                  {accountNotifications.length}
-                </span>
+                {unreadNotificationCount > 0 && (
+                  <span style={styles.notificationBadge}>
+                    {unreadNotificationCount > 99
+                      ? '99+'
+                      : unreadNotificationCount}
+                  </span>
+                )}
               </button>
 
               {openMenu === 'notifications' && (
@@ -513,40 +519,54 @@ export default function PartnerDashboardLayout({
                     <button
                       type="button"
                       style={styles.dropdownLink}
-                      onClick={() =>
-                        navigateFromMenu(`${accountHomePath}/messages`)
-                      }
+                      disabled={unreadNotificationCount === 0}
+                      onClick={() => markAllNotificationsRead.mutate()}
                     >
-                      View all
+                      Mark all read
                     </button>
                   </div>
 
                   <div style={styles.notificationList}>
-                    {accountNotifications.map((notification) => (
-                      <button
-                        type="button"
-                        key={notification.id}
-                        role="menuitem"
-                        style={styles.notificationItem}
-                        onClick={() =>
-                          navigateFromMenu(`${accountHomePath}/messages`)
-                        }
-                      >
-                        <span style={styles.notificationDot} />
+                    {notificationQuery.isLoading ? (
+                      <div style={styles.notificationEmpty}>
+                        Loading notifications...
+                      </div>
+                    ) : accountNotifications.length === 0 ? (
+                      <div style={styles.notificationEmpty}>
+                        No notifications yet.
+                      </div>
+                    ) : (
+                      accountNotifications.map((notification) => (
+                        <button
+                          type="button"
+                          key={notification.id}
+                          role="menuitem"
+                          style={{
+                            ...styles.notificationItem,
+                            ...(notification.is_read
+                              ? styles.notificationItemRead
+                              : {}),
+                          }}
+                          onClick={() => openNotification(notification)}
+                        >
+                          {!notification.is_read && (
+                            <span style={styles.notificationDot} />
+                          )}
 
-                        <span style={styles.notificationCopy}>
-                          <strong style={styles.notificationTitle}>
-                            {notification.title}
-                          </strong>
-                          <span style={styles.notificationDescription}>
-                            {notification.description}
+                          <span style={styles.notificationCopy}>
+                            <strong style={styles.notificationTitle}>
+                              {notification.title}
+                            </strong>
+                            <span style={styles.notificationDescription}>
+                              {notification.message}
+                            </span>
+                            <span style={styles.notificationTime}>
+                              {formatNotificationTime(notification.created_at)}
+                            </span>
                           </span>
-                          <span style={styles.notificationTime}>
-                            {notification.time}
-                          </span>
-                        </span>
-                      </button>
-                    ))}
+                        </button>
+                      ))
+                    )}
                   </div>
                 </div>
               )}
@@ -989,13 +1009,25 @@ const styles: Record<string, React.CSSProperties> = {
     width: '100%',
     border: 'none',
     borderRadius: 12,
-    background: 'transparent',
+    background: '#fff7ed',
     padding: 10,
     display: 'flex',
     alignItems: 'flex-start',
     gap: 10,
     cursor: 'pointer',
     textAlign: 'left',
+  },
+
+  notificationItemRead: {
+    background: 'transparent',
+  },
+
+  notificationEmpty: {
+    padding: '18px 10px',
+    color: '#64748b',
+    fontSize: 13,
+    fontWeight: 700,
+    textAlign: 'center',
   },
 
   notificationDot: {

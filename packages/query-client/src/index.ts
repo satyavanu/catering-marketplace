@@ -21,6 +21,7 @@ export * from './queries/partners';
 export * from './queries/service-catalog';
 export * from './queries/partner-services';
 export * from './queries/service-quotes';
+export * from './queries/notifications';
 export * from './queries/caterer-menu-items';
 export * from './queries/static-data';
 export * from './queries/onboardingUpload';
