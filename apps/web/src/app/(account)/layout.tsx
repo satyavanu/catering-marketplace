@@ -92,12 +92,6 @@ const partnerNavItems: NavItem[] = [
     icon: <AnalyticsIcon />,
   },
   {
-    key: 'approval',
-    label: 'Partner Approval',
-    href: '/partner/approval',
-    icon: <ApprovalIcon />,
-  },
-  {
     key: 'workers',
     label: 'Event Workers',
     href: '/partner/workers',
@@ -176,18 +170,6 @@ const adminNavItems: NavItem[] = [
     icon: <PendingIcon />,
   },
   {
-    key: 'events',
-    label: 'Events',
-    href: '/admin/events',
-    icon: <CalendarIcon />,
-  },
-  {
-    key: 'workers',
-    label: 'Event Workers',
-    href: '/admin/workers',
-    icon: <WorkersIcon />,
-  },
-  {
     key: 'analytics',
     label: 'Analytics',
     href: '/admin/analytics',
@@ -222,6 +204,22 @@ function normalizeAccountRole(role?: string | null): AccountRole {
   return 'partner';
 }
 
+function getRouteAccountRole(pathname: string): AccountRole | null {
+  if (pathname === '/customer' || pathname.startsWith('/customer/')) {
+    return 'customer';
+  }
+
+  if (pathname === '/partner' || pathname.startsWith('/partner/')) {
+    return 'partner';
+  }
+
+  if (pathname === '/admin' || pathname.startsWith('/admin/')) {
+    return 'admin';
+  }
+
+  return null;
+}
+
 const notifications = [
   {
     id: 'approval',
@@ -245,7 +243,7 @@ const notifications = [
 
 export default function PartnerDashboardLayout({
   children,
-  userName = 'Partner',
+  userName,
   avatarUrl,
   activeKey = 'home',
 }: PartnerDashboardLayoutProps) {
@@ -271,10 +269,70 @@ export default function PartnerDashboardLayout({
   const roleNavItems = navItemsByRole[accountRole];
   const accountHomePath = roleHomePath[accountRole];
   const profilePath = `${accountHomePath}/profile`;
+  const isAdminAccount =
+    accountRole === 'admin' || accountRole === 'super_admin';
+  const isCustomerAccount = accountRole === 'customer';
+  const routeAccountRole = getRouteAccountRole(pathname);
+  const canAccessCurrentRoute =
+    !routeAccountRole ||
+    routeAccountRole === accountRole ||
+    (routeAccountRole === 'admin' && accountRole === 'super_admin');
   const displayName =
-    sessionUser?.fullName || sessionUser?.name || userName || 'Partner';
+    sessionUser?.fullName ||
+    sessionUser?.name ||
+    userName ||
+    (isCustomerAccount ? 'Customer' : isAdminAccount ? 'Admin' : 'Partner');
   const displayAvatar = sessionUser?.image || avatarUrl;
-  const userInitial = displayName.trim().charAt(0).toUpperCase() || 'P';
+  const userInitial =
+    displayName.trim().charAt(0).toUpperCase() ||
+    (isCustomerAccount ? 'C' : isAdminAccount ? 'A' : 'P');
+  const welcomeSubtitle = isCustomerAccount
+    ? 'Track your bookings, orders, messages, and reviews.'
+    : isAdminAccount
+      ? 'Monitor partners, approvals, users, and platform performance.'
+      : 'Manage your bookings, orders, services, and event workers.';
+  const helpText = isCustomerAccount
+    ? 'Our team is here to help with bookings, orders, and account support.'
+    : isAdminAccount
+      ? 'Our team is here to help with approvals, partners, and platform setup.'
+      : 'Our team is here to help with services, bookings, and setup.';
+  const accountNotifications = isAdminAccount
+    ? notifications
+    : isCustomerAccount
+      ? [
+          {
+            id: 'booking',
+            title: 'Booking update',
+            description: 'Your latest booking has new activity.',
+            time: '5m ago',
+          },
+          {
+            id: 'message',
+            title: 'New message',
+            description: 'You have a new message from support.',
+            time: '1h ago',
+          },
+        ]
+      : [
+          {
+            id: 'booking',
+            title: 'Booking update',
+            description: 'A booking has new activity.',
+            time: '5m ago',
+          },
+          {
+            id: 'worker',
+            title: 'Event worker assigned',
+            description: 'A worker accepted the upcoming event shift.',
+            time: '18m ago',
+          },
+          {
+            id: 'message',
+            title: 'New message',
+            description: 'You have a new message from support.',
+            time: '1h ago',
+          },
+        ];
   const isActive = (href: string) => {
     if (href === accountHomePath) return pathname === href;
     return pathname.startsWith(href);
@@ -297,8 +355,13 @@ export default function PartnerDashboardLayout({
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.replace('/login');
+      return;
     }
-  }, [router, status]);
+
+    if (status === 'authenticated' && !canAccessCurrentRoute) {
+      router.replace(accountHomePath);
+    }
+  }, [accountHomePath, canAccessCurrentRoute, router, status]);
 
   const toggleMenu = (menu: 'notifications' | 'profile') => {
     setOpenMenu((current) => (current === menu ? null : menu));
@@ -314,6 +377,15 @@ export default function PartnerDashboardLayout({
       <div style={styles.authGate}>
         <style>{responsiveCss}</style>
         <div style={styles.authGatePanel}>Loading account...</div>
+      </div>
+    );
+  }
+
+  if (!canAccessCurrentRoute) {
+    return (
+      <div style={styles.authGate}>
+        <style>{responsiveCss}</style>
+        <div style={styles.authGatePanel}>Redirecting...</div>
       </div>
     );
   }
@@ -386,9 +458,7 @@ export default function PartnerDashboardLayout({
 
           <div>
             <strong style={styles.helpTitle}>Need Help?</strong>
-            <p style={styles.helpText}>
-              Our team is here to help with approvals and setup.
-            </p>
+            <p style={styles.helpText}>{helpText}</p>
           </div>
 
           <button type="button" style={styles.helpButton}>
@@ -410,10 +480,8 @@ export default function PartnerDashboardLayout({
             </button>
 
             <div>
-              <h1 style={styles.welcomeTitle}>Welcome, {userName}! 👋</h1>
-              <p style={styles.welcomeSubtitle}>
-                Here’s what’s happening with your partners and event workers.
-              </p>
+              <h1 style={styles.welcomeTitle}>Welcome, {displayName}! 👋</h1>
+              <p style={styles.welcomeSubtitle}>{welcomeSubtitle}</p>
             </div>
           </div>
 
@@ -428,7 +496,7 @@ export default function PartnerDashboardLayout({
               >
                 <BellIcon />
                 <span style={styles.notificationBadge}>
-                  {notifications.length}
+                  {accountNotifications.length}
                 </span>
               </button>
 
@@ -448,7 +516,7 @@ export default function PartnerDashboardLayout({
                   </div>
 
                   <div style={styles.notificationList}>
-                    {notifications.map((notification) => (
+                    {accountNotifications.map((notification) => (
                       <button
                         type="button"
                         key={notification.id}
