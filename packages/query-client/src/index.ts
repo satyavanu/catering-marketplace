@@ -6,7 +6,7 @@ export { queryClient, createQueryClient } from './config/query-client';
 export { apiClient } from './config/axios';
 
 // Query Hooks
-export * from "./hooks";
+export * from './hooks';
 export * from './queries/caterers';
 export * from './queries/venues';
 export * from './queries/decorations';
@@ -14,13 +14,16 @@ export * from './queries/reviews';
 export * from './queries/categories';
 export * from './queries/menu-items';
 export * from './api/auth';
-export * from "./queries/profile";
-export * from "./queries/consents";
-export * from "./queries/packages-menu";
-export * from "./queries/partners";
-export * from  "./queries/caterer-menu-items"
-export * from "./queries/static-data";
-export * from "./queries/onboardingUpload";
+export * from './queries/profile';
+export * from './queries/consents';
+export * from './queries/packages-menu';
+export * from './queries/partners';
+export * from './queries/service-catalog';
+export * from './queries/partner-services';
+export * from './queries/service-quotes';
+export * from './queries/caterer-menu-items';
+export * from './queries/static-data';
+export * from './queries/onboardingUpload';
 // Mutation Hooks
 export * from './mutations/newsletter';
 
