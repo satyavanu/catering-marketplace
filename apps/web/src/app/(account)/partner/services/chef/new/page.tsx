@@ -15,6 +15,9 @@ import {
   type Country,
   type PartnerServicePayload,
   type ServiceArea,
+  type UploadedAsset,
+  deleteImageAsset,
+  uploadImageAsset,
   useCreatePartnerService,
   useSubmitPartnerService,
 } from '@catering-marketplace/query-client';
@@ -45,6 +48,10 @@ type ChefExperienceSection = {
   note: string;
 };
 
+type ServiceImage = UploadedAsset & {
+  sortOrder: number;
+};
+
 type ChefServiceForm = {
   title: string;
   description: string;
@@ -65,7 +72,7 @@ type ChefServiceForm = {
   city: string;
   areas: string[];
   radiusKm: number;
-  images: string[];
+  images: ServiceImage[];
   experienceSections: ChefExperienceSection[];
 };
 
@@ -250,6 +257,16 @@ function getSessionCountryCode(sessionUser: unknown) {
   );
 }
 
+function getSessionPartnerId(sessionUser: unknown) {
+  const user = sessionUser as
+    | {
+        partner?: { id?: string | null } | null;
+      }
+    | undefined;
+
+  return user?.partner?.id || '';
+}
+
 function buildProfileFromSession(
   profile: ChefProfile,
   sessionUser: unknown,
@@ -370,8 +387,14 @@ function buildCreateChefPayload(
     max_guests: maxPeople,
     advance_notice_hours: 24,
     service_areas: selectedServiceAreas,
-    media: form.images.map((url, index) => ({
-      url,
+    media: form.images.map((image, index) => ({
+      url: image.url,
+      key: image.key,
+      public_id: image.publicId || image.key,
+      provider: image.provider || 'firebase',
+      file_name: image.fileName,
+      content_type: image.contentType,
+      size: image.size,
       type: index === 0 ? 'cover' : 'gallery',
       sort_order: index,
     })),
@@ -428,6 +451,16 @@ export default function CreateChefServicePage({
   const [form, setForm] = useState<ChefServiceForm>(DEFAULT_FORM);
   const [areaInput, setAreaInput] = useState('');
   const [submitError, setSubmitError] = useState('');
+  const [mediaUploadError, setMediaUploadError] = useState('');
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState('');
+  const [profileUploadError, setProfileUploadError] = useState('');
+  const [uploadingProfileAvatar, setUploadingProfileAvatar] = useState(false);
+  const [draftId] = useState(() =>
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `draft-${Date.now()}`
+  );
 
   const createServiceMutation = useCreatePartnerService();
   const submitServiceMutation = useSubmitPartnerService();
@@ -457,6 +490,7 @@ export default function CreateChefServicePage({
     [form.city, form.cityId, locations]
   );
   const sessionCountryCode = getSessionCountryCode(session?.user);
+  const partnerId = getSessionPartnerId(session?.user);
   const sessionCountry = useMemo(
     () =>
       locations?.countries.find(
@@ -465,8 +499,11 @@ export default function CreateChefServicePage({
     [locations, sessionCountryCode]
   );
   const profileSnapshot = useMemo(
-    () => buildProfileFromSession(profile, session?.user, form, cuisineOptions),
-    [cuisineOptions, form, profile, session?.user]
+    () => ({
+      ...buildProfileFromSession(profile, session?.user, form, cuisineOptions),
+      ...(profileAvatarUrl ? { avatarUrl: profileAvatarUrl } : {}),
+    }),
+    [cuisineOptions, form, profile, profileAvatarUrl, session?.user]
   );
   const currencySymbol = getCurrencySymbol(
     form.currencyCode,
@@ -580,11 +617,98 @@ export default function CreateChefServicePage({
     });
   };
 
-  const removeImage = (image: string) => {
+  const removeImage = async (image: ServiceImage) => {
     update(
       'images',
-      form.images.filter((item) => item !== image)
+      form.images
+        .filter((item) => item.key !== image.key)
+        .map((item, index) => ({ ...item, sortOrder: index }))
     );
+
+    if (image.key) {
+      try {
+        await deleteImageAsset({
+          fileKey: image.key,
+          partnerId,
+        });
+      } catch (error) {
+        console.error('Failed to delete service image:', error);
+      }
+    }
+  };
+
+  const uploadServiceImages = async (files: FileList | null) => {
+    if (!files?.length || uploadingMedia) return;
+
+    if (!partnerId) {
+      setMediaUploadError('Partner profile was not found for this session.');
+      return;
+    }
+
+    setMediaUploadError('');
+    setUploadingMedia(true);
+
+    try {
+      const uploadedImages = await Promise.all(
+        Array.from(files).map(async (file, offset) => {
+          const uploaded = await uploadImageAsset(
+            {
+              scope: 'partner_service_media',
+              partnerId,
+              draftId,
+              fileName: file.name,
+              contentType: file.type,
+              fileSize: file.size,
+            },
+            file
+          );
+
+          return {
+            ...uploaded,
+            sortOrder: form.images.length + offset,
+          };
+        })
+      );
+
+      update('images', [...form.images, ...uploadedImages]);
+    } catch (error) {
+      setMediaUploadError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to upload service image.'
+      );
+    } finally {
+      setUploadingMedia(false);
+    }
+  };
+
+  const uploadProfileAvatar = async (file: File) => {
+    if (uploadingProfileAvatar) return;
+
+    setProfileUploadError('');
+    setUploadingProfileAvatar(true);
+
+    try {
+      const uploaded = await uploadImageAsset(
+        {
+          scope: 'user_avatar',
+          fileName: file.name,
+          contentType: file.type,
+          fileSize: file.size,
+        },
+        file
+      );
+
+      setProfileAvatarUrl(uploaded.url);
+    } catch (error) {
+      setProfileUploadError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to upload profile photo.'
+      );
+    } finally {
+      setUploadingProfileAvatar(false);
+    }
   };
 
   const updateExperienceSection = (
@@ -671,7 +795,9 @@ export default function CreateChefServicePage({
         <main style={styles.left}>
           <ProfileSnapshot
             profile={profileSnapshot}
-            onUploadAvatar={(file) => console.log('upload avatar', file)}
+            uploading={uploadingProfileAvatar}
+            error={profileUploadError}
+            onUploadAvatar={uploadProfileAvatar}
           />
 
           <Section
@@ -1146,9 +1272,15 @@ export default function CreateChefServicePage({
 
           <Section
             title="Service images"
-            subtitle="Image upload will be connected next. This form no longer submits sample images."
+            subtitle="Upload service-specific photos. These are stored with this service, separate from your profile avatar or cover image."
           >
-            <ServiceImageGallery images={form.images} onRemove={removeImage} />
+            <ServiceImageGallery
+              images={form.images}
+              uploading={uploadingMedia}
+              error={mediaUploadError}
+              onUpload={uploadServiceImages}
+              onRemove={removeImage}
+            />
           </Section>
 
           <div style={styles.actions}>
@@ -1214,9 +1346,9 @@ function ChefServicePreview({
       </div>
 
       <div style={styles.previewCover}>
-        {form.images[0] ? (
+        {form.images[0]?.url ? (
           <img
-            src={form.images[0]}
+            src={form.images[0].url}
             alt={form.title}
             style={styles.previewCoverImg}
           />
@@ -1301,17 +1433,23 @@ function ChefServicePreview({
 
 function ServiceImageGallery({
   images,
+  uploading,
+  error,
+  onUpload,
   onRemove,
 }: {
-  images: string[];
-  onRemove: (image: string) => void;
+  images: ServiceImage[];
+  uploading: boolean;
+  error: string;
+  onUpload: (files: FileList | null) => void;
+  onRemove: (image: ServiceImage) => void;
 }) {
   return (
     <div>
       <div style={styles.imageGrid}>
         {images.map((image, index) => (
-          <div key={`${image}-${index}`} style={styles.imageTile}>
-            <img src={image} alt="Service" style={styles.image} />
+          <div key={`${image.key}-${index}`} style={styles.imageTile}>
+            <img src={image.url} alt="Service" style={styles.image} />
             <button
               type="button"
               onClick={() => onRemove(image)}
@@ -1322,16 +1460,31 @@ function ServiceImageGallery({
           </div>
         ))}
 
-        {images.length === 0 && (
-          <div style={styles.imageUploadPending}>
-            <strong>Image upload coming next</strong>
-            <small>
-              No service photos added yet. We can connect S3 upload before
-              enabling photo submission.
-            </small>
-          </div>
-        )}
+        <label style={styles.addImageTile}>
+          <span>{uploading ? 'Uploading...' : '+ Add photos'}</span>
+          <small>Food, setup, live cooking, or venue photos</small>
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            multiple
+            hidden
+            disabled={uploading}
+            onChange={(event) => {
+              onUpload(event.target.files);
+              event.target.value = '';
+            }}
+          />
+        </label>
       </div>
+
+      {images.length === 0 && (
+        <p style={styles.helper}>
+          The first photo becomes the service cover. Gallery photos are saved in
+          the service media payload.
+        </p>
+      )}
+
+      {error && <p style={styles.errorText}>{error}</p>}
     </div>
   );
 }
@@ -1639,6 +1792,13 @@ const styles: Record<string, React.CSSProperties> = {
     margin: '4px 0 9px',
     color: '#64748b',
     fontSize: 13,
+  },
+
+  profileError: {
+    margin: '0 0 9px',
+    color: '#dc2626',
+    fontSize: 12,
+    fontWeight: 600,
   },
 
   editProfileBtn: {
@@ -2259,9 +2419,13 @@ const styles: Record<string, React.CSSProperties> = {
 
 function ProfileSnapshot({
   profile,
+  uploading,
+  error,
   onUploadAvatar,
 }: {
   profile: ChefProfile;
+  uploading: boolean;
+  error: string;
   onUploadAvatar?: (file: File) => void;
 }) {
   const fileRef = React.useRef<HTMLInputElement | null>(null);
@@ -2303,13 +2467,17 @@ function ProfileSnapshot({
         <div style={styles.profileTop}>
           <h2 style={styles.profileName}>{profile.name}</h2>
           <p style={styles.profileHint}>
-            Profile photo is reused across your chef services.
+            {uploading
+              ? 'Uploading profile photo...'
+              : 'Profile photo is reused across your chef services.'}
           </p>
         </div>
 
         <p style={styles.profileMeta}>
           {profile.experience} experience · {profile.city}
         </p>
+
+        {error && <p style={styles.profileError}>{error}</p>}
 
         <div style={styles.miniTags}>
           {profile.cuisines.map((item) => (
