@@ -37,7 +37,6 @@ import {
   KycBankData,
   AgreementData,
 } from './types';
-import { Logo } from '@/components/Logo';
 
 const STEP_ORDER: OnboardingStep[] = [
   'phone_verification',
@@ -575,15 +574,28 @@ export default function OnboardingPage() {
   return (
     <div style={styles.container}>
       <div style={styles.content}>
-        <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexDirection:'row'}}>
-        <Logo />
-        <div style={styles.stepIndicator}>
-          <span style={styles.stepNumber}>
-            Step {Math.max(currentStepIndex + 1, 1)} of {STEP_ORDER.length}
-          </span>
+        <div style={styles.onboardingHeader}>
+          <div>
+            <p style={styles.kicker}>Partner onboarding</p>
+            <h1 style={styles.onboardingTitle}>Set up your partner profile</h1>
+          </div>
+
+          <div style={styles.stepIndicator}>
+            <span style={styles.stepNumber}>
+              Step {Math.max(currentStepIndex + 1, 1)} of {STEP_ORDER.length}
+            </span>
+          </div>
         </div>
+
+        <div style={styles.progressContainer}>
+          <div
+            style={{
+              ...styles.progressBar,
+              width: `${progressPercentage}%`,
+            }}
+          />
         </div>
-        
+
         {renderCurrentStep()}
       </div>
     </div>

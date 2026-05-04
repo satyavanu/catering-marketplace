@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import React from 'react';
 
 const LOGO_URL =
@@ -11,6 +12,9 @@ export default function AuthLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  const isOnboarding = pathname.startsWith('/onboarding');
+
   return (
     <div
       style={{
@@ -41,11 +45,11 @@ export default function AuthLayout({
         <div
           style={{
             width: '100%',
-            maxWidth: 440,
+            maxWidth: isOnboarding ? 760 : 440,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'stretch',
-            gap: 14,
+            gap: isOnboarding ? 12 : 14,
           }}
         >
           <Link

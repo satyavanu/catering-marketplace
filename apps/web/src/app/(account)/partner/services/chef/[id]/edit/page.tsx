@@ -7,11 +7,24 @@ import {
   useMyPartnerService,
   useUpdatePartnerService,
 } from '@catering-marketplace/query-client';
+import { useServiceCatalogMetaContext } from '@/app/context/ServiceCatalogMetaContext';
+
+function isHostedExperience(experienceKey: string, experienceLabel = '') {
+  const value = `${experienceKey} ${experienceLabel}`.toLowerCase();
+
+  return ['fine', 'rooftop', 'venue', 'hosted', 'pop_up', 'pop-up'].some(
+    (token) => value.includes(token)
+  );
+}
 
 export default function EditChefServicePage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const serviceId = params?.id;
+  const { getExperienceTypesForService } = useServiceCatalogMetaContext();
+  const chefExperienceTypes = getExperienceTypesForService('chef').filter(
+    (item) => item.is_active
+  );
   const { data: service, isLoading, error } = useMyPartnerService(serviceId);
   const updateService = useUpdatePartnerService({
     onSuccess: (updated) => router.push(`/partner/services/chef/${updated.id}`),
@@ -21,7 +34,9 @@ export default function EditChefServicePage() {
     title: '',
     short_description: '',
     description: '',
+    experience_type_key: '',
     base_price: '',
+    currency_code: '',
     min_guests: '',
     max_guests: '',
     advance_notice_hours: '24',
@@ -34,7 +49,9 @@ export default function EditChefServicePage() {
       title: service.title || '',
       short_description: service.short_description || '',
       description: service.description || '',
+      experience_type_key: service.experience_type_key || '',
       base_price: service.base_price == null ? '' : String(service.base_price),
+      currency_code: service.currency_code || 'INR',
       min_guests: service.min_guests == null ? '' : String(service.min_guests),
       max_guests: service.max_guests == null ? '' : String(service.max_guests),
       advance_notice_hours: String(service.advance_notice_hours || 24),
@@ -53,25 +70,41 @@ export default function EditChefServicePage() {
     setForm((current) => ({ ...current, [field]: value }));
   };
 
+  const selectedExperienceLabel =
+    chefExperienceTypes.find((item) => item.key === form.experience_type_key)
+      ?.label ||
+    form.experience_type_key ||
+    'Chef experience';
+  const serviceAreasRequired = !isHostedExperience(
+    form.experience_type_key,
+    selectedExperienceLabel
+  );
+
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
 
     const payload: PartnerServicePayload = {
       service_key: service.service_key,
-      experience_type_key: service.experience_type_key,
+      experience_type_key:
+        form.experience_type_key || service.experience_type_key,
       title: form.title.trim(),
       short_description: form.short_description.trim(),
       description: form.description.trim(),
       booking_type: service.booking_type,
       pricing_model: service.pricing_model || undefined,
       base_price: form.base_price ? Number(form.base_price) : null,
-      currency_code: service.currency_code || 'INR',
+      currency_code: form.currency_code || service.currency_code || 'INR',
       min_guests: form.min_guests ? Number(form.min_guests) : null,
       max_guests: form.max_guests ? Number(form.max_guests) : null,
       advance_notice_hours: Number(form.advance_notice_hours || 24),
-      service_areas: service.service_areas || [],
+      service_areas: serviceAreasRequired ? service.service_areas || [] : [],
       media: service.media || [],
-      attributes: service.attributes || {},
+      attributes: {
+        ...(service.attributes || {}),
+        location_model: serviceAreasRequired
+          ? 'service_area'
+          : 'hosted_location',
+      },
       is_active: service.is_active,
     };
 
@@ -125,6 +158,34 @@ export default function EditChefServicePage() {
             />
           </Field>
 
+          <Field label="Experience type">
+            <SelectWrap>
+              <select
+                value={form.experience_type_key}
+                onChange={(event) =>
+                  setField('experience_type_key', event.target.value)
+                }
+                style={styles.select}
+              >
+                {chefExperienceTypes.length === 0 && (
+                  <option value={form.experience_type_key}>
+                    {selectedExperienceLabel}
+                  </option>
+                )}
+                {chefExperienceTypes.map((experienceType) => (
+                  <option key={experienceType.key} value={experienceType.key}>
+                    {experienceType.label}
+                  </option>
+                ))}
+              </select>
+            </SelectWrap>
+            <span style={styles.helperText}>
+              {serviceAreasRequired
+                ? 'This service keeps its saved service areas.'
+                : 'Hosted experiences do not require service areas when saved.'}
+            </span>
+          </Field>
+
           <Field label="Base price">
             <input
               type="number"
@@ -132,6 +193,18 @@ export default function EditChefServicePage() {
               onChange={(event) => setField('base_price', event.target.value)}
               style={styles.input}
               min={0}
+            />
+          </Field>
+
+          <Field label="Currency">
+            <input
+              value={form.currency_code}
+              onChange={(event) =>
+                setField('currency_code', event.target.value.toUpperCase())
+              }
+              style={styles.input}
+              maxLength={3}
+              placeholder="INR"
             />
           </Field>
 
@@ -200,6 +273,17 @@ function Field({
   );
 }
 
+function SelectWrap({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={styles.selectWrap}>
+      {children}
+      <span aria-hidden="true" style={styles.selectChevron}>
+        v
+      </span>
+    </div>
+  );
+}
+
 const styles: Record<string, React.CSSProperties> = {
   page: { display: 'flex', flexDirection: 'column', gap: 18 },
   header: {
@@ -255,6 +339,37 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '10px 11px',
     fontSize: 14,
     color: '#151126',
+  },
+  selectWrap: {
+    position: 'relative',
+    width: '100%',
+  },
+  select: {
+    width: '100%',
+    height: 42,
+    border: '1px solid #d8dee8',
+    borderRadius: 10,
+    padding: '0 36px 0 11px',
+    fontSize: 14,
+    color: '#151126',
+    background: '#ffffff',
+    appearance: 'none',
+    outline: 'none',
+    cursor: 'pointer',
+  },
+  selectChevron: {
+    position: 'absolute',
+    right: 12,
+    top: '50%',
+    transform: 'translateY(-50%)',
+    color: '#64748b',
+    pointerEvents: 'none',
+    fontSize: 12,
+  },
+  helperText: {
+    color: '#64748b',
+    fontSize: 12,
+    lineHeight: 1.45,
   },
   textarea: {
     width: '100%',

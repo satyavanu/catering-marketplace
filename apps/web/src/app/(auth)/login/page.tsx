@@ -65,7 +65,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { data: session, status, update: updateSession } = useSession();
   const completeOnboardingMutation = useCompleteOnboarding();
-  const otpInputRef = useRef<HTMLInputElement>(null);
+  const otpRefs = useRef<HTMLInputElement[]>([]);
 
   const [mounted, setMounted] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
@@ -227,7 +227,7 @@ export default function LoginPage() {
       setResendTimer(RESEND_SECONDS);
 
       window.setTimeout(() => {
-        otpInputRef.current?.focus();
+        otpRefs.current[0]?.focus();
       }, 100);
     } catch (err) {
       console.error('Send OTP error:', err);
@@ -296,6 +296,57 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOtpChange = (index: number, value: string) => {
+    const digit = value.replace(/\D/g, '').slice(-1);
+    const otpArray = otp.split('');
+
+    otpArray[index] = digit;
+
+    const nextOtp = Array.from(
+      { length: OTP_LENGTH },
+      (_, i) => otpArray[i] || ''
+    ).join('');
+
+    setOtp(nextOtp);
+    setError('');
+
+    if (digit && index < OTP_LENGTH - 1) {
+      otpRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (
+    index: number,
+    event: React.KeyboardEvent<HTMLInputElement>
+  ) => {
+    if (event.key === 'Backspace' && !otp[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (event: React.ClipboardEvent<HTMLInputElement>) => {
+    const pastedOtp = event.clipboardData
+      .getData('text')
+      .replace(/\D/g, '')
+      .slice(0, OTP_LENGTH);
+
+    if (!pastedOtp) return;
+
+    event.preventDefault();
+    setOtp(pastedOtp.padEnd(OTP_LENGTH, ''));
+    setError('');
+    otpRefs.current[Math.min(pastedOtp.length, OTP_LENGTH) - 1]?.focus();
+  };
+
+  const formatTimer = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+
+    if (minutes === 0) return `${remainingSeconds}s`;
+
+    return `${minutes}:${String(remainingSeconds).padStart(2, '0')}`;
   };
 
   const handleSocialLogin = async (provider: 'google' | 'facebook') => {
@@ -419,26 +470,47 @@ export default function LoginPage() {
             </label>
 
             {otpSent && (
-              <label style={styles.label}>
-                <span>Verification code</span>
-                <input
-                  ref={otpInputRef}
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={OTP_LENGTH}
-                  value={otp}
-                  onChange={(event) =>
-                    setOtp(
-                      event.target.value.replace(/\D/g, '').slice(0, OTP_LENGTH)
-                    )
-                  }
-                  placeholder={`Enter the ${OTP_LENGTH}-digit OTP`}
-                  style={styles.input}
-                />
-                <small style={styles.helperText}>
-                  Sent to {contactPreview}
-                </small>
-              </label>
+              <div style={styles.otpPanel}>
+                <div style={styles.otpHeader}>
+                  <div>
+                    <span style={styles.otpTitle}>Verification code</span>
+                    <p style={styles.otpSubtitle}>
+                      Enter the {OTP_LENGTH}-digit code sent to {contactPreview}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={resetOtpState}
+                    disabled={loading}
+                    style={styles.changeButton}
+                  >
+                    Change
+                  </button>
+                </div>
+
+                <div style={styles.otpGroup}>
+                  {Array.from({ length: OTP_LENGTH }).map((_, index) => (
+                    <input
+                      key={index}
+                      ref={(element) => {
+                        if (element) otpRefs.current[index] = element;
+                      }}
+                      value={otp[index] || ''}
+                      onChange={(event) =>
+                        handleOtpChange(index, event.target.value)
+                      }
+                      onKeyDown={(event) => handleOtpKeyDown(index, event)}
+                      onPaste={handleOtpPaste}
+                      inputMode="numeric"
+                      maxLength={1}
+                      disabled={loading}
+                      aria-label={`Verification code digit ${index + 1}`}
+                      style={styles.otpInput}
+                    />
+                  ))}
+                </div>
+              </div>
             )}
 
             {isSignup && (
@@ -524,15 +596,9 @@ export default function LoginPage() {
                     ...(!canResend ? styles.disabledTextButton : {}),
                   }}
                 >
-                  {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend OTP'}
-                </button>
-                <button
-                  type="button"
-                  onClick={resetOtpState}
-                  disabled={loading}
-                  style={styles.textButton}
-                >
-                  Change contact
+                  {resendTimer > 0
+                    ? `Resend OTP in ${formatTimer(resendTimer)}`
+                    : 'Resend OTP'}
                 </button>
               </div>
             )}
@@ -760,6 +826,62 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#64748b',
     fontSize: 12,
     fontWeight: 600,
+  },
+  otpPanel: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+    padding: 13,
+    borderRadius: 12,
+    background: '#f8fafc',
+    border: '1px solid #e2e8f0',
+  },
+  otpHeader: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  otpTitle: {
+    display: 'block',
+    color: '#334155',
+    fontSize: 13,
+    fontWeight: 850,
+  },
+  otpSubtitle: {
+    margin: '4px 0 0',
+    color: '#64748b',
+    fontSize: 12,
+    lineHeight: 1.45,
+    fontWeight: 600,
+  },
+  otpGroup: {
+    display: 'grid',
+    gridTemplateColumns: `repeat(${OTP_LENGTH}, minmax(0, 1fr))`,
+    gap: 8,
+  },
+  otpInput: {
+    width: '100%',
+    height: 48,
+    borderRadius: 10,
+    border: '1.5px solid #cbd5e1',
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: 850,
+    color: '#0f172a',
+    outline: 'none',
+    background: '#ffffff',
+    boxShadow: 'inset 0 1px 1px rgba(15, 23, 42, 0.03)',
+  },
+  changeButton: {
+    border: 'none',
+    background: 'transparent',
+    color: '#5b21b6',
+    fontSize: 13,
+    fontWeight: 850,
+    cursor: 'pointer',
+    padding: 0,
+    whiteSpace: 'nowrap',
   },
   consentBox: {
     display: 'flex',

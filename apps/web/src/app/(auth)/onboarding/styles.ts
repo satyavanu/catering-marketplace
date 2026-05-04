@@ -1,90 +1,118 @@
 export const styles: { [key: string]: React.CSSProperties } = {
   container: {
-    minHeight: '100vh',
-    background:
-      'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+    width: '100%',
+    minHeight: 'auto',
+    background: 'transparent',
     display: 'flex',
     justifyContent: 'center',
-    alignItems: 'center',
-    padding: '1rem',
+    alignItems: 'stretch',
+    padding: 0,
     fontFamily:
-      '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      '"Google Sans", roboto, "Noto Sans Myanmar UI", "Noto Sans Khmer", arial, sans-serif',
   } as React.CSSProperties,
   content: {
     width: '100%',
-    maxWidth: '700px',
+    maxWidth: '760px',
     backgroundColor: 'white',
-    borderRadius: '1.5rem',
-    boxShadow: '0 20px 25px rgba(0, 0, 0, 0.15)',
-    padding: 'clamp(1.5rem, 5vw, 3rem)',
+    border: '1px solid #e5e7eb',
+    borderRadius: '18px',
+    boxShadow: '0 18px 45px rgba(15, 23, 42, 0.08)',
+    padding: 'clamp(1.25rem, 4vw, 2rem)',
   } as React.CSSProperties,
   progressContainer: {
     width: '100%',
-    height: '4px',
-    backgroundColor: '#e5e7eb',
-    borderRadius: '2px',
+    height: '6px',
+    backgroundColor: '#eef2f7',
+    borderRadius: '999px',
     marginBottom: '1.5rem',
     overflow: 'hidden',
   } as React.CSSProperties,
   progressBar: {
     height: '100%',
-    backgroundColor: '#f97316',
+    background: 'linear-gradient(90deg, #7c3aed, #2563eb)',
     transition: 'width 0.3s ease',
   } as React.CSSProperties,
   stepIndicator: {
-    display: 'flex',
+    display: 'inline-flex',
     alignItems: 'center',
-    gap: '0.5rem',
-    marginBottom: '1.5rem',
-    fontSize: '0.875rem',
-    fontWeight: '600',
-    color: '#6b7280',
+    justifyContent: 'center',
+    minHeight: 34,
+    padding: '0 12px',
+    borderRadius: 999,
+    border: '1px solid #e5e7eb',
+    background: '#f8fafc',
+    fontSize: '0.8125rem',
+    fontWeight: '700',
+    color: '#475569',
+    whiteSpace: 'nowrap',
   } as React.CSSProperties,
   stepNumber: {
-    fontSize: '0.875rem',
-    fontWeight: '600',
-    color: '#f97316',
+    fontSize: '0.8125rem',
+    fontWeight: '700',
+    color: '#475569',
   } as React.CSSProperties,
   stepDot: {
     fontSize: '1.5rem',
     color: '#f97316',
   } as React.CSSProperties,
   loadingContainer: {
-    minHeight: '100vh',
+    minHeight: 'auto',
     display: 'flex',
     flexDirection: 'column' as const,
     justifyContent: 'center',
     alignItems: 'center',
-    background:
-      'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+    background: 'transparent',
   } as React.CSSProperties,
   loadingSpinner: {
     width: '48px',
     height: '48px',
-    border: '4px solid rgba(255, 255, 255, 0.3)',
-    borderTop: '4px solid white',
+    border: '4px solid #e5e7eb',
+    borderTop: '4px solid #7c3aed',
     borderRadius: '50%',
     animation: 'spin 0.8s linear infinite',
     marginBottom: '1rem',
   } as React.CSSProperties,
   loadingText: {
-    color: 'white',
+    color: '#64748b',
     fontSize: '1rem',
     margin: 0,
   } as React.CSSProperties,
+  onboardingHeader: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: '1rem',
+    marginBottom: '1rem',
+    flexWrap: 'wrap',
+  } as React.CSSProperties,
+  kicker: {
+    margin: '0 0 0.25rem',
+    color: '#7c3aed',
+    fontSize: '0.75rem',
+    fontWeight: 800,
+    letterSpacing: '0.02em',
+    textTransform: 'uppercase',
+  } as React.CSSProperties,
+  onboardingTitle: {
+    margin: 0,
+    color: '#151126',
+    fontSize: 'clamp(1.25rem, 4vw, 1.6rem)',
+    fontWeight: 800,
+    lineHeight: 1.2,
+  } as React.CSSProperties,
   header: {
-    marginBottom: '2rem',
-    textAlign: 'center' as const,
+    marginBottom: '1.5rem',
+    textAlign: 'left' as const,
   } as React.CSSProperties,
   title: {
-    fontSize: 'clamp(1.5rem, 5vw, 2rem)',
-    fontWeight: 'bold',
-    color: '#111827',
+    fontSize: 'clamp(1.35rem, 4vw, 1.75rem)',
+    fontWeight: '800',
+    color: '#151126',
     margin: 0,
     marginBottom: '0.5rem',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
   } as React.CSSProperties,
   subtitle: {
     fontSize: 'clamp(0.875rem, 2vw, 1rem)',
@@ -113,13 +141,16 @@ export const styles: { [key: string]: React.CSSProperties } = {
   } as React.CSSProperties,
   input: {
     width: '100%',
-    padding: '0.75rem 1rem',
-    border: '1px solid #d1d5db',
-    borderRadius: '0.5rem',
+    minHeight: 44,
+    padding: '0.7rem 0.9rem',
+    border: '1px solid #d8dee8',
+    borderRadius: '10px',
     fontSize: '0.875rem',
     color: '#1f2937',
     boxSizing: 'border-box' as const,
     fontFamily: 'inherit',
+    background: '#ffffff',
+    outline: 'none',
   } as React.CSSProperties,
   phoneInputGroup: {
     display: 'grid',
@@ -127,12 +158,13 @@ export const styles: { [key: string]: React.CSSProperties } = {
     gap: '0.75rem',
   } as React.CSSProperties,
   countryCodeSelect: {
-    padding: '0.75rem 1rem',
-    border: '1px solid #d1d5db',
-    borderRadius: '0.5rem',
+    minHeight: 44,
+    padding: '0.7rem 0.9rem',
+    border: '1px solid #d8dee8',
+    borderRadius: '10px',
     fontSize: '0.875rem',
     color: '#1f2937',
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#ffffff',
     cursor: 'pointer',
     fontFamily: 'inherit',
   } as React.CSSProperties,
@@ -149,9 +181,9 @@ export const styles: { [key: string]: React.CSSProperties } = {
     marginTop: '1rem',
   } as React.CSSProperties,
   eventTag: {
-    padding: '0.75rem 1rem',
-    borderRadius: '0.75rem',
-    border: '2px solid',
+    padding: '0.7rem 0.9rem',
+    borderRadius: '10px',
+    border: '1px solid',
     fontSize: '0.875rem',
     fontWeight: '500',
     cursor: 'pointer',
@@ -162,9 +194,9 @@ export const styles: { [key: string]: React.CSSProperties } = {
     transition: 'all 0.3s ease',
   } as React.CSSProperties,
   eventTagActive: {
-    backgroundColor: '#dbeafe',
-    borderColor: '#667eea',
-    color: '#667eea',
+    backgroundColor: '#f3e8ff',
+    borderColor: '#c4b5fd',
+    color: '#6d28d9',
   } as React.CSSProperties,
   eventTagInactive: {
     backgroundColor: 'white',
@@ -178,9 +210,9 @@ export const styles: { [key: string]: React.CSSProperties } = {
     marginTop: '1rem',
   } as React.CSSProperties,
   capabilityCard: {
-    padding: '1.25rem',
-    borderRadius: '0.75rem',
-    border: '2px solid',
+    padding: '1rem',
+    borderRadius: '12px',
+    border: '1px solid',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
@@ -191,9 +223,9 @@ export const styles: { [key: string]: React.CSSProperties } = {
     fontSize: '0.875rem',
   } as React.CSSProperties,
   capabilityCardActive: {
-    backgroundColor: '#dbeafe',
-    borderColor: '#667eea',
-    color: '#667eea',
+    backgroundColor: '#f3e8ff',
+    borderColor: '#c4b5fd',
+    color: '#6d28d9',
   } as React.CSSProperties,
   capabilityCardInactive: {
     backgroundColor: 'white',
@@ -211,8 +243,8 @@ export const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     gap: '1rem',
     padding: '1rem',
-    backgroundColor: '#f3f4f6',
-    borderRadius: '0.5rem',
+    backgroundColor: '#f8fafc',
+    borderRadius: '12px',
     border: '1px solid #e5e7eb',
   } as React.CSSProperties,
   areaContent: {
@@ -236,8 +268,8 @@ export const styles: { [key: string]: React.CSSProperties } = {
   } as React.CSSProperties,
   errorMessage: {
     padding: '0.75rem 1rem',
-    backgroundColor: '#fee2e2',
-    borderRadius: '0.5rem',
+    backgroundColor: '#fff1f2',
+    borderRadius: '10px',
     color: '#991b1b',
     fontSize: '0.875rem',
     marginBottom: '1rem',
@@ -245,11 +277,12 @@ export const styles: { [key: string]: React.CSSProperties } = {
   } as React.CSSProperties,
   submitButton: {
     width: '100%',
-    padding: '0.875rem 1.5rem',
-    backgroundColor: '#f97316',
+    minHeight: 44,
+    padding: '0.8rem 1.25rem',
+    background: 'linear-gradient(135deg, #7c3aed, #5b21b6)',
     color: 'white',
     border: 'none',
-    borderRadius: '0.5rem',
+    borderRadius: '10px',
     fontSize: '0.875rem',
     fontWeight: '600',
     transition: 'all 0.3s ease',
@@ -258,11 +291,12 @@ export const styles: { [key: string]: React.CSSProperties } = {
   } as React.CSSProperties,
   skipButton: {
     width: '100%',
-    padding: '0.875rem 1.5rem',
-    backgroundColor: '#f3f4f6',
-    color: '#6b7280',
-    border: '1px solid #d1d5db',
-    borderRadius: '0.5rem',
+    minHeight: 44,
+    padding: '0.8rem 1.25rem',
+    backgroundColor: '#f8fafc',
+    color: '#475569',
+    border: '1px solid #d8dee8',
+    borderRadius: '10px',
     fontSize: '0.875rem',
     fontWeight: '600',
     cursor: 'pointer',
@@ -272,11 +306,12 @@ export const styles: { [key: string]: React.CSSProperties } = {
   } as React.CSSProperties,
   backButton: {
     width: '100%',
-    padding: '0.875rem 1.5rem',
+    minHeight: 44,
+    padding: '0.8rem 1.25rem',
     backgroundColor: 'transparent',
-    color: '#667eea',
-    border: '1px solid #d1d5db',
-    borderRadius: '0.5rem',
+    color: '#6d28d9',
+    border: '1px solid #d8dee8',
+    borderRadius: '10px',
     fontSize: '0.875rem',
     fontWeight: '600',
     cursor: 'pointer',
@@ -284,11 +319,12 @@ export const styles: { [key: string]: React.CSSProperties } = {
     fontFamily: 'inherit',
   } as React.CSSProperties,
   addButton: {
-    padding: '0.75rem 1.5rem',
-    backgroundColor: '#10b981',
+    minHeight: 40,
+    padding: '0.65rem 1rem',
+    backgroundColor: '#0f766e',
     color: 'white',
     border: 'none',
-    borderRadius: '0.5rem',
+    borderRadius: '10px',
     fontSize: '0.875rem',
     fontWeight: '600',
     cursor: 'pointer',
@@ -374,11 +410,12 @@ export const styles: { [key: string]: React.CSSProperties } = {
   } as React.CSSProperties,
   resendButton: {
     width: '100%',
-    padding: '0.875rem 1.5rem',
-    backgroundColor: '#667eea',
+    minHeight: 44,
+    padding: '0.8rem 1.25rem',
+    background: 'linear-gradient(135deg, #7c3aed, #5b21b6)',
     color: 'white',
     border: 'none',
-    borderRadius: '0.5rem',
+    borderRadius: '10px',
     fontSize: '0.875rem',
     fontWeight: '600',
     cursor: 'pointer',
@@ -419,9 +456,9 @@ export const styles: { [key: string]: React.CSSProperties } = {
     margin: '1.5rem 0',
   } as React.CSSProperties,
   menuForm: {
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#f8fafc',
     border: '1px solid #e5e7eb',
-    borderRadius: '1rem',
+    borderRadius: '14px',
     padding: '1.5rem',
     marginBottom: '1.5rem',
   } as React.CSSProperties,
@@ -436,8 +473,8 @@ export const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     gap: '1rem',
     padding: '1rem',
-    backgroundColor: '#f3f4f6',
-    borderRadius: '0.5rem',
+    backgroundColor: '#f8fafc',
+    borderRadius: '12px',
     border: '1px solid #e5e7eb',
   } as React.CSSProperties,
   listItemImage: {
@@ -469,7 +506,7 @@ export const styles: { [key: string]: React.CSSProperties } = {
   itemPrice: {
     fontSize: '0.875rem',
     fontWeight: '600',
-    color: '#f97316',
+    color: '#6d28d9',
     minWidth: '60px',
     textAlign: 'right' as const,
   } as React.CSSProperties,
@@ -555,7 +592,7 @@ export const styles: { [key: string]: React.CSSProperties } = {
     justifyContent: 'center',
     gap: '0.75rem',
     padding: 'clamp(0.75rem, 2vw, 1rem) 2rem',
-    backgroundColor: '#f97316',
+    background: 'linear-gradient(135deg, #7c3aed, #5b21b6)',
     color: 'white',
     border: 'none',
     borderRadius: '0.75rem',
@@ -572,9 +609,9 @@ export const styles: { [key: string]: React.CSSProperties } = {
   },
 
   multiSelectTag: {
-    padding: '0.5rem 0.75rem',
-    borderRadius: '0.375rem',
-    border: '2px solid',
+    padding: '0.55rem 0.75rem',
+    borderRadius: '10px',
+    border: '1px solid',
     fontSize: '0.8rem',
     fontWeight: '500',
     cursor: 'pointer',
@@ -585,9 +622,9 @@ export const styles: { [key: string]: React.CSSProperties } = {
   },
 
   multiSelectTagActive: {
-    backgroundColor: '#dbeafe',
-    borderColor: '#667eea',
-    color: '#1e40af',
+    backgroundColor: '#f3e8ff',
+    borderColor: '#c4b5fd',
+    color: '#6d28d9',
   },
 
   multiSelectTagInactive: {
@@ -595,7 +632,6 @@ export const styles: { [key: string]: React.CSSProperties } = {
     borderColor: '#e5e7eb',
     color: '#374151',
   },
-
 
   businessTypeGrid: {
     display: 'grid',
@@ -605,40 +641,40 @@ export const styles: { [key: string]: React.CSSProperties } = {
   },
 
   businessTypeTag: {
-    padding: '0.875rem 1.25rem',
-    borderRadius: '0.5rem',
-    border: '2px solid',
+    padding: '0.8rem 1rem',
+    borderRadius: '12px',
+    border: '1px solid',
     fontSize: '0.95rem',
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.3s ease',
-    backgroundColor: '#667eea',
-    borderColor: '#667eea',
+    backgroundColor: '#7c3aed',
+    borderColor: '#7c3aed',
     color: 'white',
-    boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
+    boxShadow: '0 8px 18px rgba(124, 58, 237, 0.16)',
     textAlign: 'center',
   } as React.CSSProperties,
 
   businessTypeTagActive: {
-    padding: '0.875rem 1.25rem',
-    borderRadius: '0.5rem',
-    border: '2px solid',
+    padding: '0.8rem 1rem',
+    borderRadius: '12px',
+    border: '1px solid',
     fontSize: '0.95rem',
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.3s ease',
-    backgroundColor: '#667eea',
-    borderColor: '#667eea',
+    backgroundColor: '#7c3aed',
+    borderColor: '#7c3aed',
     color: 'white',
-    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
+    boxShadow: '0 10px 22px rgba(124, 58, 237, 0.18)',
     textAlign: 'center',
     transform: 'translateY(-2px)',
   } as React.CSSProperties,
 
   businessTypeTagInactive: {
-    padding: '0.875rem 1.25rem',
-    borderRadius: '0.5rem',
-    border: '2px solid',
+    padding: '0.8rem 1rem',
+    borderRadius: '12px',
+    border: '1px solid',
     fontSize: '0.95rem',
     fontWeight: '600',
     cursor: 'pointer',
@@ -650,11 +686,10 @@ export const styles: { [key: string]: React.CSSProperties } = {
     textAlign: 'center',
   } as React.CSSProperties,
 
-
   categoryTitle: {
     fontSize: '0.95rem',
     fontWeight: '600',
-    color: '#667eea',
+    color: '#6d28d9',
     marginBottom: '0.75rem',
     textTransform: 'capitalize',
     letterSpacing: '0.5px',
@@ -712,9 +747,9 @@ export const styles: { [key: string]: React.CSSProperties } = {
   },
 
   toggleButton: {
-    padding: '0.625rem 1.25rem',
-    borderRadius: '0.375rem',
-    border: '2px solid #e5e7eb',
+    padding: '0.6rem 1rem',
+    borderRadius: '10px',
+    border: '1px solid #e5e7eb',
     backgroundColor: 'white',
     color: '#6b7280',
     fontSize: '0.875rem',
@@ -724,10 +759,10 @@ export const styles: { [key: string]: React.CSSProperties } = {
   } as React.CSSProperties,
 
   toggleButtonActive: {
-    backgroundColor: '#667eea',
-    borderColor: '#667eea',
+    backgroundColor: '#7c3aed',
+    borderColor: '#7c3aed',
     color: 'white',
-    boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
+    boxShadow: '0 8px 18px rgba(124, 58, 237, 0.16)',
   } as React.CSSProperties,
 
   toggleButtonInactive: {
@@ -753,7 +788,6 @@ export const styles: { [key: string]: React.CSSProperties } = {
     textTransform: 'uppercase',
     letterSpacing: '0.5px',
   } as React.CSSProperties,
-
 
   deleteButton: {
     padding: '0.25rem 0.5rem',
@@ -788,130 +822,126 @@ export const styles: { [key: string]: React.CSSProperties } = {
     flexDirection: 'column',
   } as React.CSSProperties,
 
-  
-    documentCard: {
-      padding: '1.5rem',
-      border: '1px solid #e5e7eb',
-      borderRadius: '0.5rem',
-      marginBottom: '1.5rem',
-      backgroundColor: '#fafafa',
-    } as React.CSSProperties,
-  
-    documentHeader: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      marginBottom: '1rem',
-    } as React.CSSProperties,
-  
-    documentTitle: {
-      fontSize: '1rem',
-      fontWeight: '600',
-      color: '#1f2937',
-      margin: '0 0 0.25rem 0',
-    } as React.CSSProperties,
-  
-    documentDescription: {
-      fontSize: '0.875rem',
-      color: '#6b7280',
-      margin: 0,
-    } as React.CSSProperties,
-  
-    uploadSection: {
-      marginTop: '1rem',
-    } as React.CSSProperties,
-  
-    fileUploadBox: {
-      border: '2px dashed #e5e7eb',
-      borderRadius: '0.5rem',
-      padding: '2rem',
-      textAlign: 'center',
-      cursor: 'pointer',
-      transition: 'all 0.2s ease',
-      backgroundColor: 'white',
-    } as React.CSSProperties,
-  
-    uploadText: {
-      fontSize: '0.95rem',
-      fontWeight: '600',
-      color: '#374151',
-      margin: '0.5rem 0 0.25rem 0',
-    } as React.CSSProperties,
-  
-    uploadSubtext: {
-      fontSize: '0.875rem',
-      color: '#9ca3af',
-      margin: 0,
-    } as React.CSSProperties,
-  
-    fileItem: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      padding: '1rem',
-      backgroundColor: '#f0fdf4',
-      border: '1px solid #86efac',
-      borderRadius: '0.375rem',
-      marginTop: '1rem',
-    } as React.CSSProperties,
-  
-    fileInfo: {
-      display: 'flex',
-      alignItems: 'center',
-      flex: 1,
-    } as React.CSSProperties,
-  
-   
-  
-    fileSize: {
-      fontSize: '0.8rem',
-      color: '#6b7280',
-      margin: '0.25rem 0 0 0',
-    } as React.CSSProperties,
-  
-    removeButton: {
-      padding: '0.5rem',
-      border: 'none',
-      backgroundColor: '#fee2e2',
-      color: '#dc2626',
-      borderRadius: '0.375rem',
-      cursor: 'pointer',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      transition: 'all 0.2s ease',
-    } as React.CSSProperties,
-  
-    frontBackContainer: {
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      gap: '1.5rem',
-      marginTop: '1rem',
-    } as React.CSSProperties,
-  
-    frontBackSection: {
-      display: 'flex',
-      flexDirection: 'column',
-    } as React.CSSProperties,
-  
-    frontBackTitle: {
-      fontSize: '0.95rem',
-      fontWeight: '600',
-      color: '#1f2937',
-      marginBottom: '0.75rem',
-      margin: '0 0 0.75rem 0',
-    } as React.CSSProperties,
-  
-    warningMessage: {
-      display: 'flex',
-      alignItems: 'flex-start',
-      padding: '0.875rem 1rem',
-      backgroundColor: '#fef3c7',
-      borderLeft: '4px solid #f59e0b',
-      borderRadius: '0.375rem',
-      color: '#92400e',
-      fontSize: '0.875rem',
-      marginBottom: '1rem',
-    } as React.CSSProperties,
-};
+  documentCard: {
+    padding: '1.5rem',
+    border: '1px solid #e5e7eb',
+    borderRadius: '0.5rem',
+    marginBottom: '1.5rem',
+    backgroundColor: '#fafafa',
+  } as React.CSSProperties,
 
+  documentHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: '1rem',
+  } as React.CSSProperties,
+
+  documentTitle: {
+    fontSize: '1rem',
+    fontWeight: '600',
+    color: '#1f2937',
+    margin: '0 0 0.25rem 0',
+  } as React.CSSProperties,
+
+  documentDescription: {
+    fontSize: '0.875rem',
+    color: '#6b7280',
+    margin: 0,
+  } as React.CSSProperties,
+
+  uploadSection: {
+    marginTop: '1rem',
+  } as React.CSSProperties,
+
+  fileUploadBox: {
+    border: '2px dashed #e5e7eb',
+    borderRadius: '0.5rem',
+    padding: '2rem',
+    textAlign: 'center',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    backgroundColor: 'white',
+  } as React.CSSProperties,
+
+  uploadText: {
+    fontSize: '0.95rem',
+    fontWeight: '600',
+    color: '#374151',
+    margin: '0.5rem 0 0.25rem 0',
+  } as React.CSSProperties,
+
+  uploadSubtext: {
+    fontSize: '0.875rem',
+    color: '#9ca3af',
+    margin: 0,
+  } as React.CSSProperties,
+
+  fileItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '1rem',
+    backgroundColor: '#f0fdf4',
+    border: '1px solid #86efac',
+    borderRadius: '0.375rem',
+    marginTop: '1rem',
+  } as React.CSSProperties,
+
+  fileInfo: {
+    display: 'flex',
+    alignItems: 'center',
+    flex: 1,
+  } as React.CSSProperties,
+
+  fileSize: {
+    fontSize: '0.8rem',
+    color: '#6b7280',
+    margin: '0.25rem 0 0 0',
+  } as React.CSSProperties,
+
+  removeButton: {
+    padding: '0.5rem',
+    border: 'none',
+    backgroundColor: '#fee2e2',
+    color: '#dc2626',
+    borderRadius: '0.375rem',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.2s ease',
+  } as React.CSSProperties,
+
+  frontBackContainer: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '1.5rem',
+    marginTop: '1rem',
+  } as React.CSSProperties,
+
+  frontBackSection: {
+    display: 'flex',
+    flexDirection: 'column',
+  } as React.CSSProperties,
+
+  frontBackTitle: {
+    fontSize: '0.95rem',
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: '0.75rem',
+    margin: '0 0 0.75rem 0',
+  } as React.CSSProperties,
+
+  warningMessage: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    padding: '0.875rem 1rem',
+    backgroundColor: '#fef3c7',
+    borderLeft: '4px solid #f59e0b',
+    borderRadius: '0.375rem',
+    color: '#92400e',
+    fontSize: '0.875rem',
+    marginBottom: '1rem',
+  } as React.CSSProperties,
+};
