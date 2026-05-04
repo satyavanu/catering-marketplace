@@ -48,6 +48,12 @@ type ContactMethod = 'email' | 'phone' | 'invalid';
 
 const OTP_LENGTH = 6;
 const RESEND_SECONDS = 30;
+const SOCIAL_ICONS = {
+  google:
+    'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg',
+  facebook:
+    'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/facebook/facebook-original.svg',
+};
 
 const getAccountHomePath = (role?: string | null) => {
   if (role === 'customer') return '/customer';
@@ -286,26 +292,26 @@ export default function LoginPage() {
     return (
       <div style={styles.loadingPage}>
         <div style={styles.loadingContent}>
-          <div style={styles.loadingMark}>D</div>
+          <Spinner />
           <p style={styles.loadingText}>Loading...</p>
         </div>
+        <style>{spinnerStyles}</style>
       </div>
     );
   }
 
   return (
-    <main style={styles.page}>
+    <div style={styles.page}>
       <section style={styles.authShell}>
         <div style={styles.card}>
           <div style={styles.header}>
-            <p style={styles.eyebrow}>Secure access</p>
             <h2 style={styles.title}>
-              {isSignup ? 'Create your account' : 'Welcome back'}
+              {isSignup ? 'Start with Droooly' : 'Welcome back'}
             </h2>
             <p style={styles.subtitle}>
               {isSignup
-                ? 'Sign up with your name and one verified contact method.'
-                : 'Log in with your email or phone number.'}
+                ? 'Tell us where to send your one-time code and we will set up your account.'
+                : 'Use your email or mobile number to get a one-time login code.'}
             </p>
           </div>
 
@@ -464,13 +470,16 @@ export default function LoginPage() {
                   : {}),
               }}
             >
-              {loading
-                ? 'Please wait...'
-                : otpSent
-                  ? isSignup
-                    ? 'Verify & Sign Up'
-                    : 'Verify & Login'
-                  : 'Send OTP'}
+              {loading && <Spinner size={16} tone="light" />}
+              <span>
+                {loading
+                  ? 'Please wait'
+                  : otpSent
+                    ? isSignup
+                      ? 'Verify & Create Account'
+                      : 'Verify & Login'
+                    : 'Send OTP'}
+              </span>
             </button>
 
             {otpSent && (
@@ -506,14 +515,14 @@ export default function LoginPage() {
 
               <div style={styles.socialGrid}>
                 <SocialButton
-                  label="Google"
+                  label="Continue with Google"
                   provider="google"
                   loading={socialLoading === 'google'}
                   disabled={Boolean(socialLoading)}
                   onClick={() => handleSocialLogin('google')}
                 />
                 <SocialButton
-                  label="Facebook"
+                  label="Continue with Facebook"
                   provider="facebook"
                   loading={socialLoading === 'facebook'}
                   disabled={Boolean(socialLoading)}
@@ -524,7 +533,8 @@ export default function LoginPage() {
           )}
         </div>
       </section>
-    </main>
+      <style>{spinnerStyles}</style>
+    </div>
   );
 }
 
@@ -546,113 +556,173 @@ function SocialButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
+      className={`auth-social-button auth-social-button-${provider}`}
       style={{
         ...styles.socialButton,
+        ...(provider === 'facebook' ? styles.facebookButton : {}),
         ...(disabled ? styles.disabledButton : {}),
       }}
     >
-      <span
-        style={provider === 'google' ? styles.googleIcon : styles.facebookIcon}
-      >
-        {provider === 'google' ? 'G' : 'f'}
-      </span>
-      {loading ? 'Connecting...' : label}
+      {loading ? (
+        <Spinner size={18} tone={provider === 'facebook' ? 'light' : 'dark'} />
+      ) : (
+        <img
+          src={SOCIAL_ICONS[provider]}
+          alt=""
+          aria-hidden="true"
+          style={styles.socialIcon}
+        />
+      )}
+      <span>{loading ? 'Connecting...' : label}</span>
     </button>
   );
 }
 
+function Spinner({
+  size = 30,
+  tone = 'dark',
+}: {
+  size?: number;
+  tone?: 'dark' | 'light';
+}) {
+  return (
+    <span
+      aria-hidden="true"
+      className="auth-spinner"
+      style={{
+        width: size,
+        height: size,
+        borderColor:
+          tone === 'light'
+            ? 'rgba(255, 255, 255, 0.36)'
+            : 'rgba(91, 33, 182, 0.18)',
+        borderTopColor: tone === 'light' ? '#ffffff' : '#5b21b6',
+      }}
+    />
+  );
+}
+
+const spinnerStyles = `
+  .auth-spinner {
+    display: inline-block;
+    border-width: 3px;
+    border-style: solid;
+    border-radius: 999px;
+    animation: auth-spin 0.75s linear infinite;
+    flex: 0 0 auto;
+  }
+
+  .auth-social-button {
+    transition: background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+  }
+
+  .auth-social-button:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  }
+
+  .auth-social-button-google:not(:disabled):hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+  }
+
+  .auth-social-button-facebook:not(:disabled):hover {
+    background: #166fe5;
+  }
+
+  @keyframes auth-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+`;
+
 const styles: Record<string, React.CSSProperties> = {
   page: {
-    minHeight: '100vh',
+    width: '100%',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '32px 18px',
-    background:
-      'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+    padding: 0,
   },
   authShell: {
     width: '100%',
-    maxWidth: 460,
+    maxWidth: 440,
+    margin: 0,
+    padding: 0,
   },
   card: {
-    borderRadius: 24,
-    padding: '30px 28px',
+    borderRadius: 18,
+    padding: '2px 26px 24px',
     background: '#ffffff',
-    boxShadow: '0 24px 70px rgba(31, 41, 55, 0.22)',
+    border: '1px solid rgba(226, 232, 240, 0.95)',
+    boxShadow: '0 22px 60px rgba(15, 23, 42, 0.12)',
   },
   header: {
-    marginBottom: 20,
-  },
-  eyebrow: {
-    margin: '0 0 7px',
-    fontSize: 12,
-    color: '#7c3aed',
-    fontWeight: 800,
-    textTransform: 'uppercase',
-    letterSpacing: '0.08em',
+    marginBottom: 18,
   },
   title: {
     margin: 0,
-    fontSize: 30,
+    fontSize: 28,
     color: '#111827',
     fontWeight: 850,
-    letterSpacing: '-0.02em',
+    letterSpacing: 0,
   },
   subtitle: {
     margin: '8px 0 0',
-    color: '#6b7280',
+    color: '#64748b',
     fontSize: 14,
-    lineHeight: 1.55,
+    lineHeight: 1.5,
   },
   modeSwitch: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
     gap: 6,
     padding: 5,
-    borderRadius: 14,
-    background: '#f4f0ff',
-    marginBottom: 18,
+    borderRadius: 12,
+    background: '#f1f5f9',
+    marginBottom: 16,
   },
   modeButton: {
     border: 'none',
-    borderRadius: 10,
-    padding: '11px 14px',
+    borderRadius: 8,
+    padding: '10px 14px',
     background: 'transparent',
-    color: '#6b7280',
+    color: '#64748b',
     fontWeight: 800,
     cursor: 'pointer',
   },
   modeButtonActive: {
     background: '#ffffff',
-    color: '#5b21b6',
-    boxShadow: '0 7px 18px rgba(91, 33, 182, 0.12)',
+    color: '#334155',
+    boxShadow: '0 6px 16px rgba(15, 23, 42, 0.08)',
   },
   form: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 14,
+    gap: 12,
   },
   label: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 7,
-    color: '#374151',
+    gap: 6,
+    color: '#334155',
     fontSize: 13,
     fontWeight: 800,
   },
   input: {
     width: '100%',
-    border: '1px solid #e5e7eb',
-    borderRadius: 14,
-    padding: '13px 14px',
-    color: '#111827',
+    border: '1px solid #cbd5e1',
+    borderRadius: 10,
+    padding: '12px 13px',
+    color: '#0f172a',
     fontSize: 15,
     outline: 'none',
-    background: '#ffffff',
+    background: '#f8fafc',
+    boxShadow: 'inset 0 1px 1px rgba(15, 23, 42, 0.03)',
   },
   helperText: {
-    color: '#6b7280',
+    color: '#64748b',
     fontSize: 12,
     fontWeight: 600,
   },
@@ -660,16 +730,16 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     gap: 10,
-    padding: 14,
-    borderRadius: 16,
-    background: '#f9fafb',
-    border: '1px solid #eef2f7',
+    padding: 13,
+    borderRadius: 12,
+    background: '#f8fafc',
+    border: '1px solid #e2e8f0',
   },
   checkboxLabel: {
     display: 'flex',
     gap: 10,
     alignItems: 'flex-start',
-    color: '#4b5563',
+    color: '#475569',
     fontSize: 13,
     lineHeight: 1.45,
   },
@@ -677,11 +747,11 @@ const styles: Record<string, React.CSSProperties> = {
     width: 16,
     height: 16,
     marginTop: 2,
-    accentColor: '#7c3aed',
+    accentColor: '#5b21b6',
     flexShrink: 0,
   },
   inlineLink: {
-    color: '#6d28d9',
+    color: '#5b21b6',
     fontWeight: 800,
     textDecoration: 'none',
   },
@@ -694,14 +764,18 @@ const styles: Record<string, React.CSSProperties> = {
   },
   primaryButton: {
     border: 'none',
-    borderRadius: 14,
-    padding: '14px 16px',
+    borderRadius: 10,
+    padding: '13px 16px',
     color: '#ffffff',
-    background: 'linear-gradient(135deg, #7c3aed, #5b21b6)',
+    background: '#5b21b6',
     fontSize: 15,
     fontWeight: 850,
     cursor: 'pointer',
-    boxShadow: '0 14px 28px rgba(124, 58, 237, 0.26)',
+    boxShadow: '0 12px 24px rgba(91, 33, 182, 0.22)',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   disabledButton: {
     opacity: 0.55,
@@ -716,7 +790,7 @@ const styles: Record<string, React.CSSProperties> = {
   textButton: {
     border: 'none',
     background: 'transparent',
-    color: '#6d28d9',
+    color: '#5b21b6',
     fontSize: 13,
     fontWeight: 800,
     cursor: 'pointer',
@@ -731,77 +805,54 @@ const styles: Record<string, React.CSSProperties> = {
     gridTemplateColumns: '1fr auto 1fr',
     alignItems: 'center',
     gap: 12,
-    color: '#9ca3af',
+    color: '#94a3b8',
     fontSize: 12,
     fontWeight: 700,
-    margin: '21px 0 15px',
+    margin: '18px 0 13px',
   },
   socialGrid: {
     display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
+    gridTemplateColumns: '1fr',
     gap: 10,
   },
   socialButton: {
-    border: '1px solid #e5e7eb',
+    border: '1px solid #dbe2ea',
     background: '#ffffff',
-    color: '#111827',
-    borderRadius: 14,
-    padding: '12px 14px',
+    color: '#0f172a',
+    borderRadius: 10,
+    padding: '11px 13px',
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 9,
     fontWeight: 800,
+    fontSize: 14,
     cursor: 'pointer',
   },
-  googleIcon: {
-    width: 20,
-    height: 20,
-    borderRadius: 999,
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: '#4285f4',
-    fontWeight: 900,
-  },
-  facebookIcon: {
-    width: 20,
-    height: 20,
-    borderRadius: 999,
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+  facebookButton: {
     background: '#1877f2',
     color: '#ffffff',
-    fontWeight: 900,
-    fontFamily: 'Arial, sans-serif',
+    borderColor: '#1877f2',
+  },
+  socialIcon: {
+    width: 18,
+    height: 18,
+    display: 'block',
   },
   loadingPage: {
-    minHeight: '100vh',
+    width: '100%',
+    minHeight: 260,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background:
-      'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
   },
   loadingContent: {
     textAlign: 'center',
-    color: '#ffffff',
-  },
-  loadingMark: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-    background: '#ffffff',
-    color: '#764ba2',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 24,
-    fontWeight: 900,
+    color: '#334155',
   },
   loadingText: {
     margin: '12px 0 0',
-    color: '#ffffff',
+    color: '#475569',
+    fontWeight: 800,
   },
 };

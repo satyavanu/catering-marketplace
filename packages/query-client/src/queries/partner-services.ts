@@ -222,6 +222,11 @@ export interface UpdatePartnerServicePayload {
   payload: PartnerServicePayload;
 }
 
+export interface SetPartnerServiceActivePayload {
+  serviceId: string;
+  is_active: boolean;
+}
+
 export interface PricingTierPayload {
   serviceId: string;
   min_guests: number;
@@ -333,6 +338,14 @@ export const updatePartnerService = ({
   payload,
 }: UpdatePartnerServicePayload) =>
   apiPatch<PartnerService>(`/api/v1/partner/services/${serviceId}`, payload);
+
+export const setPartnerServiceActive = ({
+  serviceId,
+  is_active,
+}: SetPartnerServiceActivePayload) =>
+  apiPatch<PartnerService>(`/api/v1/partner/services/${serviceId}/active`, {
+    is_active,
+  });
 
 export const deletePartnerService = (serviceId: string) =>
   apiDelete(`/api/v1/partner/services/${serviceId}`);
@@ -551,6 +564,21 @@ export const useDeletePartnerService = (
   return useMutation({
     mutationFn: deletePartnerService,
     onSuccess: (_, serviceId) => invalidateService(queryClient, serviceId),
+    ...options,
+  });
+};
+
+export const useSetPartnerServiceActive = (
+  options?: UseMutationOptions<
+    PartnerService,
+    Error,
+    SetPartnerServiceActivePayload
+  >
+) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: setPartnerServiceActive,
+    onSuccess: (data) => invalidateService(queryClient, data.id),
     ...options,
   });
 };

@@ -11,7 +11,7 @@ export type DynamicTableColumn<T> = {
 };
 
 export type DynamicTableAction<T> = {
-  label: string;
+  label: string | ((row: T) => string);
   icon?: React.ReactNode;
   variant?: 'default' | 'primary' | 'danger';
   onClick: (row: T) => void;
@@ -84,25 +84,32 @@ export default function DynamicTable<T>({
                 {actions.length > 0 && (
                   <td style={{ ...styles.td, textAlign: 'right' }}>
                     <div style={styles.actions}>
-                      {actions.map((action) => (
-                        <button
-                          key={action.label}
-                          title={action.label}
-                          type="button"
-                          onClick={() => action.onClick(row)}
-                          style={{
-                            ...styles.actionButton,
-                            ...(action.variant === 'primary'
-                              ? styles.primaryAction
-                              : {}),
-                            ...(action.variant === 'danger'
-                              ? styles.dangerAction
-                              : {}),
-                          }}
-                        >
-                          {action.icon || action.label}
-                        </button>
-                      ))}
+                      {actions.map((action, index) => {
+                        const label =
+                          typeof action.label === 'function'
+                            ? action.label(row)
+                            : action.label;
+
+                        return (
+                          <button
+                            key={`${label}-${index}`}
+                            title={label}
+                            type="button"
+                            onClick={() => action.onClick(row)}
+                            style={{
+                              ...styles.actionButton,
+                              ...(action.variant === 'primary'
+                                ? styles.primaryAction
+                                : {}),
+                              ...(action.variant === 'danger'
+                                ? styles.dangerAction
+                                : {}),
+                            }}
+                          >
+                            {action.icon || label}
+                          </button>
+                        );
+                      })}
                     </div>
                   </td>
                 )}

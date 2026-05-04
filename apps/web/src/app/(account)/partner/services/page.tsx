@@ -20,229 +20,87 @@ import {
   EarningsIcon,
 } from '@/components/Icons/DashboardIcons';
 import AddServiceDropdown from '@/components/dashboard/AddServiceDropdown';
-
-type ServiceType = 'chef' | 'meal_plan' | 'catering';
+import { useServiceCatalogMetaContext } from '@/app/context/ServiceCatalogMetaContext';
+import {
+  type PartnerService,
+  useDeletePartnerService,
+  useMyPartnerServices,
+  useSetPartnerServiceActive,
+} from '@catering-marketplace/query-client';
 
 type ServiceRow = {
   id: string;
   name: string;
   subtitle: string;
-  type: ServiceType;
+  serviceKey: string;
+  serviceLabel: string;
+  serviceTone: { bg: string; color: string };
   pricing: string;
   location: string;
   serviceArea: string;
   status: DashboardStatus;
+  isActive: boolean;
   updatedAt: string;
   orders: number;
 };
 
-const SERVICE_TYPE_LABEL: Record<ServiceType, string> = {
-  chef: 'Chef Service',
-  meal_plan: 'Meal Plan',
-  catering: 'Catering Offering',
-};
-
-const SERVICE_TYPE_BADGE: Record<ServiceType, { bg: string; color: string }> = {
+const SERVICE_TYPE_BADGE: Record<string, { bg: string; color: string }> = {
   chef: { bg: '#dcfce7', color: '#15803d' },
   meal_plan: { bg: '#fff7ed', color: '#ea580c' },
   catering: { bg: '#f3e8ff', color: '#7c3aed' },
+  restaurant_private_event: { bg: '#e0f2fe', color: '#0369a1' },
 };
-
-const MOCK_SERVICES: ServiceRow[] = [
-  {
-    id: 'svc_001',
-    name: 'Home Chef for Daily Meals',
-    subtitle: 'North Indian, South Indian, Jain',
-    type: 'chef',
-    pricing: '₹250 / meal',
-    location: 'Hyderabad',
-    serviceArea: '15 km radius',
-    status: 'active',
-    updatedAt: '18 May 2024',
-    orders: 24,
-  },
-  {
-    id: 'svc_002',
-    name: 'Weekly Veg Tiffin Plan',
-    subtitle: 'North Indian, Gujarati',
-    type: 'meal_plan',
-    pricing: '₹1,200 / week',
-    location: 'Hyderabad',
-    serviceArea: '10 km radius',
-    status: 'under_review',
-    updatedAt: '17 May 2024',
-    orders: 12,
-  },
-  {
-    id: 'svc_003',
-    name: 'Premium Wedding Catering',
-    subtitle: 'Multi Cuisine, Buffet',
-    type: 'catering',
-    pricing: '₹15,000 / event',
-    location: 'Hyderabad',
-    serviceArea: '20 km radius',
-    status: 'active',
-    updatedAt: '16 May 2024',
-    orders: 8,
-  },
-  {
-    id: 'svc_004',
-    name: 'Diabetic Friendly Meal Plan',
-    subtitle: 'Low Oil, Low Spice',
-    type: 'meal_plan',
-    pricing: '₹1,500 / week',
-    location: 'Hyderabad',
-    serviceArea: '8 km radius',
-    status: 'draft',
-    updatedAt: '15 May 2024',
-    orders: 0,
-  },
-  {
-    id: 'svc_005',
-    name: 'Weekend Party Catering',
-    subtitle: 'North Indian, Chinese',
-    type: 'catering',
-    pricing: '₹20,000 / event',
-    location: 'Hyderabad',
-    serviceArea: '25 km radius',
-    status: 'rejected',
-    updatedAt: '14 May 2024',
-    orders: 2,
-  },
-  {
-    id: 'svc_006',
-    name: 'Elderly Care Meals',
-    subtitle: 'Jain, Low Oil, Soft Food',
-    type: 'chef',
-    pricing: '₹300 / meal',
-    location: 'Bengaluru',
-    serviceArea: '12 km radius',
-    status: 'active',
-    updatedAt: '14 May 2024',
-    orders: 18,
-  },
-  {
-    id: 'svc_007',
-    name: 'Monthly South Indian Plan',
-    subtitle: 'South Indian, Veg',
-    type: 'meal_plan',
-    pricing: '₹4,500 / month',
-    location: 'Chennai',
-    serviceArea: '15 km radius',
-    status: 'active',
-    updatedAt: '13 May 2024',
-    orders: 31,
-  },
-  {
-    id: 'svc_008',
-    name: 'Corporate Lunch Catering',
-    subtitle: 'Corporate, Buffet, Bulk Orders',
-    type: 'catering',
-    pricing: '₹300 / plate',
-    location: 'Bengaluru',
-    serviceArea: '18 km radius',
-    status: 'under_review',
-    updatedAt: '12 May 2024',
-    orders: 5,
-  },
-  {
-    id: 'svc_009',
-    name: 'Protein Rich Meal Plan',
-    subtitle: 'High Protein, Balanced',
-    type: 'meal_plan',
-    pricing: '₹5,000 / month',
-    location: 'Mumbai',
-    serviceArea: '12 km radius',
-    status: 'active',
-    updatedAt: '12 May 2024',
-    orders: 15,
-  },
-  {
-    id: 'svc_010',
-    name: 'Birthday Party Chef',
-    subtitle: 'Live Cooking, Snacks',
-    type: 'chef',
-    pricing: '₹1,500 / session',
-    location: 'Delhi',
-    serviceArea: '10 km radius',
-    status: 'paused',
-    updatedAt: '11 May 2024',
-    orders: 7,
-  },
-  {
-    id: 'svc_011',
-    name: 'Festival Catering Package',
-    subtitle: 'Traditional Meals, Sweets',
-    type: 'catering',
-    pricing: '₹25,000 / event',
-    location: 'Pune',
-    serviceArea: '20 km radius',
-    status: 'draft',
-    updatedAt: '10 May 2024',
-    orders: 0,
-  },
-  {
-    id: 'svc_012',
-    name: 'Weight Loss Meal Plan',
-    subtitle: 'Low Calorie, Detox',
-    type: 'meal_plan',
-    pricing: '₹1,700 / week',
-    location: 'Hyderabad',
-    serviceArea: '10 km radius',
-    status: 'rejected',
-    updatedAt: '09 May 2024',
-    orders: 1,
-  },
-  {
-    id: 'svc_013',
-    name: 'Private Chef for Families',
-    subtitle: 'Home Cooking, Veg & Non-Veg',
-    type: 'chef',
-    pricing: '₹800 / visit',
-    location: 'Mumbai',
-    serviceArea: '14 km radius',
-    status: 'under_review',
-    updatedAt: '08 May 2024',
-    orders: 3,
-  },
-  {
-    id: 'svc_014',
-    name: 'Office Tiffin Subscription',
-    subtitle: 'Lunch, Corporate Meals',
-    type: 'meal_plan',
-    pricing: '₹2,200 / week',
-    location: 'Gurugram',
-    serviceArea: '16 km radius',
-    status: 'active',
-    updatedAt: '07 May 2024',
-    orders: 26,
-  },
-  {
-    id: 'svc_015',
-    name: 'Housewarming Catering',
-    subtitle: 'South Indian, Traditional',
-    type: 'catering',
-    pricing: '₹12,000 / event',
-    location: 'Chennai',
-    serviceArea: '18 km radius',
-    status: 'approved',
-    updatedAt: '06 May 2024',
-    orders: 4,
-  },
-];
 
 export default function ServicesLandingPage() {
   const router = useRouter();
+  const { serviceTypes, getServiceType, getExperienceType } =
+    useServiceCatalogMetaContext();
+  const { data: services = [], isLoading, error } = useMyPartnerServices();
+  const [notice, setNotice] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
+  const deleteService = useDeletePartnerService({
+    onSuccess: () =>
+      setNotice({ type: 'success', text: 'Service deleted successfully.' }),
+    onError: (err) =>
+      setNotice({ type: 'error', text: err.message || 'Delete failed.' }),
+  });
+  const setActive = useSetPartnerServiceActive({
+    onSuccess: (service) =>
+      setNotice({
+        type: 'success',
+        text: service.is_active
+          ? 'Service is now active.'
+          : 'Service is now inactive.',
+      }),
+    onError: (err) =>
+      setNotice({ type: 'error', text: err.message || 'Update failed.' }),
+  });
 
-  const [activeTab, setActiveTab] = useState<'all' | ServiceType>('all');
+  const [activeTab, setActiveTab] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | DashboardStatus>(
     'all'
   );
   const [query, setQuery] = useState('');
 
+  const rows = useMemo(
+    () =>
+      services.map((service) =>
+        toServiceRow(service, {
+          serviceLabel:
+            getServiceType(service.service_key)?.label || service.service_key,
+          experienceLabel:
+            getExperienceType(service.experience_type_key)?.label || '',
+        })
+      ),
+    [getExperienceType, getServiceType, services]
+  );
+
   const filteredServices = useMemo(() => {
-    return MOCK_SERVICES.filter((service) => {
-      const matchesType = activeTab === 'all' || service.type === activeTab;
+    return rows.filter((service) => {
+      const matchesType =
+        activeTab === 'all' || service.serviceKey === activeTab;
       const matchesStatus =
         statusFilter === 'all' || service.status === statusFilter;
 
@@ -253,21 +111,20 @@ export default function ServicesLandingPage() {
         service.name.toLowerCase().includes(search) ||
         service.subtitle.toLowerCase().includes(search) ||
         service.location.toLowerCase().includes(search) ||
-        SERVICE_TYPE_LABEL[service.type].toLowerCase().includes(search);
+        service.serviceLabel.toLowerCase().includes(search);
 
       return matchesType && matchesStatus && matchesQuery;
     });
-  }, [activeTab, statusFilter, query]);
+  }, [activeTab, rows, statusFilter, query]);
 
   const stats = useMemo(() => {
     return {
-      total: MOCK_SERVICES.length,
-      active: MOCK_SERVICES.filter((s) => s.status === 'active').length,
-      underReview: MOCK_SERVICES.filter((s) => s.status === 'under_review')
-        .length,
-      draft: MOCK_SERVICES.filter((s) => s.status === 'draft').length,
+      total: rows.length,
+      active: rows.filter((s) => s.isActive).length,
+      underReview: rows.filter((s) => s.status === 'under_review').length,
+      draft: rows.filter((s) => s.status === 'draft').length,
     };
-  }, []);
+  }, [rows]);
 
   const columns: DynamicTableColumn<ServiceRow>[] = [
     {
@@ -276,14 +133,20 @@ export default function ServicesLandingPage() {
       render: (row) => (
         <div style={styles.serviceCell}>
           <div style={styles.thumb}>
-            {row.type === 'chef' && <ServicesIcon size={17} />}
-            {row.type === 'meal_plan' && <OrdersIcon size={17} />}
-            {row.type === 'catering' && <CalendarIcon size={17} />}
+            {row.serviceKey === 'meal_plan' ? (
+              <OrdersIcon size={17} />
+            ) : row.serviceKey === 'catering' ? (
+              <CalendarIcon size={17} />
+            ) : (
+              <ServicesIcon size={17} />
+            )}
           </div>
 
           <div>
             <div style={styles.serviceName}>{row.name}</div>
-            <div style={styles.serviceSubtitle}>{row.subtitle}</div>
+            <div style={styles.serviceSubtitle} title={row.subtitle}>
+              {row.subtitle}
+            </div>
           </div>
         </div>
       ),
@@ -295,11 +158,11 @@ export default function ServicesLandingPage() {
         <span
           style={{
             ...styles.typeBadge,
-            background: SERVICE_TYPE_BADGE[row.type].bg,
-            color: SERVICE_TYPE_BADGE[row.type].color,
+            background: row.serviceTone.bg,
+            color: row.serviceTone.color,
           }}
         >
-          {SERVICE_TYPE_LABEL[row.type]}
+          {row.serviceLabel}
         </span>
       ),
     },
@@ -314,7 +177,9 @@ export default function ServicesLandingPage() {
       render: (row) => (
         <div>
           <div style={styles.location}>{row.location}</div>
-          <div style={styles.serviceSubtitle}>{row.serviceArea}</div>
+          <div style={styles.serviceSubtitle} title={row.serviceArea}>
+            {row.serviceArea}
+          </div>
         </div>
       ),
     },
@@ -341,14 +206,35 @@ export default function ServicesLandingPage() {
       <div style={styles.header}>
         <div>
           <h1 style={styles.title}>Services</h1>
-          <p style={styles.subtitle}>Manage chef services, meal plans, and catering offerings.</p>
+          <p style={styles.subtitle}>
+            Manage chef services, meal plans, and catering offerings.
+          </p>
         </div>
 
         <div style={styles.headerActions}>
-        <AddServiceDropdown onSelect={(option: any) => router.push(option.href)} />
-
+          <AddServiceDropdown
+            onSelect={(option: any) => router.push(option.href)}
+          />
         </div>
       </div>
+
+      {notice && (
+        <div
+          style={{
+            ...styles.notice,
+            ...(notice.type === 'error' ? styles.noticeError : {}),
+          }}
+        >
+          <span>{notice.text}</span>
+          <button
+            type="button"
+            style={styles.noticeClose}
+            onClick={() => setNotice(null)}
+          >
+            Close
+          </button>
+        </div>
+      )}
 
       <div style={styles.statsGrid}>
         <StatCard
@@ -385,21 +271,14 @@ export default function ServicesLandingPage() {
               active={activeTab === 'all'}
               onClick={() => setActiveTab('all')}
             />
-            <Tab
-              label="Chef Services"
-              active={activeTab === 'chef'}
-              onClick={() => setActiveTab('chef')}
-            />
-            <Tab
-              label="Meal Plans"
-              active={activeTab === 'meal_plan'}
-              onClick={() => setActiveTab('meal_plan')}
-            />
-            <Tab
-              label="Catering Offerings"
-              active={activeTab === 'catering'}
-              onClick={() => setActiveTab('catering')}
-            />
+            {serviceTypes.map((serviceType) => (
+              <Tab
+                key={serviceType.key}
+                label={serviceType.label}
+                active={activeTab === serviceType.key}
+                onClick={() => setActiveTab(serviceType.key)}
+              />
+            ))}
           </div>
 
           <div style={styles.filters}>
@@ -420,6 +299,7 @@ export default function ServicesLandingPage() {
                 { label: 'Draft', value: 'draft' },
                 { label: 'Rejected', value: 'rejected' },
                 { label: 'Paused', value: 'paused' },
+                { label: 'Approved', value: 'approved' },
               ]}
             />
           </div>
@@ -429,21 +309,49 @@ export default function ServicesLandingPage() {
           data={filteredServices}
           columns={columns}
           getRowKey={(row) => row.id}
-          emptyText="No services found."
+          emptyText={
+            isLoading
+              ? 'Loading services...'
+              : error
+                ? 'Unable to load services.'
+                : 'No services found.'
+          }
           actions={[
             {
               label: 'View',
               icon: <EyeIcon size={16} />,
               onClick: (row) =>
-                router.push(`/partner/services/${getRouteType(row.type)}/${row.id}`),
+                router.push(
+                  `/partner/services/${getRouteType(row.serviceKey)}/${row.id}`
+                ),
             },
             {
               label: 'Edit',
               icon: <EditIcon size={16} />,
               onClick: (row) =>
                 router.push(
-                  `/partner/services/${getRouteType(row.type)}/${row.id}/edit`
+                  `/partner/services/${getRouteType(row.serviceKey)}/${row.id}/edit`
                 ),
+            },
+            {
+              label: (row) => (row.isActive ? 'Make inactive' : 'Make active'),
+              icon: <PowerIconMini />,
+              onClick: (row) =>
+                setActive.mutate({
+                  serviceId: row.id,
+                  is_active: !row.isActive,
+                }),
+            },
+            {
+              label: 'Delete',
+              icon: <DeleteIconMini />,
+              variant: 'danger',
+              onClick: (row) => {
+                const ok = window.confirm(
+                  `Delete "${row.name}"? This cannot be undone.`
+                );
+                if (ok) deleteService.mutate(row.id);
+              },
             },
           ]}
         />
@@ -452,9 +360,89 @@ export default function ServicesLandingPage() {
   );
 }
 
-function getRouteType(type: ServiceType) {
-  if (type === 'meal_plan') return 'meal-plans';
-  return type;
+function toServiceRow(
+  service: PartnerService,
+  labels: { serviceLabel: string; experienceLabel: string }
+): ServiceRow {
+  const firstArea = Array.isArray(service.service_areas)
+    ? (service.service_areas[0] as any)
+    : null;
+
+  return {
+    id: service.id,
+    name: service.title,
+    subtitle:
+      service.short_description ||
+      labels.experienceLabel ||
+      service.description ||
+      'No description yet',
+    serviceKey: service.service_key,
+    serviceLabel: labels.serviceLabel,
+    serviceTone: SERVICE_TYPE_BADGE[service.service_key] ||
+      SERVICE_TYPE_BADGE.chef || { bg: '#f1f5f9', color: '#475569' },
+    pricing: formatPricing(service),
+    location: firstArea?.city_name || firstArea?.city || firstArea?.name || '-',
+    serviceArea: formatServiceArea(service),
+    status: mapServiceStatus(service),
+    isActive: service.is_active,
+    updatedAt: formatDate(service.updated_at || service.created_at),
+    orders: 0,
+  };
+}
+
+function getRouteType(serviceKey: string) {
+  if (serviceKey === 'meal_plan') return 'meal-plans';
+  if (serviceKey === 'restaurant_private_event') return 'restaurant-events';
+  return serviceKey;
+}
+
+function mapServiceStatus(service: PartnerService): DashboardStatus {
+  if (!service.is_active || service.status === 'inactive') return 'paused';
+  if (service.status === 'approved') return 'approved';
+  if (service.status === 'under_review') return 'under_review';
+  if (service.status === 'rejected') return 'rejected';
+  return service.status === 'draft' ? 'draft' : 'active';
+}
+
+function formatPricing(service: PartnerService) {
+  if (service.base_price == null) return 'Custom quote';
+
+  const amount = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: service.currency_code || 'INR',
+    maximumFractionDigits: 0,
+  }).format(service.base_price);
+
+  const unit =
+    service.pricing_model === 'per_person'
+      ? ' / person'
+      : service.pricing_model === 'per_plate'
+        ? ' / plate'
+        : service.pricing_model === 'per_event'
+          ? ' / event'
+          : '';
+
+  return `${amount}${unit}`;
+}
+
+function formatServiceArea(service: PartnerService) {
+  const count = Array.isArray(service.service_areas)
+    ? service.service_areas.length
+    : 0;
+  if (count > 1) return `${count} service areas`;
+  if (service.min_guests || service.max_guests) {
+    return `${service.min_guests || 1}-${service.max_guests || 'many'} guests`;
+  }
+  return 'Service area not set';
+}
+
+function formatDate(value?: string) {
+  if (!value) return '-';
+  return new Intl.DateTimeFormat('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(value));
 }
 
 function Tab({
@@ -554,13 +542,7 @@ function ReviewIconMini() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <circle
-        cx="12"
-        cy="12"
-        r="9"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
     </svg>
   );
 }
@@ -579,6 +561,33 @@ function DraftIconMini() {
         stroke="currentColor"
         strokeWidth="2"
         strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function DeleteIconMini() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function PowerIconMini() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M12 3v8M7.1 6.5A8 8 0 1 0 17 6.5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
       />
     </svg>
   );
@@ -618,6 +627,34 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     gap: 10,
     flexWrap: 'wrap',
+  },
+
+  notice: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    padding: '11px 13px',
+    borderRadius: 12,
+    background: '#ecfdf5',
+    border: '1px solid #bbf7d0',
+    color: '#047857',
+    fontSize: 13,
+    fontWeight: 750,
+  },
+
+  noticeError: {
+    background: '#fef2f2',
+    border: '1px solid #fecaca',
+    color: '#b91c1c',
+  },
+
+  noticeClose: {
+    border: 'none',
+    background: 'transparent',
+    color: 'inherit',
+    cursor: 'pointer',
+    fontWeight: 850,
   },
 
   primaryButton: {
@@ -772,6 +809,10 @@ const styles: Record<string, React.CSSProperties> = {
   serviceSubtitle: {
     fontSize: 12,
     color: '#8b8aa3',
+    maxWidth: 280,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
   },
 
   typeBadge: {
