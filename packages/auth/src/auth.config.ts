@@ -29,6 +29,7 @@ declare module 'next-auth' {
     refreshToken?: string;
     accessToken?: string;
     fullName?: string;
+    referralCode?: string;
     tokenExpiresIn?: number;
     tokenExpiresAt?: number;
     access_token?: string;
@@ -44,6 +45,7 @@ declare module 'next-auth' {
     refreshToken?: string;
     accessToken?: string;
     fullName?: string;
+    referralCode?: string;
     tokenExpiresIn?: number;
     tokenExpiresAt?: number;
     access_token?: string;
@@ -296,6 +298,7 @@ async function authorizeOtpUser(
       fullName,
       image: userData.image || '',
       phone: credentials.phone || userData.phone || '',
+      referralCode: userData.referral_code || '',
       role: userRole,
       permissions: userData.permissions || rolePermissions[userRole] || [],
       isVerified:
@@ -366,6 +369,7 @@ export const authOptions: NextAuthOptions = {
         phone: { label: 'Phone', type: 'text' },
         intent: { label: 'Intent', type: 'text' },
         full_name: { label: 'Full name', type: 'text' },
+        referral_code: { label: 'Referral code', type: 'text' },
       },
       async authorize(credentials) {
         return await authorizeOtpUser(credentials, 'email');
@@ -379,6 +383,7 @@ export const authOptions: NextAuthOptions = {
         otp: { label: 'OTP', type: 'text' },
         intent: { label: 'Intent', type: 'text' },
         full_name: { label: 'Full name', type: 'text' },
+        referral_code: { label: 'Referral code', type: 'text' },
       },
       async authorize(credentials) {
         return await authorizeOtpUser(credentials, 'phone');
@@ -397,6 +402,7 @@ export const authOptions: NextAuthOptions = {
         session.user.fullName = token.fullName || token.name;
         session.user.image = token.image;
         session.user.phone = token.phone;
+        session.user.referralCode = token.referralCode || '';
         session.user.role = token.role || ('customer' as UserRole);
         session.user.permissions = token.permissions || [];
         session.user.partner = token.partner || null;
@@ -473,6 +479,7 @@ export const authOptions: NextAuthOptions = {
         token.fullName = user.fullName || user.name;
         token.image = user.image;
         token.phone = user.phone;
+        token.referralCode = user.referralCode || '';
         token.role = user.role || ('customer' as UserRole);
         token.permissions = user.permissions || [];
         token.partner = user.partner || null;
@@ -578,6 +585,7 @@ export const authOptions: NextAuthOptions = {
           const backendRole = normalizeUserRole(data.role);
           token.role = backendRole;
           token.status = data.status || 'active';
+          token.referralCode = data.referral_code || '';
           token.isVerified = data.email_verified ?? false;
           token.permissions = rolePermissions[backendRole] || [];
 

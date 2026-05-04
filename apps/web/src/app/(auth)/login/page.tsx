@@ -81,10 +81,36 @@ export default function LoginPage() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [marketingEmail, setMarketingEmail] = useState(true);
   const [marketingSms, setMarketingSms] = useState(false);
+  const [referralCode, setReferralCode] = useState('');
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    const searchParams = new URLSearchParams(window.location.search);
+    const urlReferralCode =
+      searchParams.get('ref') ||
+      searchParams.get('referral') ||
+      searchParams.get('referral_code') ||
+      '';
+    const storedReferralCode =
+      window.sessionStorage.getItem('droooly_referral_code') || '';
+    const nextReferralCode = normalizeReferralCode(
+      urlReferralCode || storedReferralCode
+    );
+
+    if (nextReferralCode) {
+      setReferralCode(nextReferralCode);
+      window.sessionStorage.setItem('droooly_referral_code', nextReferralCode);
+    }
+
+    if (searchParams.get('mode') === 'signup') {
+      setAuthMode('signup');
+    }
+  }, [mounted]);
 
   useEffect(() => {
     if (resendTimer <= 0) return;
@@ -224,12 +250,17 @@ export default function LoginPage() {
         otp,
         intent: authMode,
         ...(isSignup ? { full_name: fullName.trim() } : {}),
+        ...(isSignup && referralCode ? { referral_code: referralCode } : {}),
         redirect: false,
       });
 
       if (!result?.ok) {
         setError('Invalid OTP. Please check the code and try again.');
         return;
+      }
+
+      if (isSignup) {
+        window.sessionStorage.removeItem('droooly_referral_code');
       }
 
       if (isSignup) {
@@ -536,6 +567,10 @@ export default function LoginPage() {
       <style>{spinnerStyles}</style>
     </div>
   );
+}
+
+function normalizeReferralCode(code: string) {
+  return code.trim().replace(/[\s-]/g, '').toUpperCase().slice(0, 32);
 }
 
 function SocialButton({

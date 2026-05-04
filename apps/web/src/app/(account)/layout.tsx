@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
+import { Check, Copy, Share2 } from 'lucide-react';
 import {
   useAccountNotifications,
   useMarkAccountNotificationRead,
@@ -269,6 +270,14 @@ function getNotificationHref(
   return `${accountHomePath}/messages`;
 }
 
+function buildReferralLink(code: string) {
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ||
+    'https://droooly.com';
+
+  return `${baseUrl}/login?mode=signup&ref=${encodeURIComponent(code)}`;
+}
+
 export default function PartnerDashboardLayout({
   children,
   userName,
@@ -290,6 +299,7 @@ export default function PartnerDashboardLayout({
   const [openMenu, setOpenMenu] = useState<'notifications' | 'profile' | null>(
     null
   );
+  const [copiedReferral, setCopiedReferral] = useState(false);
   const sessionUser = session?.user as
     | {
         fullName?: string | null;
@@ -297,6 +307,7 @@ export default function PartnerDashboardLayout({
         email?: string | null;
         image?: string | null;
         role?: string | null;
+        referralCode?: string | null;
       }
     | undefined;
   const accountRole = normalizeAccountRole(sessionUser?.role);
@@ -332,6 +343,8 @@ export default function PartnerDashboardLayout({
       : 'Our team is here to help with services, bookings, and setup.';
   const accountNotifications = notificationQuery.data?.items ?? [];
   const unreadNotificationCount = notificationQuery.data?.unread_count ?? 0;
+  const referralCode = sessionUser?.referralCode || '';
+  const referralLink = referralCode ? buildReferralLink(referralCode) : '';
   const isActive = (href: string) => {
     if (href === accountHomePath) return pathname === href;
     return pathname.startsWith(href);
@@ -379,6 +392,31 @@ export default function PartnerDashboardLayout({
     navigateFromMenu(
       getNotificationHref(notification, accountHomePath, isAdminAccount)
     );
+  };
+
+  const copyReferralLink = async () => {
+    if (!referralLink) return;
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(referralLink);
+      } else {
+        const input = document.createElement('textarea');
+        input.value = referralLink;
+        input.style.position = 'fixed';
+        input.style.opacity = '0';
+        document.body.appendChild(input);
+        input.focus();
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+      }
+
+      setCopiedReferral(true);
+      window.setTimeout(() => setCopiedReferral(false), 1800);
+    } catch (error) {
+      console.error('Failed to copy referral link:', error);
+    }
   };
 
   if (status === 'loading' || status === 'unauthenticated') {
@@ -573,6 +611,27 @@ export default function PartnerDashboardLayout({
                 </div>
               )}
             </div>
+
+            {referralCode && (
+              <button
+                type="button"
+                title={`Copy referral link: ${referralLink}`}
+                style={styles.referralButton}
+                onClick={copyReferralLink}
+              >
+                <Share2 size={16} strokeWidth={2.2} />
+                <span className="referral-code" style={styles.referralCode}>
+                  {referralCode}
+                </span>
+                <span style={styles.referralCopyIcon}>
+                  {copiedReferral ? (
+                    <Check size={15} strokeWidth={2.6} />
+                  ) : (
+                    <Copy size={15} strokeWidth={2.3} />
+                  )}
+                </span>
+              </button>
+            )}
 
             <div style={styles.menuWrap}>
               <button
@@ -920,6 +979,44 @@ const styles: Record<string, React.CSSProperties> = {
     border: '2px solid #ffffff',
   },
 
+  referralButton: {
+    height: 44,
+    maxWidth: 190,
+    borderRadius: 15,
+    border: '1px solid rgba(124, 58, 237, 0.14)',
+    background: '#ffffff',
+    color: '#5b21b6',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: '0 12px',
+    cursor: 'pointer',
+    boxShadow: '0 8px 18px rgba(17, 24, 39, 0.04)',
+    fontSize: 12,
+    fontWeight: 850,
+  },
+
+  referralCode: {
+    maxWidth: 92,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    letterSpacing: 0,
+  },
+
+  referralCopyIcon: {
+    width: 22,
+    height: 22,
+    borderRadius: 999,
+    background: '#f5f3ff',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#6d28d9',
+    flexShrink: 0,
+  },
+
   avatarButton: {
     height: 46,
     borderRadius: 999,
@@ -1184,6 +1281,10 @@ const responsiveCss = `
     }
 
     .avatar-name {
+      display: none !important;
+    }
+
+    .referral-code {
       display: none !important;
     }
   }

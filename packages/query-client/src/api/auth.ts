@@ -16,6 +16,7 @@ interface VerifyOtpPayload {
   otp: string;
   intent?: 'login' | 'signup';
   full_name?: string;
+  referral_code?: string;
 }
 
 interface LogoutPayload {
