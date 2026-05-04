@@ -531,14 +531,59 @@ function invalidateService(
   }
 }
 
+function upsertServiceCache(
+  queryClient: ReturnType<typeof useQueryClient>,
+  service: PartnerService
+) {
+  queryClient.setQueryData<PartnerService[]>(
+    partnerServiceQueryKeys.mine(),
+    (current) => {
+      if (!current) return [service];
+
+      const exists = current.some((item) => item.id === service.id);
+      if (!exists) return [service, ...current];
+
+      return current.map((item) =>
+        item.id === service.id ? { ...item, ...service } : item
+      );
+    }
+  );
+
+  queryClient.setQueryData<PartnerServiceDetail>(
+    partnerServiceQueryKeys.mineDetail(service.id),
+    (current) =>
+      ({
+        ...(current || {}),
+        ...service,
+      }) as PartnerServiceDetail
+  );
+}
+
+function removeServiceCache(
+  queryClient: ReturnType<typeof useQueryClient>,
+  serviceId: string
+) {
+  queryClient.setQueryData<PartnerService[]>(
+    partnerServiceQueryKeys.mine(),
+    (current) => current?.filter((item) => item.id !== serviceId) || []
+  );
+  queryClient.removeQueries({
+    queryKey: partnerServiceQueryKeys.mineDetail(serviceId),
+  });
+}
+
 export const useCreatePartnerService = (
   options?: UseMutationOptions<PartnerService, Error, PartnerServicePayload>
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: createPartnerService,
-    onSuccess: (data) => invalidateService(queryClient, data.id),
     ...options,
+    mutationFn: createPartnerService,
+    onSuccess: (data, variables, context, mutation) => {
+      upsertServiceCache(queryClient, data);
+      invalidateService(queryClient, data.id);
+      options?.onSuccess?.(data, variables, context, mutation);
+    },
   });
 };
 
@@ -551,9 +596,13 @@ export const useUpdatePartnerService = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: updatePartnerService,
-    onSuccess: (data) => invalidateService(queryClient, data.id),
     ...options,
+    mutationFn: updatePartnerService,
+    onSuccess: (data, variables, context, mutation) => {
+      upsertServiceCache(queryClient, data);
+      invalidateService(queryClient, data.id);
+      options?.onSuccess?.(data, variables, context, mutation);
+    },
   });
 };
 
@@ -562,9 +611,13 @@ export const useDeletePartnerService = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: deletePartnerService,
-    onSuccess: (_, serviceId) => invalidateService(queryClient, serviceId),
     ...options,
+    mutationFn: deletePartnerService,
+    onSuccess: (data, serviceId, context, mutation) => {
+      removeServiceCache(queryClient, serviceId);
+      invalidateService(queryClient, serviceId);
+      options?.onSuccess?.(data, serviceId, context, mutation);
+    },
   });
 };
 
@@ -577,9 +630,13 @@ export const useSetPartnerServiceActive = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: setPartnerServiceActive,
-    onSuccess: (data) => invalidateService(queryClient, data.id),
     ...options,
+    mutationFn: setPartnerServiceActive,
+    onSuccess: (data, variables, context, mutation) => {
+      upsertServiceCache(queryClient, data);
+      invalidateService(queryClient, data.id);
+      options?.onSuccess?.(data, variables, context, mutation);
+    },
   });
 };
 
@@ -588,9 +645,13 @@ export const useSubmitPartnerService = (
 ) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: submitPartnerService,
-    onSuccess: (data) => invalidateService(queryClient, data.id),
     ...options,
+    mutationFn: submitPartnerService,
+    onSuccess: (data, variables, context, mutation) => {
+      upsertServiceCache(queryClient, data);
+      invalidateService(queryClient, data.id);
+      options?.onSuccess?.(data, variables, context, mutation);
+    },
   });
 };
 
