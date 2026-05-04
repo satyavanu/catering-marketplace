@@ -313,7 +313,6 @@ export default function PartnerDashboardLayout({
   const accountRole = normalizeAccountRole(sessionUser?.role);
   const roleNavItems = navItemsByRole[accountRole];
   const accountHomePath = roleHomePath[accountRole];
-  const profilePath = `${accountHomePath}/profile`;
   const isAdminAccount =
     accountRole === 'admin' || accountRole === 'super_admin';
   const isCustomerAccount = accountRole === 'customer';
@@ -612,27 +611,6 @@ export default function PartnerDashboardLayout({
               )}
             </div>
 
-            {referralCode && (
-              <button
-                type="button"
-                title={`Copy referral link: ${referralLink}`}
-                style={styles.referralButton}
-                onClick={copyReferralLink}
-              >
-                <Share2 size={16} strokeWidth={2.2} />
-                <span className="referral-code" style={styles.referralCode}>
-                  {referralCode}
-                </span>
-                <span style={styles.referralCopyIcon}>
-                  {copiedReferral ? (
-                    <Check size={15} strokeWidth={2.6} />
-                  ) : (
-                    <Copy size={15} strokeWidth={2.3} />
-                  )}
-                </span>
-              </button>
-            )}
-
             <div style={styles.menuWrap}>
               <button
                 type="button"
@@ -669,22 +647,43 @@ export default function PartnerDashboardLayout({
                     )}
                   </div>
 
-                  <button
-                    type="button"
-                    role="menuitem"
-                    style={styles.profileMenuItem}
-                    onClick={() => navigateFromMenu(profilePath)}
-                  >
-                    Profile
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    style={styles.profileMenuItem}
-                    onClick={() => navigateFromMenu(accountHomePath)}
-                  >
-                    Account home
-                  </button>
+                  {referralCode && (
+                    <div style={styles.referralMenuCard}>
+                      <div style={styles.referralMenuTop}>
+                        <span style={styles.referralMenuIcon}>
+                          <Share2 size={16} strokeWidth={2.4} />
+                        </span>
+                        <div>
+                          <strong style={styles.referralMenuTitle}>
+                            Invite & Earn
+                          </strong>
+                          <span style={styles.referralMenuText}>
+                            Share your referral link.
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        role="menuitem"
+                        title={referralLink}
+                        style={styles.referralMenuButton}
+                        onClick={copyReferralLink}
+                      >
+                        <span style={styles.referralMenuCode}>
+                          {referralCode}
+                        </span>
+                        <span style={styles.referralCopyIcon}>
+                          {copiedReferral ? (
+                            <Check size={15} strokeWidth={2.6} />
+                          ) : (
+                            <Copy size={15} strokeWidth={2.3} />
+                          )}
+                        </span>
+                      </button>
+                    </div>
+                  )}
+
                   <button
                     type="button"
                     role="menuitem"
@@ -979,32 +978,6 @@ const styles: Record<string, React.CSSProperties> = {
     border: '2px solid #ffffff',
   },
 
-  referralButton: {
-    height: 44,
-    maxWidth: 190,
-    borderRadius: 15,
-    border: '1px solid rgba(124, 58, 237, 0.14)',
-    background: '#ffffff',
-    color: '#5b21b6',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    padding: '0 12px',
-    cursor: 'pointer',
-    boxShadow: '0 8px 18px rgba(17, 24, 39, 0.04)',
-    fontSize: 12,
-    fontWeight: 850,
-  },
-
-  referralCode: {
-    maxWidth: 92,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-    letterSpacing: 0,
-  },
-
   referralCopyIcon: {
     width: 22,
     height: 22,
@@ -1165,7 +1138,7 @@ const styles: Record<string, React.CSSProperties> = {
     position: 'absolute',
     top: 'calc(100% + 10px)',
     right: 0,
-    width: 230,
+    width: 282,
     borderRadius: 16,
     border: '1px solid rgba(124, 58, 237, 0.13)',
     background: '#ffffff',
@@ -1197,6 +1170,71 @@ const styles: Record<string, React.CSSProperties> = {
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
+  },
+
+  referralMenuCard: {
+    margin: 8,
+    padding: 12,
+    borderRadius: 14,
+    background: '#fbf8ff',
+    border: '1px solid rgba(124, 58, 237, 0.13)',
+  },
+
+  referralMenuTop: {
+    display: 'flex',
+    gap: 10,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+
+  referralMenuIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    background: '#ffffff',
+    color: '#7c3aed',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 8px 18px rgba(124, 58, 237, 0.10)',
+    flexShrink: 0,
+  },
+
+  referralMenuTitle: {
+    display: 'block',
+    fontSize: 13,
+    color: '#151126',
+  },
+
+  referralMenuText: {
+    display: 'block',
+    marginTop: 2,
+    fontSize: 12,
+    color: '#64748b',
+  },
+
+  referralMenuButton: {
+    width: '100%',
+    minHeight: 38,
+    border: '1px solid #ddd6fe',
+    borderRadius: 11,
+    background: '#ffffff',
+    color: '#5b21b6',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    cursor: 'pointer',
+    padding: '7px 8px 7px 12px',
+  },
+
+  referralMenuCode: {
+    fontSize: 13,
+    fontWeight: 900,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    letterSpacing: 0,
   },
 
   profileMenuItem: {
@@ -1284,9 +1322,6 @@ const responsiveCss = `
       display: none !important;
     }
 
-    .referral-code {
-      display: none !important;
-    }
   }
 
   @media (max-width: 520px) {

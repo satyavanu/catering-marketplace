@@ -1,6 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { Check, Copy, Share2 } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 import {
   CalendarIcon,
@@ -11,9 +15,36 @@ import {
   WorkersIcon,
   ApprovalIcon,
 } from '@/components/Icons/DashboardIcons';
-import { useRouter } from "next/navigation";
+
+function buildReferralLink(code: string) {
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ||
+    'https://droooly.com';
+
+  return `${baseUrl}/login?mode=signup&ref=${encodeURIComponent(code)}`;
+}
+
 export default function PartnerHomePage() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const [copiedReferral, setCopiedReferral] = useState(false);
+  const referralCode =
+    (session?.user as { referralCode?: string | null } | undefined)
+      ?.referralCode || '';
+  const referralLink = referralCode ? buildReferralLink(referralCode) : '';
+
+  const copyReferralLink = async () => {
+    if (!referralLink) return;
+
+    try {
+      await navigator.clipboard.writeText(referralLink);
+      setCopiedReferral(true);
+      window.setTimeout(() => setCopiedReferral(false), 1800);
+    } catch (error) {
+      console.error('Failed to copy referral link:', error);
+    }
+  };
+
   return (
     <div style={styles.page}>
       <section style={styles.hero}>
@@ -23,8 +54,6 @@ export default function PartnerHomePage() {
         </p>
 
         <div style={styles.serviceGrid}>
-
-          
           <ServiceCard
             tone="green"
             image="/dashboard/chef-service.png"
@@ -33,7 +62,7 @@ export default function PartnerHomePage() {
             description="Offer your cooking skills as a personal chef. Set your cuisines, availability, and pricing."
             buttonText="Add Chef Service"
             tags={['Personal Chef', 'In-home Cooking']}
-            onClick={() => router.push('./partner/services/chef/new') }
+            onClick={() => router.push('./partner/services/chef/new')}
           />
 
           <ServiceCard
@@ -57,6 +86,53 @@ export default function PartnerHomePage() {
           />
         </div>
       </section>
+
+      {referralCode && (
+        <section style={styles.referralCard}>
+          <div style={styles.referralContent}>
+            <span style={styles.referralIcon}>
+              <Share2 size={22} strokeWidth={2.4} />
+            </span>
+
+            <div style={styles.referralCopy}>
+              <h2 style={styles.referralTitle}>Invite & Earn</h2>
+              <p style={styles.referralText}>
+                Earn commissions by referring your friends. Share your code and
+                get rewarded when they join.
+              </p>
+
+              <div style={styles.referralCodeBox}>
+                <span style={styles.referralCodeLabel}>Your code</span>
+                <strong style={styles.referralCodeValue}>{referralCode}</strong>
+              </div>
+
+              <p style={styles.referralFinePrint}>
+                Rewards are subject to eligibility, successful signup, and
+                Droooly referral terms.
+              </p>
+            </div>
+          </div>
+
+          <div style={styles.referralActions}>
+            <button
+              type="button"
+              style={styles.referralPrimaryButton}
+              onClick={copyReferralLink}
+            >
+              {copiedReferral ? (
+                <Check size={17} strokeWidth={2.6} />
+              ) : (
+                <Copy size={17} strokeWidth={2.4} />
+              )}
+              {copiedReferral ? 'Copied' : 'Copy Link'}
+            </button>
+
+            <Link href="/partner/referrals" style={styles.referralLinkButton}>
+              Know more
+            </Link>
+          </div>
+        </section>
+      )}
 
       <section style={styles.statsGrid}>
         <StatCard
@@ -422,6 +498,131 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
     gap: 24,
+  },
+
+  referralCard: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 20,
+    padding: 22,
+    borderRadius: 22,
+    background:
+      'linear-gradient(135deg, rgba(124, 58, 237, 0.10), rgba(255, 90, 61, 0.07)), #ffffff',
+    border: '1px solid rgba(124, 58, 237, 0.14)',
+    boxShadow: '0 14px 34px rgba(17, 24, 39, 0.045)',
+    flexWrap: 'wrap',
+  },
+
+  referralContent: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 16,
+    minWidth: 260,
+    flex: '1 1 460px',
+  },
+
+  referralIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 999,
+    background: '#ffffff',
+    color: '#7c3aed',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 10px 22px rgba(124, 58, 237, 0.14)',
+    flexShrink: 0,
+  },
+
+  referralCopy: {
+    minWidth: 0,
+  },
+
+  referralTitle: {
+    margin: 0,
+    fontSize: 20,
+    fontWeight: 650,
+    color: '#151126',
+  },
+
+  referralText: {
+    margin: '6px 0 14px',
+    maxWidth: 640,
+    color: '#4b5563',
+    fontSize: 14,
+    lineHeight: 1.5,
+  },
+
+  referralCodeBox: {
+    width: 'fit-content',
+    maxWidth: '100%',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 10,
+    padding: '8px 12px',
+    borderRadius: 12,
+    background: '#ffffff',
+    border: '1px solid #ddd6fe',
+  },
+
+  referralCodeLabel: {
+    color: '#64748b',
+    fontSize: 12,
+    fontWeight: 650,
+  },
+
+  referralCodeValue: {
+    color: '#5b21b6',
+    fontSize: 14,
+    fontWeight: 900,
+    letterSpacing: 0,
+  },
+
+  referralFinePrint: {
+    margin: '10px 0 0',
+    color: '#64748b',
+    fontSize: 12,
+    lineHeight: 1.45,
+  },
+
+  referralActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+
+  referralPrimaryButton: {
+    minHeight: 42,
+    border: 'none',
+    borderRadius: 13,
+    padding: '0 15px',
+    background: '#5b21b6',
+    color: '#ffffff',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    cursor: 'pointer',
+    fontSize: 13,
+    fontWeight: 800,
+    boxShadow: '0 12px 24px rgba(91, 33, 182, 0.18)',
+  },
+
+  referralLinkButton: {
+    minHeight: 42,
+    borderRadius: 13,
+    padding: '0 14px',
+    background: '#ffffff',
+    color: '#5b21b6',
+    border: '1px solid #ddd6fe',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    textDecoration: 'none',
+    fontSize: 13,
+    fontWeight: 800,
   },
 
   serviceCard: {
