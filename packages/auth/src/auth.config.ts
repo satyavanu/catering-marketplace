@@ -471,7 +471,7 @@ export const authOptions: NextAuthOptions = {
       return `${baseUrl}${getAccountHomePath(user?.role)}`;
     },
 
-    async jwt({ token, user, account, profile }: any) {
+    async jwt({ token, user, account, profile, trigger, session }: any) {
       if (user) {
         token.id = user.id;
         token.email = user.email;
@@ -511,6 +511,10 @@ export const authOptions: NextAuthOptions = {
         token.isOnboardingCompleted =
           user.isOnboardingCompleted ||
           token.onboarding?.status === 'completed';
+      }
+
+      if (trigger === 'update' && session?.user?.image) {
+        token.image = session.user.image;
       }
 
       if (

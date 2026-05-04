@@ -3,7 +3,10 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
+  deleteImageAsset,
   type PartnerServicePayload,
+  type UploadedAsset,
+  uploadImageAsset,
   useMyPartnerService,
   useUpdatePartnerService,
 } from '@catering-marketplace/query-client';
@@ -15,6 +18,65 @@ function isHostedExperience(experienceKey: string, experienceLabel = '') {
   return ['fine', 'rooftop', 'venue', 'hosted', 'pop_up', 'pop-up'].some(
     (token) => value.includes(token)
   );
+}
+
+type ServiceMedia = UploadedAsset & {
+  type?: string;
+  sortOrder: number;
+};
+
+function normalizeServiceMedia(media: unknown[]): ServiceMedia[] {
+  const normalized: ServiceMedia[] = [];
+
+  media.forEach((item, index) => {
+    if (!item || typeof item !== 'object') return;
+
+    const value = item as Record<string, unknown>;
+    const url = typeof value.url === 'string' ? value.url : '';
+    const key =
+      typeof value.key === 'string'
+        ? value.key
+        : typeof value.public_id === 'string'
+          ? value.public_id
+          : '';
+
+    if (!url || !key) return;
+
+    const provider: ServiceMedia['provider'] =
+      value.provider === 'firebase' || value.provider === 's3'
+        ? value.provider
+        : 'firebase';
+
+    normalized.push({
+      url,
+      key,
+      publicId: typeof value.public_id === 'string' ? value.public_id : key,
+      provider,
+      contentType:
+        typeof value.content_type === 'string' ? value.content_type : '',
+      fileName: typeof value.file_name === 'string' ? value.file_name : '',
+      size: typeof value.size === 'number' ? value.size : 0,
+      type: typeof value.type === 'string' ? value.type : undefined,
+      sortOrder:
+        typeof value.sort_order === 'number' ? value.sort_order : index,
+    });
+  });
+
+  return normalized.sort((a, b) => a.sortOrder - b.sortOrder);
+}
+
+function toServiceMediaPayload(images: ServiceMedia[]) {
+  return images.map((image, index) => ({
+    url: image.url,
+    key: image.key,
+    public_id: image.publicId || image.key,
+    provider: image.provider || 'firebase',
+    file_name: image.fileName,
+    content_type: image.contentType,
+    size: image.size,
+    type: index === 0 ? 'cover' : 'gallery',
+    sort_order: index,
+  }));
 }
 
 export default function EditChefServicePage() {
@@ -41,6 +103,9 @@ export default function EditChefServicePage() {
     max_guests: '',
     advance_notice_hours: '24',
   });
+  const [images, setImages] = useState<ServiceMedia[]>([]);
+  const [uploadingImages, setUploadingImages] = useState(false);
+  const [imageError, setImageError] = useState('');
 
   useEffect(() => {
     if (!service) return;
@@ -56,6 +121,7 @@ export default function EditChefServicePage() {
       max_guests: service.max_guests == null ? '' : String(service.max_guests),
       advance_notice_hours: String(service.advance_notice_hours || 24),
     });
+    setImages(normalizeServiceMedia(service.media || []));
   }, [service]);
 
   if (isLoading) {
@@ -98,7 +164,7 @@ export default function EditChefServicePage() {
       max_guests: form.max_guests ? Number(form.max_guests) : null,
       advance_notice_hours: Number(form.advance_notice_hours || 24),
       service_areas: serviceAreasRequired ? service.service_areas || [] : [],
-      media: service.media || [],
+      media: toServiceMediaPayload(images),
       attributes: {
         ...(service.attributes || {}),
         location_model: serviceAreasRequired
@@ -109,6 +175,65 @@ export default function EditChefServicePage() {
     };
 
     updateService.mutate({ serviceId: service.id, payload });
+  };
+
+  const uploadImages = async (files: FileList | null) => {
+    if (!files?.length || uploadingImages) return;
+
+    setImageError('');
+    setUploadingImages(true);
+
+    try {
+      const uploaded = await Promise.all(
+        Array.from(files).map(async (file, offset) => {
+          const asset = await uploadImageAsset(
+            {
+              scope: 'partner_service_media',
+              partnerId: service.partner_id,
+              serviceId: service.id,
+              fileName: file.name,
+              contentType: file.type,
+              fileSize: file.size,
+            },
+            file
+          );
+
+          return {
+            ...asset,
+            sortOrder: images.length + offset,
+          };
+        })
+      );
+
+      setImages((current) => [...current, ...uploaded]);
+    } catch (err) {
+      setImageError(
+        err instanceof Error ? err.message : 'Unable to upload service image.'
+      );
+    } finally {
+      setUploadingImages(false);
+    }
+  };
+
+  const removeImage = async (image: ServiceMedia) => {
+    setImages((current) =>
+      current
+        .filter((item) => item.key !== image.key)
+        .map((item, index) => ({ ...item, sortOrder: index }))
+    );
+
+    try {
+      await deleteImageAsset({
+        fileKey: image.key,
+        partnerId: service.partner_id,
+      });
+    } catch (err) {
+      setImageError(
+        err instanceof Error
+          ? err.message
+          : 'Image was removed from the form, but storage delete failed.'
+      );
+    }
   };
 
   return (
@@ -124,7 +249,7 @@ export default function EditChefServicePage() {
           </button>
           <h1 style={styles.title}>Edit Chef Service</h1>
           <p style={styles.subtitle}>
-            Update the main details for this service.
+            Refine your listing details, pricing, and service photos.
           </p>
         </div>
 
@@ -250,6 +375,55 @@ export default function EditChefServicePage() {
           />
         </Field>
 
+        <div style={styles.mediaBlock}>
+          <div>
+            <h2 style={styles.sectionTitle}>Service images</h2>
+            <p style={styles.sectionSubtitle}>
+              The first image is used as the cover. Add or remove photos, then
+              save changes.
+            </p>
+          </div>
+
+          <div style={styles.imageGrid}>
+            {images.map((image, index) => (
+              <div key={`${image.key}-${index}`} style={styles.imageTile}>
+                <img src={image.url} alt="Service" style={styles.image} />
+                <button
+                  type="button"
+                  onClick={() => removeImage(image)}
+                  style={styles.removeImageButton}
+                >
+                  Remove
+                </button>
+                {index === 0 && <span style={styles.coverBadge}>Cover</span>}
+              </div>
+            ))}
+
+            <label style={styles.addImageTile}>
+              <span>{uploadingImages ? 'Uploading...' : '+ Add photos'}</span>
+              <small>JPG, PNG, or WebP</small>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                multiple
+                hidden
+                disabled={uploadingImages}
+                onChange={(event) => {
+                  uploadImages(event.target.files);
+                  event.target.value = '';
+                }}
+              />
+            </label>
+          </div>
+
+          {images.length === 0 && (
+            <p style={styles.helperText}>
+              Add a real service photo before publishing for a stronger listing.
+            </p>
+          )}
+          {imageError && <p style={styles.errorText}>{imageError}</p>}
+        </div>
+
         {updateService.error && (
           <p style={styles.errorText}>{updateService.error.message}</p>
         )}
@@ -370,6 +544,82 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#64748b',
     fontSize: 12,
     lineHeight: 1.45,
+  },
+  mediaBlock: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 14,
+    marginTop: 8,
+  },
+  sectionTitle: {
+    margin: 0,
+    color: '#151126',
+    fontSize: 16,
+    fontWeight: 850,
+  },
+  sectionSubtitle: {
+    margin: '5px 0 0',
+    color: '#64748b',
+    fontSize: 13,
+    lineHeight: 1.45,
+  },
+  imageGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+    gap: 12,
+  },
+  imageTile: {
+    position: 'relative',
+    height: 130,
+    borderRadius: 14,
+    overflow: 'hidden',
+    border: '1px solid #eee9f7',
+    background: '#faf8ff',
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+  },
+  removeImageButton: {
+    position: 'absolute',
+    right: 8,
+    top: 8,
+    border: 'none',
+    borderRadius: 999,
+    background: 'rgba(255,255,255,0.94)',
+    color: '#dc2626',
+    padding: '6px 9px',
+    fontSize: 11,
+    fontWeight: 850,
+    cursor: 'pointer',
+  },
+  coverBadge: {
+    position: 'absolute',
+    left: 8,
+    bottom: 8,
+    borderRadius: 999,
+    background: 'rgba(21,17,38,0.78)',
+    color: '#ffffff',
+    padding: '5px 8px',
+    fontSize: 11,
+    fontWeight: 850,
+  },
+  addImageTile: {
+    minHeight: 130,
+    borderRadius: 14,
+    border: '1.5px dashed #c4b5fd',
+    background: '#faf5ff',
+    color: '#7c3aed',
+    cursor: 'pointer',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    textAlign: 'center',
+    fontSize: 13,
+    fontWeight: 850,
   },
   textarea: {
     width: '100%',

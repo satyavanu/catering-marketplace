@@ -445,7 +445,7 @@ export default function CreateChefServicePage({
   onSubmit?: (payload: PartnerServicePayload) => void;
 }) {
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, update: updateSession } = useSession();
   const { masterData, locations } = useOnboardingMasterDataContext();
   const { getExperienceTypesForService } = useServiceCatalogMetaContext();
   const [form, setForm] = useState<ChefServiceForm>(DEFAULT_FORM);
@@ -700,6 +700,11 @@ export default function CreateChefServicePage({
       );
 
       setProfileAvatarUrl(uploaded.url);
+      await updateSession({
+        user: {
+          image: uploaded.url,
+        },
+      });
     } catch (error) {
       setProfileUploadError(
         error instanceof Error

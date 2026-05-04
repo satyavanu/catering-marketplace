@@ -94,6 +94,38 @@ async function getGoogleAccessToken() {
   return String(payload.access_token || '');
 }
 
+function getBackendBaseUrl() {
+  return (
+    process.env.NEXT_PUBLIC_API_URL ||
+    process.env.NEXT_PUBLIC_BACKEND_URL ||
+    process.env.BACKEND_URL ||
+    'http://localhost:8080'
+  );
+}
+
+async function persistUserAvatar(session: any, avatarUrl: string) {
+  const accessToken = session?.user?.accessToken;
+  if (!accessToken) return;
+
+  const response = await fetch(
+    `${getBackendBaseUrl()}/api/v1/users/me/avatar`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        avatar_url: avatarUrl,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error('Unable to save uploaded avatar');
+  }
+}
+
 function buildImageKey({
   scope,
   userId,
@@ -276,6 +308,10 @@ export async function POST(req: NextRequest) {
     const fileUrl = `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(
       bucket
     )}/o/${encodeURIComponent(fileKey)}?alt=media&token=${downloadToken}`;
+
+    if (scope === 'user_avatar') {
+      await persistUserAvatar(session, fileUrl);
+    }
 
     return NextResponse.json({
       url: fileUrl,
