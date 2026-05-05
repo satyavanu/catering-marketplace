@@ -414,7 +414,7 @@ function ServiceRow({
       <td style={styles.td}>{formatDate(service.updated_at)}</td>
       <td style={styles.tdRight}>
         <button type="button" style={styles.linkButton} onClick={onView}>
-          Review
+          View
         </button>
         {service.status === 'under_review' && (
           <>
@@ -476,22 +476,19 @@ function ServiceDrawer({
   const fullService: PartnerServiceDetail | PartnerService = detail || service;
   const areas = getServiceAreas(fullService.service_areas);
   const media = getMediaItems(fullService.media);
-  const pricingTiers: PartnerServicePricingTier[] =
-    'pricing_tiers' in fullService
-      ? (fullService.pricing_tiers as PartnerServicePricingTier[])
-      : [];
-  const menuSections: PartnerServiceMenuSection[] =
-    'menu_sections' in fullService
-      ? (fullService.menu_sections as PartnerServiceMenuSection[])
-      : [];
-  const menuItems: PartnerServiceMenuItem[] =
-    'menu_items' in fullService
-      ? (fullService.menu_items as PartnerServiceMenuItem[])
-      : [];
-  const addons: PartnerServiceAddon[] =
-    'addons' in fullService
-      ? (fullService.addons as PartnerServiceAddon[])
-      : [];
+  const pricingTiers = getDetailArray<PartnerServicePricingTier>(
+    fullService,
+    'pricing_tiers'
+  );
+  const menuSections = getDetailArray<PartnerServiceMenuSection>(
+    fullService,
+    'menu_sections'
+  );
+  const menuItems = getDetailArray<PartnerServiceMenuItem>(
+    fullService,
+    'menu_items'
+  );
+  const addons = getDetailArray<PartnerServiceAddon>(fullService, 'addons');
   const cuisines = getAttributeList(fullService.attributes, 'cuisines');
   const dietTypes = getAttributeList(fullService.attributes, 'diet_types');
   const serviceStyles = getAttributeList(
@@ -649,6 +646,14 @@ function ServiceDrawer({
       </div>
     </aside>
   );
+}
+
+function getDetailArray<T>(
+  source: PartnerServiceDetail | PartnerService,
+  key: keyof PartnerServiceDetail
+): T[] {
+  const value = (source as unknown as Record<string, unknown>)[key as string];
+  return Array.isArray(value) ? (value as T[]) : [];
 }
 
 function StatusBadge({ status }: { status: PartnerServiceStatus }) {

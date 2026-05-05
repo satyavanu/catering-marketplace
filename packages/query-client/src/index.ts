@@ -20,6 +20,7 @@ export * from './queries/packages-menu';
 export * from './queries/partners';
 export * from './queries/service-catalog';
 export * from './queries/partner-services';
+export * from './queries/partner-coupons';
 export * from './queries/service-quotes';
 export * from './queries/notifications';
 export * from './queries/caterer-menu-items';

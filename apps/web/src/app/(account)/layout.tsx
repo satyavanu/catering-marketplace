@@ -77,6 +77,12 @@ const partnerNavItems: NavItem[] = [
     icon: <ServicesIcon />,
   },
   {
+    key: 'offers',
+    label: 'Offers',
+    href: '/partner/offers',
+    icon: <EarningsIcon />,
+  },
+  {
     key: 'earnings',
     label: 'Earnings',
     href: '/partner/earnings',
