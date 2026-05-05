@@ -436,7 +436,7 @@ export const fetchAdminPartnerServices = (
   );
 
 export const fetchAdminPartnerService = (serviceId: string) =>
-  apiGet<PartnerService>(`/api/v1/admin/partner-services/${serviceId}`);
+  apiGet<PartnerServiceDetail>(`/api/v1/admin/partner-services/${serviceId}`);
 
 export const approvePartnerService = (serviceId: string) =>
   apiPost<PartnerService>(
@@ -528,7 +528,7 @@ export const useAdminPartnerServices = (
 
 export const useAdminPartnerService = (
   serviceId?: string,
-  options?: UseQueryOptions<PartnerService, Error>
+  options?: UseQueryOptions<PartnerServiceDetail, Error>
 ) =>
   useQuery({
     queryKey: partnerServiceQueryKeys.adminDetail(serviceId || ''),

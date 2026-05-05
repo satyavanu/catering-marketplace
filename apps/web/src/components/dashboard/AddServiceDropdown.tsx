@@ -49,6 +49,8 @@ const serviceTypeHrefMap: Partial<Record<ServiceTypeKey, string>> = {
   [ServiceTypeKey.Chef]: '/partner/services/chef/new',
   [ServiceTypeKey.MealPlan]: '/partner/services/meal-plans/new',
   [ServiceTypeKey.Catering]: '/partner/services/catering/new',
+  [ServiceTypeKey.RestaurantPrivateEvent]:
+    '/partner/services/restaurant-events/new',
 };
 
 const fallbackOptions: AddServiceOption[] = [
@@ -98,7 +100,10 @@ function mapServiceTypeToOption(
     value: serviceType.key,
     icon: knownKey ? serviceTypeIconMap[knownKey] : <ServicesIcon size={16} />,
     href: knownKey ? serviceTypeHrefMap[knownKey] : undefined,
-    isActive: serviceType.is_active,
+    isActive:
+      serviceType.key === ServiceTypeKey.MealPlan
+        ? false
+        : serviceType.is_active,
     sortOrder: serviceType.sort_order,
   };
 }

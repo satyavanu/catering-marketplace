@@ -110,9 +110,39 @@ export interface OnboardingMasterDataResponse {
   message?: string;
 }
 
+export interface ServiceAttributeOption {
+  id: string;
+  group_id: string;
+  key: string;
+  label: string;
+  description: string;
+  sort_order: number;
+  is_active: boolean;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface ServiceAttributeGroup {
+  id: string;
+  service_key: string;
+  key: string;
+  label: string;
+  description: string;
+  input_type: 'single_select' | 'multi_select' | 'boolean' | 'number' | 'text';
+  is_required: boolean;
+  min_select: number;
+  max_select: number | null;
+  sort_order: number;
+  is_active: boolean;
+  metadata: Record<string, unknown>;
+  options: ServiceAttributeOption[];
+  created_at: string;
+}
+
 export interface ServiceCatalogStaticData {
   service_types: ServiceType[];
   experience_types: ExperienceType[];
+  service_attribute_groups: ServiceAttributeGroup[];
 }
 
 export interface ServiceCatalogStaticDataResponse {

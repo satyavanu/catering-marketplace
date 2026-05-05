@@ -3,6 +3,7 @@
 import React, { createContext, ReactNode, useContext, useMemo } from 'react';
 import {
   type ExperienceType,
+  type ServiceAttributeGroup,
   type ServiceCatalogStaticData,
   type ServiceType,
   useServiceCatalogStaticData,
@@ -12,11 +13,17 @@ interface ServiceCatalogMetaContextType {
   serviceCatalog: ServiceCatalogStaticData | undefined;
   serviceTypes: ServiceType[];
   experienceTypes: ExperienceType[];
+  serviceAttributeGroups: ServiceAttributeGroup[];
   isLoading: boolean;
   error: Error | null;
   getServiceType: (serviceKey: string) => ServiceType | undefined;
   getExperienceType: (experienceTypeKey: string) => ExperienceType | undefined;
   getExperienceTypesForService: (serviceKey: string) => ExperienceType[];
+  getAttributeGroupsForService: (serviceKey: string) => ServiceAttributeGroup[];
+  getAttributeGroup: (
+    serviceKey: string,
+    groupKey: string
+  ) => ServiceAttributeGroup | undefined;
 }
 
 const ServiceCatalogMetaContext = createContext<
@@ -53,11 +60,23 @@ export function ServiceCatalogMetaProvider({
     [serviceCatalog?.experience_types]
   );
 
+  const serviceAttributeGroups = useMemo(
+    () =>
+      [...(serviceCatalog?.service_attribute_groups || [])].sort((a, b) => {
+        if (a.service_key !== b.service_key) {
+          return a.service_key.localeCompare(b.service_key);
+        }
+        return a.sort_order - b.sort_order;
+      }),
+    [serviceCatalog?.service_attribute_groups]
+  );
+
   const value = useMemo<ServiceCatalogMetaContextType>(
     () => ({
       serviceCatalog,
       serviceTypes,
       experienceTypes,
+      serviceAttributeGroups,
       isLoading,
       error: error || null,
       getServiceType: (serviceKey: string) =>
@@ -66,8 +85,23 @@ export function ServiceCatalogMetaProvider({
         experienceTypes.find((item) => item.key === experienceTypeKey),
       getExperienceTypesForService: (serviceKey: string) =>
         experienceTypes.filter((item) => item.service_key === serviceKey),
+      getAttributeGroupsForService: (serviceKey: string) =>
+        serviceAttributeGroups.filter(
+          (item) => item.service_key === serviceKey
+        ),
+      getAttributeGroup: (serviceKey: string, groupKey: string) =>
+        serviceAttributeGroups.find(
+          (item) => item.service_key === serviceKey && item.key === groupKey
+        ),
     }),
-    [error, experienceTypes, isLoading, serviceCatalog, serviceTypes]
+    [
+      error,
+      experienceTypes,
+      isLoading,
+      serviceAttributeGroups,
+      serviceCatalog,
+      serviceTypes,
+    ]
   );
 
   return (

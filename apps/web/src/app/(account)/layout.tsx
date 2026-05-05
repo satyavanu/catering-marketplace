@@ -59,9 +59,9 @@ const partnerNavItems: NavItem[] = [
     icon: <HomeIcon />,
   },
   {
-    key: 'bookings',
-    label: 'Bookings',
-    href: '/partner/bookings',
+    key: 'calendar',
+    label: 'Calendar',
+    href: '/partner/calendar',
     icon: <CalendarIcon />,
   },
   {
@@ -83,29 +83,10 @@ const partnerNavItems: NavItem[] = [
     icon: <EarningsIcon />,
   },
   {
-    key: 'reviews',
-    label: 'Reviews',
-    href: '/partner/reviews',
-    icon: <ReviewsIcon />,
-  },
-  {
-    key: 'messages',
-    label: 'Messages',
-    href: '/partner/messages',
-    icon: <MessagesIcon />,
-    badge: 3,
-  },
-  {
     key: 'analytics',
     label: 'Analytics',
     href: '/partner/analytics',
     icon: <AnalyticsIcon />,
-  },
-  {
-    key: 'workers',
-    label: 'Event Workers',
-    href: '/partner/workers',
-    icon: <WorkersIcon />,
   },
   {
     key: 'settings',
@@ -615,37 +596,35 @@ export default function PartnerDashboardLayout({
                 <div style={styles.notificationMenu} role="menu">
                   <div style={styles.dropdownHeader}>
                     <strong style={styles.dropdownTitle}>Notifications</strong>
-                    <div style={styles.dropdownActions}>
-                      <button
-                        type="button"
-                        style={styles.dropdownLink}
-                        disabled={
-                          unreadNotificationCount === 0 ||
-                          markAllNotificationsRead.isPending
-                        }
-                        onClick={() => markAllNotificationsRead.mutate()}
-                      >
-                        {markAllNotificationsRead.isPending
-                          ? 'Marking...'
-                          : 'Mark all read'}
-                      </button>
-                      <button
-                        type="button"
-                        style={{
-                          ...styles.dropdownLink,
-                          ...styles.dropdownDangerLink,
-                        }}
-                        disabled={
-                          accountNotifications.length === 0 ||
-                          clearNotifications.isPending
-                        }
-                        onClick={clearNotificationList}
-                      >
-                        {clearNotifications.isPending
-                          ? 'Clearing...'
-                          : 'Clear all'}
-                      </button>
-                    </div>
+                    {accountNotifications.length > 0 && (
+                      <div style={styles.dropdownActions}>
+                        {unreadNotificationCount > 0 && (
+                          <button
+                            type="button"
+                            style={styles.dropdownLink}
+                            disabled={markAllNotificationsRead.isPending}
+                            onClick={() => markAllNotificationsRead.mutate()}
+                          >
+                            {markAllNotificationsRead.isPending
+                              ? 'Marking...'
+                              : 'Mark all read'}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          style={{
+                            ...styles.dropdownLink,
+                            ...styles.dropdownDangerLink,
+                          }}
+                          disabled={clearNotifications.isPending}
+                          onClick={clearNotificationList}
+                        >
+                          {clearNotifications.isPending
+                            ? 'Clearing...'
+                            : 'Clear all'}
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <div style={styles.notificationList}>

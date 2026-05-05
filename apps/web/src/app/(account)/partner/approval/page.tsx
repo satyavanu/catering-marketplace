@@ -49,6 +49,7 @@ type PartnerSummary = {
   documentsUploaded: number;
   documentsRequired: number;
   raw: any;
+  avatarUrl?: string;
 };
 
 type PartnerDetailDTO = {
@@ -245,7 +246,15 @@ export default function PartnerApprovalPage() {
       label: 'Partner',
       render: (row) => (
         <div style={styles.partnerCell}>
-          <span style={styles.avatar}>{getInitials(row.name)}</span>
+          {row.avatarUrl ? (
+            <img
+              src={row.avatarUrl}
+              alt={row.name}
+              style={styles.avatarImage}
+            />
+          ) : (
+            <span style={styles.avatar}>{getInitials(row.name)}</span>
+          )}
 
           <div>
             <strong style={styles.name}>{row.name}</strong>
@@ -1102,6 +1111,13 @@ function normalizePartnerSummary(raw: any): PartnerSummary {
         .length,
     documentsRequired: raw?.documentsRequired ?? raw?.documents_required ?? 4,
     raw,
+    avatarUrl:
+      raw?.profilePhotoUrl ||
+      raw?.profile_photo_url ||
+      raw?.avatarUrl ||
+      raw?.avatar_url ||
+      raw?.user?.avatarUrl ||
+      raw?.user?.avatar_url,
   };
 }
 
@@ -1298,6 +1314,15 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'center',
     fontSize: 12,
     fontWeight: 800,
+  },
+
+  avatarImage: {
+    width: 36,
+    height: 36,
+    borderRadius: 999,
+    objectFit: 'cover',
+    border: '1px solid #e2e8f0',
+    background: '#f8fafc',
   },
 
   name: {

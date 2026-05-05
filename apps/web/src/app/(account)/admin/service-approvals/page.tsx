@@ -4,7 +4,13 @@ import React, { useMemo, useState } from 'react';
 import {
   type AdminPartnerServiceFilters,
   type PartnerService,
+  type PartnerServiceDetail,
+  type PartnerServicePricingTier,
+  type PartnerServiceMenuSection,
+  type PartnerServiceMenuItem,
+  type PartnerServiceAddon,
   type PartnerServiceStatus,
+  useAdminPartnerService,
   useAdminPartnerServices,
   useApprovePartnerService,
   useDeactivatePartnerService,
@@ -78,6 +84,20 @@ function getAttributeList(
 ): string[] {
   const value = attributes[key];
   return Array.isArray(value) ? value.map(String) : [];
+}
+
+function getMediaItems(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item) => {
+      if (typeof item === 'string') return item;
+      if (!item || typeof item !== 'object') return '';
+
+      const record = item as Record<string, unknown>;
+      return String(record.url || record.image_url || '');
+    })
+    .filter(Boolean);
 }
 
 function normalizeServiceList(value: unknown): PartnerService[] {
@@ -450,10 +470,34 @@ function ServiceDrawer({
   onDeactivate: () => void;
   isMutating: boolean;
 }) {
-  const areas = getServiceAreas(service.service_areas);
-  const cuisines = getAttributeList(service.attributes, 'cuisines');
-  const dietTypes = getAttributeList(service.attributes, 'diet_types');
-  const serviceStyles = getAttributeList(service.attributes, 'service_styles');
+  const { data: detail, isLoading: isLoadingDetail } = useAdminPartnerService(
+    service.id
+  );
+  const fullService: PartnerServiceDetail | PartnerService = detail || service;
+  const areas = getServiceAreas(fullService.service_areas);
+  const media = getMediaItems(fullService.media);
+  const pricingTiers: PartnerServicePricingTier[] =
+    'pricing_tiers' in fullService
+      ? (fullService.pricing_tiers as PartnerServicePricingTier[])
+      : [];
+  const menuSections: PartnerServiceMenuSection[] =
+    'menu_sections' in fullService
+      ? (fullService.menu_sections as PartnerServiceMenuSection[])
+      : [];
+  const menuItems: PartnerServiceMenuItem[] =
+    'menu_items' in fullService
+      ? (fullService.menu_items as PartnerServiceMenuItem[])
+      : [];
+  const addons: PartnerServiceAddon[] =
+    'addons' in fullService
+      ? (fullService.addons as PartnerServiceAddon[])
+      : [];
+  const cuisines = getAttributeList(fullService.attributes, 'cuisines');
+  const dietTypes = getAttributeList(fullService.attributes, 'diet_types');
+  const serviceStyles = getAttributeList(
+    fullService.attributes,
+    'service_styles'
+  );
 
   return (
     <aside style={styles.drawer}>
@@ -469,21 +513,26 @@ function ServiceDrawer({
       </div>
 
       <div style={styles.drawerBody}>
-        <InfoRow label="Partner ID" value={service.partner_id} />
+        <InfoRow label="Partner ID" value={fullService.partner_id} />
         <InfoRow
           label="Status"
-          value={<StatusBadge status={service.status} />}
+          value={
+            <StatusBadge status={fullService.status as PartnerServiceStatus} />
+          }
         />
         <InfoRow
           label="Pricing"
-          value={formatCurrency(service.base_price, service.currency_code)}
+          value={formatCurrency(
+            fullService.base_price,
+            fullService.currency_code
+          )}
         />
-        <InfoRow label="Booking" value={service.booking_type} />
-        <InfoRow label="Updated" value={formatDate(service.updated_at)} />
+        <InfoRow label="Booking" value={fullService.booking_type} />
+        <InfoRow label="Updated" value={formatDate(fullService.updated_at)} />
 
         <section style={styles.detailSection}>
           <h3 style={styles.sectionTitle}>Description</h3>
-          <p style={styles.bodyText}>{service.description || '-'}</p>
+          <p style={styles.bodyText}>{fullService.description || '-'}</p>
         </section>
 
         <section style={styles.detailSection}>
@@ -501,16 +550,71 @@ function ServiceDrawer({
           />
         </section>
 
-        {service.rejection_reason && (
+        {isLoadingDetail && (
+          <p style={styles.muted}>Loading complete service details...</p>
+        )}
+
+        <section style={styles.detailSection}>
+          <h3 style={styles.sectionTitle}>Service Photos</h3>
+          {media.length ? (
+            <div style={styles.mediaGrid}>
+              {media.map((image) => (
+                <img
+                  key={image}
+                  src={image}
+                  alt="Service media"
+                  style={styles.mediaImage}
+                />
+              ))}
+            </div>
+          ) : (
+            <p style={styles.bodyText}>No service photos uploaded.</p>
+          )}
+        </section>
+
+        <section style={styles.detailSection}>
+          <h3 style={styles.sectionTitle}>Packages & Pricing</h3>
+          <TagList
+            items={pricingTiers.map(
+              (tier) =>
+                `${formatCurrency(tier.price, fullService.currency_code)} ${tier.price_unit} - ${tier.min_guests}-${tier.max_guests || 'many'} guests`
+            )}
+            empty="No pricing tiers added"
+          />
+        </section>
+
+        <section style={styles.detailSection}>
+          <h3 style={styles.sectionTitle}>Menu</h3>
+          <TagList
+            items={menuSections.map(
+              (section) =>
+                `${section.label} - ${menuItems.filter((item) => item.section_id === section.id).length} items`
+            )}
+            empty="No menu sections added"
+          />
+        </section>
+
+        <section style={styles.detailSection}>
+          <h3 style={styles.sectionTitle}>Add-ons</h3>
+          <TagList
+            items={addons.map(
+              (addon) =>
+                `${addon.label} - ${formatCurrency(addon.price, fullService.currency_code)} ${addon.price_unit}`
+            )}
+            empty="No add-ons added"
+          />
+        </section>
+
+        {fullService.rejection_reason && (
           <section style={styles.detailSection}>
             <h3 style={styles.sectionTitle}>Rejection Reason</h3>
-            <p style={styles.bodyText}>{service.rejection_reason}</p>
+            <p style={styles.bodyText}>{fullService.rejection_reason}</p>
           </section>
         )}
       </div>
 
       <div style={styles.drawerActions}>
-        {service.status === 'under_review' && (
+        {fullService.status === 'under_review' && (
           <>
             <button
               type="button"
@@ -532,7 +636,7 @@ function ServiceDrawer({
             </button>
           </>
         )}
-        {service.status === 'approved' && (
+        {fullService.status === 'approved' && (
           <button
             type="button"
             style={styles.dangerButton}
@@ -886,6 +990,19 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#475569',
     fontSize: 13,
     lineHeight: 1.6,
+  },
+  mediaGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+    gap: 10,
+  },
+  mediaImage: {
+    width: '100%',
+    height: 96,
+    borderRadius: 8,
+    objectFit: 'cover',
+    border: '1px solid #e2e8f0',
+    background: '#f8fafc',
   },
   tags: {
     display: 'flex',
