@@ -109,6 +109,8 @@ const Header = () => {
     };
   }, [isProfileMenuOpen]);
 
+  if (isHome) return null;
+
   const filteredCities = AVAILABLE_CITIES.filter(city =>
     city.name.toLowerCase().includes(citySearchQuery.toLowerCase()) ||
     city.state.toLowerCase().includes(citySearchQuery.toLowerCase())

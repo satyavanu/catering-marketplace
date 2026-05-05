@@ -7,8 +7,7 @@ import {
 } from '@tanstack/react-query';
 import { getSession } from 'next-auth/react';
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
 async function getAuthHeaders(includeContentType = true): Promise<HeadersInit> {
   const session = await getSession();
@@ -74,6 +73,23 @@ async function apiPatch<T>(path: string, body: unknown): Promise<T> {
 
   const res = await fetch(`${API_BASE_URL}${path}`, {
     method: 'PATCH',
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseApiError(res, 'Update failed'));
+  }
+
+  const json = await res.json();
+  return json?.data ?? json;
+}
+
+async function apiPut<T>(path: string, body: unknown): Promise<T> {
+  const headers = await getAuthHeaders(true);
+
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'PUT',
     headers,
     body: JSON.stringify(body),
   });
@@ -167,9 +183,51 @@ export interface UpdatePartnerPayload {
   payload: Partial<Partner>;
 }
 
+export interface PartnerAlias {
+  id: string;
+  partnerId: string;
+  alias: string;
+  publicUrl: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PartnerAliasAvailability {
+  alias: string;
+  available: boolean;
+  reason?: string;
+}
+
+export interface PublicPartnerAliasProfile {
+  partnerId: string;
+  userId: string;
+  alias: string;
+  publicUrl: string;
+  contactName: string;
+  businessName?: string;
+  businessDescription?: string;
+  kitchenAddress?: string;
+  baseCityId?: string;
+  status: string;
+  countryCode: string;
+  timezone: string;
+  rating?: number;
+  totalReviews: number;
+}
+
+export interface UpdatePartnerAliasPayload {
+  alias: string;
+}
+
 export const partnerQueryKeys = {
   all: ['partners'] as const,
   me: () => [...partnerQueryKeys.all, 'me'] as const,
+  myAlias: () => [...partnerQueryKeys.all, 'me', 'alias'] as const,
+  aliasAvailability: (alias: string) =>
+    [...partnerQueryKeys.all, 'alias-availability', alias] as const,
+  publicAlias: (alias: string) =>
+    [...partnerQueryKeys.all, 'public-alias', alias] as const,
   detail: (partnerId: string) =>
     [...partnerQueryKeys.all, 'detail', partnerId] as const,
   adminList: () => [...partnerQueryKeys.all, 'admin-list'] as const,
@@ -178,6 +236,22 @@ export const partnerQueryKeys = {
 };
 
 const fetchMyPartner = () => apiGet<Partner>('/api/v1/partners/me');
+
+const fetchMyPartnerAlias = () =>
+  apiGet<PartnerAlias>('/api/v1/partners/me/alias');
+
+const checkPartnerAliasAvailability = (alias: string) =>
+  apiGet<PartnerAliasAvailability>(
+    `/api/v1/partners/me/alias/check?alias=${encodeURIComponent(alias)}`
+  );
+
+const updateMyPartnerAlias = (payload: UpdatePartnerAliasPayload) =>
+  apiPut<PartnerAlias>('/api/v1/partners/me/alias', payload);
+
+const fetchPublicPartnerByAlias = (alias: string) =>
+  apiGet<PublicPartnerAliasProfile>(
+    `/api/v1/public/partners/${encodeURIComponent(alias)}`
+  );
 
 const fetchPartnerById = (partnerId: string) =>
   apiGet<Partner>(`/api/v1/partners/${partnerId}`);
@@ -215,6 +289,41 @@ export const useMyPartner = (options?: UseQueryOptions<Partner, Error>) =>
     queryKey: partnerQueryKeys.me(),
     queryFn: fetchMyPartner,
     staleTime: 60 * 60 * 1000,
+    ...options,
+  });
+
+export const useMyPartnerAlias = (
+  options?: UseQueryOptions<PartnerAlias, Error>
+) =>
+  useQuery({
+    queryKey: partnerQueryKeys.myAlias(),
+    queryFn: fetchMyPartnerAlias,
+    staleTime: 60 * 1000,
+    retry: false,
+    ...options,
+  });
+
+export const usePartnerAliasAvailability = (
+  alias: string,
+  options?: UseQueryOptions<PartnerAliasAvailability, Error>
+) =>
+  useQuery({
+    queryKey: partnerQueryKeys.aliasAvailability(alias),
+    queryFn: () => checkPartnerAliasAvailability(alias),
+    enabled: Boolean(alias),
+    staleTime: 15 * 1000,
+    ...options,
+  });
+
+export const usePublicPartnerByAlias = (
+  alias: string,
+  options?: UseQueryOptions<PublicPartnerAliasProfile, Error>
+) =>
+  useQuery({
+    queryKey: partnerQueryKeys.publicAlias(alias),
+    queryFn: () => fetchPublicPartnerByAlias(alias),
+    enabled: Boolean(alias),
+    staleTime: 60 * 1000,
     ...options,
   });
 
@@ -266,6 +375,25 @@ export const useUpdatePartner = (
       });
       queryClient.invalidateQueries({
         queryKey: partnerQueryKeys.adminList(),
+      });
+    },
+    ...options,
+  });
+};
+
+export const useUpdateMyPartnerAlias = (
+  options?: UseMutationOptions<PartnerAlias, Error, UpdatePartnerAliasPayload>
+) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updateMyPartnerAlias,
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: partnerQueryKeys.myAlias(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: partnerQueryKeys.me(),
       });
     },
     ...options,
