@@ -28,6 +28,15 @@ export default function ChefServiceDetailPage() {
 
   const serviceType = getServiceType(service.service_key);
   const experienceType = getExperienceType(service.experience_type_key);
+  const attributes = service.attributes || {};
+  const availability = getRecord(attributes.availability);
+  const pricing = getRecord(attributes.pricing);
+  const chefExperience = getRecord(attributes.chef_experience);
+  const menuSections = getArray(getRecord(chefExperience).sections);
+  const serviceImages = normalizeMedia(service.media || []);
+  const serviceAreas = Array.isArray(service.service_areas)
+    ? service.service_areas
+    : [];
 
   return (
     <div style={styles.page}>
@@ -93,7 +102,11 @@ export default function ChefServiceDetailPage() {
           />
           <Info
             label="Service areas"
-            value={`${service.service_areas?.length || 0} selected`}
+            value={`${serviceAreas.length || 0} selected`}
+          />
+          <Info
+            label="Location model"
+            value={formatLabel(String(attributes.location_model || ''))}
           />
         </div>
 
@@ -103,10 +116,107 @@ export default function ChefServiceDetailPage() {
       </section>
 
       <section style={styles.panel}>
-        <h2 style={styles.sectionTitle}>Attributes</h2>
-        <pre style={styles.jsonBlock}>
-          {JSON.stringify(service.attributes || {}, null, 2)}
-        </pre>
+        <h2 style={styles.sectionTitle}>Service photos</h2>
+        {serviceImages.length > 0 ? (
+          <div style={styles.imageGrid}>
+            {serviceImages.map((image, index) => (
+              <div key={`${image.url}-${index}`} style={styles.imageTile}>
+                <img src={image.url} alt="Service" style={styles.image} />
+                {index === 0 && <span style={styles.coverBadge}>Cover</span>}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p style={styles.emptyText}>No service photos uploaded yet.</p>
+        )}
+      </section>
+
+      <section style={styles.panel}>
+        <h2 style={styles.sectionTitle}>Service details</h2>
+        <div style={styles.grid}>
+          <Info
+            label="Cuisines"
+            value={formatList(getArray(attributes.cuisines))}
+          />
+          <Info
+            label="Diet types"
+            value={formatList(getArray(attributes.diet_types))}
+          />
+          <Info
+            label="Service styles"
+            value={formatList(getArray(attributes.service_styles))}
+          />
+          <Info
+            label="Food type"
+            value={formatLabel(String(attributes.food_type || ''))}
+          />
+          <Info
+            label="Service location"
+            value={formatLabel(String(attributes.service_location || ''))}
+          />
+          <Info
+            label="Radius"
+            value={
+              attributes.service_radius_km
+                ? `${attributes.service_radius_km} km`
+                : '-'
+            }
+          />
+        </div>
+      </section>
+
+      <section style={styles.panel}>
+        <h2 style={styles.sectionTitle}>Availability & pricing</h2>
+        <div style={styles.grid}>
+          <Info label="Days" value={formatList(getArray(availability.days))} />
+          <Info
+            label="Slots"
+            value={formatList(getArray(availability.slots))}
+          />
+          <Info
+            label="Pricing mode"
+            value={formatLabel(String(pricing.mode || service.pricing_model))}
+          />
+          <Info
+            label="Amount"
+            value={formatPrice({
+              base_price:
+                typeof pricing.amount === 'number'
+                  ? pricing.amount
+                  : service.base_price,
+              currency_code:
+                String(pricing.currency_code || service.currency_code) || 'INR',
+              pricing_model: String(pricing.mode || service.pricing_model),
+            })}
+          />
+        </div>
+      </section>
+
+      <section style={styles.panel}>
+        <h2 style={styles.sectionTitle}>Menu sections</h2>
+        {menuSections.length > 0 ? (
+          <div style={styles.sectionList}>
+            {menuSections.map((section, index) => {
+              const sectionRecord = getRecord(section);
+              return (
+                <div
+                  key={String(sectionRecord.id || index)}
+                  style={styles.menuSection}
+                >
+                  <strong>
+                    {String(sectionRecord.title || 'Menu section')}
+                  </strong>
+                  <span>{formatList(getArray(sectionRecord.items))}</span>
+                  {sectionRecord.note ? (
+                    <small>{String(sectionRecord.note)}</small>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p style={styles.emptyText}>No menu sections added yet.</p>
+        )}
       </section>
     </div>
   );
@@ -133,6 +243,37 @@ function formatPrice(service: {
     maximumFractionDigits: 0,
   }).format(service.base_price);
   return service.pricing_model ? `${price} · ${service.pricing_model}` : price;
+}
+
+function getRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function getArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function formatLabel(value: string) {
+  if (!value) return '-';
+  return value
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatList(items: unknown[]) {
+  if (!items.length) return '-';
+  return items.map((item) => formatLabel(String(item))).join(', ');
+}
+
+function normalizeMedia(media: unknown[]) {
+  return media
+    .map((item) => getRecord(item))
+    .filter((item) => typeof item.url === 'string')
+    .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0)) as {
+    url: string;
+  }[];
 }
 
 const styles: Record<string, React.CSSProperties> = {
@@ -202,13 +343,52 @@ const styles: Record<string, React.CSSProperties> = {
   },
   infoValue: { color: '#151126', fontSize: 14 },
   description: { color: '#475569', lineHeight: 1.6, margin: '16px 0 0' },
-  jsonBlock: {
-    margin: 0,
-    whiteSpace: 'pre-wrap',
-    fontSize: 12,
-    color: '#334155',
-    background: '#f8fafc',
+  imageGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+    gap: 12,
+  },
+  imageTile: {
+    position: 'relative',
+    height: 140,
+    overflow: 'hidden',
     borderRadius: 12,
-    padding: 14,
+    background: '#f8fafc',
+    border: '1px solid #f1f5f9',
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+  },
+  coverBadge: {
+    position: 'absolute',
+    left: 8,
+    bottom: 8,
+    borderRadius: 999,
+    background: 'rgba(21,17,38,0.78)',
+    color: '#ffffff',
+    padding: '5px 8px',
+    fontSize: 11,
+    fontWeight: 850,
+  },
+  emptyText: {
+    color: '#64748b',
+    fontSize: 13,
+    margin: 0,
+  },
+  sectionList: {
+    display: 'grid',
+    gap: 10,
+  },
+  menuSection: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 5,
+    border: '1px solid #f1f5f9',
+    borderRadius: 12,
+    padding: 12,
+    color: '#475569',
+    fontSize: 13,
   },
 };

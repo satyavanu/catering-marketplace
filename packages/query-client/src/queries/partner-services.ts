@@ -5,7 +5,7 @@ import {
   UseMutationOptions,
   UseQueryOptions,
 } from '@tanstack/react-query';
-import { getSession } from 'next-auth/react';
+import { getSession, useSession } from 'next-auth/react';
 import type { BookingType } from './service-catalog';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
@@ -291,9 +291,19 @@ export interface RejectPartnerServicePayload {
 
 export const partnerServiceQueryKeys = {
   all: ['partner-services'] as const,
-  mine: () => [...partnerServiceQueryKeys.all, 'mine'] as const,
-  mineDetail: (serviceId: string) =>
-    [...partnerServiceQueryKeys.mine(), serviceId] as const,
+  mine: (ownerKey?: string) =>
+    ownerKey
+      ? ([...partnerServiceQueryKeys.all, 'mine', ownerKey] as const)
+      : ([...partnerServiceQueryKeys.all, 'mine'] as const),
+  mineDetail: (serviceId: string, ownerKey?: string) =>
+    ownerKey
+      ? ([
+          ...partnerServiceQueryKeys.all,
+          'mine-detail',
+          serviceId,
+          ownerKey,
+        ] as const)
+      : ([...partnerServiceQueryKeys.all, 'mine-detail', serviceId] as const),
   publicList: (filters?: PublicServiceFilters) =>
     [...partnerServiceQueryKeys.all, 'public', filters || {}] as const,
   publicDetail: (serviceId: string) =>
@@ -471,24 +481,39 @@ export const usePublicService = (
 
 export const useMyPartnerServices = (
   options?: UseQueryOptions<PartnerService[], Error>
-) =>
-  useQuery({
-    queryKey: partnerServiceQueryKeys.mine(),
+) => {
+  const { data: session } = useSession();
+  const ownerKey =
+    (session?.user as { id?: string; email?: string } | undefined)?.id ||
+    (session?.user as { email?: string } | undefined)?.email ||
+    'anonymous';
+
+  return useQuery({
+    queryKey: partnerServiceQueryKeys.mine(ownerKey),
     queryFn: fetchMyPartnerServices,
+    enabled: ownerKey !== 'anonymous',
     staleTime: 30 * 1000,
     ...options,
   });
+};
 
 export const useMyPartnerService = (
   serviceId?: string,
   options?: UseQueryOptions<PartnerServiceDetail, Error>
-) =>
-  useQuery({
-    queryKey: partnerServiceQueryKeys.mineDetail(serviceId || ''),
+) => {
+  const { data: session } = useSession();
+  const ownerKey =
+    (session?.user as { id?: string; email?: string } | undefined)?.id ||
+    (session?.user as { email?: string } | undefined)?.email ||
+    'anonymous';
+
+  return useQuery({
+    queryKey: partnerServiceQueryKeys.mineDetail(serviceId || '', ownerKey),
     queryFn: () => fetchMyPartnerService(serviceId || ''),
-    enabled: Boolean(serviceId),
+    enabled: Boolean(serviceId) && ownerKey !== 'anonymous',
     ...options,
   });
+};
 
 export const useAdminPartnerServices = (
   filters?: AdminPartnerServiceFilters,
@@ -535,8 +560,8 @@ function upsertServiceCache(
   queryClient: ReturnType<typeof useQueryClient>,
   service: PartnerService
 ) {
-  queryClient.setQueryData<PartnerService[]>(
-    partnerServiceQueryKeys.mine(),
+  queryClient.setQueriesData<PartnerService[]>(
+    { queryKey: partnerServiceQueryKeys.mine() },
     (current) => {
       if (!current) return [service];
 
@@ -549,8 +574,8 @@ function upsertServiceCache(
     }
   );
 
-  queryClient.setQueryData<PartnerServiceDetail>(
-    partnerServiceQueryKeys.mineDetail(service.id),
+  queryClient.setQueriesData<PartnerServiceDetail>(
+    { queryKey: partnerServiceQueryKeys.mineDetail(service.id) },
     (current) =>
       ({
         ...(current || {}),
@@ -563,8 +588,8 @@ function removeServiceCache(
   queryClient: ReturnType<typeof useQueryClient>,
   serviceId: string
 ) {
-  queryClient.setQueryData<PartnerService[]>(
-    partnerServiceQueryKeys.mine(),
+  queryClient.setQueriesData<PartnerService[]>(
+    { queryKey: partnerServiceQueryKeys.mine() },
     (current) => current?.filter((item) => item.id !== serviceId) || []
   );
   queryClient.removeQueries({
