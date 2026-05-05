@@ -4,7 +4,7 @@ import Footer from '@/components/Footer';
 import { Providers } from './providers';
 import './globals.css';
 import Script from 'next/script';
-import { Inter, Plus_Jakarta_Sans } from 'next/font/google';
+import { Inter, Manrope, Plus_Jakarta_Sans, Sora } from 'next/font/google';
 
 export const inter = Inter({
   subsets: ['latin'],
@@ -14,6 +14,18 @@ export const inter = Inter({
 export const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
   variable: '--font-jakarta',
+});
+
+export const sora = Sora({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-sora',
+});
+
+export const manrope = Manrope({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-manrope',
 });
 
 export const metadata: Metadata = {
@@ -38,22 +50,26 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${jakarta.variable}`}>
+    <html
+      lang="en"
+      className={`${inter.variable} ${jakarta.variable} ${sora.variable} ${manrope.variable}`}
+    >
       <head>
         <meta charSet="utf-8" />
         <meta name="theme-color" content="#667eea" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta
+          name="apple-mobile-web-app-status-bar-style"
+          content="black-translucent"
+        />
       </head>
       <Script
         src="https://checkout.razorpay.com/v1/checkout.js"
         strategy="lazyOnload"
       />
       <body>
-        <Providers>
-          {children}
-        </Providers>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

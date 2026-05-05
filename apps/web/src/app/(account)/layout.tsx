@@ -4,9 +4,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
-import { Check, Copy, Share2 } from 'lucide-react';
+import { Check, Copy, Share2, Trash2 } from 'lucide-react';
 import {
   useAccountNotifications,
+  useClearAccountNotifications,
+  useDeleteAccountNotification,
   useMarkAccountNotificationRead,
   useMarkAllAccountNotificationsRead,
   type AccountNotificationItem,
@@ -278,6 +280,40 @@ function buildReferralLink(code: string) {
   return `${baseUrl}/login?mode=signup&ref=${encodeURIComponent(code)}`;
 }
 
+function InlineSpinner({ size = 14 }: { size?: number }) {
+  const center = 12;
+
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24">
+      <circle
+        cx={center}
+        cy={center}
+        r="9"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="3"
+        opacity="0.25"
+      />
+      <path
+        d="M21 12a9 9 0 0 0-9-9"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+      >
+        <animateTransform
+          attributeName="transform"
+          type="rotate"
+          from="0 12 12"
+          to="360 12 12"
+          dur="0.8s"
+          repeatCount="indefinite"
+        />
+      </path>
+    </svg>
+  );
+}
+
 export default function PartnerDashboardLayout({
   children,
   userName,
@@ -294,12 +330,17 @@ export default function PartnerDashboardLayout({
   );
   const markNotificationRead = useMarkAccountNotificationRead();
   const markAllNotificationsRead = useMarkAllAccountNotificationsRead();
+  const deleteNotification = useDeleteAccountNotification();
+  const clearNotifications = useClearAccountNotifications();
 
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<'notifications' | 'profile' | null>(
     null
   );
   const [copiedReferral, setCopiedReferral] = useState(false);
+  const [deletingNotificationId, setDeletingNotificationId] = useState<
+    string | null
+  >(null);
   const sessionUser = session?.user as
     | {
         fullName?: string | null;
@@ -391,6 +432,25 @@ export default function PartnerDashboardLayout({
     navigateFromMenu(
       getNotificationHref(notification, accountHomePath, isAdminAccount)
     );
+  };
+
+  const removeNotification = (
+    event: React.MouseEvent,
+    notification: AccountNotificationItem
+  ) => {
+    event.stopPropagation();
+    setDeletingNotificationId(notification.id);
+    deleteNotification.mutate(notification.id, {
+      onSettled: () => setDeletingNotificationId(null),
+    });
+  };
+
+  const clearNotificationList = () => {
+    if (accountNotifications.length === 0 || clearNotifications.isPending) {
+      return;
+    }
+
+    clearNotifications.mutate();
   };
 
   const copyReferralLink = async () => {
@@ -555,14 +615,37 @@ export default function PartnerDashboardLayout({
                 <div style={styles.notificationMenu} role="menu">
                   <div style={styles.dropdownHeader}>
                     <strong style={styles.dropdownTitle}>Notifications</strong>
-                    <button
-                      type="button"
-                      style={styles.dropdownLink}
-                      disabled={unreadNotificationCount === 0}
-                      onClick={() => markAllNotificationsRead.mutate()}
-                    >
-                      Mark all read
-                    </button>
+                    <div style={styles.dropdownActions}>
+                      <button
+                        type="button"
+                        style={styles.dropdownLink}
+                        disabled={
+                          unreadNotificationCount === 0 ||
+                          markAllNotificationsRead.isPending
+                        }
+                        onClick={() => markAllNotificationsRead.mutate()}
+                      >
+                        {markAllNotificationsRead.isPending
+                          ? 'Marking...'
+                          : 'Mark all read'}
+                      </button>
+                      <button
+                        type="button"
+                        style={{
+                          ...styles.dropdownLink,
+                          ...styles.dropdownDangerLink,
+                        }}
+                        disabled={
+                          accountNotifications.length === 0 ||
+                          clearNotifications.isPending
+                        }
+                        onClick={clearNotificationList}
+                      >
+                        {clearNotifications.isPending
+                          ? 'Clearing...'
+                          : 'Clear all'}
+                      </button>
+                    </div>
                   </div>
 
                   <div style={styles.notificationList}>
@@ -576,8 +659,7 @@ export default function PartnerDashboardLayout({
                       </div>
                     ) : (
                       accountNotifications.map((notification) => (
-                        <button
-                          type="button"
+                        <div
                           key={notification.id}
                           role="menuitem"
                           style={{
@@ -586,24 +668,50 @@ export default function PartnerDashboardLayout({
                               ? styles.notificationItemRead
                               : {}),
                           }}
-                          onClick={() => openNotification(notification)}
                         >
-                          {!notification.is_read && (
-                            <span style={styles.notificationDot} />
-                          )}
+                          <button
+                            type="button"
+                            style={styles.notificationContentButton}
+                            onClick={() => openNotification(notification)}
+                          >
+                            {!notification.is_read && (
+                              <span style={styles.notificationDot} />
+                            )}
 
-                          <span style={styles.notificationCopy}>
-                            <strong style={styles.notificationTitle}>
-                              {notification.title}
-                            </strong>
-                            <span style={styles.notificationDescription}>
-                              {notification.message}
+                            <span style={styles.notificationCopy}>
+                              <strong style={styles.notificationTitle}>
+                                {notification.title}
+                              </strong>
+                              <span style={styles.notificationDescription}>
+                                {notification.message}
+                              </span>
+                              <span style={styles.notificationTime}>
+                                {formatNotificationTime(
+                                  notification.created_at
+                                )}
+                              </span>
                             </span>
-                            <span style={styles.notificationTime}>
-                              {formatNotificationTime(notification.created_at)}
-                            </span>
-                          </span>
-                        </button>
+                          </button>
+
+                          <button
+                            type="button"
+                            aria-label="Delete notification"
+                            title="Delete notification"
+                            style={styles.notificationDeleteButton}
+                            disabled={
+                              deletingNotificationId === notification.id
+                            }
+                            onClick={(event) =>
+                              removeNotification(event, notification)
+                            }
+                          >
+                            {deletingNotificationId === notification.id ? (
+                              <InlineSpinner size={14} />
+                            ) : (
+                              <Trash2 size={14} />
+                            )}
+                          </button>
+                        </div>
                       ))
                     )}
                   </div>
@@ -1061,6 +1169,12 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#151126',
   },
 
+  dropdownActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+  },
+
   dropdownLink: {
     border: 'none',
     background: 'transparent',
@@ -1068,6 +1182,10 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 12,
     fontWeight: 800,
     cursor: 'pointer',
+  },
+
+  dropdownDangerLink: {
+    color: '#dc2626',
   },
 
   notificationList: {
@@ -1082,6 +1200,22 @@ const styles: Record<string, React.CSSProperties> = {
     border: 'none',
     borderRadius: 12,
     background: '#fff7ed',
+    padding: 0,
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 4,
+    textAlign: 'left',
+  },
+
+  notificationItemRead: {
+    background: 'transparent',
+  },
+
+  notificationContentButton: {
+    flex: 1,
+    minWidth: 0,
+    border: 'none',
+    background: 'transparent',
     padding: 10,
     display: 'flex',
     alignItems: 'flex-start',
@@ -1090,8 +1224,19 @@ const styles: Record<string, React.CSSProperties> = {
     textAlign: 'left',
   },
 
-  notificationItemRead: {
+  notificationDeleteButton: {
+    width: 30,
+    height: 30,
+    margin: '8px 8px 0 0',
+    border: 'none',
+    borderRadius: 999,
     background: 'transparent',
+    color: '#94a3b8',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    flexShrink: 0,
   },
 
   notificationEmpty: {

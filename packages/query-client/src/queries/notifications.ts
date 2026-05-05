@@ -179,6 +179,34 @@ export const markAllAccountNotificationsRead = async () => {
   return res.json();
 };
 
+export const deleteAccountNotification = async (id: string) => {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/api/v1/notifications/items/${id}`, {
+    method: 'DELETE',
+    headers,
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseApiError(res, 'Failed to delete notification'));
+  }
+
+  return res.json();
+};
+
+export const clearAccountNotifications = async () => {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE_URL}/api/v1/notifications/clear`, {
+    method: 'DELETE',
+    headers,
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseApiError(res, 'Failed to clear notifications'));
+  }
+
+  return res.json();
+};
+
 export const fetchNotificationPreference =
   async (): Promise<NotificationPreference> => {
     const headers = await getAuthHeaders();
@@ -250,6 +278,57 @@ export const useMarkAllAccountNotificationsRead = () => {
   return useMutation({
     mutationFn: markAllAccountNotificationsRead,
     onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: accountNotificationKeys.all,
+      });
+    },
+  });
+};
+
+export const useDeleteAccountNotification = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteAccountNotification,
+    onSuccess: (_, id) => {
+      queryClient.setQueriesData<AccountNotificationList>(
+        { queryKey: accountNotificationKeys.all },
+        (current) => {
+          if (!current) return current;
+
+          const deleted = current.items.find((item) => item.id === id);
+          return {
+            items: current.items.filter((item) => item.id !== id),
+            unread_count:
+              deleted && !deleted.is_read
+                ? Math.max(0, current.unread_count - 1)
+                : current.unread_count,
+          };
+        }
+      );
+      queryClient.invalidateQueries({
+        queryKey: accountNotificationKeys.all,
+      });
+    },
+  });
+};
+
+export const useClearAccountNotifications = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: clearAccountNotifications,
+    onSuccess: () => {
+      queryClient.setQueriesData<AccountNotificationList>(
+        { queryKey: accountNotificationKeys.all },
+        (current) =>
+          current
+            ? {
+                items: [],
+                unread_count: 0,
+              }
+            : current
+      );
       queryClient.invalidateQueries({
         queryKey: accountNotificationKeys.all,
       });

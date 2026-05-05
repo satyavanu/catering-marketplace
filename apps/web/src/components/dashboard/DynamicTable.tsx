@@ -13,7 +13,10 @@ export type DynamicTableColumn<T> = {
 export type DynamicTableAction<T> = {
   label: string | ((row: T) => string);
   icon?: React.ReactNode;
+  loadingIcon?: React.ReactNode;
   variant?: 'default' | 'primary' | 'danger';
+  disabled?: (row: T) => boolean;
+  isLoading?: (row: T) => boolean;
   onClick: (row: T) => void;
 };
 
@@ -89,12 +92,15 @@ export default function DynamicTable<T>({
                           typeof action.label === 'function'
                             ? action.label(row)
                             : action.label;
+                        const disabled = action.disabled?.(row) || false;
+                        const loading = action.isLoading?.(row) || false;
 
                         return (
                           <button
                             key={`${label}-${index}`}
                             title={label}
                             type="button"
+                            disabled={disabled || loading}
                             onClick={() => action.onClick(row)}
                             style={{
                               ...styles.actionButton,
@@ -104,9 +110,14 @@ export default function DynamicTable<T>({
                               ...(action.variant === 'danger'
                                 ? styles.dangerAction
                                 : {}),
+                              ...(disabled || loading
+                                ? styles.disabledAction
+                                : {}),
                             }}
                           >
-                            {action.icon || label}
+                            {loading
+                              ? action.loadingIcon || action.icon || label
+                              : action.icon || label}
                           </button>
                         );
                       })}
@@ -199,5 +210,10 @@ const styles: Record<string, React.CSSProperties> = {
     background: '#fff1f2',
     color: '#dc2626',
     border: '1px solid #fecdd3',
+  },
+
+  disabledAction: {
+    opacity: 0.55,
+    cursor: 'not-allowed',
   },
 };

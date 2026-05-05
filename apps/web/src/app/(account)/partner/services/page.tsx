@@ -60,22 +60,42 @@ export default function ServicesLandingPage() {
     type: 'success' | 'error';
     text: string;
   } | null>(null);
+  const [actingServiceId, setActingServiceId] = useState<string | null>(null);
   const deleteService = useDeletePartnerService({
-    onSuccess: () =>
-      setNotice({ type: 'success', text: 'Service deleted successfully.' }),
-    onError: (err) =>
-      setNotice({ type: 'error', text: err.message || 'Delete failed.' }),
+    onMutate: (serviceId) => {
+      setActingServiceId(serviceId);
+      setNotice({ type: 'success', text: 'Deleting service...' });
+    },
+    onSuccess: () => {
+      setNotice({ type: 'success', text: 'Service deleted successfully.' });
+    },
+    onError: (err) => {
+      setNotice({ type: 'error', text: err.message || 'Delete failed.' });
+      setActingServiceId(null);
+    },
+    onSettled: () => setActingServiceId(null),
   });
   const setActive = useSetPartnerServiceActive({
-    onSuccess: (service) =>
+    onMutate: ({ serviceId, is_active }) => {
+      setActingServiceId(serviceId);
+      setNotice({
+        type: 'success',
+        text: is_active ? 'Activating service...' : 'Pausing service...',
+      });
+    },
+    onSuccess: (service) => {
       setNotice({
         type: 'success',
         text: service.is_active
           ? 'Service is now active.'
           : 'Service is now inactive.',
-      }),
-    onError: (err) =>
-      setNotice({ type: 'error', text: err.message || 'Update failed.' }),
+      });
+    },
+    onError: (err) => {
+      setNotice({ type: 'error', text: err.message || 'Update failed.' });
+      setActingServiceId(null);
+    },
+    onSettled: () => setActingServiceId(null),
   });
 
   const [activeTab, setActiveTab] = useState<string>('all');
@@ -336,6 +356,11 @@ export default function ServicesLandingPage() {
             {
               label: (row) => (row.isActive ? 'Make inactive' : 'Make active'),
               icon: <PowerIconMini />,
+              loadingIcon: <SpinnerMini />,
+              disabled: (row) =>
+                actingServiceId !== null && actingServiceId !== row.id,
+              isLoading: (row) =>
+                actingServiceId === row.id && setActive.isPending,
               onClick: (row) =>
                 setActive.mutate({
                   serviceId: row.id,
@@ -345,7 +370,12 @@ export default function ServicesLandingPage() {
             {
               label: 'Delete',
               icon: <DeleteIconMini />,
+              loadingIcon: <SpinnerMini />,
               variant: 'danger',
+              disabled: (row) =>
+                actingServiceId !== null && actingServiceId !== row.id,
+              isLoading: (row) =>
+                actingServiceId === row.id && deleteService.isPending,
               onClick: (row) => {
                 const ok = window.confirm(
                   `Delete "${row.name}"? This cannot be undone.`
@@ -589,6 +619,38 @@ function PowerIconMini() {
         strokeWidth="2"
         strokeLinecap="round"
       />
+    </svg>
+  );
+}
+
+function SpinnerMini() {
+  return (
+    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24">
+      <circle
+        cx="12"
+        cy="12"
+        r="9"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="3"
+        opacity="0.25"
+      />
+      <path
+        d="M21 12a9 9 0 0 0-9-9"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+      >
+        <animateTransform
+          attributeName="transform"
+          type="rotate"
+          from="0 12 12"
+          to="360 12 12"
+          dur="0.8s"
+          repeatCount="indefinite"
+        />
+      </path>
     </svg>
   );
 }
