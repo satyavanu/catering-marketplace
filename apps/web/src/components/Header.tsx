@@ -16,20 +16,96 @@ import {
   SparklesIcon,
   Bars3Icon,
 } from '@heroicons/react/24/outline';
-import { ChevronDown, Users, Utensils, ArrowRight, CheckCircle } from 'lucide-react';
-import { handleLogout } from "@catering-marketplace/auth"
+import {
+  ChevronDown,
+  Users,
+  Utensils,
+  ArrowRight,
+  CheckCircle,
+} from 'lucide-react';
+import { handleLogout } from '@catering-marketplace/auth';
 
 const AVAILABLE_CITIES = [
-  { id: 1, name: 'Mumbai', slug: 'mumbai', emoji: '🌊', state: 'Maharashtra', vendors: 45 },
-  { id: 2, name: 'Delhi', slug: 'delhi', emoji: '🏛️', state: 'Delhi', vendors: 52 },
-  { id: 3, name: 'Bangalore', slug: 'bangalore', emoji: '🏙️', state: 'Karnataka', vendors: 38 },
-  { id: 4, name: 'Hyderabad', slug: 'hyderabad', emoji: '🏞️', state: 'Telangana', vendors: 32 },
-  { id: 5, name: 'Pune', slug: 'pune', emoji: '⛰️', state: 'Maharashtra', vendors: 28 },
-  { id: 6, name: 'Chennai', slug: 'chennai', emoji: '🌴', state: 'Tamil Nadu', vendors: 25 },
-  { id: 7, name: 'Kolkata', slug: 'kolkata', emoji: '🎭', state: 'West Bengal', vendors: 22 },
-  { id: 8, name: 'Ahmedabad', slug: 'ahmedabad', emoji: '🕌', state: 'Gujarat', vendors: 18 },
-  { id: 9, name: 'Jaipur', slug: 'jaipur', emoji: '🏰', state: 'Rajasthan', vendors: 15 },
-  { id: 10, name: 'Chandigarh', slug: 'chandigarh', emoji: '🌃', state: 'Chandigarh', vendors: 12 },
+  {
+    id: 1,
+    name: 'Mumbai',
+    slug: 'mumbai',
+    emoji: '🌊',
+    state: 'Maharashtra',
+    vendors: 45,
+  },
+  {
+    id: 2,
+    name: 'Delhi',
+    slug: 'delhi',
+    emoji: '🏛️',
+    state: 'Delhi',
+    vendors: 52,
+  },
+  {
+    id: 3,
+    name: 'Bangalore',
+    slug: 'bangalore',
+    emoji: '🏙️',
+    state: 'Karnataka',
+    vendors: 38,
+  },
+  {
+    id: 4,
+    name: 'Hyderabad',
+    slug: 'hyderabad',
+    emoji: '🏞️',
+    state: 'Telangana',
+    vendors: 32,
+  },
+  {
+    id: 5,
+    name: 'Pune',
+    slug: 'pune',
+    emoji: '⛰️',
+    state: 'Maharashtra',
+    vendors: 28,
+  },
+  {
+    id: 6,
+    name: 'Chennai',
+    slug: 'chennai',
+    emoji: '🌴',
+    state: 'Tamil Nadu',
+    vendors: 25,
+  },
+  {
+    id: 7,
+    name: 'Kolkata',
+    slug: 'kolkata',
+    emoji: '🎭',
+    state: 'West Bengal',
+    vendors: 22,
+  },
+  {
+    id: 8,
+    name: 'Ahmedabad',
+    slug: 'ahmedabad',
+    emoji: '🕌',
+    state: 'Gujarat',
+    vendors: 18,
+  },
+  {
+    id: 9,
+    name: 'Jaipur',
+    slug: 'jaipur',
+    emoji: '🏰',
+    state: 'Rajasthan',
+    vendors: 15,
+  },
+  {
+    id: 10,
+    name: 'Chandigarh',
+    slug: 'chandigarh',
+    emoji: '🌃',
+    state: 'Chandigarh',
+    vendors: 12,
+  },
 ];
 
 interface City {
@@ -41,16 +117,24 @@ interface City {
   vendors: number;
 }
 
+const getDashboardHref = (role?: string | null) => {
+  if (role === 'admin' || role === 'super_admin') return '/admin';
+  if (role === 'partner' || role === 'caterer') return '/partner';
+  return '/customer';
+};
+
 const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isCityModalOpen, setIsCityModalOpen] = useState(false);
-  const [selectedCity, setSelectedCity] = useState<City | null>(AVAILABLE_CITIES[0]);
+  const [selectedCity, setSelectedCity] = useState<City | null>(
+    AVAILABLE_CITIES[0]
+  );
   const [citySearchQuery, setCitySearchQuery] = useState('');
   const [eventType, setEventType] = useState('');
   const [guestCount, setGuestCount] = useState('');
   const [location, setLocation] = useState('');
-  
+
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const { data: session, status } = useSession();
 
@@ -88,7 +172,7 @@ const Header = () => {
   ];
 
   const pathname = usePathname();
-   const isHome = pathname === "/"
+  const isHome = pathname === '/';
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -111,9 +195,10 @@ const Header = () => {
 
   if (isHome) return null;
 
-  const filteredCities = AVAILABLE_CITIES.filter(city =>
-    city.name.toLowerCase().includes(citySearchQuery.toLowerCase()) ||
-    city.state.toLowerCase().includes(citySearchQuery.toLowerCase())
+  const filteredCities = AVAILABLE_CITIES.filter(
+    (city) =>
+      city.name.toLowerCase().includes(citySearchQuery.toLowerCase()) ||
+      city.state.toLowerCase().includes(citySearchQuery.toLowerCase())
   );
 
   const handleCityChange = (city: City) => {
@@ -210,8 +295,12 @@ const Header = () => {
       }}
     >
       <MapPinIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} />
-      <span>{selectedCity?.emoji} {selectedCity?.name}</span>
-      <ChevronDownIcon style={{ width: '14px', height: '14px', flexShrink: 0, opacity: 0.7 }} />
+      <span>
+        {selectedCity?.emoji} {selectedCity?.name}
+      </span>
+      <ChevronDownIcon
+        style={{ width: '14px', height: '14px', flexShrink: 0, opacity: 0.7 }}
+      />
     </button>
   );
 
@@ -259,10 +348,23 @@ const Header = () => {
           }}
         >
           <div>
-            <h2 style={{ fontSize: '20px', fontWeight: '800', color: 'white', margin: 0 }}>
+            <h2
+              style={{
+                fontSize: '20px',
+                fontWeight: '800',
+                color: 'white',
+                margin: 0,
+              }}
+            >
               Select Your City
             </h2>
-            <p style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.8)', margin: '6px 0 0 0' }}>
+            <p
+              style={{
+                fontSize: '13px',
+                color: 'rgba(255, 255, 255, 0.8)',
+                margin: '6px 0 0 0',
+              }}
+            >
               Choose your delivery location
             </p>
           </div>
@@ -282,10 +384,12 @@ const Header = () => {
               flexShrink: 0,
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
+              e.currentTarget.style.backgroundColor =
+                'rgba(255, 255, 255, 0.3)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+              e.currentTarget.style.backgroundColor =
+                'rgba(255, 255, 255, 0.2)';
             }}
           >
             <XMarkIcon style={{ width: '20px', height: '20px' }} />
@@ -338,8 +442,12 @@ const Header = () => {
                     alignItems: 'center',
                     gap: '12px',
                     padding: '14px 16px',
-                    backgroundColor: selectedCity?.id === city.id ? '#ede9fe' : '#f8fafc',
-                    border: selectedCity?.id === city.id ? '2px solid #667eea' : '1px solid #e2e8f0',
+                    backgroundColor:
+                      selectedCity?.id === city.id ? '#ede9fe' : '#f8fafc',
+                    border:
+                      selectedCity?.id === city.id
+                        ? '2px solid #667eea'
+                        : '1px solid #e2e8f0',
                     borderRadius: '10px',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
@@ -356,12 +464,27 @@ const Header = () => {
                     }
                   }}
                 >
-                  <span style={{ fontSize: '24px', flexShrink: 0 }}>{city.emoji}</span>
+                  <span style={{ fontSize: '24px', flexShrink: 0 }}>
+                    {city.emoji}
+                  </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        color: '#1e293b',
+                      }}
+                    >
                       {city.name}
                     </p>
-                    <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>
+                    <p
+                      style={{
+                        margin: '4px 0 0 0',
+                        fontSize: '12px',
+                        color: '#94a3b8',
+                      }}
+                    >
                       {city.state}
                     </p>
                   </div>
@@ -370,7 +493,14 @@ const Header = () => {
             </div>
           ) : (
             <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-              <p style={{ fontSize: '14px', color: '#94a3b8', margin: 0, fontWeight: '500' }}>
+              <p
+                style={{
+                  fontSize: '14px',
+                  color: '#94a3b8',
+                  margin: 0,
+                  fontWeight: '500',
+                }}
+              >
                 No cities found
               </p>
             </div>
@@ -390,8 +520,24 @@ const Header = () => {
             }}
           >
             <div>
-              <p style={{ fontSize: '12px', color: '#64748b', margin: 0, fontWeight: '600' }}>Selected</p>
-              <p style={{ fontSize: '14px', color: '#1e293b', margin: '4px 0 0 0', fontWeight: '700' }}>
+              <p
+                style={{
+                  fontSize: '12px',
+                  color: '#64748b',
+                  margin: 0,
+                  fontWeight: '600',
+                }}
+              >
+                Selected
+              </p>
+              <p
+                style={{
+                  fontSize: '14px',
+                  color: '#1e293b',
+                  margin: '4px 0 0 0',
+                  fontWeight: '700',
+                }}
+              >
                 {selectedCity.emoji} {selectedCity.name}
               </p>
             </div>
@@ -433,7 +579,9 @@ const Header = () => {
           display: 'flex',
           alignItems: 'center',
           gap: '8px',
-          backgroundColor: isMobile ? 'transparent' : 'rgba(255, 255, 255, 0.12)',
+          backgroundColor: isMobile
+            ? 'transparent'
+            : 'rgba(255, 255, 255, 0.12)',
           border: 'none',
           cursor: 'pointer',
           padding: '6px 10px',
@@ -462,11 +610,23 @@ const Header = () => {
             width: isMobile ? '28px' : '32px',
             height: isMobile ? '28px' : '32px',
             borderRadius: '50%',
-            border: isMobile ? '2px solid #e2e8f0' : '2px solid rgba(255, 255, 255, 0.3)',
+            border: isMobile
+              ? '2px solid #e2e8f0'
+              : '2px solid rgba(255, 255, 255, 0.3)',
           }}
         />
         {!isMobile && (
-          <span style={{ fontSize: '13px', fontWeight: '500', color: 'white', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span
+            style={{
+              fontSize: '13px',
+              fontWeight: '500',
+              color: 'white',
+              maxWidth: '100px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
             {session?.user?.name?.split(' ')[0]}
           </span>
         )}
@@ -505,18 +665,51 @@ const Header = () => {
                 `https://api.dicebear.com/7.x/avataaars/svg?seed=${session?.user?.name}`
               }
               alt={session?.user?.name || 'User'}
-              style={{ width: '36px', height: '36px', borderRadius: '50%', border: '2px solid #667eea' }}
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                border: '2px solid #667eea',
+              }}
             />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <p style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <p
+                  style={{
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    color: '#1e293b',
+                    margin: 0,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
                   {session?.user?.name}
                 </p>
                 {session?.user?.isOnboardingCompleted && (
-                  <CheckBadgeIcon style={{ width: '16px', height: '16px', color: '#3b82f6', flexShrink: 0 }} />
+                  <CheckBadgeIcon
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      color: '#3b82f6',
+                      flexShrink: 0,
+                    }}
+                  />
                 )}
               </div>
-              <p style={{ fontSize: '12px', color: '#94a3b8', margin: '2px 0 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <p
+                style={{
+                  fontSize: '12px',
+                  color: '#94a3b8',
+                  margin: '2px 0 0 0',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
                 {session?.user?.email}
               </p>
             </div>
@@ -524,7 +717,7 @@ const Header = () => {
 
           <nav style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
             <Link
-              href={session?.user?.role === 'caterer' ? '/caterer/dashboard' : '/customer/dashboard'}
+              href={getDashboardHref(session?.user?.role)}
               onClick={() => setIsProfileMenuOpen(false)}
               style={{
                 display: 'flex',
@@ -546,7 +739,9 @@ const Header = () => {
                 e.currentTarget.style.color = '#475569';
               }}
             >
-              <UserCircleIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} />
+              <UserCircleIcon
+                style={{ width: '16px', height: '16px', flexShrink: 0 }}
+              />
               Dashboard
             </Link>
 
@@ -573,7 +768,9 @@ const Header = () => {
                 e.currentTarget.style.color = '#475569';
               }}
             >
-              <Cog6ToothIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} />
+              <Cog6ToothIcon
+                style={{ width: '16px', height: '16px', flexShrink: 0 }}
+              />
               Settings
             </Link>
 
@@ -601,7 +798,9 @@ const Header = () => {
                   e.currentTarget.style.color = '#475569';
                 }}
               >
-                <HeartIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} />
+                <HeartIcon
+                  style={{ width: '16px', height: '16px', flexShrink: 0 }}
+                />
                 Saved Caterers
               </Link>
             )}
@@ -635,7 +834,9 @@ const Header = () => {
               e.currentTarget.style.backgroundColor = 'transparent';
             }}
           >
-            <ArrowRightOnRectangleIcon style={{ width: '16px', height: '16px', flexShrink: 0 }} />
+            <ArrowRightOnRectangleIcon
+              style={{ width: '16px', height: '16px', flexShrink: 0 }}
+            />
             Sign Out
           </button>
         </div>
@@ -852,10 +1053,12 @@ const Header = () => {
                 letterSpacing: '0.3px',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.15)';
+                e.currentTarget.style.backgroundColor =
+                  'rgba(255, 255, 255, 0.15)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                e.currentTarget.style.backgroundColor =
+                  'rgba(255, 255, 255, 0.1)';
               }}
             >
               <SparklesIcon style={{ width: '16px', height: '16px' }} />
@@ -863,7 +1066,31 @@ const Header = () => {
             </Link>
 
             {status === 'authenticated' ? (
-              <ProfileDropdown />
+              <>
+                <Link
+                  href={getDashboardHref(session?.user?.role)}
+                  style={{
+                    fontSize: '14px',
+                    fontWeight: '700',
+                    color: 'white',
+                    textDecoration: 'none',
+                    padding: '8px 18px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                    transition: 'all 0.2s ease',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    cursor: 'pointer',
+                    backdropFilter: 'blur(10px)',
+                    letterSpacing: '0.3px',
+                  }}
+                >
+                  Dashboard
+                </Link>
+                <ProfileDropdown />
+              </>
             ) : status === 'loading' ? (
               <div
                 style={{
@@ -892,7 +1119,8 @@ const Header = () => {
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 8px 16px rgba(0, 0, 0, 0.2)';
+                  e.currentTarget.style.boxShadow =
+                    '0 8px 16px rgba(0, 0, 0, 0.2)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = 'translateY(0)';
@@ -998,371 +1226,390 @@ const Header = () => {
         </div>
 
         {/* Hero Section with Search Form */}
-        {isHome ?? (<>
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            paddingTop: 'clamp(1.5rem, 4vw, 2.5rem)',
-            paddingBottom: 'clamp(1.5rem, 4vw, 2.5rem)',
-            minHeight: 'auto',
-          }}
-        >
-          {/* Main Hero Title & Description */}
-          <div style={{ textAlign: 'center', marginBottom: '1.5rem', maxWidth: '800px', animation: 'fadeIn 0.8s ease-in' }}>
-            <h1
+        {isHome ?? (
+          <>
+            <div
               style={{
-                fontSize: 'clamp(1.75rem, 5vw, 3rem)',
-                fontWeight: '800',
-                marginBottom: '0.75rem',
-                marginTop: 0,
-                lineHeight: '1.2',
-                textShadow: '0 4px 12px rgba(0, 0, 0, 0.25)',
-                letterSpacing: '-0.02em',
-                color: 'white',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                paddingTop: 'clamp(1.5rem, 4vw, 2.5rem)',
+                paddingBottom: 'clamp(1.5rem, 4vw, 2.5rem)',
+                minHeight: 'auto',
               }}
             >
-              Plan Your Perfect Event in Seconds
-            </h1>
-
-            <p
-              style={{
-                fontSize: 'clamp(0.95rem, 2.5vw, 1.1rem)',
-                color: 'rgba(255, 255, 255, 0.95)',
-                maxWidth: '700px',
-                margin: '0 auto',
-                lineHeight: '1.6',
-                textShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
-              }}
-            >
-              Find the best caterers for your event — fast, simple, and reliable.
-            </p>
-          </div>
-
-          {/* Search Form Card */}
-          <div
-            style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.98)',
-              borderRadius: '1.25rem',
-              padding: 'clamp(1rem, 3vw, 1.5rem)',
-              boxShadow: '0 25px 50px rgba(0, 0, 0, 0.25)',
-              maxWidth: '900px',
-              width: '100%',
-              backdropFilter: 'blur(10px)',
-            }}
-          >
-            <form onSubmit={handleSearch}>
-              <p
-                style={{
-                  fontSize: '0.75rem',
-                  fontWeight: '700',
-                  color: '#6b7280',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.1em',
-                  margin: '0 0 1rem 0',
-                }}
-              >
-                Search Fields
-              </p>
-
+              {/* Main Hero Title & Description */}
               <div
                 style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                  gap: '0.75rem',
-                  marginBottom: '1rem',
+                  textAlign: 'center',
+                  marginBottom: '1.5rem',
+                  maxWidth: '800px',
+                  animation: 'fadeIn 0.8s ease-in',
                 }}
               >
-                {/* Location Dropdown */}
-                <div>
-                  <label
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      fontSize: '0.75rem',
-                      fontWeight: '700',
-                      color: '#374151',
-                      marginBottom: '0.5rem',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                    }}
-                  >
-                    <MapPinIcon style={{ width: '16px', height: '16px' }} />
-                    Location
-                  </label>
-                  <div style={{ position: 'relative' }}>
-                    <select
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '0.75rem 2.5rem 0.75rem 0.875rem',
-                        border: '2px solid #e5e7eb',
-                        borderRadius: '0.75rem',
-                        fontSize: '0.9rem',
-                        fontWeight: '500',
-                        color: location ? '#111827' : '#9ca3af',
-                        backgroundColor: 'white',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s ease',
-                        appearance: 'none',
-                      }}
-                      onFocus={(e) => {
-                        e.currentTarget.style.borderColor = '#667eea';
-                        e.currentTarget.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
-                      }}
-                      onBlur={(e) => {
-                        e.currentTarget.style.borderColor = '#e5e7eb';
-                        e.currentTarget.style.boxShadow = 'none';
-                      }}
-                      required
-                    >
-                      <option value="">Select Location</option>
-                      {locations.map((loc) => (
-                        <option key={loc.value} value={loc.value}>
-                          {loc.label}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown
-                      size={18}
-                      style={{
-                        position: 'absolute',
-                        right: '0.75rem',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        pointerEvents: 'none',
-                        color: '#9ca3af',
-                      }}
-                    />
-                  </div>
-                </div>
+                <h1
+                  style={{
+                    fontSize: 'clamp(1.75rem, 5vw, 3rem)',
+                    fontWeight: '800',
+                    marginBottom: '0.75rem',
+                    marginTop: 0,
+                    lineHeight: '1.2',
+                    textShadow: '0 4px 12px rgba(0, 0, 0, 0.25)',
+                    letterSpacing: '-0.02em',
+                    color: 'white',
+                  }}
+                >
+                  Plan Your Perfect Event in Seconds
+                </h1>
 
-                {/* Event Type Dropdown */}
-                <div>
-                  <label
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      fontSize: '0.75rem',
-                      fontWeight: '700',
-                      color: '#374151',
-                      marginBottom: '0.5rem',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                    }}
-                  >
-                    <Utensils size={16} />
-                    Event Type
-                  </label>
-                  <div style={{ position: 'relative' }}>
-                    <select
-                      value={eventType}
-                      onChange={(e) => setEventType(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '0.75rem 2.5rem 0.75rem 0.875rem',
-                        border: '2px solid #e5e7eb',
-                        borderRadius: '0.75rem',
-                        fontSize: '0.9rem',
-                        fontWeight: '500',
-                        color: eventType ? '#111827' : '#9ca3af',
-                        backgroundColor: 'white',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s ease',
-                        appearance: 'none',
-                      }}
-                      onFocus={(e) => {
-                        e.currentTarget.style.borderColor = '#667eea';
-                        e.currentTarget.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
-                      }}
-                      onBlur={(e) => {
-                        e.currentTarget.style.borderColor = '#e5e7eb';
-                        e.currentTarget.style.boxShadow = 'none';
-                      }}
-                      required
-                    >
-                      <option value="">Select Event Type</option>
-                      {eventTypes.map((type) => (
-                        <option key={type.value} value={type.value}>
-                          {type.label}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown
-                      size={18}
-                      style={{
-                        position: 'absolute',
-                        right: '0.75rem',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        pointerEvents: 'none',
-                        color: '#9ca3af',
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Guest Count Dropdown */}
-                <div>
-                  <label
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      fontSize: '0.75rem',
-                      fontWeight: '700',
-                      color: '#374151',
-                      marginBottom: '0.5rem',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                    }}
-                  >
-                    <Users size={16} />
-                    Number of Guests
-                  </label>
-                  <div style={{ position: 'relative' }}>
-                    <select
-                      value={guestCount}
-                      onChange={(e) => setGuestCount(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '0.75rem 2.5rem 0.75rem 0.875rem',
-                        border: '2px solid #e5e7eb',
-                        borderRadius: '0.75rem',
-                        fontSize: '0.9rem',
-                        fontWeight: '500',
-                        color: guestCount ? '#111827' : '#9ca3af',
-                        backgroundColor: 'white',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s ease',
-                        appearance: 'none',
-                      }}
-                      onFocus={(e) => {
-                        e.currentTarget.style.borderColor = '#667eea';
-                        e.currentTarget.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
-                      }}
-                      onBlur={(e) => {
-                        e.currentTarget.style.borderColor = '#e5e7eb';
-                        e.currentTarget.style.boxShadow = 'none';
-                      }}
-                      required
-                    >
-                      <option value="">Select Guest Count</option>
-                      {guestCounts.map((count) => (
-                        <option key={count.value} value={count.value}>
-                          {count.label}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown
-                      size={18}
-                      style={{
-                        position: 'absolute',
-                        right: '0.75rem',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        pointerEvents: 'none',
-                        color: '#9ca3af',
-                      }}
-                    />
-                  </div>
-                </div>
+                <p
+                  style={{
+                    fontSize: 'clamp(0.95rem, 2.5vw, 1.1rem)',
+                    color: 'rgba(255, 255, 255, 0.95)',
+                    maxWidth: '700px',
+                    margin: '0 auto',
+                    lineHeight: '1.6',
+                    textShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+                  }}
+                >
+                  Find the best caterers for your event — fast, simple, and
+                  reliable.
+                </p>
               </div>
 
-              {/* Search Button */}
-              <button
-                type="submit"
-                disabled={!location || !eventType || !guestCount}
+              {/* Search Form Card */}
+              <div
                 style={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                  borderRadius: '1.25rem',
+                  padding: 'clamp(1rem, 3vw, 1.5rem)',
+                  boxShadow: '0 25px 50px rgba(0, 0, 0, 0.25)',
+                  maxWidth: '900px',
                   width: '100%',
-                  padding: '0.75rem 1rem',
-                  backgroundImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '0.75rem',
-                  fontWeight: '700',
-                  cursor: !location || !eventType || !guestCount ? 'not-allowed' : 'pointer',
-                  fontSize: 'clamp(0.875rem, 2vw, 1rem)',
-                  transition: 'all 0.3s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.75rem',
-                  opacity: !location || !eventType || !guestCount ? 0.6 : 1,
-                }}
-                onMouseEnter={(e) => {
-                  if (location && eventType && guestCount) {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 10px 25px rgba(102, 126, 234, 0.4)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = 'none';
+                  backdropFilter: 'blur(10px)',
                 }}
               >
-                Find Caterers
-                <ArrowRight size={20} />
-              </button>
+                <form onSubmit={handleSearch}>
+                  <p
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: '700',
+                      color: '#6b7280',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.1em',
+                      margin: '0 0 1rem 0',
+                    }}
+                  >
+                    Search Fields
+                  </p>
 
-              {/* Trust Badges */}
-              <div
-                style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  justifyContent: 'center',
-                  gap: 'clamp(0.75rem, 2vw, 1rem)',
-                  paddingTop: '0.875rem',
-                  marginTop: '0.875rem',
-                  borderTop: '1px solid #e5e7eb',
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.375rem',
-                    fontSize: '0.75rem',
-                    color: '#666',
-                  }}
-                >
-                  <CheckCircle size={14} color="#10b981" />
-                  <span>No hidden costs</span>
-                </div>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.375rem',
-                    fontSize: '0.75rem',
-                    color: '#666',
-                  }}
-                >
-                  <CheckCircle size={14} color="#10b981" />
-                  <span>Verified caterers</span>
-                </div>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.375rem',
-                    fontSize: '0.75rem',
-                    color: '#666',
-                  }}
-                >
-                  <CheckCircle size={14} color="#10b981" />
-                  <span>Instant quotes</span>
-                </div>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns:
+                        'repeat(auto-fit, minmax(180px, 1fr))',
+                      gap: '0.75rem',
+                      marginBottom: '1rem',
+                    }}
+                  >
+                    {/* Location Dropdown */}
+                    <div>
+                      <label
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          fontSize: '0.75rem',
+                          fontWeight: '700',
+                          color: '#374151',
+                          marginBottom: '0.5rem',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                        }}
+                      >
+                        <MapPinIcon style={{ width: '16px', height: '16px' }} />
+                        Location
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <select
+                          value={location}
+                          onChange={(e) => setLocation(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '0.75rem 2.5rem 0.75rem 0.875rem',
+                            border: '2px solid #e5e7eb',
+                            borderRadius: '0.75rem',
+                            fontSize: '0.9rem',
+                            fontWeight: '500',
+                            color: location ? '#111827' : '#9ca3af',
+                            backgroundColor: 'white',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s ease',
+                            appearance: 'none',
+                          }}
+                          onFocus={(e) => {
+                            e.currentTarget.style.borderColor = '#667eea';
+                            e.currentTarget.style.boxShadow =
+                              '0 0 0 3px rgba(102, 126, 234, 0.1)';
+                          }}
+                          onBlur={(e) => {
+                            e.currentTarget.style.borderColor = '#e5e7eb';
+                            e.currentTarget.style.boxShadow = 'none';
+                          }}
+                          required
+                        >
+                          <option value="">Select Location</option>
+                          {locations.map((loc) => (
+                            <option key={loc.value} value={loc.value}>
+                              {loc.label}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown
+                          size={18}
+                          style={{
+                            position: 'absolute',
+                            right: '0.75rem',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            pointerEvents: 'none',
+                            color: '#9ca3af',
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Event Type Dropdown */}
+                    <div>
+                      <label
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          fontSize: '0.75rem',
+                          fontWeight: '700',
+                          color: '#374151',
+                          marginBottom: '0.5rem',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                        }}
+                      >
+                        <Utensils size={16} />
+                        Event Type
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <select
+                          value={eventType}
+                          onChange={(e) => setEventType(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '0.75rem 2.5rem 0.75rem 0.875rem',
+                            border: '2px solid #e5e7eb',
+                            borderRadius: '0.75rem',
+                            fontSize: '0.9rem',
+                            fontWeight: '500',
+                            color: eventType ? '#111827' : '#9ca3af',
+                            backgroundColor: 'white',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s ease',
+                            appearance: 'none',
+                          }}
+                          onFocus={(e) => {
+                            e.currentTarget.style.borderColor = '#667eea';
+                            e.currentTarget.style.boxShadow =
+                              '0 0 0 3px rgba(102, 126, 234, 0.1)';
+                          }}
+                          onBlur={(e) => {
+                            e.currentTarget.style.borderColor = '#e5e7eb';
+                            e.currentTarget.style.boxShadow = 'none';
+                          }}
+                          required
+                        >
+                          <option value="">Select Event Type</option>
+                          {eventTypes.map((type) => (
+                            <option key={type.value} value={type.value}>
+                              {type.label}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown
+                          size={18}
+                          style={{
+                            position: 'absolute',
+                            right: '0.75rem',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            pointerEvents: 'none',
+                            color: '#9ca3af',
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Guest Count Dropdown */}
+                    <div>
+                      <label
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          fontSize: '0.75rem',
+                          fontWeight: '700',
+                          color: '#374151',
+                          marginBottom: '0.5rem',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                        }}
+                      >
+                        <Users size={16} />
+                        Number of Guests
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <select
+                          value={guestCount}
+                          onChange={(e) => setGuestCount(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '0.75rem 2.5rem 0.75rem 0.875rem',
+                            border: '2px solid #e5e7eb',
+                            borderRadius: '0.75rem',
+                            fontSize: '0.9rem',
+                            fontWeight: '500',
+                            color: guestCount ? '#111827' : '#9ca3af',
+                            backgroundColor: 'white',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s ease',
+                            appearance: 'none',
+                          }}
+                          onFocus={(e) => {
+                            e.currentTarget.style.borderColor = '#667eea';
+                            e.currentTarget.style.boxShadow =
+                              '0 0 0 3px rgba(102, 126, 234, 0.1)';
+                          }}
+                          onBlur={(e) => {
+                            e.currentTarget.style.borderColor = '#e5e7eb';
+                            e.currentTarget.style.boxShadow = 'none';
+                          }}
+                          required
+                        >
+                          <option value="">Select Guest Count</option>
+                          {guestCounts.map((count) => (
+                            <option key={count.value} value={count.value}>
+                              {count.label}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown
+                          size={18}
+                          style={{
+                            position: 'absolute',
+                            right: '0.75rem',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            pointerEvents: 'none',
+                            color: '#9ca3af',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Search Button */}
+                  <button
+                    type="submit"
+                    disabled={!location || !eventType || !guestCount}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem 1rem',
+                      backgroundImage:
+                        'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '0.75rem',
+                      fontWeight: '700',
+                      cursor:
+                        !location || !eventType || !guestCount
+                          ? 'not-allowed'
+                          : 'pointer',
+                      fontSize: 'clamp(0.875rem, 2vw, 1rem)',
+                      transition: 'all 0.3s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.75rem',
+                      opacity: !location || !eventType || !guestCount ? 0.6 : 1,
+                    }}
+                    onMouseEnter={(e) => {
+                      if (location && eventType && guestCount) {
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.boxShadow =
+                          '0 10px 25px rgba(102, 126, 234, 0.4)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    Find Caterers
+                    <ArrowRight size={20} />
+                  </button>
+
+                  {/* Trust Badges */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      justifyContent: 'center',
+                      gap: 'clamp(0.75rem, 2vw, 1rem)',
+                      paddingTop: '0.875rem',
+                      marginTop: '0.875rem',
+                      borderTop: '1px solid #e5e7eb',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.375rem',
+                        fontSize: '0.75rem',
+                        color: '#666',
+                      }}
+                    >
+                      <CheckCircle size={14} color="#10b981" />
+                      <span>No hidden costs</span>
+                    </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.375rem',
+                        fontSize: '0.75rem',
+                        color: '#666',
+                      }}
+                    >
+                      <CheckCircle size={14} color="#10b981" />
+                      <span>Verified caterers</span>
+                    </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.375rem',
+                        fontSize: '0.75rem',
+                        color: '#666',
+                      }}
+                    >
+                      <CheckCircle size={14} color="#10b981" />
+                      <span>Instant quotes</span>
+                    </div>
+                  </div>
+                </form>
               </div>
-            </form>
-          </div>
-        </div>
-        </>)}
+            </div>
+          </>
+        )}
 
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
@@ -1390,15 +1637,21 @@ const Header = () => {
                       padding: '12px 20px',
                       borderRadius: '0',
                       transition: 'all 0.2s ease',
-                      borderLeft: active ? '3px solid white' : '3px solid transparent',
+                      borderLeft: active
+                        ? '3px solid white'
+                        : '3px solid transparent',
                       display: 'block',
                       letterSpacing: '0.3px',
-                      backgroundColor: active ? 'rgba(255, 255, 255, 0.15)' : 'transparent',
+                      backgroundColor: active
+                        ? 'rgba(255, 255, 255, 0.15)'
+                        : 'transparent',
                     }}
                     onMouseEnter={(e) => {
                       if (!active) {
-                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.15)';
-                        e.currentTarget.style.borderLeftColor = 'rgba(255, 255, 255, 0.5)';
+                        e.currentTarget.style.backgroundColor =
+                          'rgba(255, 255, 255, 0.15)';
+                        e.currentTarget.style.borderLeftColor =
+                          'rgba(255, 255, 255, 0.5)';
                       }
                     }}
                     onMouseLeave={(e) => {
@@ -1426,7 +1679,7 @@ const Header = () => {
               {status === 'authenticated' ? (
                 <>
                   <Link
-                    href={session?.user?.role === 'caterer' ? '/caterer/dashboard' : '/customer/dashboard'}
+                    href={getDashboardHref(session?.user?.role)}
                     onClick={() => setIsMobileMenuOpen(false)}
                     style={{
                       fontSize: '13px',

@@ -302,7 +302,6 @@ export default function CheckoutPage() {
   >('pending');
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-  const [servicePaymentFailure, setServicePaymentFailure] = useState('');
 
   const [subscriptionData, setSubscriptionData] = useState({
     planId,
@@ -508,7 +507,6 @@ export default function CheckoutPage() {
 
   const handleCompletePayment = async () => {
     try {
-      setServicePaymentFailure('');
       setIsProcessingPayment(true);
 
       const res = await fetch('/api/create-order', {
@@ -574,17 +572,6 @@ export default function CheckoutPage() {
     }
   };
 
-  const redirectToSignin = () => {
-    const checkoutPath = '/checkout?intent=service-booking';
-    router.push(
-      `/login?mode=signin&callbackUrl=${encodeURIComponent(checkoutPath)}`
-    );
-  };
-
-  const isAuthError = (error: unknown) =>
-    error instanceof Error &&
-    /invalid token|unauthorized|jwt|forbidden/i.test(error.message);
-
   const handleServicePayment = async () => {
     if (!serviceIntent || serviceTotal <= 0) {
       alert('Please choose a valid service before continuing.');
@@ -592,7 +579,10 @@ export default function CheckoutPage() {
     }
 
     if (sessionStatus !== 'authenticated') {
-      redirectToSignin();
+      const checkoutPath = '/checkout?intent=service-booking';
+      router.push(
+        `/login?mode=signin&callbackUrl=${encodeURIComponent(checkoutPath)}`
+      );
       return;
     }
 
@@ -666,16 +656,9 @@ export default function CheckoutPage() {
             setCheckoutStep('confirmation');
           } catch (error) {
             console.error('Payment verification error:', error);
-            if (isAuthError(error)) {
-              setServicePaymentFailure(
-                'Payment was received, but your session expired before we could refresh the booking. Sign in again and check My bookings, or contact support with your Razorpay reference.'
-              );
-              redirectToSignin();
-            } else {
-              setServicePaymentFailure(
-                'Payment received, but verification failed. Please contact support with your Razorpay payment reference.'
-              );
-            }
+            alert(
+              'Payment received, but verification failed. Please contact support with your Razorpay payment reference.'
+            );
           } finally {
             setIsProcessingPayment(false);
           }
@@ -691,15 +674,11 @@ export default function CheckoutPage() {
       rzp.open();
     } catch (error) {
       console.error('Service payment error:', error);
-      if (isAuthError(error)) {
-        redirectToSignin();
-      } else {
-        setServicePaymentFailure(
-          error instanceof Error
-            ? error.message
-            : 'Something went wrong. Please try again.'
-        );
-      }
+      alert(
+        error instanceof Error
+          ? error.message
+          : 'Something went wrong. Please try again.'
+      );
       setIsProcessingPayment(false);
     }
   };
@@ -776,9 +755,7 @@ export default function CheckoutPage() {
         isAuthenticated={sessionStatus === 'authenticated'}
         orderConfirmation={orderConfirmation}
         isConfirmed={checkoutStep === 'confirmation'}
-        failureMessage={servicePaymentFailure}
         onBack={() => router.push('/')}
-        onRetry={() => setServicePaymentFailure('')}
         onPay={handleServicePayment}
       />
     );
@@ -1148,78 +1125,6 @@ export default function CheckoutPage() {
   );
 }
 
-const checkoutLogoUrl =
-  'https://ckklrguidafoseanzmdk.supabase.co/storage/v1/object/public/assets/logo/logo.png';
-
-const confirmationThemes: Record<
-  string,
-  {
-    eyebrow: string;
-    headline: string;
-    subhead: string;
-    noteTitle: string;
-    note: string;
-    menuLabel: string;
-    venueLabel: string;
-    heroImage: string;
-    promise: string[];
-  }
-> = {
-  chef: {
-    eyebrow: 'Your table. Your chef. Your experience.',
-    headline: 'Booking confirmed!',
-    subhead: 'Get ready for a private dining experience crafted just for you.',
-    noteTitle: 'We are preparing something special',
-    note: 'Your chef has the booking details and will prepare for a smooth in-home experience.',
-    menuLabel: 'Menu style',
-    venueLabel: 'Location',
-    heroImage:
-      'https://images.unsplash.com/photo-1551218808-94e220e084d2?auto=format&fit=crop&w=1400&q=85',
-    promise: [
-      'Verified chef',
-      'Quality ingredients',
-      'Made with care',
-      'On time',
-    ],
-  },
-  catering: {
-    eyebrow: 'Thoughtfully planned. Beautifully served.',
-    headline: 'Booking confirmed!',
-    subhead:
-      'We cannot wait to deliver an unforgettable catering experience for you.',
-    noteTitle: 'We are all set',
-    note: 'Our team will coordinate planning, preparation, and service details for your event.',
-    menuLabel: 'Menu style',
-    venueLabel: 'Venue',
-    heroImage:
-      'https://images.unsplash.com/photo-1555244162-803834f70033?auto=format&fit=crop&w=1400&q=85',
-    promise: [
-      'Curated teams',
-      'Quality food',
-      'Made with care',
-      'Service ready',
-    ],
-  },
-  restaurant_private_event: {
-    eyebrow: 'Your venue. Your guests. Your celebration.',
-    headline: 'Experience confirmed!',
-    subhead:
-      'Your private event details are saved and the venue partner has been notified.',
-    noteTitle: 'Your event is reserved',
-    note: 'The partner will prepare the space, package, and guest experience around your details.',
-    menuLabel: 'Package',
-    venueLabel: 'Venue',
-    heroImage:
-      'https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&w=1400&q=85',
-    promise: [
-      'Private spaces',
-      'Curated packages',
-      'Event support',
-      'Easy payments',
-    ],
-  },
-};
-
 function ServiceCheckout({
   intent,
   service,
@@ -1231,456 +1136,206 @@ function ServiceCheckout({
   isAuthenticated,
   orderConfirmation,
   isConfirmed,
-  failureMessage,
   onBack,
-  onRetry,
   onPay,
 }: any) {
   const title = service?.title || intent?.title || 'Selected service';
-  const details = intent?.details || {};
-  const serviceKey = intent?.serviceKey || service?.service_key || 'chef';
-  const theme = confirmationThemes[serviceKey] || confirmationThemes.chef;
-  const serviceTypeLabel = serviceLabelForCheckout(serviceKey);
-  const subtotal = Number(intent?.subtotal || total || 0);
-  const discount = Number(intent?.discount || 0);
-  const feesAndTaxes = Math.max(total - subtotal + discount, 0);
-  const email = details.email || 'your registered email';
-  const eventTime =
-    details.eventTime || details.mealTime || 'Partner to confirm';
-  const address = details.address || intent?.location || 'To confirm';
-  const menuStyle =
-    details.cuisinePreference || service?.pricing_model || 'Custom preference';
-
-  if (failureMessage) {
-    return (
-      <div className="service-confirm-page booking-failure-page">
-        <style>{serviceCheckoutCss}</style>
-        <main className="failure-shell">
-          <section className="failure-card">
-            <img src={checkoutLogoUrl} alt="Droooly" className="failure-logo" />
-            <span className="failure-kicker">Booking needs attention</span>
-            <h1>We could not finish the confirmation.</h1>
-            <p>{failureMessage}</p>
-            <div className="failure-actions">
-              <button type="button" onClick={onRetry}>
-                Try again
-              </button>
-              <button
-                type="button"
-                onClick={() => window.location.assign('/customer/bookings')}
-              >
-                Check my bookings
-              </button>
-              <button
-                type="button"
-                onClick={() => window.location.assign('/contact')}
-              >
-                Contact support
-              </button>
-            </div>
-          </section>
-        </main>
-      </div>
-    );
-  }
-
-  if (isConfirmed) {
-    return (
-      <div className="service-confirm-page">
-        <style>{serviceCheckoutCss}</style>
-        <section className="confirmation-hero">
-          <div className="confirmation-copy">
-            <img src={checkoutLogoUrl} alt="Droooly" className="confirm-logo" />
-            <div className="confirm-tagline">
-              Private Chefs. Catering. Experiences.
-            </div>
-            <div className="confirm-divider">
-              <span />
-            </div>
-            <p className="confirm-eyebrow">{theme.eyebrow}</p>
-            <h1>{theme.headline}</h1>
-            <p className="confirm-subhead">{theme.subhead}</p>
-          </div>
-          <div
-            className="confirmation-photo"
-            style={{ backgroundImage: `url(${theme.heroImage})` }}
-          />
-        </section>
-
-        <main className="confirmation-shell">
-          <section className="confirmation-card">
-            <div className="confirmation-details">
-              <div className="confirm-card-head">
-                <span className="confirm-icon">CAL</span>
-                <h2>Booking details</h2>
-                <div>
-                  <small>Confirmation no.</small>
-                  <strong>{orderConfirmation.orderId || 'Confirmed'}</strong>
-                </div>
-              </div>
-              <ConfirmationRow
-                label="Service"
-                value={serviceTypeLabel}
-                subvalue={title}
-              />
-              <ConfirmationRow
-                label="Date"
-                value={formatLongDate(intent?.date)}
-              />
-              <ConfirmationRow label="Time" value={eventTime} />
-              <ConfirmationRow label={theme.venueLabel} value={address} />
-              <ConfirmationRow
-                label="Guest count"
-                value={`${intent?.guests || '-'} guests`}
-              />
-              <ConfirmationRow
-                label={theme.menuLabel}
-                value={menuStyle}
-                subvalue={details.notes || undefined}
-              />
-            </div>
-
-            <aside className="confirmation-note">
-              <div className="line-art">DLY</div>
-              <h3>{theme.noteTitle}</h3>
-              <p>{theme.note}</p>
-              <div className="mini-divider" />
-              <p>Sit back and enjoy. We will handle the next steps.</p>
-              <img src={checkoutLogoUrl} alt="Droooly" />
-            </aside>
-          </section>
-
-          <section className="email-strip">
-            <span>MAIL</span>
-            <div>
-              <strong>A confirmation email has been sent to {email}</strong>
-              <p>Need to make a change? We are here to help.</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => window.location.assign('/customer/bookings')}
-            >
-              View booking
-            </button>
-          </section>
-
-          <section className="promise-strip">
-            <h3>Our promise</h3>
-            <div>
-              {theme.promise.map((item) => (
-                <span key={item}>{item}</span>
-              ))}
-            </div>
-          </section>
-
-          <footer className="confirmation-footer">
-            <strong>Thank you!</strong>
-            <p>We cannot wait to be part of your special day.</p>
-            <span>The Droooly Team</span>
-          </footer>
-        </main>
-      </div>
-    );
-  }
+  const description =
+    service?.short_description ||
+    service?.description ||
+    'Review your booking details before secure payment.';
 
   return (
-    <div className="service-checkout-page">
-      <style>{serviceCheckoutCss}</style>
-      <main className="checkout-shell">
-        <section className="checkout-intro">
-          <p>Secure checkout</p>
-          <h1>{title}</h1>
-          <span>
-            Review your booking, charges, and policies before opening Razorpay.
-          </span>
-        </section>
+    <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh' }}>
+      <style>{`
+        @media (max-width: 760px) {
+          .service-checkout-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .service-checkout-panel {
+            position: static !important;
+          }
+        }
+      `}</style>
+      <div
+        style={{ maxWidth: '1120px', margin: '0 auto', padding: '40px 20px' }}
+      >
+        <button
+          type="button"
+          onClick={onBack}
+          style={{
+            border: '1px solid #e2e8f0',
+            background: 'white',
+            borderRadius: 10,
+            padding: '10px 14px',
+            cursor: 'pointer',
+            marginBottom: 20,
+          }}
+        >
+          Back to search
+        </button>
 
-        <div className="service-checkout-grid">
-          <section className="checkout-card">
+        <div
+          className="service-checkout-grid"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'minmax(0, 1.4fr) minmax(300px, 0.8fr)',
+            gap: 24,
+            alignItems: 'start',
+          }}
+        >
+          <section
+            style={{
+              background: 'white',
+              border: '1px solid #e2e8f0',
+              borderRadius: 18,
+              padding: 28,
+              boxShadow: '0 18px 45px rgba(15, 23, 42, 0.08)',
+            }}
+          >
+            <p style={{ color: '#16a34a', fontWeight: 800, margin: 0 }}>
+              Secure checkout
+            </p>
+            <h1 style={{ fontSize: 34, lineHeight: 1.1, margin: '10px 0' }}>
+              {isConfirmed ? 'Booking payment received' : title}
+            </h1>
+            <p style={{ color: '#64748b', fontSize: 16, maxWidth: 640 }}>
+              {isConfirmed
+                ? 'Your booking is confirmed. We have saved the payment reference and notified the partner.'
+                : description}
+            </p>
+
             {isLoading && (
-              <div className="soft-alert">Loading service details...</div>
+              <p style={{ color: '#64748b' }}>Loading service details...</p>
             )}
             {error && (
-              <div className="error-alert">
-                We could not refresh this service. Go back and select it again.
-              </div>
+              <p style={{ color: '#b91c1c' }}>
+                We could not refresh this service. You can go back and select it
+                again.
+              </p>
             )}
 
-            <div className="checkout-section-title">
-              <span>1</span>
-              <div>
-                <h2>Booking details</h2>
-                <p>
-                  {serviceTypeLabel} details we will share with the partner.
-                </p>
-              </div>
-            </div>
-            <div className="detail-list">
-              <ServiceInfo label="Service" value={serviceTypeLabel} />
-              <ServiceInfo label="Date" value={formatLongDate(intent?.date)} />
-              <ServiceInfo label="Time" value={eventTime} />
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gap: 14,
+                marginTop: 24,
+              }}
+            >
+              <ServiceInfo
+                label="Location"
+                value={intent?.location || 'To confirm'}
+              />
+              <ServiceInfo label="Date" value={intent?.date || 'To schedule'} />
               <ServiceInfo
                 label="Guests"
-                value={`${intent?.guests || '-'} guests`}
+                value={String(intent?.guests || '-')}
               />
-              <ServiceInfo label="Location" value={address} />
-              <ServiceInfo label="Preference" value={menuStyle} />
+              <ServiceInfo
+                label="Coupon"
+                value={intent?.couponCode || 'No coupon applied'}
+              />
             </div>
 
-            <div className="policy-box">
-              <h3>Cancellation policy</h3>
-              <p>
-                Free cancellation is available until partner preparation begins.
-                After confirmation, partner costs may apply based on service
-                type, ingredients, venue, and event timing.
-              </p>
-              <ul>
-                <li>Same-day cancellations may be reviewed by support.</li>
-                <li>
-                  Refunds, if applicable, are returned to the original payment
-                  method.
-                </li>
-                <li>Partner changes are handled by Droooly support.</li>
-              </ul>
-            </div>
+            {isConfirmed && (
+              <div
+                style={{
+                  marginTop: 26,
+                  padding: 18,
+                  borderRadius: 14,
+                  background: '#ecfdf5',
+                  color: '#166534',
+                  border: '1px solid #bbf7d0',
+                }}
+              >
+                Booking reference: {orderConfirmation.orderId}
+              </div>
+            )}
           </section>
 
-          <aside className="checkout-summary-card">
-            <h2>Booking summary</h2>
+          <aside
+            className="service-checkout-panel"
+            style={{
+              background: 'white',
+              border: '1px solid #e2e8f0',
+              borderRadius: 18,
+              padding: 24,
+              boxShadow: '0 18px 45px rgba(15, 23, 42, 0.08)',
+              position: 'sticky',
+              top: 20,
+            }}
+          >
+            <h2 style={{ margin: '0 0 16px', fontSize: 20 }}>
+              Booking summary
+            </h2>
+            <SummaryLine label="Service" value={title} />
             <SummaryLine
-              label="Service subtotal"
-              value={formatCheckoutMoney(subtotal, currency)}
+              label="Subtotal"
+              value={formatCheckoutMoney(intent?.subtotal || total, currency)}
             />
             <SummaryLine
               label="Discount"
-              value={`-${formatCheckoutMoney(discount, currency)}`}
+              value={`-${formatCheckoutMoney(intent?.discount || 0, currency)}`}
             />
-            <SummaryLine
-              label="Platform fees & taxes"
-              value={formatCheckoutMoney(feesAndTaxes, currency)}
-            />
-            <div className="checkout-total-row">
-              <span>Amount due</span>
-              <strong>{formatCheckoutMoney(total, currency)}</strong>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                borderTop: '1px solid #e2e8f0',
+                paddingTop: 16,
+                marginTop: 16,
+                fontSize: 22,
+                fontWeight: 900,
+              }}
+            >
+              <span>Total</span>
+              <span>{formatCheckoutMoney(total, currency)}</span>
             </div>
-            {!isAuthenticated && (
-              <div className="signin-note">
-                Sign in to protect your booking details. We will bring you right
-                back to this checkout after login.
-              </div>
-            )}
             <button
               type="button"
               onClick={onPay}
-              disabled={!intent || total <= 0 || isProcessingPayment}
+              disabled={
+                !intent || total <= 0 || isProcessingPayment || isConfirmed
+              }
+              style={{
+                width: '100%',
+                marginTop: 22,
+                border: 0,
+                borderRadius: 12,
+                padding: '14px 18px',
+                background: '#16a34a',
+                color: 'white',
+                fontWeight: 900,
+                cursor:
+                  !intent || total <= 0 || isProcessingPayment || isConfirmed
+                    ? 'not-allowed'
+                    : 'pointer',
+                opacity:
+                  !intent || total <= 0 || isProcessingPayment || isConfirmed
+                    ? 0.55
+                    : 1,
+              }}
             >
-              {isProcessingPayment
-                ? 'Opening Razorpay...'
-                : isAuthenticated
-                  ? 'Pay securely with Razorpay'
-                  : 'Sign in to continue'}
+              {isConfirmed
+                ? 'Payment confirmed'
+                : isProcessingPayment
+                  ? 'Opening Razorpay...'
+                  : isAuthenticated
+                    ? 'Pay securely with Razorpay'
+                    : 'Sign in to continue'}
             </button>
-            <p className="summary-note">
-              Payment is processed through Razorpay. Droooly never stores your
-              card, UPI, or wallet details.
+            <p style={{ color: '#64748b', fontSize: 12, lineHeight: 1.6 }}>
+              No payment links are created here. This opens the Razorpay order
+              checkout directly.
             </p>
           </aside>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
-
-function ConfirmationRow({
-  label,
-  value,
-  subvalue,
-}: {
-  label: string;
-  value: string;
-  subvalue?: string;
-}) {
-  return (
-    <div className="confirm-row">
-      <span>{label}</span>
-      <strong>{value}</strong>
-      {subvalue && <small>{subvalue}</small>}
-    </div>
-  );
-}
-
-function serviceLabelForCheckout(serviceKey?: string) {
-  if (serviceKey === 'catering') return 'Catering';
-  if (serviceKey === 'restaurant_private_event')
-    return 'Restaurant private event';
-  return 'Private chef';
-}
-
-function formatLongDate(value?: string) {
-  if (!value) return 'To confirm';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat('en', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(date);
-}
-
-const serviceCheckoutCss = `
-  .service-checkout-page,
-  .service-confirm-page {
-    min-height: 100vh;
-    background: #fbf8ff;
-    color: #151126;
-    padding-top: 18px;
-    font-family: var(--font-manrope), var(--font-sora), Arial, sans-serif;
-  }
-  .checkout-shell { max-width: 1120px; margin: 0 auto; padding: 28px 22px 56px; }
-  .checkout-intro { max-width: 760px; margin-bottom: 22px; }
-  .checkout-intro p { margin: 0 0 8px; color: #5b35d5; font-weight: 900; text-transform: uppercase; font-size: 12px; letter-spacing: .08em; }
-  .checkout-intro h1 { margin: 0; font-size: clamp(34px, 5vw, 58px); line-height: .98; color: #21163f; letter-spacing: 0; }
-  .checkout-intro span { display: block; margin-top: 14px; color: #5d5870; font-size: 17px; }
-  .service-checkout-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) 380px; gap: 24px; align-items: start; }
-  .checkout-card,
-  .checkout-summary-card,
-  .confirmation-card,
-  .email-strip,
-  .promise-strip {
-    background: rgba(255, 255, 255, 0.92);
-    border: 1px solid #ded7f3;
-    border-radius: 24px;
-    box-shadow: 0 24px 70px rgba(43, 31, 84, 0.1);
-  }
-  .checkout-card { padding: 28px; }
-  .checkout-section-title { display: flex; gap: 14px; align-items: center; margin-bottom: 22px; }
-  .checkout-section-title span,
-  .confirm-icon,
-  .email-strip > span {
-    width: 48px;
-    height: 48px;
-    border-radius: 16px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: #5a32d6;
-    color: #fff;
-    font-weight: 950;
-    font-size: 12px;
-  }
-  .checkout-section-title h2 { margin: 0; color: #4f2dcc; text-transform: uppercase; font-size: 22px; }
-  .checkout-section-title p { margin: 4px 0 0; color: #6b657d; }
-  .detail-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-  .policy-box { margin-top: 22px; padding: 20px; border-radius: 18px; background: #f6f1ff; border: 1px solid #e6ddff; }
-  .policy-box h3 { margin: 0 0 8px; color: #21163f; }
-  .policy-box p,
-  .policy-box li { color: #5d5870; line-height: 1.6; font-size: 14px; }
-  .policy-box ul { margin: 10px 0 0; padding-left: 20px; }
-  .checkout-summary-card { padding: 24px; position: sticky; top: 18px; }
-  .checkout-summary-card h2 { margin: 0 0 14px; color: #21163f; font-size: 22px; }
-  .checkout-total-row { border-top: 1px solid #e7e2f7; margin-top: 14px; padding-top: 18px; display: flex; justify-content: space-between; align-items: center; }
-  .checkout-total-row span { font-weight: 900; color: #21163f; }
-  .checkout-total-row strong { font-size: 26px; color: #4f2dcc; }
-  .checkout-summary-card button,
-  .email-strip button {
-    width: 100%;
-    margin-top: 20px;
-    border: 0;
-    border-radius: 16px;
-    padding: 15px 18px;
-    background: #5a32d6;
-    color: #fff;
-    font-weight: 950;
-    cursor: pointer;
-    box-shadow: 0 16px 34px rgba(90, 50, 214, 0.28);
-  }
-  .checkout-summary-card button:disabled { opacity: .55; cursor: not-allowed; }
-  .summary-note { color: #6b657d; line-height: 1.6; font-size: 12px; margin: 14px 0 0; }
-
-  .signin-note { margin: 16px 0 -4px; padding: 12px 14px; border-radius: 14px; background: #f6f1ff; color: #4f2dcc; font-weight: 800; font-size: 13px; line-height: 1.45; }
-  .failure-shell { min-height: calc(100vh - 130px); display: grid; place-items: center; padding: 52px 20px; }
-  .failure-card { width: min(680px, 100%); border: 1px solid #ead9df; border-radius: 28px; background: #fff; box-shadow: 0 24px 70px rgba(43, 31, 84, 0.12); padding: 42px; text-align: center; }
-  .failure-logo { width: 150px; margin: 0 auto 18px; display: block; }
-  .failure-kicker { display: inline-flex; border-radius: 999px; background: #fff1f2; color: #be123c; padding: 8px 14px; font-weight: 950; text-transform: uppercase; font-size: 12px; letter-spacing: .06em; }
-  .failure-card h1 { color: #21163f; font-size: clamp(34px, 5vw, 54px); line-height: 1; margin: 18px 0 12px; letter-spacing: 0; }
-  .failure-card p { color: #5d5870; font-size: 17px; line-height: 1.6; margin: 0 auto; max-width: 540px; }
-  .failure-actions { margin-top: 26px; display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
-  .failure-actions button { border: 0; border-radius: 14px; padding: 13px 16px; background: #5a32d6; color: #fff; font-weight: 950; cursor: pointer; }
-  .failure-actions button:nth-child(2),
-  .failure-actions button:nth-child(3) { background: #f6f1ff; color: #4f2dcc; }
-  .soft-alert,
-  .error-alert { padding: 14px 16px; border-radius: 16px; margin-bottom: 18px; font-weight: 800; }
-  .soft-alert { background: #f6f1ff; color: #4f2dcc; }
-  .error-alert { background: #fef2f2; color: #b91c1c; }
-
-  .confirmation-hero { max-width: 1180px; margin: 0 auto; min-height: 420px; display: grid; grid-template-columns: minmax(0, .95fr) minmax(420px, 1fr); align-items: center; gap: 20px; padding: 4px 22px 22px; }
-  .confirmation-copy { padding: 10px 0 20px 76px; position: relative; }
-  .confirmation-copy:before { content: '♡'; position: absolute; left: 18px; top: 190px; color: #5a32d6; font-size: 54px; line-height: 1; }
-  .confirm-logo { width: 220px; display: block; margin-bottom: 6px; }
-  .confirm-tagline { color: #20183a; font-weight: 800; }
-  .confirm-divider { height: 30px; display: flex; align-items: center; color: #5a32d6; }
-  .confirm-divider span { width: 120px; height: 1px; background: #c9bdf5; display: block; position: relative; }
-  .confirm-divider span:after { content: '♥'; position: absolute; right: -20px; top: -10px; font-size: 13px; color: #5a32d6; }
-  .confirm-eyebrow { color: #4f2dcc; font-weight: 950; margin: 0 0 14px; font-size: 19px; }
-  .confirmation-copy h1 { margin: 0; color: #5a32d6; font-size: clamp(54px, 7vw, 86px); line-height: .9; letter-spacing: 0; }
-  .confirm-subhead { max-width: 440px; color: #20183a; font-size: 20px; line-height: 1.45; font-weight: 700; }
-  .confirmation-photo { min-height: 390px; height: 100%; border-radius: 0 0 0 80px; background-size: cover; background-position: center; box-shadow: inset 80px 0 90px rgba(251,248,255,.92); }
-  .confirmation-shell { max-width: 1080px; margin: -24px auto 0; padding: 0 22px 54px; }
-  .confirmation-card { padding: 34px; display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 28px; position: relative; z-index: 2; }
-  .confirm-card-head { display: flex; align-items: center; gap: 16px; padding-bottom: 18px; border-bottom: 1px solid #e7e2f7; }
-  .confirm-card-head h2 { margin: 0; color: #4f2dcc; text-transform: uppercase; font-size: 24px; flex: 1; }
-  .confirm-card-head small { display: block; text-transform: uppercase; color: #2e254d; font-weight: 900; font-size: 11px; }
-  .confirm-card-head strong { color: #5a32d6; font-size: 20px; }
-  .confirm-row { padding: 17px 0 16px 72px; border-bottom: 1px dashed #ddd7ef; position: relative; min-height: 50px; }
-  .confirm-row:before { content: ''; position: absolute; left: 4px; top: 14px; width: 42px; height: 42px; border-radius: 50%; background: #f0eafd; border: 1px solid #e1d7fb; }
-  .confirm-row span { display: block; text-transform: uppercase; font-size: 12px; color: #4f2dcc; font-weight: 950; }
-  .confirm-row strong { display: block; margin-top: 4px; color: #151126; font-size: 18px; }
-  .confirm-row small { display: block; margin-top: 4px; color: #5d5870; font-style: italic; line-height: 1.4; }
-  .confirmation-note { border-radius: 24px; background: linear-gradient(180deg, #f7f2ff, #ffffff); padding: 34px 28px; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-  .line-art { width: 118px; height: 84px; border: 3px solid #5a32d6; border-radius: 80px 80px 16px 16px; display: flex; align-items: center; justify-content: center; color: #5a32d6; font-weight: 950; margin-bottom: 22px; }
-  .confirmation-note h3 { margin: 0; color: #5a32d6; font-size: 36px; line-height: 1.05; }
-  .confirmation-note p { color: #21163f; font-size: 18px; line-height: 1.45; }
-  .mini-divider { width: 150px; height: 1px; background: #c9bdf5; margin: 8px 0; }
-  .confirmation-note img { width: 150px; margin-top: 8px; }
-  .email-strip { margin-top: 22px; padding: 22px 28px; display: grid; grid-template-columns: 56px 1fr 220px; gap: 18px; align-items: center; }
-  .email-strip strong { color: #151126; font-size: 17px; }
-  .email-strip p { margin: 6px 0 0; color: #5d5870; }
-  .email-strip button { margin: 0; width: 100%; }
-  .promise-strip { margin-top: 22px; padding: 22px 28px; text-align: center; }
-  .promise-strip h3 { margin: 0 0 16px; color: #4f2dcc; text-transform: uppercase; font-size: 15px; }
-  .promise-strip div { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-  .promise-strip span { border-right: 1px solid #ddd7ef; color: #21163f; font-weight: 900; font-size: 14px; }
-  .promise-strip span:last-child { border-right: 0; }
-  .confirmation-footer { text-align: center; padding: 36px 0 0; color: #21163f; }
-  .confirmation-footer strong { display: block; color: #5a32d6; font-size: 42px; font-family: cursive; font-weight: 500; }
-  .confirmation-footer p { font-size: 18px; margin: 10px 0; }
-  .confirmation-footer span { font-weight: 900; }
-  @media (max-width: 900px) {
-    .service-checkout-grid,
-    .confirmation-hero,
-    .confirmation-card,
-    .email-strip { grid-template-columns: 1fr; }
-    .checkout-summary-card { position: static; }
-    .confirmation-copy { padding-left: 12px; }
-    .confirmation-copy:before { display: none; }
-    .confirmation-photo { min-height: 260px; border-radius: 28px; box-shadow: inset 0 -80px 90px rgba(251,248,255,.9); }
-    .confirmation-shell { margin-top: 0; }
-    .promise-strip div { grid-template-columns: repeat(2, 1fr); }
-    .promise-strip span { border-right: 0; }
-  }
-  @media (max-width: 620px) {
-    .checkout-shell { padding-inline: 14px; }
-    .detail-list { grid-template-columns: 1fr; }
-    .checkout-card,
-    .checkout-summary-card,
-    .confirmation-card { border-radius: 18px; padding: 20px; }
-    .confirmation-copy h1 { font-size: 48px; }
-    .confirm-card-head { align-items: flex-start; flex-wrap: wrap; }
-    .confirm-row { padding-left: 0; }
-    .confirm-row:before { display: none; }
-  }
-`;
 
 function ServiceInfo({ label, value }: { label: string; value: string }) {
   return (

@@ -15,6 +15,7 @@ import {
   Menu,
   MapPin,
   ShieldCheck,
+  SlidersHorizontal,
   Sparkles,
   Star,
   Utensils,
@@ -22,6 +23,7 @@ import {
   X,
 } from 'lucide-react';
 import {
+  createQuoteRequest,
   type PartnerService,
   usePublicServices,
 } from '@catering-marketplace/query-client';
@@ -39,6 +41,7 @@ type BookingDetails = {
   email: string;
   address: string;
   eventType: string;
+  eventTime: string;
   mealTime: string;
   cuisinePreference: string;
   notes: string;
@@ -86,6 +89,7 @@ const defaultBookingDetails: BookingDetails = {
   email: '',
   address: '',
   eventType: '',
+  eventTime: '',
   mealTime: '',
   cuisinePreference: '',
   notes: '',
@@ -151,6 +155,23 @@ const testimonials = [
   },
 ];
 
+const fallbackCuisineFilters = [
+  'North Indian',
+  'South Indian',
+  'Italian',
+  'Continental',
+  'Asian',
+  'Vegan',
+];
+const fallbackEventFilters = [
+  'Birthday',
+  'Corporate',
+  'Wedding',
+  'Anniversary',
+  'House party',
+  'Private dinner',
+];
+
 export default function HomePage() {
   const router = useRouter();
   const { status: sessionStatus } = useSession();
@@ -161,15 +182,29 @@ export default function HomePage() {
   const [appliedCoupon, setAppliedCoupon] = useState<CouponResult>(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [isQuickBookingOpen, setIsQuickBookingOpen] = useState(false);
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const [bookingStep, setBookingStep] = useState<BookingStep>('search');
   const [bookingDetails, setBookingDetails] = useState<BookingDetails>(
     defaultBookingDetails
   );
+  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
+  const [quoteConfirmation, setQuoteConfirmation] = useState<string | null>(
+    null
+  );
   const { getServiceType, getExperienceType } = useServiceCatalogMetaContext();
-  const { locations } = useOnboardingMasterDataContext();
+  const { masterData, locations } = useOnboardingMasterDataContext();
   const { data: rawServices, isLoading, error } = usePublicServices();
   const services = normalizeList<PartnerService>(rawServices);
   const cityOptions = useMemo(() => getCityOptions(locations), [locations]);
+  const cuisineOptions = useMemo(
+    () => getNamedOptions(masterData?.cuisines).slice(0, 10),
+    [masterData?.cuisines]
+  );
+  const eventTypeOptions = useMemo(
+    () => getNamedOptions(masterData?.event_types).slice(0, 10),
+    [masterData?.event_types]
+  );
 
   useEffect(() => {
     if (cityOptions.length === 0) return;
@@ -195,10 +230,44 @@ export default function HomePage() {
       });
   }, [draft.guests, draft.service, services]);
 
+  useEffect(() => {
+    if (sessionStatus !== 'authenticated' || services.length === 0) return;
+    if (typeof window === 'undefined') return;
+
+    const rawIntent = window.sessionStorage.getItem('droooly:booking-intent');
+    if (!rawIntent) return;
+
+    try {
+      const parsed = JSON.parse(rawIntent) as BookingIntent;
+      if (parsed?.type !== 'partner_service' || !parsed.serviceId) return;
+
+      const service = services.find((item) => item.id === parsed.serviceId);
+      if (!service) return;
+
+      setSelectedService(service);
+      setDraft((current) => ({
+        ...current,
+        service: service.service_key as ServiceFilter,
+        location: parsed.location || current.location,
+        date: parsed.date || current.date,
+        guests: parsed.guests || current.guests,
+        coupon: parsed.couponCode || current.coupon,
+      }));
+      setBookingDetails({ ...defaultBookingDetails, ...parsed.details });
+      setBookingStep('review');
+      setHasSearched(true);
+      setIsQuickBookingOpen(true);
+    } catch (error) {
+      console.error('Unable to restore booking intent', error);
+    }
+  }, [services, sessionStatus]);
+
   const featuredService = selectedService || matchingServices[0] || null;
   const subtotal = getServiceSubtotal(featuredService, draft.guests);
   const coupon = appliedCoupon?.amount ? appliedCoupon : null;
-  const total = Math.max(subtotal - (coupon?.amount || 0), 0);
+  const subtotalAfterDiscount = Math.max(subtotal - (coupon?.amount || 0), 0);
+  const platformFee = Math.round(subtotalAfterDiscount * 0.07);
+  const total = subtotalAfterDiscount + platformFee;
 
   const closeMobileNav = () => setIsMobileNavOpen(false);
 
@@ -209,20 +278,35 @@ export default function HomePage() {
     setDraft((current) => ({ ...current, [key]: value }));
     if (key === 'service') setSelectedService(null);
     if (key === 'coupon' || key === 'service') setAppliedCoupon(null);
+    setQuoteConfirmation(null);
   };
 
   const findOptions = (serviceKey = draft.service) => {
     if (serviceKey !== draft.service) {
       updateDraft('service', serviceKey);
     }
+    setHasSearched(true);
     setBookingStep('search');
-    setIsQuickBookingOpen(true);
+    setIsQuickBookingOpen(false);
     closeMobileNav();
+    if (typeof window !== 'undefined') {
+      window.setTimeout(() => {
+        document.getElementById('search-results')?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        });
+      }, 0);
+    }
+  };
+
+  const selectService = (service: PartnerService) => {
+    setSelectedService(service);
+    setAppliedCoupon(null);
+    setQuoteConfirmation(null);
   };
 
   const startBooking = (service: PartnerService) => {
-    setSelectedService(service);
-    setAppliedCoupon(null);
+    selectService(service);
     setBookingStep('details');
     setIsQuickBookingOpen(true);
   };
@@ -232,11 +316,12 @@ export default function HomePage() {
     value: BookingDetails[K]
   ) => {
     setBookingDetails((current) => ({ ...current, [key]: value }));
+    setQuoteConfirmation(null);
   };
 
   const canReviewBooking =
     Boolean(featuredService) &&
-    Boolean(draft.location) &&
+    Boolean(draft.location || bookingDetails.address.trim()) &&
     Boolean(draft.date) &&
     draft.guests > 0 &&
     Boolean(bookingDetails.customerName.trim()) &&
@@ -246,9 +331,10 @@ export default function HomePage() {
   const applyCoupon = () =>
     setAppliedCoupon(resolveCoupon(draft.coupon, subtotal));
 
-  const continueBooking = () => {
-    if (!featuredService) return;
+  const continueBooking = async () => {
+    if (!featuredService || !canReviewBooking || isSubmittingRequest) return;
 
+    const isQuoteService = featuredService.booking_type !== 'instant';
     const bookingIntent: BookingIntent = {
       type: 'partner_service',
       serviceId: featuredService.id,
@@ -273,417 +359,278 @@ export default function HomePage() {
       );
     }
 
-    const checkoutPath = '/checkout?intent=service-booking';
     if (sessionStatus !== 'authenticated') {
+      const callbackPath = isQuoteService
+        ? '/'
+        : '/checkout?intent=service-booking';
       router.push(
-        `/login?mode=signin&callbackUrl=${encodeURIComponent(checkoutPath)}`
+        `/login?mode=signin&callbackUrl=${encodeURIComponent(callbackPath)}`
       );
       return;
     }
 
-    router.push(checkoutPath);
+    if (isQuoteService) {
+      try {
+        setIsSubmittingRequest(true);
+        const quote = await createQuoteRequest({
+          service_id: featuredService.id,
+          event_date: draft.date,
+          event_time: bookingDetails.eventTime || undefined,
+          guest_count: draft.guests,
+          location_text: bookingDetails.address || draft.location,
+          occasion: bookingDetails.eventType || undefined,
+          customer_notes: [
+            bookingDetails.notes,
+            bookingDetails.cuisinePreference
+              ? `Cuisine preference: ${bookingDetails.cuisinePreference}`
+              : '',
+            bookingDetails.phone ? `Phone: ${bookingDetails.phone}` : '',
+            bookingDetails.email ? `Email: ${bookingDetails.email}` : '',
+          ]
+            .filter(Boolean)
+            .join('\n'),
+        });
+
+        setQuoteConfirmation(
+          `Your request has been sent. Reference: ${quote.id.slice(0, 8).toUpperCase()}`
+        );
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.removeItem('droooly:booking-intent');
+        }
+      } catch (error) {
+        console.error('Quote request error:', error);
+        alert(
+          error instanceof Error
+            ? error.message
+            : 'Unable to submit your quote request. Please try again.'
+        );
+      } finally {
+        setIsSubmittingRequest(false);
+      }
+      return;
+    }
+
+    router.push('/checkout?intent=service-booking');
   };
 
   return (
     <main style={styles.page}>
       <style>{homeResponsiveStyles}</style>
-      <section className="home-hero-shell" style={styles.heroShell}>
-        <nav className="home-nav" style={styles.nav}>
-          <button
-            type="button"
-            style={styles.logoButton}
-            onClick={() => router.push('/')}
-          >
-            <img src={logoUrl} alt="Droooly" style={styles.logo} />
-          </button>
-          <button
-            type="button"
-            className="home-menu-button"
-            style={styles.menuButton}
-            onClick={() => setIsMobileNavOpen((open) => !open)}
-            aria-label={isMobileNavOpen ? 'Close menu' : 'Open menu'}
-            aria-expanded={isMobileNavOpen}
-          >
-            {isMobileNavOpen ? <X size={22} /> : <Menu size={22} />}
-          </button>
-          <div
-            className={`home-nav-links ${isMobileNavOpen ? 'is-open' : ''}`}
-            style={styles.navLinks}
-          >
-            <button
-              style={styles.navLink}
-              onClick={() => {
-                updateDraft('service', 'chef');
-                closeMobileNav();
-              }}
-            >
-              Private Chefs
-            </button>
-            <button
-              style={styles.navLink}
-              onClick={() => {
-                updateDraft('service', 'catering');
-                closeMobileNav();
-              }}
-            >
-              Catering
-            </button>
-            <button
-              style={styles.navLink}
-              onClick={() => {
-                updateDraft('service', 'restaurant_private_event');
-                closeMobileNav();
-              }}
-            >
-              Experiences
-            </button>
-            <button
-              style={styles.navLink}
-              onClick={() => {
-                closeMobileNav();
-                router.push('/how-it-works');
-              }}
-            >
-              How It Works
-            </button>
-          </div>
-          <div
-            className={`home-nav-actions ${isMobileNavOpen ? 'is-open' : ''}`}
-            style={styles.navActions}
-          >
-            <label style={styles.cityPill}>
-              <MapPin size={15} />
-              <select
-                value={draft.location}
-                onChange={(event) => {
-                  updateDraft('location', event.target.value);
-                  closeMobileNav();
-                }}
-                style={styles.citySelect}
-                aria-label="Select city"
-              >
-                {cityOptions.map((city) => (
-                  <option key={city.id} value={city.name}>
-                    {city.name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={14} />
-            </label>
+      {!hasSearched && (
+        <section className="home-hero-shell" style={styles.heroShell}>
+          <nav className="home-nav" style={styles.nav}>
             <button
               type="button"
-              style={styles.loginButton}
-              onClick={() => {
-                closeMobileNav();
-                router.push('/login');
-              }}
+              style={styles.logoButton}
+              onClick={() => router.push('/')}
             >
-              Login / Sign in
+              <img src={logoUrl} alt="Droooly" style={styles.logo} />
             </button>
             <button
               type="button"
-              style={styles.partnerButton}
-              onClick={() => {
-                closeMobileNav();
-                router.push('/become-a-caterer');
-              }}
+              className="home-menu-button"
+              style={styles.menuButton}
+              onClick={() => setIsMobileNavOpen((open) => !open)}
+              aria-label={isMobileNavOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={isMobileNavOpen}
             >
-              Become a Partner
+              {isMobileNavOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
-          </div>
-        </nav>
-
-        <div className="home-hero-grid" style={styles.heroGrid}>
-          <div style={styles.heroCopy}>
-            <div style={styles.badge}>
-              <Heart size={14} fill="currentColor" /> Good food. Made with care.
-            </div>
-            <h1 style={styles.heroTitle}>
-              Private Chefs. Catering. Experiences.
-              <span style={styles.heroAccent}> Delivered to you.</span>
-            </h1>
-            <p style={styles.heroText}>
-              From intimate dinners to grand celebrations, we bring exceptional
-              food experiences to your door. Book in under a minute.
-            </p>
-          </div>
-        </div>
-
-        <div className="home-quick-booking" style={styles.quickBookingCard}>
-          <div style={styles.quickTitle}>What are you looking for?</div>
-          <div className="home-service-toggle" style={styles.serviceToggle}>
-            <QuickTab
-              icon={ChefHat}
-              label="Private Chef"
-              active={draft.service === 'chef'}
-              onClick={() => {
-                updateDraft('service', 'chef');
-                closeMobileNav();
-              }}
-            />
-            <QuickTab
-              icon={Utensils}
-              label="Catering"
-              active={draft.service === 'catering'}
-              onClick={() => {
-                updateDraft('service', 'catering');
-                closeMobileNav();
-              }}
-            />
-            <QuickTab
-              icon={Sparkles}
-              label="Experience"
-              active={draft.service === 'restaurant_private_event'}
-              onClick={() => {
-                updateDraft('service', 'restaurant_private_event');
-                closeMobileNav();
-              }}
-            />
-          </div>
-          <div className="home-quick-fields" style={styles.quickFields}>
-            <Field icon={MapPin} label="Location">
-              <select
-                value={draft.location}
-                onChange={(event) => {
-                  updateDraft('location', event.target.value);
-                  closeMobileNav();
-                }}
-                style={styles.input}
-              >
-                {cityOptions.map((city) => (
-                  <option key={city.id} value={city.name}>
-                    {city.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field icon={CalendarDays} label="Date">
-              <input
-                type="date"
-                value={draft.date}
-                onChange={(event) => updateDraft('date', event.target.value)}
-                style={styles.input}
-              />
-            </Field>
-            <Field icon={Users} label="Guests">
-              <input
-                type="number"
-                min={1}
-                value={draft.guests}
-                onChange={(event) =>
-                  updateDraft('guests', Number(event.target.value || 1))
-                }
-                style={styles.input}
-              />
-            </Field>
-            <button
-              type="button"
-              style={styles.findButton}
-              onClick={() => findOptions()}
-            >
-              Book in under a minute <ArrowRight size={16} />
-            </button>
-          </div>
-        </div>
-
-        <div style={styles.trustBar}>
-          <div style={styles.avatarStack}>
-            {testimonials.map((item) => (
-              <img
-                key={item.name}
-                src={item.avatar}
-                alt=""
-                style={styles.avatarMini}
-              />
-            ))}
-            <div>
-              <strong>10,000+ Happy Customers</strong>
-              <span>4.8 rating across verified reviews</span>
-            </div>
-          </div>
-          <TrustMini icon={ShieldCheck} label="Verified Chefs" />
-          <TrustMini icon={Sparkles} label="Hygienic & Safe" />
-          <TrustMini icon={LockKeyhole} label="Secure Payments" />
-        </div>
-      </section>
-
-      <section style={styles.categoryGrid}>
-        {serviceCards.map((card) => (
-          <article key={card.key} style={styles.categoryCard}>
-            <div style={styles.categoryContent}>
-              <div style={styles.categoryIcon}>
-                <card.icon size={24} />
-              </div>
-              <h2 style={styles.categoryTitle}>{card.title}</h2>
-              <p style={styles.categoryText}>{card.text}</p>
-              <div style={styles.categoryFooter}>
-                <span>{card.note}</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    findOptions(card.key);
-                  }}
-                  style={styles.roundButton}
-                >
-                  {card.cta} <ArrowRight size={15} />
-                </button>
-              </div>
-            </div>
-            <img
-              src={card.image}
-              alt={card.title}
-              style={styles.categoryImage}
-            />
-          </article>
-        ))}
-      </section>
-
-      <section style={styles.featureStrip}>
-        <Feature
-          icon={ChefHat}
-          title="Expert & Verified Chefs"
-          text="Professionals you can trust."
-        />
-        <Feature
-          icon={Sparkles}
-          title="Quality Ingredients"
-          text="Fresh food, prepared with care."
-        />
-        <Feature
-          icon={CreditCard}
-          title="Secure Payments"
-          text="Razorpay checkout ready."
-        />
-        <Feature
-          icon={Clock}
-          title="24/7 Support"
-          text="We’re here for your event."
-        />
-      </section>
-
-      <section id="matched-services" style={styles.matchesSection}>
-        <div style={styles.sectionHeading}>
-          <span style={styles.badge}>Matched instantly</span>
-          <h2 style={styles.sectionTitle}>Best options for your request</h2>
-          <p style={styles.sectionText}>
-            These are pulled from approved Droooly partner services and filtered
-            by the booking card.
-          </p>
-        </div>
-        {error ? (
-          <div style={styles.emptyState}>
-            Unable to load services right now.
-          </div>
-        ) : isLoading ? (
-          <div style={styles.resultsGrid}>
-            {[0, 1, 2].map((item) => (
-              <div key={item} style={styles.skeletonCard} />
-            ))}
-          </div>
-        ) : matchingServices.length === 0 ? (
-          <div style={styles.emptyState}>
-            No approved services match this yet. Try another service type or
-            guest count.
-          </div>
-        ) : (
-          <div style={styles.resultsGrid}>
-            {matchingServices.slice(0, 6).map((service, index) => (
-              <ResultCard
-                key={service.id}
-                service={service}
-                image={getServiceImage(service, index)}
-                serviceLabel={getServiceType(service.service_key)?.label}
-                experienceLabel={
-                  getExperienceType(service.experience_type_key)?.label
-                }
-                selected={featuredService?.id === service.id}
-                onBook={() => startBooking(service)}
-              />
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section id="booking-summary" style={styles.bookingBand}>
-        <div style={styles.bookingCopy}>
-          <span style={styles.badge}>Try instant booking</span>
-          <h2 style={styles.sectionTitle}>
-            {featuredService?.title || 'Select a matched service'}
-          </h2>
-          <p style={styles.sectionText}>
-            {featuredService?.short_description ||
-              'Choose a service above, apply a test coupon, and continue to checkout.'}
-          </p>
-        </div>
-        <div style={styles.bookingCard}>
-          <SummaryRow label="Guests" value={`${draft.guests}`} />
-          <SummaryRow
-            label="Subtotal"
-            value={formatMoney(
-              subtotal,
-              featuredService?.currency_code || 'INR'
-            )}
-          />
-          <div style={styles.couponRow}>
-            <input
-              value={draft.coupon}
-              onChange={(event) =>
-                updateDraft('coupon', event.target.value.toUpperCase())
-              }
-              placeholder="DROOOLY10"
-              style={styles.couponInput}
-            />
-            <button
-              type="button"
-              onClick={applyCoupon}
-              disabled={!featuredService || !draft.coupon}
-              style={styles.applyButton}
-            >
-              Apply
-            </button>
-          </div>
-          {appliedCoupon && (
             <div
-              style={
-                appliedCoupon.amount > 0
-                  ? styles.couponSuccess
-                  : styles.couponError
-              }
+              className={`home-nav-links ${isMobileNavOpen ? 'is-open' : ''}`}
+              style={styles.navLinks}
+            />
+            <div
+              className={`home-nav-actions ${isMobileNavOpen ? 'is-open' : ''}`}
+              style={styles.navActions}
             >
-              {appliedCoupon.label}
+              <label style={styles.cityPill}>
+                <MapPin size={15} />
+                <select
+                  value={draft.location}
+                  onChange={(event) => {
+                    updateDraft('location', event.target.value);
+                    closeMobileNav();
+                  }}
+                  style={styles.citySelect}
+                  aria-label="Select city"
+                >
+                  {cityOptions.map((city) => (
+                    <option key={city.id} value={city.name}>
+                      {city.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={14} />
+              </label>
+              <button
+                type="button"
+                style={styles.loginButton}
+                onClick={() => {
+                  closeMobileNav();
+                  router.push('/login');
+                }}
+              >
+                Login / Sign in
+              </button>
+              <button
+                type="button"
+                style={styles.partnerButton}
+                onClick={() => {
+                  closeMobileNav();
+                  router.push('/become-a-caterer');
+                }}
+              >
+                Become a Partner
+              </button>
             </div>
-          )}
-          <SummaryRow
-            label="Coupon"
-            value={`-${formatMoney(coupon?.amount || 0, featuredService?.currency_code || 'INR')}`}
-          />
-          <div style={styles.totalRow}>
-            <span>Estimated total</span>
-            <strong>
-              {formatMoney(total, featuredService?.currency_code || 'INR')}
-            </strong>
+          </nav>
+
+          <div className="home-hero-grid" style={styles.heroGrid}>
+            <div style={styles.heroCopy}>
+              <div style={styles.badge}>
+                <Heart size={14} fill="currentColor" /> Good food. Made with
+                care.
+              </div>
+              <h1 style={styles.heroTitle}>
+                Private Chefs. Catering. Experiences.
+                <span style={styles.heroAccent}> Delivered to you.</span>
+              </h1>
+              <p style={styles.heroText}>
+                From intimate dinners to grand celebrations, we bring
+                exceptional food experiences to your door. Book in under a
+                minute.
+              </p>
+            </div>
           </div>
-          <button
-            type="button"
-            disabled={!featuredService}
-            onClick={() => {
-              if (featuredService) {
-                setBookingStep('details');
-                setIsQuickBookingOpen(true);
-              }
-            }}
-            style={{
-              ...styles.checkoutButton,
-              opacity: featuredService ? 1 : 0.55,
-            }}
-          >
-            {sessionStatus === 'authenticated'
-              ? 'Continue booking'
-              : 'Start quick booking'}{' '}
-            <ArrowRight size={16} />
-          </button>
-        </div>
-      </section>
+
+          <div className="home-quick-booking" style={styles.quickBookingCard}>
+            <div style={styles.quickTitle}>What are you looking for?</div>
+            <div className="home-service-toggle" style={styles.serviceToggle}>
+              <QuickTab
+                icon={ChefHat}
+                label="Private Chef"
+                active={draft.service === 'chef'}
+                onClick={() => {
+                  updateDraft('service', 'chef');
+                  closeMobileNav();
+                }}
+              />
+              <QuickTab
+                icon={Utensils}
+                label="Catering"
+                active={draft.service === 'catering'}
+                onClick={() => {
+                  updateDraft('service', 'catering');
+                  closeMobileNav();
+                }}
+              />
+              <QuickTab
+                icon={Sparkles}
+                label="Experience"
+                active={draft.service === 'restaurant_private_event'}
+                onClick={() => {
+                  updateDraft('service', 'restaurant_private_event');
+                  closeMobileNav();
+                }}
+              />
+            </div>
+            <div className="home-quick-fields" style={styles.quickFields}>
+              <Field icon={MapPin} label="Location">
+                <select
+                  value={draft.location}
+                  onChange={(event) => {
+                    updateDraft('location', event.target.value);
+                    closeMobileNav();
+                  }}
+                  style={styles.input}
+                >
+                  {cityOptions.map((city) => (
+                    <option key={city.id} value={city.name}>
+                      {city.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <MiniDatePicker
+                value={draft.date}
+                onChange={(value) => updateDraft('date', value)}
+              />
+              <Field icon={Users} label="Guests">
+                <input
+                  type="number"
+                  min={1}
+                  value={draft.guests}
+                  onChange={(event) =>
+                    updateDraft('guests', Number(event.target.value || 1))
+                  }
+                  style={styles.input}
+                />
+              </Field>
+              <button
+                type="button"
+                style={styles.findButton}
+                onClick={() => findOptions()}
+              >
+                Book in under a minute <ArrowRight size={16} />
+              </button>
+            </div>
+          </div>
+
+          <div style={styles.trustBar}>
+            <div style={styles.avatarStack}>
+              {testimonials.map((item) => (
+                <img
+                  key={item.name}
+                  src={item.avatar}
+                  alt=""
+                  style={styles.avatarMini}
+                />
+              ))}
+              <div>
+                <strong>10,000+ Happy Customers</strong>
+                <span>4.8 rating across verified reviews</span>
+              </div>
+            </div>
+            <TrustMini icon={ShieldCheck} label="Verified Chefs" />
+            <TrustMini icon={Sparkles} label="Hygienic & Safe" />
+            <TrustMini icon={LockKeyhole} label="Secure Payments" />
+          </div>
+        </section>
+      )}
+
+      {hasSearched && (
+        <SearchResultsExperience
+          draft={draft}
+          cityOptions={cityOptions}
+          matchingServices={matchingServices}
+          isLoading={isLoading}
+          error={Boolean(error)}
+          selectedService={featuredService}
+          sessionStatus={sessionStatus}
+          cuisineOptions={cuisineOptions}
+          eventTypeOptions={eventTypeOptions}
+          serviceLabel={(service: PartnerService) =>
+            getServiceType(service.service_key)?.label
+          }
+          experienceLabel={(service: PartnerService) =>
+            getExperienceType(service.experience_type_key)?.label
+          }
+          onDraftChange={updateDraft}
+          onFindOptions={findOptions}
+          onBackToHome={() => {
+            setHasSearched(false);
+            setIsQuickBookingOpen(false);
+            setSelectedService(null);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          onSelectService={startBooking}
+          onApplyCoupon={applyCoupon}
+          isMobileFilterOpen={isMobileFilterOpen}
+          onOpenMobileFilters={() => setIsMobileFilterOpen(true)}
+          onCloseMobileFilters={() => setIsMobileFilterOpen(false)}
+        />
+      )}
 
       <QuickBookingDrawer
         isOpen={isQuickBookingOpen}
@@ -696,6 +643,7 @@ export default function HomePage() {
         error={Boolean(error)}
         subtotal={subtotal}
         discount={coupon?.amount || 0}
+        platformFee={platformFee}
         total={total}
         cityOptions={cityOptions}
         appliedCoupon={appliedCoupon}
@@ -711,69 +659,855 @@ export default function HomePage() {
         onSelectService={startBooking}
         onApplyCoupon={applyCoupon}
         onConfirm={continueBooking}
+        isSubmitting={isSubmittingRequest}
+        quoteConfirmation={quoteConfirmation}
       />
 
-      <section style={styles.mealBanner}>
-        <div>
-          <h2 style={styles.mealTitle}>Good food. Made with care.</h2>
-          <p style={styles.mealText}>
-            Thoughtfully prepared meals by expert kitchens, delivered for weekly
-            routines and busy days.
-          </p>
+      {!hasSearched && (
+        <>
+          <section style={styles.categoryGrid}>
+            {serviceCards.map((card) => (
+              <article key={card.key} style={styles.categoryCard}>
+                <div style={styles.categoryContent}>
+                  <div style={styles.categoryIcon}>
+                    <card.icon size={24} />
+                  </div>
+                  <h2 style={styles.categoryTitle}>{card.title}</h2>
+                  <p style={styles.categoryText}>{card.text}</p>
+                  <div style={styles.categoryFooter}>
+                    <span>{card.note}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        findOptions(card.key);
+                      }}
+                      style={styles.roundButton}
+                    >
+                      {card.cta} <ArrowRight size={15} />
+                    </button>
+                  </div>
+                </div>
+                <img
+                  src={card.image}
+                  alt={card.title}
+                  style={styles.categoryImage}
+                />
+              </article>
+            ))}
+          </section>
+
+          <section style={styles.featureStrip}>
+            <Feature
+              icon={ChefHat}
+              title="Expert & Verified Chefs"
+              text="Professionals you can trust."
+            />
+            <Feature
+              icon={Sparkles}
+              title="Quality Ingredients"
+              text="Fresh food, prepared with care."
+            />
+            <Feature
+              icon={CreditCard}
+              title="Secure Payments"
+              text="Razorpay checkout ready."
+            />
+            <Feature
+              icon={Clock}
+              title="24/7 Support"
+              text="We’re here for your event."
+            />
+          </section>
+
+          <section style={styles.mealBanner}>
+            <div>
+              <h2 style={styles.mealTitle}>Good food. Made with care.</h2>
+              <p style={styles.mealText}>
+                Thoughtfully prepared meals by expert kitchens, delivered for
+                weekly routines and busy days.
+              </p>
+              <button
+                type="button"
+                style={styles.signupButton}
+                onClick={() => router.push('/meal-plans')}
+              >
+                Explore Meal Plans <ArrowRight size={15} />
+              </button>
+            </div>
+            <img
+              src="https://images.unsplash.com/photo-1604909052743-94e838986d24?auto=format&fit=crop&w=800&q=80"
+              alt="Packed meal"
+              style={styles.mealImage}
+            />
+          </section>
+
+          <section style={styles.reviewSection}>
+            <h2 style={styles.reviewTitle}>Loved by thousands of foodies</h2>
+            <div style={styles.reviewGrid}>
+              {testimonials.map((item) => (
+                <ReviewCard key={item.name} {...item} />
+              ))}
+            </div>
+          </section>
+
+          <footer className="home-footer" style={styles.footer}>
+            <div style={styles.footerBrand}>
+              <img src={logoUrl} alt="Droooly" style={styles.footerLogo} />
+              <p>Good food. Made with care. Delivered to you.</p>
+            </div>
+            <FooterColumn
+              title="Services"
+              links={['Private Chefs', 'Catering', 'Experiences', 'Meal Plans']}
+            />
+            <FooterColumn
+              title="Company"
+              links={[
+                'How It Works',
+                'Become a Partner',
+                'About Us',
+                'Careers',
+              ]}
+            />
+            <FooterColumn
+              title="Support"
+              links={['Help Center', 'Contact Us', 'Terms', 'Privacy']}
+            />
+            <div className="home-footer-subscribe" style={styles.subscribeBox}>
+              <strong>Stay updated with Droooly</strong>
+              <p>Get exclusive offers and food inspiration.</p>
+              <div className="home-subscribe-row" style={styles.subscribeRow}>
+                <input
+                  placeholder="Enter your email"
+                  style={styles.subscribeInput}
+                />
+                <button style={styles.signupButton}>Subscribe</button>
+              </div>
+            </div>
+          </footer>
+        </>
+      )}
+    </main>
+  );
+}
+
+function SearchResultsExperience({
+  draft,
+  cityOptions,
+  matchingServices,
+  isLoading,
+  error,
+  selectedService,
+  sessionStatus,
+  cuisineOptions,
+  eventTypeOptions,
+  serviceLabel,
+  experienceLabel,
+  onDraftChange,
+  onFindOptions,
+  onBackToHome,
+  onSelectService,
+  onApplyCoupon,
+  isMobileFilterOpen,
+  onOpenMobileFilters,
+  onCloseMobileFilters,
+}: any) {
+  const today = new Date().toISOString().slice(0, 10);
+  const tomorrowDate = new Date();
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  const tomorrow = tomorrowDate.toISOString().slice(0, 10);
+  const [isEditingSearch, setIsEditingSearch] = useState(false);
+  const [activeMobileFilterIndex, setActiveMobileFilterIndex] = useState(0);
+  const resultCount = matchingServices.length;
+  const experienceFilters = Array.from(
+    new Set(
+      matchingServices
+        .map((service: PartnerService) => experienceLabel(service))
+        .filter(Boolean)
+    )
+  ).slice(0, 5) as string[];
+  const activeServiceTitle = serviceTitleForKey(draft.service);
+  const mobileFilterTabs = [
+    'AI Smart Filter',
+    'Sort by',
+    'Service type',
+    'Cuisine',
+    'Event type',
+    'Booking',
+  ];
+  const filterOptionGroups = [
+    {
+      title: 'AI Smart Filter',
+      options: [
+        'Vegetarian dinner under 5000',
+        'Premium buffet',
+        'Family style',
+      ],
+    },
+    {
+      title: 'Sort by',
+      options: ['Recommended', 'Price low to high', 'Best capacity match'],
+    },
+    {
+      title: 'Service type',
+      options: ['Private Chef', 'Catering', 'Private Events'],
+    },
+    {
+      title: 'Cuisine',
+      options: (cuisineOptions.length
+        ? cuisineOptions
+        : fallbackCuisineFilters
+      ).slice(0, 8),
+    },
+    {
+      title: 'Event type',
+      options: (eventTypeOptions.length
+        ? eventTypeOptions
+        : fallbackEventFilters
+      ).slice(0, 8),
+    },
+    {
+      title: 'Booking',
+      options: ['Instant booking', 'Quote available', 'Offers available'],
+    },
+  ];
+
+  return (
+    <section id="search-results" style={styles.searchResultsShell}>
+      <MobileSearchSummary
+        draft={draft}
+        resultCount={resultCount}
+        onEdit={() => setIsEditingSearch((open) => !open)}
+        onBack={onBackToHome}
+      />
+      <div
+        className={isEditingSearch ? 'is-editing-search' : ''}
+        style={styles.resultsTopbar}
+      >
+        <div style={styles.resultsRouteRow}>
           <button
             type="button"
-            style={styles.signupButton}
-            onClick={() => router.push('/meal-plans')}
+            style={styles.resultsBackButton}
+            onClick={onBackToHome}
           >
-            Explore Meal Plans <ArrowRight size={15} />
+            <ArrowRight size={18} style={{ transform: 'rotate(180deg)' }} />
           </button>
-        </div>
-        <img
-          src="https://images.unsplash.com/photo-1604909052743-94e838986d24?auto=format&fit=crop&w=800&q=80"
-          alt="Packed meal"
-          style={styles.mealImage}
-        />
-      </section>
-
-      <section style={styles.reviewSection}>
-        <h2 style={styles.reviewTitle}>Loved by thousands of foodies</h2>
-        <div style={styles.reviewGrid}>
-          {testimonials.map((item) => (
-            <ReviewCard key={item.name} {...item} />
-          ))}
-        </div>
-      </section>
-
-      <footer className="home-footer" style={styles.footer}>
-        <div style={styles.footerBrand}>
-          <img src={logoUrl} alt="Droooly" style={styles.footerLogo} />
-          <p>Good food. Made with care. Delivered to you.</p>
-        </div>
-        <FooterColumn
-          title="Services"
-          links={['Private Chefs', 'Catering', 'Experiences', 'Meal Plans']}
-        />
-        <FooterColumn
-          title="Company"
-          links={['How It Works', 'Become a Partner', 'About Us', 'Careers']}
-        />
-        <FooterColumn
-          title="Support"
-          links={['Help Center', 'Contact Us', 'Terms', 'Privacy']}
-        />
-        <div className="home-footer-subscribe" style={styles.subscribeBox}>
-          <strong>Stay updated with Droooly</strong>
-          <p>Get exclusive offers and food inspiration.</p>
-          <div className="home-subscribe-row" style={styles.subscribeRow}>
-            <input
-              placeholder="Enter your email"
-              style={styles.subscribeInput}
-            />
-            <button style={styles.signupButton}>Subscribe</button>
+          <div>
+            <strong>
+              {serviceTitleForKey(draft.service)} in{' '}
+              {draft.location || 'your city'}
+            </strong>
+            <span>{resultCount} approved options</span>
           </div>
         </div>
-      </footer>
-    </main>
+
+        <div className="results-search-bar" style={styles.resultsSearchBar}>
+          <Field icon={MapPin} label="City">
+            <select
+              value={draft.location}
+              onChange={(event) =>
+                onDraftChange('location', event.target.value)
+              }
+              style={styles.input}
+            >
+              {cityOptions.map((city: { id: string; name: string }) => (
+                <option key={city.id} value={city.name}>
+                  {city.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <MiniDatePicker
+            value={draft.date}
+            onChange={(value) => onDraftChange('date', value)}
+          />
+          <div style={styles.quickDateButtons}>
+            <button
+              type="button"
+              style={{
+                ...styles.dateChip,
+                ...(draft.date === today ? styles.dateChipActive : {}),
+              }}
+              onClick={() => onDraftChange('date', today)}
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              style={{
+                ...styles.dateChip,
+                ...(draft.date === tomorrow ? styles.dateChipActive : {}),
+              }}
+              onClick={() => onDraftChange('date', tomorrow)}
+            >
+              Tomorrow
+            </button>
+          </div>
+          <Field icon={Users} label="Guests">
+            <input
+              type="number"
+              min={1}
+              value={draft.guests}
+              onChange={(event) =>
+                onDraftChange('guests', Number(event.target.value || 1))
+              }
+              style={styles.input}
+            />
+          </Field>
+          <button
+            type="button"
+            style={styles.resultsSearchButton}
+            onClick={() => onFindOptions()}
+          >
+            Search
+          </button>
+        </div>
+      </div>
+
+      <div className="mobile-filter-strip" style={styles.mobileFilterStrip}>
+        <button
+          type="button"
+          style={styles.mobileFilterChip}
+          onClick={onOpenMobileFilters}
+        >
+          <SlidersHorizontal size={15} /> Filter & Sort
+        </button>
+        <button type="button" style={styles.mobileFilterChip}>
+          <Sparkles size={15} /> AI Smart Filter
+        </button>
+        <button type="button" style={styles.mobileFilterChip}>
+          {activeServiceTitle}
+        </button>
+        <button type="button" style={styles.mobileFilterChip}>
+          Instant
+        </button>
+        <button type="button" style={styles.mobileFilterChip}>
+          Offers
+        </button>
+      </div>
+
+      <div className="results-layout" style={styles.resultsLayout}>
+        <aside className="results-filter-panel" style={styles.filterPanel}>
+          <div style={styles.filterHeader}>
+            <h2>Filters</h2>
+            <button
+              type="button"
+              style={styles.clearFiltersButton}
+              onClick={() => onDraftChange('service', 'chef')}
+            >
+              Clear
+            </button>
+          </div>
+          <div style={styles.smartFilterBox}>
+            <strong>AI Smart Filter</strong>
+            <input
+              placeholder="Try 'veg dinner under 5000'"
+              style={styles.smartFilterInput}
+            />
+          </div>
+          <div style={styles.filterGroup}>
+            <span>Service type</span>
+            <FilterChip
+              active={draft.service === 'chef'}
+              onClick={() => onDraftChange('service', 'chef')}
+            >
+              Private Chef
+            </FilterChip>
+            <FilterChip
+              active={draft.service === 'catering'}
+              onClick={() => onDraftChange('service', 'catering')}
+            >
+              Catering
+            </FilterChip>
+            <FilterChip
+              active={draft.service === 'restaurant_private_event'}
+              onClick={() =>
+                onDraftChange('service', 'restaurant_private_event')
+              }
+            >
+              Private Events
+            </FilterChip>
+          </div>
+          <div style={styles.filterGroup}>
+            <span>Preferences</span>
+            <FilterChip>Instant booking</FilterChip>
+            <FilterChip>Quote available</FilterChip>
+            <FilterChip>High capacity</FilterChip>
+            <FilterChip>Offers available</FilterChip>
+            {experienceFilters.map((label) => (
+              <FilterChip key={label}>{label}</FilterChip>
+            ))}
+          </div>
+          <div style={styles.filterGroup}>
+            <span>Cuisine</span>
+            {(cuisineOptions.length
+              ? cuisineOptions
+              : fallbackCuisineFilters
+            ).map((label: string) => (
+              <FilterChip key={label}>{label}</FilterChip>
+            ))}
+          </div>
+          <div style={styles.filterGroup}>
+            <span>Event type</span>
+            {(eventTypeOptions.length
+              ? eventTypeOptions
+              : fallbackEventFilters
+            ).map((label: string) => (
+              <FilterChip key={label}>{label}</FilterChip>
+            ))}
+          </div>
+        </aside>
+
+        <div style={styles.resultsMain}>
+          <div className="results-promo-rail" style={styles.promoRail}>
+            <PromoCard title="All options" text="Approved Droooly partners" />
+            <PromoCard title="Instant" text="Book faster" highlight />
+            <PromoCard title="Offers" text="Try DROOOLY10" />
+            <PromoCard title="Just for you" text="Matched by guests" />
+          </div>
+
+          <div className="results-list-header" style={styles.resultsListHeader}>
+            <strong>{resultCount} options found</strong>
+            <div
+              className="results-list-actions"
+              style={styles.resultsListActions}
+            >
+              <span>Sort by:</span>
+              <button className="results-list-header-button" type="button">
+                Recommended
+              </button>
+              <button className="results-list-header-button" type="button">
+                Price
+              </button>
+              <button className="results-list-header-button" type="button">
+                Capacity
+              </button>
+            </div>
+          </div>
+
+          <div style={styles.resultsNotice}>
+            Verified partners, secure payment, and clear partner communication
+          </div>
+
+          {error ? (
+            <div style={styles.emptyState}>
+              Unable to load services right now.
+            </div>
+          ) : isLoading ? (
+            <div style={styles.resultsList}>
+              {[0, 1, 2].map((item) => (
+                <div key={item} style={styles.skeletonCard} />
+              ))}
+            </div>
+          ) : matchingServices.length === 0 ? (
+            <div style={styles.emptyState}>
+              No approved services match this yet. Try another service type or
+              guest count.
+            </div>
+          ) : (
+            <div style={styles.resultsList}>
+              {matchingServices.map(
+                (service: PartnerService, index: number) => (
+                  <SearchResultCard
+                    key={service.id}
+                    service={service}
+                    image={getServiceImage(service, index)}
+                    serviceLabel={serviceLabel(service)}
+                    experienceLabel={experienceLabel(service)}
+                    selected={selectedService?.id === service.id}
+                    onBook={() => onSelectService(service)}
+                  />
+                )
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {isMobileFilterOpen && (
+        <div
+          className="mobile-filter-overlay"
+          style={styles.mobileFilterOverlay}
+          onClick={onCloseMobileFilters}
+        >
+          <section
+            className="mobile-filter-sheet"
+            style={styles.mobileFilterSheet}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header style={styles.mobileFilterHeader}>
+              <div>
+                <strong>Sort and filter</strong>
+                <span>
+                  {activeServiceTitle} in {draft.location || 'your city'}
+                </span>
+              </div>
+              <button
+                type="button"
+                style={styles.mobileFilterClose}
+                onClick={onCloseMobileFilters}
+                aria-label="Close filters"
+              >
+                <X size={22} />
+              </button>
+            </header>
+            <div style={styles.mobileFilterBody}>
+              <nav style={styles.mobileFilterTabs}>
+                {mobileFilterTabs.map((tab, index) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setActiveMobileFilterIndex(index)}
+                    style={{
+                      ...styles.mobileFilterTab,
+                      ...(index === activeMobileFilterIndex
+                        ? styles.mobileFilterTabActive
+                        : {}),
+                    }}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </nav>
+              <div style={styles.mobileFilterOptions}>
+                <div
+                  key={filterOptionGroups[activeMobileFilterIndex].title}
+                  style={styles.mobileFilterGroup}
+                >
+                  <strong>
+                    {filterOptionGroups[activeMobileFilterIndex].title}
+                  </strong>
+                  {filterOptionGroups[activeMobileFilterIndex].options.map(
+                    (option: string, index: number) => (
+                      <button
+                        key={option}
+                        type="button"
+                        style={styles.mobileFilterOption}
+                        onClick={() => {
+                          if (option === 'Private Chef')
+                            onDraftChange('service', 'chef');
+                          if (option === 'Catering')
+                            onDraftChange('service', 'catering');
+                          if (option === 'Private Events')
+                            onDraftChange(
+                              'service',
+                              'restaurant_private_event'
+                            );
+                        }}
+                      >
+                        <span>
+                          <b>{option}</b>
+                          <small>
+                            {index === 0
+                              ? `${resultCount || 0} matching options`
+                              : 'Available from partner data'}
+                          </small>
+                        </span>
+                        <i />
+                      </button>
+                    )
+                  )}
+                </div>
+              </div>
+            </div>
+            <footer style={styles.mobileFilterFooter}>
+              <button
+                type="button"
+                style={styles.mobileFilterSecondaryButton}
+                onClick={() => onDraftChange('service', 'chef')}
+              >
+                Clear all
+              </button>
+              <button
+                type="button"
+                style={styles.mobileFilterPrimaryButton}
+                onClick={onCloseMobileFilters}
+              >
+                Apply
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function MobileSearchSummary({
+  draft,
+  resultCount,
+  onEdit,
+  onBack,
+}: {
+  draft: BookingDraft;
+  resultCount: number;
+  onEdit: () => void;
+  onBack: () => void;
+}) {
+  return (
+    <div className="mobile-search-summary" style={styles.mobileSearchSummary}>
+      <button type="button" style={styles.resultsBackButton} onClick={onBack}>
+        <ArrowRight size={18} style={{ transform: 'rotate(180deg)' }} />
+      </button>
+      <div>
+        <strong>
+          {serviceTitleForKey(draft.service)} in {draft.location}
+        </strong>
+        <span>
+          {formatDisplayDate(draft.date)} • {draft.guests} guests •{' '}
+          {resultCount} options
+        </span>
+      </div>
+      <button type="button" style={styles.mobileEditButton} onClick={onEdit}>
+        Edit
+      </button>
+    </div>
+  );
+}
+
+function MiniDatePicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const selectedDate = parseLocalDate(value) || new Date();
+  const [isOpen, setIsOpen] = useState(false);
+  const [visibleMonth, setVisibleMonth] = useState(
+    new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1)
+  );
+  const days = getCalendarDays(visibleMonth);
+  const monthLabel = new Intl.DateTimeFormat('en', {
+    month: 'long',
+    year: 'numeric',
+  }).format(visibleMonth);
+
+  const chooseDate = (date: Date) => {
+    onChange(formatLocalDate(date));
+    setIsOpen(false);
+  };
+
+  return (
+    <div style={styles.datePickerWrap}>
+      <button
+        type="button"
+        style={styles.datePickerButton}
+        onClick={() => setIsOpen((open) => !open)}
+      >
+        <CalendarDays size={18} />
+        <span>
+          <small>Date of journey</small>
+          <strong>{formatDisplayDate(value)}</strong>
+        </span>
+      </button>
+      {isOpen && (
+        <div style={styles.datePopover}>
+          <div style={styles.dateWeekdays}>
+            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
+              <span key={day}>{day}</span>
+            ))}
+          </div>
+          <div style={styles.calendarHead}>
+            <button
+              style={styles.calendarNavButton}
+              type="button"
+              onClick={() =>
+                setVisibleMonth(
+                  new Date(
+                    visibleMonth.getFullYear(),
+                    visibleMonth.getMonth() - 1,
+                    1
+                  )
+                )
+              }
+            >
+              <ArrowRight size={20} style={{ transform: 'rotate(180deg)' }} />
+            </button>
+            <strong>{monthLabel}</strong>
+            <button
+              type="button"
+              style={styles.calendarNavButton}
+              onClick={() =>
+                setVisibleMonth(
+                  new Date(
+                    visibleMonth.getFullYear(),
+                    visibleMonth.getMonth() + 1,
+                    1
+                  )
+                )
+              }
+            >
+              <ArrowRight size={20} />
+            </button>
+          </div>
+          <div style={styles.calendarGrid}>
+            {days.map((date, index) => {
+              const currentMonth = date.getMonth() === visibleMonth.getMonth();
+              const selected = formatLocalDate(date) === value;
+              const weekend = date.getDay() === 0 || date.getDay() === 6;
+              return (
+                <button
+                  key={`${date.toISOString()}-${index}`}
+                  type="button"
+                  onClick={() => chooseDate(date)}
+                  style={{
+                    ...styles.calendarDay,
+                    ...(currentMonth ? {} : styles.calendarDayMuted),
+                    ...(weekend && currentMonth
+                      ? styles.calendarDayWeekend
+                      : {}),
+                    ...(selected ? styles.calendarDaySelected : {}),
+                  }}
+                >
+                  {date.getDate()}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FilterChip({
+  active = false,
+  onClick,
+  children,
+}: {
+  active?: boolean;
+  onClick?: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        ...styles.filterChip,
+        ...(active ? styles.filterChipActive : {}),
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function PromoCard({
+  title,
+  text,
+  highlight = false,
+}: {
+  title: string;
+  text: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        ...styles.promoCard,
+        ...(highlight ? styles.promoCardHighlight : {}),
+      }}
+    >
+      <strong>{title}</strong>
+      <span>{text}</span>
+    </div>
+  );
+}
+
+function SearchResultCard({
+  service,
+  image,
+  serviceLabel,
+  experienceLabel,
+  selected,
+  onBook,
+}: any) {
+  const cuisineTags = getAttributeList(service.attributes, 'cuisines');
+  const eventTags = getAttributeList(service.attributes, 'event_types');
+  const mediaCount = Array.isArray(service.media) ? service.media.length : 0;
+  const serviceRecord = service as PartnerService & Record<string, unknown>;
+  const ratingValue = Number(
+    serviceRecord.rating ||
+      serviceRecord.partner_rating ||
+      serviceRecord.average_rating ||
+      0
+  );
+  const priceLabel = formatMoney(
+    service.base_price || 0,
+    service.currency_code
+  );
+
+  return (
+    <article
+      className="search-result-card"
+      style={{
+        ...styles.searchResultCard,
+        ...(selected ? styles.searchResultCardActive : {}),
+      }}
+    >
+      <div style={styles.searchResultImageWrap}>
+        <img src={image} alt={service.title} style={styles.searchResultImage} />
+        {mediaCount > 1 && (
+          <div style={styles.searchResultDots}>
+            {Array.from({ length: Math.min(mediaCount, 4) }).map((_, index) => (
+              <span
+                key={index}
+                style={{
+                  ...styles.searchResultDot,
+                  ...(index === 0 ? styles.searchResultDotActive : {}),
+                }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+      <div style={styles.searchResultContent}>
+        <div style={styles.resultMeta}>
+          <span>{serviceLabel || service.service_key}</span>
+          <span>{formatBookingType(service.booking_type)}</span>
+        </div>
+        <h3>{service.title}</h3>
+        <p>
+          {service.short_description ||
+            service.description ||
+            'A verified Droooly service ready for your event.'}
+        </p>
+        <div style={styles.resultDetailGrid}>
+          <span>
+            {experienceLabel || service.experience_type_key || 'Flexible'}
+          </span>
+          <span>{formatGuestRange(service)}</span>
+          <span>
+            {mediaCount ? `${mediaCount} photos` : 'Verified partner'}
+          </span>
+          <span>{service.advance_notice_hours || 24}h notice</span>
+        </div>
+        <div style={styles.resultTagRow}>
+          {[...cuisineTags, ...eventTags].slice(0, 4).map((tag) => (
+            <span key={tag}>{tag}</span>
+          ))}
+        </div>
+      </div>
+      <div style={styles.searchResultAction}>
+        <div style={styles.searchResultRating}>
+          {ratingValue > 0 ? (
+            <>
+              <Star size={13} fill="currentColor" /> {ratingValue.toFixed(1)}
+            </>
+          ) : (
+            'Verified'
+          )}
+        </div>
+        <strong>{priceLabel}</strong>
+        <span>
+          {service.pricing_model ? humanize(service.pricing_model) : 'onwards'}
+        </span>
+        <button type="button" onClick={onBook} style={styles.viewOptionsButton}>
+          View options
+        </button>
+      </div>
+    </article>
   );
 }
 
@@ -788,6 +1522,7 @@ function QuickBookingDrawer({
   error,
   subtotal,
   discount,
+  platformFee,
   total,
   cityOptions,
   appliedCoupon,
@@ -801,6 +1536,8 @@ function QuickBookingDrawer({
   onSelectService,
   onApplyCoupon,
   onConfirm,
+  isSubmitting,
+  quoteConfirmation,
 }: {
   isOpen: boolean;
   step: BookingStep;
@@ -812,6 +1549,7 @@ function QuickBookingDrawer({
   error: boolean;
   subtotal: number;
   discount: number;
+  platformFee: number;
   total: number;
   cityOptions: { id: string; name: string }[];
   appliedCoupon: CouponResult;
@@ -831,185 +1569,91 @@ function QuickBookingDrawer({
   onSelectService: (service: PartnerService) => void;
   onApplyCoupon: () => void;
   onConfirm: () => void;
+  isSubmitting: boolean;
+  quoteConfirmation: string | null;
 }) {
-  if (!isOpen) return null;
-
   const currency = selectedService?.currency_code || 'INR';
   const serviceTitle = selectedService?.title || 'Choose a service';
   const isQuoteService = selectedService?.booking_type !== 'instant';
+  const [showMissingFields, setShowMissingFields] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const hasEnteredDetails = Boolean(
+    details.customerName.trim() ||
+    details.phone.trim() ||
+    details.email.trim() ||
+    details.address.trim() ||
+    details.eventType.trim() ||
+    details.cuisinePreference.trim() ||
+    details.notes.trim()
+  );
+  const requestClose = () => {
+    if (hasEnteredDetails) {
+      setShowExitConfirm(true);
+      return;
+    }
+    onClose();
+  };
+  const missingReviewFields = [
+    !selectedService ? 'select a service' : '',
+    !draft.date ? 'choose a date' : '',
+    draft.guests <= 0 ? 'add guests' : '',
+    !details.customerName.trim() ? 'enter your name' : '',
+    !details.phone.trim() ? 'enter your phone' : '',
+    !details.address.trim() ? 'add the service address' : '',
+  ].filter(Boolean);
+
+  if (!isOpen || step === 'search') return null;
 
   return (
-    <div style={styles.drawerOverlay} onClick={onClose}>
-      <aside
+    <section
+      id="quick-booking"
+      style={styles.drawerOverlay}
+      onClick={requestClose}
+    >
+      <div
         className="quick-booking-drawer"
         style={styles.drawerPanel}
         onClick={(event) => event.stopPropagation()}
       >
-        <div style={styles.drawerHeader}>
-          <div>
-            <span style={styles.drawerEyebrow}>Quick booking</span>
-            <h2 style={styles.drawerTitle}>
-              {step === 'search'
-                ? 'Find the right option'
-                : step === 'details'
-                  ? 'Add booking details'
-                  : 'Review and continue'}
-            </h2>
-          </div>
-          <button type="button" onClick={onClose} style={styles.iconButton}>
+        <div style={styles.drawerHeaderCompact}>
+          <button
+            type="button"
+            onClick={requestClose}
+            style={styles.iconButton}
+          >
             <X size={18} />
           </button>
+          <div>
+            <strong>{draft.location || 'Your city'}</strong>
+            <span>{selectedService?.title || 'Selected service'}</span>
+          </div>
         </div>
 
         <div style={styles.drawerSteps}>
-          {(['search', 'details', 'review'] as BookingStep[]).map(
-            (item, index) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => onStepChange(item)}
-                disabled={item !== 'search' && !selectedService}
-                style={{
-                  ...styles.drawerStep,
-                  ...(step === item ? styles.drawerStepActive : {}),
-                }}
-              >
-                <span>{index + 1}</span>
-                {item === 'search'
-                  ? 'Search'
-                  : item === 'details'
-                    ? 'Details'
-                    : 'Review'}
-              </button>
-            )
-          )}
+          {(['details', 'review'] as BookingStep[]).map((item, index) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => onStepChange(item)}
+              disabled={item === 'review' && !canReview}
+              style={{
+                ...styles.drawerStep,
+                ...(step === item ? styles.drawerStepActive : {}),
+              }}
+            >
+              <span>{index + 1}</span>
+              {item === 'details' ? 'Details' : 'Review'}
+            </button>
+          ))}
         </div>
-
-        {step === 'search' && (
-          <div style={styles.drawerBody}>
-            <div style={styles.drawerSection}>
-              <h3 style={styles.drawerSectionTitle}>Filters</h3>
-              <div style={styles.drawerServiceTabs}>
-                <QuickTab
-                  icon={ChefHat}
-                  label="Private Chef"
-                  active={draft.service === 'chef'}
-                  onClick={() => onDraftChange('service', 'chef')}
-                />
-                <QuickTab
-                  icon={Utensils}
-                  label="Catering"
-                  active={draft.service === 'catering'}
-                  onClick={() => onDraftChange('service', 'catering')}
-                />
-                <QuickTab
-                  icon={Sparkles}
-                  label="Experience"
-                  active={draft.service === 'restaurant_private_event'}
-                  onClick={() =>
-                    onDraftChange('service', 'restaurant_private_event')
-                  }
-                />
-              </div>
-              <div style={styles.drawerFields}>
-                <label style={styles.drawerField}>
-                  <span>City</span>
-                  <select
-                    value={draft.location}
-                    onChange={(event) =>
-                      onDraftChange('location', event.target.value)
-                    }
-                  >
-                    {cityOptions.map((city) => (
-                      <option key={city.id} value={city.name}>
-                        {city.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label style={styles.drawerField}>
-                  <span>Date</span>
-                  <input
-                    type="date"
-                    value={draft.date}
-                    onChange={(event) =>
-                      onDraftChange('date', event.target.value)
-                    }
-                  />
-                </label>
-                <label style={styles.drawerField}>
-                  <span>Guests</span>
-                  <input
-                    type="number"
-                    min={1}
-                    value={draft.guests}
-                    onChange={(event) =>
-                      onDraftChange('guests', Number(event.target.value || 1))
-                    }
-                  />
-                </label>
-              </div>
-            </div>
-
-            <div style={styles.drawerSection}>
-              <h3 style={styles.drawerSectionTitle}>Results</h3>
-              {error ? (
-                <div style={styles.emptyState}>
-                  Unable to load services right now.
-                </div>
-              ) : isLoading ? (
-                <div style={styles.drawerResults}>
-                  Loading approved services...
-                </div>
-              ) : services.length === 0 ? (
-                <div style={styles.emptyState}>No matching services yet.</div>
-              ) : (
-                <div style={styles.drawerResults}>
-                  {services.slice(0, 8).map((service, index) => (
-                    <button
-                      key={service.id}
-                      type="button"
-                      onClick={() => onSelectService(service)}
-                      style={{
-                        ...styles.drawerResult,
-                        ...(selectedService?.id === service.id
-                          ? styles.drawerResultActive
-                          : {}),
-                      }}
-                    >
-                      <img
-                        src={getServiceImage(service, index)}
-                        alt=""
-                        style={styles.drawerResultImage}
-                      />
-                      <span>
-                        <strong>{service.title}</strong>
-                        <small>
-                          {serviceLabel(service) || service.service_key} •{' '}
-                          {experienceLabel(service) || 'Flexible'}
-                        </small>
-                      </span>
-                      <b>
-                        {formatMoney(
-                          service.base_price || 0,
-                          service.currency_code
-                        )}
-                      </b>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
 
         {step === 'details' && (
           <div style={styles.drawerBody}>
             <div style={styles.drawerSection}>
               <h3 style={styles.drawerSectionTitle}>{serviceTitle}</h3>
               <p style={styles.drawerMuted}>
-                Tell us the minimum details needed for this request. We will
-                keep the final backend order capture separate from this UX step.
+                Add the essentials so we can confirm availability, payment, and
+                partner communication without asking twice.
               </p>
               <div style={styles.drawerFields}>
                 <label style={styles.drawerField}>
@@ -1044,25 +1688,33 @@ function QuickBookingDrawer({
                   />
                 </label>
                 <label style={styles.drawerField}>
-                  <span>
-                    {draft.service === 'chef' ? 'Meal time' : 'Event type'}
-                  </span>
+                  <span>Preferred time</span>
+                  <div style={styles.timeChipGrid}>
+                    {['12:00', '15:00', '18:00', '20:00'].map((time) => (
+                      <button
+                        key={time}
+                        type="button"
+                        style={{
+                          ...styles.timeChip,
+                          ...(details.eventTime === time
+                            ? styles.timeChipActive
+                            : {}),
+                        }}
+                        onClick={() => onDetailsChange('eventTime', time)}
+                      >
+                        {formatTimeLabel(time)}
+                      </button>
+                    ))}
+                  </div>
+                </label>
+                <label style={styles.drawerField}>
+                  <span>Occasion</span>
                   <input
-                    value={
-                      draft.service === 'chef'
-                        ? details.mealTime
-                        : details.eventType
-                    }
+                    value={details.eventType}
                     onChange={(event) =>
-                      draft.service === 'chef'
-                        ? onDetailsChange('mealTime', event.target.value)
-                        : onDetailsChange('eventType', event.target.value)
+                      onDetailsChange('eventType', event.target.value)
                     }
-                    placeholder={
-                      draft.service === 'chef'
-                        ? 'Dinner, lunch...'
-                        : 'Birthday, corporate...'
-                    }
+                    placeholder="Birthday, corporate, dinner..."
                   />
                 </label>
                 <label style={{ ...styles.drawerField, gridColumn: '1 / -1' }}>
@@ -1097,6 +1749,11 @@ function QuickBookingDrawer({
                   />
                 </label>
               </div>
+              {showMissingFields && missingReviewFields.length > 0 && (
+                <div style={styles.validationNote}>
+                  To review, please {missingReviewFields.join(', ')}.
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1104,10 +1761,14 @@ function QuickBookingDrawer({
         {step === 'review' && (
           <div style={styles.drawerBody}>
             <div style={styles.drawerSection}>
-              <h3 style={styles.drawerSectionTitle}>Review request</h3>
+              <h3 style={styles.drawerSectionTitle}>Review your booking</h3>
               <SummaryRow label="Service" value={serviceTitle} />
               <SummaryRow label="Guests" value={String(draft.guests)} />
               <SummaryRow label="Date" value={draft.date || 'To confirm'} />
+              <SummaryRow
+                label="Time"
+                value={details.eventTime || 'Partner to confirm'}
+              />
               <SummaryRow
                 label="Address"
                 value={details.address || 'Missing'}
@@ -1149,50 +1810,65 @@ function QuickBookingDrawer({
                 label="Discount"
                 value={`-${formatMoney(discount, currency)}`}
               />
+              <SummaryRow
+                label="Platform fees & taxes"
+                value={formatMoney(platformFee, currency)}
+              />
               <div style={styles.totalRow}>
                 <span>{isQuoteService ? 'Estimated total' : 'Total'}</span>
                 <strong>{formatMoney(total, currency)}</strong>
               </div>
+              <div style={styles.reviewPolicyBox}>
+                <strong>Cancellation policy</strong>
+                <ul>
+                  <li>
+                    Free cancellation is available until the partner confirms
+                    preparation or procurement.
+                  </li>
+                  <li>
+                    After preparation begins, ingredient, staffing, venue, or
+                    setup costs already committed by the partner may be deducted
+                    from the refundable amount.
+                  </li>
+                  <li>
+                    Date or time changes are supported when the partner has
+                    availability for the new slot.
+                  </li>
+                  <li>
+                    If the partner cannot fulfil a confirmed booking, Droooly
+                    support will help with a replacement or full refund review.
+                  </li>
+                </ul>
+              </div>
+              {quoteConfirmation && (
+                <div style={styles.couponSuccess}>{quoteConfirmation}</div>
+              )}
             </div>
           </div>
         )}
 
         <div style={styles.drawerFooter}>
-          {step !== 'search' ? (
-            <button
-              type="button"
-              style={styles.secondaryDrawerButton}
-              onClick={() =>
-                onStepChange(step === 'review' ? 'details' : 'search')
-              }
-            >
-              Back
-            </button>
-          ) : (
-            <button
-              type="button"
-              style={styles.secondaryDrawerButton}
-              onClick={onClose}
-            >
-              Close
-            </button>
-          )}
-          {step === 'search' && (
-            <button
-              type="button"
-              style={styles.drawerPrimaryButton}
-              disabled={!selectedService}
-              onClick={() => onStepChange('details')}
-            >
-              Continue with selected <ArrowRight size={16} />
-            </button>
-          )}
+          <button
+            type="button"
+            style={styles.secondaryDrawerButton}
+            onClick={() =>
+              step === 'review' ? onStepChange('details') : requestClose()
+            }
+          >
+            {step === 'review' ? 'Back' : 'Close'}
+          </button>
           {step === 'details' && (
             <button
               type="button"
               style={styles.drawerPrimaryButton}
-              disabled={!canReview}
-              onClick={() => onStepChange('review')}
+              onClick={() => {
+                if (!canReview) {
+                  setShowMissingFields(true);
+                  return;
+                }
+                setShowMissingFields(false);
+                onStepChange('review');
+              }}
             >
               Review booking <ArrowRight size={16} />
             </button>
@@ -1202,14 +1878,49 @@ function QuickBookingDrawer({
               type="button"
               style={styles.drawerPrimaryButton}
               onClick={onConfirm}
+              disabled={isSubmitting || Boolean(quoteConfirmation)}
             >
-              {isQuoteService ? 'Continue request' : 'Continue to payment'}{' '}
+              {quoteConfirmation
+                ? 'Request sent'
+                : isSubmitting
+                  ? 'Submitting...'
+                  : isQuoteService
+                    ? 'Submit quote request'
+                    : 'Continue to payment'}{' '}
               <ArrowRight size={16} />
             </button>
           )}
         </div>
-      </aside>
-    </div>
+        {showExitConfirm && (
+          <div
+            style={styles.exitConfirmOverlay}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div style={styles.exitConfirmCard}>
+              <h3>Return to search results?</h3>
+              <p>Your booking details are saved while you compare options.</p>
+              <button
+                type="button"
+                style={styles.exitPrimaryButton}
+                onClick={() => setShowExitConfirm(false)}
+              >
+                Continue booking
+              </button>
+              <button
+                type="button"
+                style={styles.exitSecondaryButton}
+                onClick={() => {
+                  setShowExitConfirm(false);
+                  onClose();
+                }}
+              >
+                View other services
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -1401,6 +2112,58 @@ function normalizeList<T>(value: unknown): T[] {
   return [];
 }
 
+function parseLocalDate(value: string) {
+  if (!value) return null;
+  const [year, month, day] = value.split('-').map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+}
+
+function formatLocalDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatDisplayDate(value: string) {
+  const date = parseLocalDate(value) || new Date();
+  return new Intl.DateTimeFormat('en', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+}
+
+function getCalendarDays(monthDate: Date) {
+  const firstDay = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+  const start = new Date(firstDay);
+  const offset = (firstDay.getDay() + 6) % 7;
+  start.setDate(firstDay.getDate() - offset);
+  return Array.from({ length: 35 }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    return date;
+  });
+}
+
+function getNamedOptions(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (typeof item === 'string') return item;
+      if (item && typeof item === 'object') {
+        const record = item as Record<string, unknown>;
+        return record.name || record.label || record.title || record.key;
+      }
+      return '';
+    })
+    .filter(
+      (item): item is string =>
+        typeof item === 'string' && item.trim().length > 0
+    );
+}
+
 function getCityOptions(
   locations:
     | {
@@ -1459,12 +2222,54 @@ function resolveCoupon(code: string, subtotal: number): CouponResult {
   };
 }
 
+function formatTimeLabel(value: string) {
+  const [hour, minute] = value.split(':').map(Number);
+  if (Number.isNaN(hour)) return value;
+  const date = new Date();
+  date.setHours(hour, minute || 0, 0, 0);
+  return new Intl.DateTimeFormat('en', {
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date);
+}
+
 function formatMoney(value: number, currency: string) {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: currency || 'INR',
     maximumFractionDigits: 0,
   }).format(value || 0);
+}
+
+function getAttributeList(attributes: unknown, key: string): string[] {
+  if (!attributes || typeof attributes !== 'object') return [];
+  const record = attributes as Record<string, unknown>;
+  const value = record[key];
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (typeof item === 'string') return humanize(item);
+      if (item && typeof item === 'object') {
+        const option = item as Record<string, unknown>;
+        return option.label || option.name || option.key;
+      }
+      return '';
+    })
+    .filter(
+      (item): item is string => typeof item === 'string' && item.length > 0
+    );
+}
+
+function humanize(value: string) {
+  return value
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function serviceTitleForKey(value: ServiceFilter) {
+  if (value === 'catering') return 'Catering';
+  if (value === 'restaurant_private_event') return 'Private events';
+  return 'Private chefs';
 }
 
 function formatBookingType(value?: string) {
@@ -1502,6 +2307,9 @@ const homeResponsiveStyles = `
       background: rgba(255,255,255,0.96) !important;
       box-shadow: 0 18px 42px rgba(15, 23, 42, 0.10) !important;
     }
+    .home-nav-links {
+      display: none !important;
+    }
     .home-nav-links.is-open {
       order: 3 !important;
       display: grid !important;
@@ -1533,6 +2341,209 @@ const homeResponsiveStyles = `
     }
   }
 
+  @media (max-width: 1050px) {
+    .results-layout {
+      grid-template-columns: 1fr !important;
+    }
+    .results-filter-panel,
+    .results-summary-panel {
+      position: static !important;
+      width: 100% !important;
+    }
+    .results-promo-rail {
+      overflow-x: auto !important;
+      grid-template-columns: repeat(4, minmax(180px, 1fr)) !important;
+      scrollbar-width: none !important;
+    }
+    .results-promo-rail::-webkit-scrollbar {
+      display: none !important;
+    }
+  }
+
+  @media (max-width: 760px) {
+    #search-results {
+      background: #f5f4fa !important;
+    }
+    .results-topbar-spacer { display: none !important; }
+    .mobile-search-summary {
+      display: flex !important;
+    }
+    .mobile-filter-strip {
+      display: flex !important;
+      top: 57px !important;
+      padding: 9px 12px !important;
+    }
+    #search-results > div:nth-child(2) {
+      display: none !important;
+    }
+    #search-results > div:nth-child(2).is-editing-search {
+      display: block !important;
+      position: sticky !important;
+      top: 58px !important;
+      z-index: 23 !important;
+      padding: 10px 12px !important;
+    }
+    #search-results > div:nth-child(2).is-editing-search > div:first-child {
+      display: none !important;
+    }
+    .results-search-bar {
+      grid-template-columns: 1fr !important;
+      border-radius: 18px !important;
+      padding: 10px !important;
+      box-shadow: none !important;
+      gap: 8px !important;
+    }
+    .results-search-bar > div:nth-child(3),
+    .results-search-bar > button {
+      grid-column: 1 / -1 !important;
+    }
+    .results-search-bar > button {
+      height: 44px !important;
+      border-radius: 999px !important;
+    }
+    .results-search-bar > div:nth-child(3) {
+      justify-content: flex-start !important;
+    }
+    .results-search-bar > * {
+      min-width: 0 !important;
+    }
+    .results-search-bar label,
+    .results-search-bar [style*="datePickerButton"] {
+      min-height: 50px !important;
+    }
+    .results-search-bar small,
+    .results-search-bar label span {
+      font-size: 11px !important;
+    }
+    .results-search-bar strong,
+    .results-search-bar input,
+    .results-search-bar select {
+      font-size: 13px !important;
+    }
+    .results-filter-panel {
+      display: none !important;
+    }
+    .results-layout {
+      margin-top: 12px !important;
+      padding: 0 12px !important;
+    }
+    .results-promo-rail {
+      display: flex !important;
+      gap: 12px !important;
+      margin: 4px -12px 12px 0 !important;
+      padding: 0 12px 4px 0 !important;
+      overflow-x: auto !important;
+    }
+    .results-promo-rail > div {
+      min-width: 172px !important;
+      min-height: 88px !important;
+    }
+    .results-list-header {
+      border-radius: 14px !important;
+      align-items: flex-start !important;
+      flex-direction: column !important;
+    }
+    .results-list-actions {
+      width: 100% !important;
+      display: flex !important;
+      flex-wrap: wrap !important;
+      gap: 8px !important;
+    }
+    .search-result-card {
+      grid-template-columns: 94px minmax(0, 1fr) !important;
+      align-items: start !important;
+      gap: 12px !important;
+      padding: 12px !important;
+    }
+    .search-result-card > div:first-child {
+      width: 94px !important;
+      height: 104px !important;
+    }
+    .search-result-card > div:first-child img {
+      width: 94px !important;
+      height: 104px !important;
+    }
+    .search-result-card > div:last-child {
+      grid-column: 1 / -1 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      text-align: left !important;
+      justify-items: stretch !important;
+      border-top: 1px solid #eef0f5 !important;
+      padding-top: 10px !important;
+    }
+    .search-result-card h3 {
+      font-size: 16px !important;
+      margin: 0 !important;
+    }
+    .search-result-card p {
+      display: -webkit-box !important;
+      -webkit-line-clamp: 3 !important;
+      -webkit-box-orient: vertical !important;
+      overflow: hidden !important;
+      margin: 0 !important;
+    }
+    .quick-booking-drawer {
+      height: min(88vh, 760px) !important;
+      border-radius: 22px 22px 0 0 !important;
+    }
+  }
+
+  @keyframes mobileSheetUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
+  .mobile-filter-strip::-webkit-scrollbar { display: none; }
+  .mobile-filter-option small,
+  .mobile-filter-sheet small {
+    display: block;
+    margin-top: 4px;
+    color: #6b7280;
+    font-weight: 700;
+  }
+  .mobile-filter-sheet i {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #6b7280;
+    border-radius: 5px;
+    flex-shrink: 0;
+  }
+  .quick-booking-drawer ul {
+    margin: 0;
+    padding-left: 18px;
+  }
+  .quick-booking-drawer li + li {
+    margin-top: 6px;
+  }
+
+  .home-service-toggle::-webkit-scrollbar { display: none; }
+  .home-service-toggle { scrollbar-width: none; }
+
+  .results-list-actions button,
+  .results-list-header-button {
+    border: 1px solid #e5e7eb;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #070b1f;
+    font: inherit;
+    font-weight: 900;
+    cursor: pointer;
+    padding: 7px 11px;
+  }
+
+  .search-result-card button {
+    border: none;
+    border-radius: 999px;
+    background: #5d42db;
+    color: #ffffff;
+    padding: 12px 17px;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 12px 26px rgba(93, 66, 219, 0.22);
+  }
+
   .quick-booking-drawer input,
   .quick-booking-drawer select,
   .quick-booking-drawer textarea {
@@ -1559,6 +2570,9 @@ const homeResponsiveStyles = `
   }
 
   @media (max-width: 760px) {
+    body:has(#search-results) {
+      overflow-x: hidden;
+    }
     .home-hero-shell {
       min-height: auto !important;
       padding: 16px 18px 22px !important;
@@ -1577,7 +2591,12 @@ const homeResponsiveStyles = `
       margin-top: 18px !important;
     }
     .home-service-toggle {
-      grid-template-columns: 1fr !important;
+      grid-template-columns: repeat(3, minmax(132px, 1fr)) !important;
+      overflow-x: auto !important;
+      padding-bottom: 4px !important;
+    }
+    .home-service-toggle button {
+      white-space: nowrap !important;
     }
     .home-quick-fields {
       grid-template-columns: 1fr !important;
@@ -1594,13 +2613,27 @@ const homeResponsiveStyles = `
       width: 100% !important;
       justify-content: center !important;
     }
+    #quick-booking {
+      align-items: flex-end !important;
+      justify-content: center !important;
+      padding: 0 !important;
+    }
     .quick-booking-drawer {
       width: 100% !important;
       max-width: none !important;
       height: min(88vh, 760px) !important;
-      border-radius: 24px 24px 0 0 !important;
-      margin-top: auto !important;
+      border-radius: 22px 22px 0 0 !important;
+      animation: drawerSheetUp .22s ease-out !important;
     }
+  }
+  @keyframes drawerSlideIn {
+    from { transform: translateX(100%); opacity: .8; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+
+  @keyframes drawerSheetUp {
+    from { transform: translateY(100%); opacity: .85; }
+    to { transform: translateY(0); opacity: 1; }
   }
 `;
 
@@ -1743,16 +2776,16 @@ const styles: Record<string, React.CSSProperties> = {
     maxWidth: 1180,
     margin: '22px auto 0',
     display: 'grid',
-    gridTemplateColumns: 'minmax(0, 0.72fr) minmax(320px, 0.58fr)',
+    gridTemplateColumns: 'minmax(0, 1fr)',
     gap: 22,
     alignItems: 'center',
-    minHeight: 235,
+    minHeight: 210,
   },
   heroCopy: {
     position: 'relative',
     zIndex: 2,
     paddingBottom: 12,
-    maxWidth: 650,
+    maxWidth: 940,
   },
   badge: {
     width: 'fit-content',
@@ -1770,7 +2803,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   heroTitle: {
     margin: '14px 0 0',
-    maxWidth: 650,
+    maxWidth: 940,
     fontSize: 'clamp(34px, 4.2vw, 54px)',
     lineHeight: 1.04,
     fontWeight: 800,
@@ -1782,11 +2815,11 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#3e465c',
     fontSize: 16,
     lineHeight: 1.55,
-    maxWidth: 520,
+    maxWidth: 760,
   },
   quickBookingCard: {
-    maxWidth: 'min(900px, calc(100vw - 32px))',
-    margin: '2px auto 0',
+    maxWidth: 'min(1180px, calc(100vw - 32px))',
+    margin: '4px auto 0',
     position: 'relative',
     zIndex: 4,
     background: 'rgba(255,255,255,0.96)',
@@ -1902,6 +2935,512 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#4f5870',
     fontSize: 13,
     fontWeight: 800,
+  },
+
+  mobileSearchSummary: {
+    display: 'none',
+    alignItems: 'center',
+    gap: 10,
+    background: '#ffffff',
+    borderBottom: '1px solid #e7e5ef',
+    padding: '10px 12px',
+    position: 'sticky',
+    top: 0,
+    zIndex: 24,
+  },
+  mobileEditButton: {
+    border: '1px solid #d9dce7',
+    borderRadius: 999,
+    background: '#ffffff',
+    color: ink,
+    padding: '8px 12px',
+    fontWeight: 900,
+    cursor: 'pointer',
+    marginLeft: 'auto',
+  },
+  mobileFilterStrip: {
+    display: 'none',
+    gap: 8,
+    overflowX: 'auto',
+    padding: '10px 12px',
+    background: 'rgba(255,255,255,0.98)',
+    borderBottom: '1px solid #e7e5ef',
+    position: 'sticky',
+    top: 58,
+    zIndex: 22,
+    scrollbarWidth: 'none',
+  },
+  mobileFilterChip: {
+    minHeight: 36,
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 7,
+    border: '1px solid #d9dce7',
+    borderRadius: 999,
+    background: '#ffffff',
+    color: ink,
+    padding: '0 12px',
+    fontWeight: 900,
+    whiteSpace: 'nowrap',
+    cursor: 'pointer',
+  },
+  mobileFilterOverlay: {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(15, 23, 42, 0.46)',
+    zIndex: 90,
+    display: 'flex',
+    alignItems: 'flex-end',
+  },
+  mobileFilterSheet: {
+    width: '100%',
+    maxHeight: '86vh',
+    background: '#ffffff',
+    borderRadius: '22px 22px 0 0',
+    boxShadow: '0 -22px 60px rgba(15, 23, 42, 0.22)',
+    overflow: 'hidden',
+    animation: 'mobileSheetUp 220ms ease-out',
+  },
+  mobileFilterHeader: {
+    minHeight: 72,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 14,
+    padding: '14px 16px',
+    borderBottom: '1px solid #ebeaf2',
+  },
+  mobileFilterClose: {
+    width: 42,
+    height: 42,
+    border: 'none',
+    borderRadius: '50%',
+    background: '#eeeeef',
+    color: ink,
+    display: 'grid',
+    placeItems: 'center',
+    cursor: 'pointer',
+    flexShrink: 0,
+  },
+  mobileFilterBody: {
+    display: 'grid',
+    gridTemplateColumns: '116px minmax(0, 1fr)',
+    minHeight: 390,
+    maxHeight: 'calc(86vh - 148px)',
+    overflow: 'hidden',
+  },
+  mobileFilterTabs: {
+    background: '#f3f2f8',
+    borderRight: '1px solid #e5e3ed',
+    overflowY: 'auto',
+  },
+  mobileFilterTab: {
+    width: '100%',
+    minHeight: 58,
+    border: 'none',
+    borderBottom: '1px solid #e5e3ed',
+    background: 'transparent',
+    color: ink,
+    textAlign: 'left',
+    padding: '0 12px',
+    fontWeight: 900,
+    fontSize: 12,
+    cursor: 'pointer',
+  },
+  mobileFilterTabActive: {
+    background: '#ffffff',
+    color: purple,
+    borderLeft: `3px solid ${purple}`,
+  },
+  mobileFilterOptions: {
+    overflowY: 'auto',
+    padding: '10px 14px 18px',
+    display: 'grid',
+    gap: 18,
+  },
+  mobileFilterGroup: {
+    display: 'grid',
+    gap: 8,
+  },
+  mobileFilterOption: {
+    width: '100%',
+    minHeight: 62,
+    border: '1px solid #eef0f5',
+    borderRadius: 14,
+    background: '#ffffff',
+    color: ink,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    textAlign: 'left',
+    cursor: 'pointer',
+    padding: '0 12px',
+  },
+  mobileFilterFooter: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: 12,
+    padding: '12px 16px 16px',
+    borderTop: '1px solid #ebeaf2',
+    background: '#ffffff',
+  },
+  mobileFilterSecondaryButton: {
+    height: 50,
+    borderRadius: 999,
+    border: '1px solid #1f2937',
+    background: '#ffffff',
+    color: ink,
+    fontWeight: 900,
+    cursor: 'pointer',
+  },
+  mobileFilterPrimaryButton: {
+    height: 50,
+    borderRadius: 999,
+    border: 'none',
+    background: purple,
+    color: '#ffffff',
+    fontWeight: 900,
+    cursor: 'pointer',
+  },
+  searchResultsShell: {
+    background: '#f3f2f8',
+    padding: '0 0 44px',
+    borderTop: '1px solid #eceaf4',
+  },
+  resultsTopbar: {
+    position: 'sticky',
+    top: 0,
+    zIndex: 20,
+    background: 'rgba(255,255,255,0.96)',
+    backdropFilter: 'blur(14px)',
+    borderBottom: '1px solid #e7e5ef',
+    padding: '18px min(7vw, 96px) 12px',
+  },
+  resultsRouteRow: {
+    maxWidth: 1180,
+    margin: '0 auto 14px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+  },
+  resultsBackButton: {
+    width: 38,
+    height: 38,
+    borderRadius: '50%',
+    border: '1px solid #e3e7f1',
+    background: '#fff',
+    display: 'grid',
+    placeItems: 'center',
+    cursor: 'pointer',
+  },
+  resultsSearchBar: {
+    maxWidth: 1180,
+    margin: '0 auto',
+    display: 'grid',
+    gridTemplateColumns: '1.1fr 1fr auto .8fr auto',
+    gap: 10,
+    alignItems: 'center',
+    background: '#ffffff',
+    border: '1px solid #dedde7',
+    borderRadius: 18,
+    padding: 10,
+    boxShadow: '0 16px 38px rgba(15, 23, 42, 0.08)',
+  },
+
+  datePickerWrap: { position: 'relative', minWidth: 0 },
+  datePickerButton: {
+    width: '100%',
+    minHeight: 58,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    textAlign: 'left',
+    border: '1px solid #e3e7f1',
+    borderRadius: 12,
+    background: '#ffffff',
+    color: ink,
+    padding: '10px 12px',
+    cursor: 'pointer',
+  },
+  datePopover: {
+    position: 'absolute',
+    top: 'calc(100% + 10px)',
+    left: 0,
+    width: 400,
+    maxWidth: 'calc(100vw - 28px)',
+    background: '#ffffff',
+    borderRadius: 18,
+    boxShadow: '0 24px 80px rgba(15, 23, 42, 0.28)',
+    border: '1px solid #e6e3ee',
+    padding: '18px 24px 24px',
+    zIndex: 60,
+  },
+  dateWeekdays: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(7, 1fr)',
+    color: '#6b7280',
+    fontSize: 13,
+    textAlign: 'center',
+    paddingBottom: 18,
+    borderBottom: '1px solid #efedf5',
+  },
+  calendarNavButton: {
+    width: 40,
+    height: 40,
+    border: 'none',
+    borderRadius: '50%',
+    background: 'transparent',
+    color: ink,
+    display: 'inline-grid',
+    placeItems: 'center',
+    cursor: 'pointer',
+  },
+  calendarHead: {
+    display: 'grid',
+    gridTemplateColumns: '44px 1fr 44px',
+    alignItems: 'center',
+    gap: 8,
+    margin: '14px 0 10px',
+    textAlign: 'center',
+  },
+  calendarGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(7, 1fr)',
+    gap: 6,
+  },
+  calendarDay: {
+    height: 34,
+    border: 'none',
+    borderRadius: '50%',
+    background: 'transparent',
+    color: ink,
+    fontWeight: 800,
+    cursor: 'pointer',
+  },
+  calendarDayMuted: { color: '#b7bac4' },
+  calendarDayWeekend: { color: '#e11d48' },
+  calendarDaySelected: { background: '#333333', color: '#ffffff' },
+  clearFiltersButton: {
+    border: 'none',
+    background: 'transparent',
+    color: ink,
+    textDecoration: 'underline',
+    fontWeight: 900,
+    cursor: 'pointer',
+  },
+  quickDateButtons: {
+    display: 'inline-flex',
+    gap: 8,
+    justifyContent: 'center',
+  },
+  dateChip: {
+    border: 'none',
+    borderRadius: 999,
+    background: '#eeeeef',
+    color: '#6b7280',
+    padding: '12px 14px',
+    fontWeight: 900,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  },
+  dateChipActive: {
+    background: '#f1dada',
+    color: ink,
+  },
+  resultsSearchButton: {
+    minWidth: 72,
+    height: 52,
+    border: 'none',
+    borderRadius: 999,
+    background: purple,
+    color: '#fff',
+    fontWeight: 900,
+    cursor: 'pointer',
+    padding: '0 18px',
+  },
+  resultsLayout: {
+    maxWidth: 1180,
+    margin: '18px auto 0',
+    padding: '0 18px',
+    display: 'grid',
+    gridTemplateColumns: '270px minmax(0, 1fr)',
+    gap: 16,
+    alignItems: 'start',
+  },
+  filterPanel: {
+    position: 'sticky',
+    top: 142,
+    background: '#ffffff',
+    borderRadius: 18,
+    border: '1px solid #eceaf2',
+    overflow: 'hidden',
+    boxShadow: '0 10px 28px rgba(15,23,42,0.06)',
+  },
+  filterHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '16px 16px 12px',
+    borderBottom: '1px solid #eceaf2',
+  },
+  smartFilterBox: {
+    margin: 14,
+    padding: 14,
+    borderRadius: 14,
+    background: 'linear-gradient(135deg, #eadcff, #fff)',
+    display: 'grid',
+    gap: 10,
+  },
+  smartFilterInput: {
+    border: '1px solid #d7c6ff',
+    borderRadius: 10,
+    background: '#ffffff',
+    padding: '11px 12px',
+    color: ink,
+    fontWeight: 800,
+    outline: 'none',
+  },
+  filterGroup: {
+    padding: '14px 16px',
+    borderTop: '1px solid #eceaf2',
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 9,
+  },
+  filterChip: {
+    border: '1px solid #d9dce7',
+    background: '#ffffff',
+    color: ink,
+    borderRadius: 10,
+    padding: '9px 11px',
+    fontWeight: 800,
+    cursor: 'pointer',
+  },
+  filterChipActive: {
+    background: purple,
+    borderColor: purple,
+    color: '#ffffff',
+  },
+  resultsMain: { minWidth: 0 },
+  promoRail: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+    gap: 14,
+    marginBottom: 16,
+  },
+  promoCard: {
+    minHeight: 104,
+    borderRadius: 16,
+    background: '#ffffff',
+    border: '1px solid #eceaf2',
+    boxShadow: '0 12px 28px rgba(15,23,42,0.06)',
+    padding: 16,
+    display: 'grid',
+    alignContent: 'center',
+    gap: 6,
+  },
+  promoCardHighlight: {
+    background: 'linear-gradient(135deg, #ffd468, #f5a632)',
+  },
+  resultsListHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 14,
+    background: '#ffffff',
+    borderRadius: '14px 14px 0 0',
+    padding: '14px 16px',
+    fontWeight: 900,
+  },
+  resultsListActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  resultsNotice: {
+    background: '#f8ddc8',
+    padding: '13px 16px',
+    textAlign: 'center',
+    fontWeight: 900,
+    marginBottom: 16,
+  },
+  resultsList: { display: 'grid', gap: 14 },
+  searchResultCard: {
+    display: 'grid',
+    gridTemplateColumns: '132px minmax(0, 1fr) 150px',
+    gap: 16,
+    alignItems: 'center',
+    background: '#ffffff',
+    border: '1px solid #eceaf2',
+    borderRadius: 18,
+    padding: 16,
+    boxShadow: '0 12px 30px rgba(15,23,42,0.07)',
+  },
+  searchResultCardActive: {
+    borderColor: purple,
+    boxShadow: '0 16px 36px rgba(93,66,219,0.14)',
+  },
+  searchResultImage: {
+    width: 132,
+    height: 106,
+    objectFit: 'cover',
+    borderRadius: 14,
+  },
+  searchResultImageWrap: {
+    position: 'relative',
+    width: 132,
+    height: 106,
+  },
+  searchResultDots: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 7,
+    display: 'flex',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  searchResultDot: {
+    width: 5,
+    height: 5,
+    borderRadius: '50%',
+    background: 'rgba(255,255,255,0.65)',
+  },
+  searchResultDotActive: {
+    width: 13,
+    borderRadius: 999,
+    background: '#ffffff',
+  },
+  searchResultContent: { display: 'grid', gap: 8, minWidth: 0 },
+  searchResultAction: {
+    display: 'grid',
+    gap: 4,
+    justifyItems: 'end',
+    textAlign: 'right',
+  },
+  searchResultRating: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: 8,
+    background: '#dcfce7',
+    color: '#166534',
+    padding: '5px 7px',
+    fontSize: 12,
+    fontWeight: 900,
+  },
+  resultsSummaryPanel: {
+    position: 'sticky',
+    top: 142,
+    background: '#ffffff',
+    border: '1px solid #eceaf2',
+    borderRadius: 18,
+    padding: 16,
+    display: 'grid',
+    gap: 12,
+    boxShadow: '0 10px 28px rgba(15,23,42,0.06)',
   },
   categoryGrid: {
     maxWidth: 1100,
@@ -2055,6 +3594,38 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 12,
     fontWeight: 900,
   },
+  resultDetailGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+    gap: 8,
+    color: muted,
+    fontSize: 12,
+    fontWeight: 800,
+  },
+  resultTagRow: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  viewOptionsButton: {
+    border: 'none',
+    borderRadius: 999,
+    background: purple,
+    color: '#ffffff',
+    padding: '12px 17px',
+    fontWeight: 900,
+    cursor: 'pointer',
+    boxShadow: '0 12px 26px rgba(93, 66, 219, 0.22)',
+  },
+  drawerHeaderCompact: {
+    minHeight: 64,
+    display: 'grid',
+    gridTemplateColumns: '44px 1fr',
+    alignItems: 'center',
+    gap: 10,
+    padding: '12px 18px',
+    borderBottom: '1px solid #eef0f5',
+  },
   resultDetail: {
     display: 'flex',
     justifyContent: 'space-between',
@@ -2134,6 +3705,17 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 12,
     fontWeight: 900,
   },
+  validationNote: {
+    marginTop: 12,
+    padding: '12px 14px',
+    borderRadius: 12,
+    background: '#fff7ed',
+    color: '#9a3412',
+    border: '1px solid #fed7aa',
+    fontSize: 13,
+    fontWeight: 800,
+    lineHeight: 1.5,
+  },
   totalRow: {
     display: 'flex',
     alignItems: 'center',
@@ -2158,23 +3740,65 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
   },
 
+  exitConfirmOverlay: {
+    position: 'absolute',
+    inset: 0,
+    background: 'rgba(15, 23, 42, 0.45)',
+    display: 'grid',
+    placeItems: 'center',
+    zIndex: 5,
+    padding: 20,
+  },
+  exitConfirmCard: {
+    width: 'min(380px, 100%)',
+    background: '#ffffff',
+    borderRadius: 16,
+    padding: 18,
+    boxShadow: '0 24px 70px rgba(15, 23, 42, 0.28)',
+    textAlign: 'center',
+    display: 'grid',
+    gap: 12,
+  },
+  exitPrimaryButton: {
+    border: 'none',
+    borderRadius: 999,
+    background: purple,
+    color: '#ffffff',
+    padding: '13px 16px',
+    fontWeight: 900,
+    cursor: 'pointer',
+  },
+  exitSecondaryButton: {
+    border: '1px solid #d9dce7',
+    borderRadius: 999,
+    background: '#ffffff',
+    color: ink,
+    padding: '13px 16px',
+    fontWeight: 900,
+    cursor: 'pointer',
+  },
   drawerOverlay: {
     position: 'fixed',
     inset: 0,
     background: 'rgba(15, 23, 42, 0.42)',
     zIndex: 90,
     display: 'flex',
-    justifyContent: 'flex-end',
-    alignItems: 'stretch',
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    padding: '0 18px',
   },
   drawerPanel: {
-    width: 'min(560px, 100%)',
+    width: 'min(1120px, 100%)',
+    height: 'min(84vh, 760px)',
     background: '#ffffff',
-    boxShadow: '-22px 0 60px rgba(15, 23, 42, 0.18)',
+    boxShadow: '0 -22px 70px rgba(15, 23, 42, 0.22)',
+    borderRadius: '28px 28px 0 0',
     padding: 0,
     display: 'grid',
     gridTemplateRows: 'auto auto 1fr auto',
     overflow: 'hidden',
+    position: 'relative',
+    animation: 'drawerSheetUp .24s ease-out',
   },
   drawerHeader: {
     display: 'flex',
@@ -2205,7 +3829,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   drawerSteps: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
+    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
     gap: 8,
     padding: '12px 18px',
     borderBottom: '1px solid #eef0f5',
@@ -2243,6 +3867,37 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'grid',
     gridTemplateColumns: 'repeat(3, 1fr)',
     gap: 8,
+  },
+
+  timeChipGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+    gap: 8,
+  },
+  timeChip: {
+    border: '1px solid #d9dce7',
+    borderRadius: 999,
+    background: '#ffffff',
+    color: ink,
+    padding: '10px 12px',
+    fontWeight: 900,
+    cursor: 'pointer',
+  },
+  timeChipActive: {
+    background: '#f0ebff',
+    borderColor: '#cfc4ff',
+    color: purple,
+  },
+  reviewPolicyBox: {
+    display: 'grid',
+    gap: 8,
+    background: '#f8fafc',
+    border: '1px solid #e6eaf2',
+    borderRadius: 14,
+    padding: 14,
+    color: muted,
+    fontSize: 13,
+    lineHeight: 1.5,
   },
   drawerFields: {
     display: 'grid',
