@@ -18,6 +18,8 @@ export * from './queries/profile';
 export * from './queries/consents';
 export * from './queries/packages-menu';
 export * from './queries/partners';
+export * from './queries/admin-users';
+export * from './queries/bookings';
 export * from './queries/service-catalog';
 export * from './queries/partner-services';
 export * from './queries/partner-coupons';

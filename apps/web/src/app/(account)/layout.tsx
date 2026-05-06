@@ -65,10 +65,10 @@ const partnerNavItems: NavItem[] = [
     icon: <CalendarIcon />,
   },
   {
-    key: 'orders',
-    label: 'Orders',
-    href: '/partner/orders',
-    icon: <OrdersIcon />,
+    key: 'bookings',
+    label: 'Bookings',
+    href: '/partner/bookings',
+    icon: <CalendarIcon />,
   },
   {
     key: 'services',
