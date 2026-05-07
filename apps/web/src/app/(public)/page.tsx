@@ -1296,7 +1296,7 @@ function MiniDatePicker({
       >
         <CalendarDays size={18} />
         <span>
-          <small>Date of journey</small>
+          <small style={styles.dateText}>Date</small> <br/>
           <strong>{formatDisplayDate(value)}</strong>
         </span>
       </button>
@@ -3163,6 +3163,13 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '10px 12px',
     cursor: 'pointer',
   },
+  dateText: {
+    color: 'rgb(138, 145, 166)',
+    fontSize: '12px',
+    fontWeight: 800,
+    display: 'inline-block',
+    padding: '8px 0',
+  },
   datePopover: {
     position: 'absolute',
     top: 'calc(100% + 10px)',
@@ -3174,7 +3181,7 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: '0 24px 80px rgba(15, 23, 42, 0.28)',
     border: '1px solid #e6e3ee',
     padding: '18px 24px 24px',
-    zIndex: 60,
+    zIndex: 99960,
   },
   dateWeekdays: {
     display: 'grid',
