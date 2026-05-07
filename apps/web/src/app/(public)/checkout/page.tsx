@@ -863,7 +863,7 @@ export default function CheckoutPage() {
         }
       `}</style>
 
-      {/* Header */}
+      {/* Header 
       <header
         style={{
           backgroundColor: 'white',
@@ -918,8 +918,8 @@ export default function CheckoutPage() {
           </h1>
           <div style={{ width: '60px' }} />
         </div>
-      </header>
-
+      </header> 
+*/}
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '20px' }}>
         <div
           className="service-checkout-grid"

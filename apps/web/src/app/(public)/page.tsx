@@ -21,6 +21,7 @@ import {
   Utensils,
   Users,
   X,
+  Zap,
 } from 'lucide-react';
 import {
   createQuoteRequest,
@@ -436,10 +437,7 @@ export default function HomePage() {
             >
               {isMobileNavOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
-            <div
-              className={`home-nav-links ${isMobileNavOpen ? 'is-open' : ''}`}
-              style={styles.navLinks}
-            />
+
             <div
               className={`home-nav-actions ${isMobileNavOpen ? 'is-open' : ''}`}
               style={styles.navActions}
@@ -572,7 +570,9 @@ export default function HomePage() {
                 style={styles.findButton}
                 onClick={() => findOptions()}
               >
-                Book in under a minute <ArrowRight size={16} />
+                <Zap size={16} fill="currentColor" />
+                Book in under a minute
+                <ArrowRight size={16} />
               </button>
             </div>
           </div>
@@ -652,7 +652,14 @@ export default function HomePage() {
           getExperienceType(service.experience_type_key)?.label
         }
         canReview={canReviewBooking}
-        onClose={() => setIsQuickBookingOpen(false)}
+        onClose={() => {
+          setIsQuickBookingOpen(false);
+          setBookingStep('search');
+          setSelectedService(null);
+          setBookingDetails(defaultBookingDetails);
+          setAppliedCoupon(null);
+          setQuoteConfirmation(null);
+        }}
         onStepChange={setBookingStep}
         onDraftChange={updateDraft}
         onDetailsChange={updateBookingDetails}
@@ -1296,7 +1303,7 @@ function MiniDatePicker({
       >
         <CalendarDays size={18} />
         <span>
-          <small style={styles.dateText}>Date</small> <br/>
+          <small style={styles.dateText}>Date</small> <br />
           <strong>{formatDisplayDate(value)}</strong>
         </span>
       </button>
@@ -1911,6 +1918,7 @@ function QuickBookingDrawer({
                 style={styles.exitSecondaryButton}
                 onClick={() => {
                   setShowExitConfirm(false);
+                  setShowMissingFields(false);
                   onClose();
                 }}
               >
@@ -1938,11 +1946,15 @@ function QuickTab({
   return (
     <button
       type="button"
+      className={`quick-tab ${active ? 'is-active' : 'is-inactive'}`}
       style={{ ...styles.quickTab, ...(active ? styles.quickTabActive : {}) }}
       onClick={onClick}
     >
-      <Icon size={16} />
-      {label}
+      <span className="quick-tab-glow" />
+      <span className="quick-tab-icon">
+        <Icon size={16} />
+      </span>
+      <span>{label}</span>
     </button>
   );
 }
@@ -2288,6 +2300,54 @@ function formatGuestRange(service: PartnerService) {
 }
 
 const homeResponsiveStyles = `
+.quick-tab {
+  position: relative !important;
+  overflow: hidden !important;
+  transition:
+    background 220ms ease,
+    color 220ms ease,
+    border-color 220ms ease,
+    box-shadow 220ms ease,
+    transform 220ms ease,
+    opacity 220ms ease !important;
+}
+
+.quick-tab .quick-tab-icon {
+  display: inline-flex;
+  transition: transform 220ms ease, opacity 220ms ease;
+}
+
+.quick-tab .quick-tab-glow {
+  position: absolute;
+  inset: 4px;
+  border-radius: 999px;
+  opacity: 0;
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.45), transparent 55%);
+  transition: opacity 220ms ease;
+  pointer-events: none;
+}
+
+.quick-tab.is-active {
+  transform: translateY(-1px) scale(1.015);
+}
+
+.quick-tab.is-active .quick-tab-icon {
+  transform: scale(1.12) rotate(-4deg);
+}
+
+.quick-tab.is-active .quick-tab-glow {
+  opacity: 1;
+}
+
+.quick-tab.is-inactive {
+  opacity: 0.72;
+  transform: scale(0.985);
+}
+
+.quick-tab.is-inactive:hover {
+  opacity: 1;
+  transform: translateY(-1px) scale(1);
+}
   @media (max-width: 980px) {
     .home-nav {
       align-items: center !important;
