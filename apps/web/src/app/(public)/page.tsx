@@ -269,9 +269,8 @@ export default function HomePage() {
   const subtotalAfterDiscount = Math.max(subtotal - (coupon?.amount || 0), 0);
   const platformFee = Math.round(subtotalAfterDiscount * 0.07);
   const total = subtotalAfterDiscount + platformFee;
-
+  const [isSearchingExperience, setIsSearchingExperience] = useState(false);
   const closeMobileNav = () => setIsMobileNavOpen(false);
-
   const updateDraft = <K extends keyof BookingDraft>(
     key: K,
     value: BookingDraft[K]
@@ -286,18 +285,23 @@ export default function HomePage() {
     if (serviceKey !== draft.service) {
       updateDraft('service', serviceKey);
     }
-    setHasSearched(true);
+
+    setIsSearchingExperience(true);
     setBookingStep('search');
     setIsQuickBookingOpen(false);
     closeMobileNav();
-    if (typeof window !== 'undefined') {
+
+    window.setTimeout(() => {
+      setHasSearched(true);
+      setIsSearchingExperience(false);
+
       window.setTimeout(() => {
         document.getElementById('search-results')?.scrollIntoView({
           behavior: 'smooth',
           block: 'start',
         });
-      }, 0);
-    }
+      }, 80);
+    }, 420);
   };
 
   const selectService = (service: PartnerService) => {
@@ -599,6 +603,16 @@ export default function HomePage() {
         </section>
       )}
 
+      {isSearchingExperience && (
+        <div className="search-transition-overlay">
+          <div className="search-transition-card">
+            <Zap size={22} fill="currentColor" />
+            <strong>Finding the best Droooly options...</strong>
+            <span>Matching service, date, city and guest count</span>
+          </div>
+        </div>
+      )}
+
       {hasSearched && (
         <SearchResultsExperience
           draft={draft}
@@ -879,7 +893,11 @@ function SearchResultsExperience({
   ];
 
   return (
-    <section id="search-results" style={styles.searchResultsShell}>
+    <section
+      id="search-results"
+      className="search-results-enter"
+      style={styles.searchResultsShell}
+    >
       <MobileSearchSummary
         draft={draft}
         resultCount={resultCount}
@@ -2300,6 +2318,102 @@ function formatGuestRange(service: PartnerService) {
 }
 
 const homeResponsiveStyles = `
+
+.search-transition-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 23, 42, 0.24);
+  backdrop-filter: blur(8px);
+}
+
+.search-transition-card {
+  width: min(420px, calc(100vw - 32px));
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  padding: 26px;
+  border-radius: 28px;
+  background: #ffffff;
+  color: #1f2937;
+  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.22);
+  animation: searchCardPop 420ms ease both;
+}
+
+.search-transition-card svg {
+  color: #764ba2;
+}
+
+.search-transition-card span {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.search-results-enter {
+  animation: resultsSlideLeftToRight 520ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+.quick-booking-drawer {
+  animation: drawerBottomToTop 420ms cubic-bezier(.2,.8,.2,1) both !important;
+}
+
+.drawer-step-loader {
+  margin: 12px 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: #f5f3ff;
+  color: #6d28d9;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 13px;
+  animation: softPulse 900ms ease-in-out infinite;
+}
+
+@keyframes resultsSlideLeftToRight {
+  from {
+    opacity: 0;
+    transform: translateX(-32px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes drawerBottomToTop {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes searchCardPop {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes softPulse {
+  0%, 100% {
+    opacity: 0.75;
+  }
+  50% {
+    opacity: 1;
+  }
+}
 .quick-tab {
   position: relative !important;
   overflow: hidden !important;
@@ -2736,7 +2850,7 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
     flexShrink: 0,
   },
-  logo: { width: 132, height: 'auto', display: 'block' },
+  logo: { width: 212, height: 'auto', display: 'block' },
   menuButton: {
     display: 'none',
     alignItems: 'center',
