@@ -271,6 +271,28 @@ export default function HomePage() {
   const total = subtotalAfterDiscount + platformFee;
   const [isSearchingExperience, setIsSearchingExperience] = useState(false);
   const closeMobileNav = () => setIsMobileNavOpen(false);
+
+  const resetQuickBooking = () => {
+    setIsQuickBookingOpen(false);
+    setBookingStep('search');
+    setSelectedService(null);
+    setBookingDetails(defaultBookingDetails);
+    setAppliedCoupon(null);
+    setQuoteConfirmation(null);
+
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.removeItem('droooly:booking-intent');
+    }
+  };
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    document.body.style.overflow = isMobileNavOpen ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isMobileNavOpen]);
+
   const updateDraft = <K extends keyof BookingDraft>(
     key: K,
     value: BookingDraft[K]
@@ -289,6 +311,13 @@ export default function HomePage() {
     setIsSearchingExperience(true);
     setBookingStep('search');
     setIsQuickBookingOpen(false);
+    setSelectedService(null);
+    setBookingDetails(defaultBookingDetails);
+    setAppliedCoupon(null);
+    setQuoteConfirmation(null);
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.removeItem('droooly:booking-intent');
+    }
     closeMobileNav();
 
     window.setTimeout(() => {
@@ -311,7 +340,13 @@ export default function HomePage() {
   };
 
   const startBooking = (service: PartnerService) => {
+    const isDifferentService = selectedService?.id !== service.id;
     selectService(service);
+    if (isDifferentService) {
+      setBookingDetails(defaultBookingDetails);
+      setAppliedCoupon(null);
+      setQuoteConfirmation(null);
+    }
     setBookingStep('details');
     setIsQuickBookingOpen(true);
   };
@@ -442,6 +477,15 @@ export default function HomePage() {
               {isMobileNavOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
 
+            {isMobileNavOpen && (
+              <button
+                type="button"
+                className="home-mobile-nav-backdrop"
+                aria-label="Close mobile menu"
+                onClick={closeMobileNav}
+              />
+            )}
+
             <div
               className={`home-nav-actions ${isMobileNavOpen ? 'is-open' : ''}`}
               style={styles.navActions}
@@ -494,6 +538,7 @@ export default function HomePage() {
                 <Heart size={14} fill="currentColor" /> Good food. Made with
                 care.
               </div>
+              {/*
               <h1 style={styles.heroTitle}>
                 Private Chefs. Catering. Experiences.
                 <span style={styles.heroAccent}> Delivered to you.</span>
@@ -502,7 +547,7 @@ export default function HomePage() {
                 From intimate dinners to grand celebrations, we bring
                 exceptional food experiences to your door. Book in under a
                 minute.
-              </p>
+              </p>  */}
             </div>
           </div>
 
@@ -634,8 +679,7 @@ export default function HomePage() {
           onFindOptions={findOptions}
           onBackToHome={() => {
             setHasSearched(false);
-            setIsQuickBookingOpen(false);
-            setSelectedService(null);
+            resetQuickBooking();
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
           onSelectService={startBooking}
@@ -666,14 +710,7 @@ export default function HomePage() {
           getExperienceType(service.experience_type_key)?.label
         }
         canReview={canReviewBooking}
-        onClose={() => {
-          setIsQuickBookingOpen(false);
-          setBookingStep('search');
-          setSelectedService(null);
-          setBookingDetails(defaultBookingDetails);
-          setAppliedCoupon(null);
-          setQuoteConfirmation(null);
-        }}
+        onClose={resetQuickBooking}
         onStepChange={setBookingStep}
         onDraftChange={updateDraft}
         onDetailsChange={updateBookingDetails}
@@ -1988,9 +2025,14 @@ function Field({
 }) {
   return (
     <label style={styles.field}>
-      <span style={styles.fieldLabel}>{label}</span>
-      {children}
-      <Icon size={16} style={styles.fieldIcon} />
+      <div style={styles.fieldIconWrap}>
+        <Icon size={16} />
+      </div>
+  
+      <div style={styles.fieldContent}>
+        <span style={styles.fieldLabel}>{label}</span>
+        {children}
+      </div>
     </label>
   );
 }
@@ -2465,44 +2507,102 @@ const homeResponsiveStyles = `
   @media (max-width: 980px) {
     .home-nav {
       align-items: center !important;
-      flex-wrap: wrap !important;
+      flex-wrap: nowrap !important;
       gap: 12px !important;
+      position: relative !important;
+      z-index: 10001 !important;
     }
+
     .home-menu-button {
       display: inline-flex !important;
       margin-left: auto !important;
+      position: relative !important;
+      z-index: 10003 !important;
+      border-radius: 14px !important;
+      transition: transform 220ms ease, background 220ms ease, box-shadow 220ms ease !important;
     }
+
+    .home-menu-button[aria-expanded='true'] {
+      background: #5d42db !important;
+      color: #ffffff !important;
+      box-shadow: 0 18px 36px rgba(93, 66, 219, 0.28) !important;
+      transform: rotate(90deg) scale(1.02) !important;
+    }
+
+    .home-mobile-nav-backdrop {
+      position: fixed !important;
+      inset: 0 !important;
+      z-index: 9998 !important;
+      border: 0 !important;
+      background: rgba(15, 23, 42, 0.42) !important;
+      backdrop-filter: blur(10px) !important;
+      -webkit-backdrop-filter: blur(10px) !important;
+      animation: mobileNavFade 220ms ease both !important;
+      cursor: pointer !important;
+    }
+
     .home-nav-links,
     .home-nav-actions {
       display: none !important;
-      width: 100% !important;
-      border: 1px solid #e5e7eb !important;
-      border-radius: 14px !important;
-      background: rgba(255,255,255,0.96) !important;
-      box-shadow: 0 18px 42px rgba(15, 23, 42, 0.10) !important;
     }
-    .home-nav-links {
-      display: none !important;
-    }
-    .home-nav-links.is-open {
-      order: 3 !important;
-      display: grid !important;
-      grid-template-columns: 1fr !important;
-      gap: 2px !important;
-      padding: 8px !important;
-    }
+
     .home-nav-actions.is-open {
-      order: 4 !important;
+      position: fixed !important;
+      top: 76px !important;
+      left: 14px !important;
+      right: 14px !important;
+      z-index: 10002 !important;
       display: grid !important;
       grid-template-columns: 1fr !important;
-      gap: 8px !important;
-      padding: 10px !important;
+      gap: 12px !important;
+      padding: 16px !important;
+      border: 1px solid rgba(255, 255, 255, 0.72) !important;
+      border-radius: 26px !important;
+      background: rgba(255, 255, 255, 0.96) !important;
+      box-shadow: 0 28px 80px rgba(15, 23, 42, 0.28) !important;
+      backdrop-filter: blur(18px) !important;
+      -webkit-backdrop-filter: blur(18px) !important;
+      animation: mobileNavDrop 300ms cubic-bezier(.2,.8,.2,1) both !important;
+      width: auto !important;
     }
-    .home-nav-links.is-open button,
+
+    .home-nav-actions.is-open::before {
+      content: 'Quick access' !important;
+      display: block !important;
+      color: #070b1f !important;
+      font-size: 13px !important;
+      font-weight: 900 !important;
+      letter-spacing: -0.01em !important;
+      padding: 2px 2px 4px !important;
+    }
+
     .home-nav-actions.is-open button,
     .home-nav-actions.is-open label {
       width: 100% !important;
       justify-content: center !important;
+      min-height: 48px !important;
+      border-radius: 16px !important;
+      box-sizing: border-box !important;
+    }
+
+    .home-nav-actions.is-open label {
+      justify-content: space-between !important;
+    }
+  }
+
+  @keyframes mobileNavFade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes mobileNavDrop {
+    from {
+      opacity: 0;
+      transform: translateY(-18px) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
     }
   }
 
@@ -2759,7 +2859,7 @@ const homeResponsiveStyles = `
     .home-hero-grid {
       margin-top: 18px !important;
       grid-template-columns: 1fr !important;
-      min-height: 250px !important;
+      min-height: 0px !important;
     }
     .home-quick-booking {
       margin-top: 18px !important;
@@ -2953,7 +3053,7 @@ const styles: Record<string, React.CSSProperties> = {
     gridTemplateColumns: 'minmax(0, 1fr)',
     gap: 22,
     alignItems: 'center',
-    minHeight: 210,
+    minHeight: 0,
   },
   heroCopy: {
     position: 'relative',
@@ -3028,24 +3128,45 @@ const styles: Record<string, React.CSSProperties> = {
     background: '#f0ebff',
     color: purple,
     borderColor: '#e2d8ff',
-  },
-  quickFields: {
+  },quickFields: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr 1fr auto',
     gap: 12,
     alignItems: 'end',
   },
+  
   field: {
-    position: 'relative',
     display: 'grid',
-    gap: 5,
+    gridTemplateColumns: '28px 1fr', // 👈 icon + content
+    alignItems: 'center',
+    gap: 10,
     border: '1px solid #e3e7f1',
     borderRadius: 12,
     background: '#ffffff',
-    padding: '10px 38px 10px 12px',
+    padding: '10px 12px',
     minHeight: 58,
   },
-  fieldLabel: { color: '#8a91a6', fontSize: 12, fontWeight: 800 },
+  
+  fieldIconWrap: {
+    display: 'flex',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    color: '#6d7284',
+    paddingBottom: 2, 
+  },
+  
+  fieldContent: {
+    display: 'grid',
+    gridTemplateRows: 'auto auto',
+    gap: 2,
+  },
+  
+  fieldLabel: {
+    color: '#8a91a6',
+    fontSize: 12,
+    fontWeight: 800,
+  },
+  
   input: {
     border: 'none',
     outline: 'none',
@@ -3056,7 +3177,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 800,
     fontSize: 14,
   },
-  fieldIcon: { position: 'absolute', right: 13, bottom: 13, color: '#6d7284' },
   findButton: {
     minHeight: 58,
     display: 'inline-flex',
@@ -3704,7 +3824,7 @@ const styles: Record<string, React.CSSProperties> = {
     margin: '36px auto 0',
     padding: '18px 22px',
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(min(210px, 100%), 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(0, 100%), 1fr))',
     gap: 16,
     border: '1px solid #eeeaf8',
     borderRadius: 18,

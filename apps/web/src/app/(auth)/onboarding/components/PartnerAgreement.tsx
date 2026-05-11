@@ -1,5 +1,8 @@
 'use client';
 
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import ReactMarkdown from 'react-markdown';
 import React, { useMemo, useRef, useState } from 'react';
 import type { AgreementData, StepComponentProps } from '../types';
 import { getOnboardingPresignedUploadUrl, uploadFileToS3 } from '@catering-marketplace/query-client';
@@ -108,13 +111,74 @@ export default function PartnerAgreement({
     updateField('signatureImage', null);
   };
 
-  const downloadAgreement = () => {
-    const element = document.createElement('a');
-    element.href = `data:text/plain;charset=utf-8,${encodeURIComponent(
-      agreementText
-    )}`;
-    element.download = `Droooly_Partner_Agreement_${Date.now()}.txt`;
-    element.click();
+ 
+  const downloadAgreementPdf = async () => {
+    const agreementElement = document.getElementById('agreement-content');
+  
+    if (!agreementElement) return;
+  
+    const canvas = await html2canvas(agreementElement, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      scrollY: -window.scrollY,
+    });
+  
+    const imgData = canvas.toDataURL('image/png');
+  
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+    });
+  
+    const pageWidth = 210; // A4 width in mm
+    const pageHeight = 297; // A4 height in mm
+  
+    const imgWidth = pageWidth;
+    const imgHeight =
+      (canvas.height * imgWidth) / canvas.width;
+  
+    let heightLeft = imgHeight;
+    let position = 0;
+  
+    // First page
+    pdf.addImage(
+      imgData,
+      'PNG',
+      0,
+      position,
+      imgWidth,
+      imgHeight,
+      undefined,
+      'FAST'
+    );
+  
+    heightLeft -= pageHeight;
+  
+    // Additional pages
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+  
+      pdf.addPage();
+  
+      pdf.addImage(
+        imgData,
+        'PNG',
+        0,
+        position,
+        imgWidth,
+        imgHeight,
+        undefined,
+        'FAST'
+      );
+  
+      heightLeft -= pageHeight;
+    }
+  
+    pdf.save(
+      `Droooly_Partner_Agreement_${Date.now()}.pdf`
+    );
   };
 
   const handleSubmit = async () => {
@@ -177,6 +241,7 @@ export default function PartnerAgreement({
       </div>
 
       <div style={styles.form}>
+        {/*
         <section style={styles.noticeBox}>
           <h2 style={styles.noticeTitle}>Legal confirmation</h2>
           <p style={styles.noticeText}>
@@ -184,7 +249,7 @@ export default function PartnerAgreement({
             consent to the Droooly Partner Agreement.
           </p>
         </section>
-
+   */}
         <section style={styles.section}>
           <div style={styles.sectionHeader}>
             <div>
@@ -207,20 +272,46 @@ export default function PartnerAgreement({
 
               <button
                 type="button"
-                onClick={downloadAgreement}
+                onClick={downloadAgreementPdf}
                 disabled={isLoading}
                 style={styles.secondarySmallButton}
               >
-                Download TXT
+                Download PDF
               </button>
             </div>
           </div>
 
+     
+
           <div style={styles.agreementPreview}>
-            <pre style={styles.agreementText}>{agreementText}</pre>
-          </div>
+  <div id="agreement-content" style={styles.pdfPage}>
+    <ReactMarkdown
+      components={{
+        img: ({ src, alt }) => (
+          <img
+            src={src || ''}
+            alt={alt || 'Droooly Logo'}
+            style={styles.logo}
+            crossOrigin="anonymous"
+          />
+        ),
+        h1: ({ children }) => <h1 style={styles.h1}>{children}</h1>,
+        h2: ({ children }) => <h2 style={styles.h2}>{children}</h2>,
+        h3: ({ children }) => <h3 style={styles.h3}>{children}</h3>,
+        p: ({ children }) => <p style={styles.p}>{children}</p>,
+        ul: ({ children }) => <ul style={styles.ul}>{children}</ul>,
+        li: ({ children }) => <li style={styles.li}>{children}</li>,
+        hr: () => <div style={styles.hr} />,
+        strong: ({ children }) => <strong style={styles.strong}>{children}</strong>,
+      }}
+    >
+      {agreementText}
+    </ReactMarkdown>
+  </div>
+</div>
         </section>
 
+{/*
         <section style={styles.section}>
           <h2 style={styles.sectionTitle}>Agreement version</h2>
           <p style={styles.helperText}>
@@ -237,7 +328,8 @@ export default function PartnerAgreement({
             placeholder="Agreement version ID"
             style={styles.input}
           />
-        </section>
+        </section> 
+        */}
 
         <section style={styles.section}>
           <h2 style={styles.sectionTitle}>Acceptance</h2>
@@ -315,7 +407,7 @@ export default function PartnerAgreement({
             </button>
           </div>
         </section>
-
+{/*
         <section style={styles.summaryBox}>
           <h3 style={styles.summaryTitle}>What happens after this?</h3>
           <ul style={styles.summaryList}>
@@ -326,7 +418,7 @@ export default function PartnerAgreement({
             <li>The backend should create the partner agreement record.</li>
           </ul>
         </section>
-
+ */}
         {(error || localError) && (
           <div style={styles.error}>{error || localError}</div>
         )}
@@ -381,7 +473,32 @@ export default function PartnerAgreement({
               </button>
             </div>
 
-            <pre style={styles.modalText}>{agreementText}</pre>
+            <div style={styles.agreementPreview}>
+  <div id="agreement-content" style={styles.pdfPage}>
+    <ReactMarkdown
+      components={{
+        img: ({ src, alt }) => (
+          <img
+            src={src || ''}
+            alt={alt || 'Droooly Logo'}
+            style={styles.logo}
+            crossOrigin="anonymous"
+          />
+        ),
+        h1: ({ children }) => <h1 style={styles.h1}>{children}</h1>,
+        h2: ({ children }) => <h2 style={styles.h2}>{children}</h2>,
+        h3: ({ children }) => <h3 style={styles.h3}>{children}</h3>,
+        p: ({ children }) => <p style={styles.p}>{children}</p>,
+        ul: ({ children }) => <ul style={styles.ul}>{children}</ul>,
+        li: ({ children }) => <li style={styles.li}>{children}</li>,
+        hr: () => <div style={styles.hr} />,
+        strong: ({ children }) => <strong style={styles.strong}>{children}</strong>,
+      }}
+    >
+      {agreementText}
+    </ReactMarkdown>
+  </div>
+</div>
           </div>
         </div>
       )}
@@ -389,40 +506,451 @@ export default function PartnerAgreement({
   );
 }
 
-function generateAgreementText() {
-  return `DROOOLY PARTNER AGREEMENT
+const DROOOLY_LOGO_URL =
+  'https://ckklrguidafoseanzmdk.supabase.co/storage/v1/object/public/assets/logo/logo.png';
 
-Effective Date: ${new Date().toLocaleDateString('en-IN')}
+export function generateAgreementText() {
+  return `
+# DROOOLY PARTNER PLATFORM AGREEMENT
 
-1. Appointment
-Droooly allows the partner to list and provide food, catering, chef, meal, or related services through the platform.
+![Droooly Logo](${DROOOLY_LOGO_URL})
 
-2. Independent Partner Relationship
-The partner acts as an independent service provider and is responsible for taxes, licenses, quality, food safety, delivery, and compliance.
+**Version:** 1.0  
+**Effective Date:** ${new Date().toLocaleDateString('en-IN')}
 
-3. KYC and Compliance
-The partner must provide accurate KYC, bank, PAN, GST, FSSAI, and business details where applicable.
+This Partner Platform Agreement (“Agreement”) is entered into between:
 
-4. Listings and Orders
-The partner must maintain accurate listings, pricing, availability, service areas, and order fulfilment commitments.
+## Droooly Labs Private Limited
 
-5. Payments and Payouts
-Payouts will be processed as per Droooly's payout policies after deducting applicable platform fees, taxes, refunds, or penalties.
+A company incorporated under the Companies Act, 2013, having its registered office at:
 
-6. Cancellations and Refunds
-Cancellations, refunds, and disputes will be handled according to Droooly's cancellation and refund policies.
+SVN Square, India
 
-7. Food Safety
-The partner is responsible for food quality, hygiene, packaging, allergens, preparation standards, and applicable food safety compliance.
+(hereinafter referred to as “Droooly”, “Company”, “Platform”, “we”, “our”, or “us”)
 
-8. Suspension and Termination
-Droooly may suspend or terminate a partner account for failed verification, fraud, unsafe food practices, repeated complaints, or policy violations.
+AND
 
-9. Data and Privacy
-The partner agrees to Droooly's privacy and data processing terms.
+The individual, sole proprietor, partnership, company, chef, caterer, restaurant, cloud kitchen, event provider, or business entity registering on the Droooly platform (“Partner”, “Service Provider”, “you”, or “your”).
 
-10. Acceptance
-By accepting this agreement and providing a digital signature, the partner confirms that they have read, understood, and agreed to these terms.`;
+By registering, onboarding, digitally signing, accessing, listing, accepting bookings, or using the Droooly platform, you acknowledge that you have read, understood, and agreed to be legally bound by this Agreement.
+
+---
+
+# 1. PLATFORM NATURE
+
+1.1 Droooly operates as a technology-enabled marketplace platform facilitating:
+
+- discovery
+- booking
+- quotations
+- customer interactions
+- payment processing
+- scheduling
+- hospitality experiences
+- chef services
+- catering services
+- restaurant event services
+- food-related marketplace services
+
+1.2 Droooly acts solely as a marketplace intermediary and technology platform unless explicitly stated otherwise.
+
+1.3 The Partner acts as an independent service provider and remains solely responsible for:
+
+- food preparation
+- service fulfillment
+- hygiene
+- safety
+- staffing
+- packaging
+- transportation
+- delivery
+- legal compliance
+- customer execution
+- operational quality
+
+---
+
+# 2. ELIGIBILITY
+
+The Partner represents and warrants that:
+
+- all information submitted is accurate and complete;
+- the Partner has authority to enter into this Agreement;
+- all licenses and registrations are valid;
+- the Partner complies with all applicable laws and regulations.
+
+Droooly reserves the right to:
+
+- reject onboarding;
+- request additional verification;
+- suspend accounts;
+- terminate onboarding applications.
+
+---
+
+# 3. KYC, VERIFICATION, AND COMPLIANCE
+
+The Partner agrees to provide valid and accurate:
+
+- PAN details;
+- GST details;
+- FSSAI licenses;
+- bank account details;
+- identity proof;
+- address proof;
+- business registration documents;
+- any additional compliance documentation requested by Droooly.
+
+Droooly may conduct verification through third-party verification providers.
+
+Submission of documents does not guarantee approval.
+
+---
+
+# 4. LISTINGS AND SERVICE INFORMATION
+
+The Partner shall maintain accurate:
+
+- pricing;
+- menus;
+- packages;
+- images;
+- descriptions;
+- preparation timelines;
+- service areas;
+- availability;
+- cancellation terms.
+
+Misleading, copied, fraudulent, deceptive, unlawful, offensive, obscene, or infringing content is prohibited.
+
+Droooly reserves the right to:
+
+- edit listings;
+- reject listings;
+- remove listings;
+- suspend visibility;
+- moderate content;
+- disable accounts.
+
+---
+
+# 5. FOOD SAFETY AND QUALITY
+
+The Partner is solely responsible for:
+
+- hygienic preparation;
+- food safety compliance;
+- lawful ingredient sourcing;
+- allergen disclosures;
+- proper storage;
+- proper transportation;
+- staff hygiene;
+- packaging quality;
+- customer safety.
+
+Droooly shall not be liable for:
+
+- food poisoning;
+- contamination;
+- allergic reactions;
+- unsafe preparation;
+- expired ingredients;
+- customer injuries;
+- food quality disputes.
+
+---
+
+# 6. BOOKINGS, QUOTATIONS, AND CUSTOMER INTERACTIONS
+
+Partners may receive:
+
+- direct bookings;
+- quote requests;
+- customer inquiries;
+- event requests;
+- negotiation requests;
+- premium experience bookings.
+
+The Partner agrees to:
+
+- respond within reasonable timelines;
+- honor accepted bookings;
+- avoid price manipulation after confirmation;
+- maintain professional conduct.
+
+---
+
+# 7. COMMERCIAL TERMS, COMMISSIONS, FEES, AND PAYOUTS
+
+## 7.1 Platform Charges
+
+Droooly may charge:
+
+- platform commission fees;
+- convenience fees;
+- service facilitation fees;
+- onboarding fees;
+- verification fees;
+- promotional fees;
+- advertising fees;
+- payment gateway fees;
+- cancellation penalties;
+- dispute handling fees;
+- logistics coordination charges;
+- technology platform fees.
+
+---
+
+## 7.2 Current Commercial Structures
+
+### Chef Services
+Platform commission ranging from **8% to 15%** per completed booking.
+
+### Catering Services
+Commission ranging from **5% to 12%** on confirmed order values, deposits, or milestone payments.
+
+### Restaurant Event Bookings
+Commission ranging from **10% to 18%** on reservation or event booking values.
+
+### Premium Experiences
+Higher commission structures may apply for luxury, destination, rooftop, yacht, private dining, or curated hospitality experiences.
+
+---
+
+## 7.3 Customer Convenience Fees
+
+Droooly may independently charge customers:
+
+- convenience fees;
+- booking fees;
+- service fees;
+- processing charges;
+- surge fees;
+- operational charges;
+- applicable taxes.
+
+Such charges may not form part of Partner payouts.
+
+---
+
+## 7.4 GST and Taxes
+
+- All platform commissions and charges are exclusive of GST unless explicitly stated otherwise.
+- Applicable GST and taxes shall be additionally charged where required under law.
+- The Partner remains solely responsible for GST filings and statutory compliance.
+- Droooly may deduct TDS or statutory deductions where applicable.
+
+---
+
+## 7.5 Settlement and Payouts
+
+Payouts may be delayed, adjusted, withheld, reversed, or suspended in cases involving:
+
+- fraud reviews;
+- customer disputes;
+- refunds;
+- chargebacks;
+- policy violations;
+- failed verification;
+- excessive complaints.
+
+Droooly reserves the right to maintain reserve balances or temporary payout holds where operationally necessary.
+
+---
+
+## 7.6 Refunds and Chargebacks
+
+Customer refunds may be initiated by Droooly to protect customer trust and marketplace integrity.
+
+Refund amounts may be recovered from:
+
+- future payouts;
+- reserve balances;
+- pending settlements.
+
+Repeated refund incidents may result in:
+
+- penalties;
+- reduced visibility;
+- payout holds;
+- suspension;
+- permanent termination.
+
+---
+
+## 7.7 Pricing Integrity
+
+The Partner shall not:
+
+- manipulate prices after confirmation;
+- artificially inflate quotations;
+- demand offline settlements;
+- bypass the platform payment flow.
+
+Violations may result in:
+
+- immediate suspension;
+- payout withholding;
+- penalties;
+- permanent termination;
+- legal proceedings.
+
+---
+
+## 7.8 Customer Lead Ownership
+
+All customer inquiries, quote requests, bookings, event requests, and marketplace-generated leads originating through Droooly shall remain platform-originated leads.
+
+The Partner shall not misuse platform-generated customer relationships to avoid commissions or marketplace policies.
+
+---
+
+# 8. PROHIBITED ACTIVITIES
+
+The Partner shall not:
+
+- upload unlawful content;
+- promote banned substances;
+- sell prohibited items;
+- upload offensive or hateful material;
+- upload sexually explicit content;
+- violate food safety laws;
+- engage in fraud;
+- manipulate reviews;
+- misuse customer data;
+- infringe intellectual property;
+- impersonate another entity.
+
+---
+
+# 9. CUSTOMER DATA AND PRIVACY
+
+Customer information shared through the platform shall only be used for legitimate order fulfillment purposes.
+
+The Partner shall not:
+
+- resell customer data;
+- unlawfully share customer information;
+- spam customers;
+- misuse personal information.
+
+---
+
+# 10. INTELLECTUAL PROPERTY
+
+The Partner grants Droooly a non-exclusive, worldwide, royalty-free license to use:
+
+- logos;
+- menus;
+- service descriptions;
+- images;
+- marketing materials;
+- trademarks.
+
+for marketplace operations, advertising, and promotional activities.
+
+---
+
+# 11. INDEMNITY
+
+The Partner agrees to indemnify and hold harmless Droooly against:
+
+- customer claims;
+- food safety violations;
+- legal proceedings;
+- fraud;
+- intellectual property claims;
+- negligence;
+- regulatory penalties;
+- breaches of this Agreement.
+
+---
+
+# 12. LIMITATION OF LIABILITY
+
+Droooly functions solely as a marketplace intermediary platform.
+
+Droooly does not guarantee:
+
+- bookings;
+- revenue;
+- customer traffic;
+- uninterrupted platform availability;
+- business growth.
+
+Droooly’s aggregate liability shall never exceed platform fees earned from the Partner during the preceding three (3) months.
+
+---
+
+# 13. SUSPENSION AND TERMINATION
+
+Droooly may suspend, restrict, delist, or terminate accounts for:
+
+- fraud;
+- unsafe food practices;
+- fake reviews;
+- excessive complaints;
+- illegal activity;
+- payment abuse;
+- reputational harm;
+- policy violations.
+
+---
+
+# 14. GOVERNING LAW AND JURISDICTION
+
+This Agreement shall be governed by the laws of India.
+
+Courts located in Hyderabad, Telangana, India shall have exclusive jurisdiction.
+
+Droooly may elect arbitration where applicable under Indian arbitration laws.
+
+---
+
+# 15. DIGITAL ACCEPTANCE
+
+By digitally accepting this Agreement, the Partner:
+
+- acknowledges enforceability of electronic acceptance;
+- confirms authenticity of submitted information;
+- agrees to all platform policies;
+- accepts digital records maintained by Droooly as valid evidence.
+
+---
+
+# CONTACT
+
+## Droooly Labs Private Limited
+
+SVN Square, India
+
+Email: legal@droooly.com
+
+---
+
+# PARTNER ACCEPTANCE
+
+I hereby confirm that:
+
+- I have read and understood this Agreement;
+- the submitted information is accurate;
+- I agree to comply with Droooly policies;
+- I legally accept this Agreement.
+
+---
+
+**Partner Name:** _______________________
+
+**Business Name:** _______________________
+
+**Digital Signature:** _______________________
+
+**Date:** _______________________
+
+---
+
+END OF AGREEMENT
+`;
 }
 
 const styles: Record<string, React.CSSProperties> = {
@@ -527,12 +1055,83 @@ const styles: Record<string, React.CSSProperties> = {
   },
 
   agreementPreview: {
-    maxHeight: '260px',
-    overflowY: 'auto',
-    padding: '1rem',
-    borderRadius: '0.875rem',
-    backgroundColor: '#f9fafb',
+    background: '#f3f4f8',
     border: '1px solid #e5e7eb',
+    borderRadius: 16,
+    padding: 24,
+    maxHeight: 620,
+    overflowY: 'auto',
+  },
+  
+  pdfPage: {
+    background: '#ffffff',
+    color: '#111827',
+    width: '794px',
+    minHeight: '1123px',
+    margin: '0 auto',
+    padding: '56px 64px',
+    borderRadius: 10,
+    boxShadow: '0 18px 50px rgba(15, 23, 42, 0.12)',
+    fontFamily:
+      'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    fontSize: 13,
+    lineHeight: 1.7,
+  },
+  
+  logo: {
+    display: 'block',
+    width: 180,
+    height: 'auto',
+    margin: '0 auto 24px',
+  },
+  
+  h1: {
+    fontSize: 22,
+    lineHeight: 1.25,
+    color: '#5b3df5',
+    textAlign: 'center' as const,
+    margin: '22px 0 14px',
+    fontWeight: 900,
+    letterSpacing: '-0.02em',
+  },
+  
+  h2: {
+    fontSize: 16,
+    color: '#111827',
+    margin: '22px 0 10px',
+    fontWeight: 850,
+  },
+  
+  h3: {
+    fontSize: 14,
+    color: '#374151',
+    margin: '18px 0 8px',
+    fontWeight: 800,
+  },
+  
+  p: {
+    margin: '7px 0',
+    color: '#374151',
+  },
+  
+  ul: {
+    margin: '8px 0 12px 20px',
+    padding: 0,
+  },
+  
+  li: {
+    margin: '4px 0',
+    color: '#374151',
+  },
+  
+  hr: {
+    borderTop: '1px solid #e5e7eb',
+    margin: '18px 0',
+  },
+  
+  strong: {
+    color: '#111827',
+    fontWeight: 800,
   },
 
   agreementText: {

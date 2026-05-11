@@ -185,9 +185,12 @@
     "@tanstack/react-query-devtools": "^5.91.3",
     "firebase": "^12.12.1",
     "framer-motion": "^12.38.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
     "lucide-react": "^0.577.0",
     "next-auth": "^4.24.13",
     "next-intl": "^4.9.1",
-    "razorpay": "^2.9.6"
+    "razorpay": "^2.9.6",
+    "react-markdown": "^10.1.0"
   }
 }
