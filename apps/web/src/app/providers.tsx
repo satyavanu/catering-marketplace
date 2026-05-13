@@ -11,9 +11,7 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <SessionProvider>
       <QueryClientProvider client={queryClient}>
-        <OnboardingMasterDataProvider>
           <ServiceCatalogMetaProvider>{children}</ServiceCatalogMetaProvider>
-        </OnboardingMasterDataProvider>
       </QueryClientProvider>
     </SessionProvider>
   );
