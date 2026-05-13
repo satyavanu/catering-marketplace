@@ -23,23 +23,23 @@ import { useQueryClient } from '@tanstack/react-query';
 interface MenuItem {
   id: string;
   name: string;
-  description: string;
+  description?: string;
   image_url?: string;
   is_veg: boolean;
-  spice_level: 'mild' | 'medium' | 'spicy' | '';
-  price: number;
+  spice_level?: 'mild' | 'medium' | 'spicy' | '';
+  price?: number;
   created_at?: string;
 }
 
 interface Package {
   id: string;
   name: string;
-  description: string;
-  type: 'fixed' | 'customizable';
-  is_subscribable: boolean;
+  description?: string;
+  type?: 'fixed' | 'customizable';
+  is_subscribable?: boolean;
   base_price: number;
   min_guests: number;
-  sections_count: number;
+  sections_count?: number;
   is_active: boolean;
 }
 
@@ -190,8 +190,13 @@ export default function MenuManagementPage() {
           description: formData.description || undefined,
           image_url: imageUrl,
           is_veg: formData.is_veg,
+          is_vegan: false,
+          is_gluten_free: false,
           spice_level: formData.spice_level || undefined,
+          pricing_type: 'extra',
           price: formData.price,
+          currency_code: 'INR',
+          sort_order: 1,
         });
         setMessages({ error: '', success: 'Item created successfully!' });
       }
@@ -237,7 +242,7 @@ export default function MenuManagementPage() {
       image_preview: item.image_url ? [item.image_url] : [],
       is_veg: item.is_veg,
       spice_level: item.spice_level || '',
-      price: item.price,
+      price: item.price || 0,
     });
     setEditingId(item.id);
     setShowCreateModal(true);

@@ -28,6 +28,9 @@ export * from './queries/notifications';
 export * from './queries/caterer-menu-items';
 export * from './queries/static-data';
 export * from './queries/onboardingUpload';
+export { getAuthHeaders, onboardingKeys } from './hooks';
+export type { Reply, Review } from './queries/reviews';
+export type { VerificationStatus } from './queries/profile';
 // Mutation Hooks
 export * from './mutations/newsletter';
 

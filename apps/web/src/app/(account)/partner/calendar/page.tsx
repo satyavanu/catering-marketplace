@@ -319,7 +319,7 @@ export default function CatererCalendar() {
                           </div>
                         </div>
 
-                        {data && (
+                        {data && statusColor && (
                           <>
                             <div style={styles.listItemMetrics}>
                               <div style={styles.listMetricItem}>
@@ -626,7 +626,7 @@ export default function CatererCalendar() {
                           {day}
                         </div>
 
-                        {dayData && (
+                        {dayData && statusColor && (
                           <>
                             <div style={{ ...styles.dayMetrics, fontSize: responsive.fontSize.metric }}>
                               <span style={styles.metric} title="Meals">
@@ -1089,6 +1089,12 @@ const styles = {
     borderRadius: '8px',
     border: '1px solid #dcfce7',
     marginBottom: '12px',
+  } as const,
+  revenueCard: {
+    padding: '16px',
+    backgroundColor: '#f0fdf4',
+    borderRadius: '10px',
+    border: '1px solid #dcfce7',
   } as const,
   revenueLabel: {
     fontSize: '11px',

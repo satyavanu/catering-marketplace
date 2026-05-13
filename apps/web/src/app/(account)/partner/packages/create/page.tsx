@@ -12,11 +12,19 @@ import {
 import { useCatererMenuItems } from '@catering-marketplace/query-client';
 
 type Step = 'basic' | 'sections' | 'items' | 'pricing' | 'subscription' | 'review';
+type SectionSelectionType = 'fixed' | 'single' | 'multi';
+
+interface NewSectionForm {
+  name: string;
+  selection_type: SectionSelectionType;
+  min_select: number;
+  max_select: number;
+}
 
 interface Section {
   id: string;
   name: string;
-  selection_type: 'fixed' | 'single' | 'multi';
+  selection_type: SectionSelectionType;
   min_select?: number;
   max_select?: number;
   items: SectionItem[];
@@ -69,9 +77,9 @@ export default function CreatePackagePage() {
     },
   });
 
-  const [newSection, setNewSection] = useState({
+  const [newSection, setNewSection] = useState<NewSectionForm>({
     name: '',
-    selection_type: 'single' as const,
+    selection_type: 'single',
     min_select: 1,
     max_select: 1,
   });

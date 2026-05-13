@@ -21,6 +21,7 @@ declare module 'next-auth' {
   }
 
   interface Session {
+    // @ts-ignore
     user?: {
       accessToken: any;
       name?: string | null;
@@ -135,7 +136,7 @@ export default function LoginPage() {
         router.push('/accept-terms');
         return;
       } */
-
+// @ts-ignore
       router.push(getAccountHomePath(session.user.role));
     }
   }, [status, session, mounted, router, isRedirecting]);

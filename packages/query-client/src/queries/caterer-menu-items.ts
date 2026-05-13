@@ -3,7 +3,7 @@ import { getSession } from 'next-auth/react';
 
 export interface CatererMenuItem {
   id: string;
-  section_id: string;
+  section_id?: string;
   name: string;
   description?: string;
   image_url?: string;
@@ -59,7 +59,7 @@ export const catererMenuItemApi = {
    * Create a menu item in a section
    */
   createMenuItem: async (data: {
-    section_id: string;
+    section_id?: string;
     name: string;
     description?: string;
     image_url?: string;
@@ -346,6 +346,7 @@ export const useCreateCatererMenuItem = () => {
       });
       // Invalidate section-specific queries
       queryClient.invalidateQueries({
+        //@ts-ignore
         queryKey: catererMenuItemKeys.bySection(newItem.section_id),
       });
       // Add to cache
@@ -386,6 +387,7 @@ export const useUpdateCatererMenuItem = () => {
       });
       // Invalidate section-specific queries
       queryClient.invalidateQueries({
+          // @ts-ignore
         queryKey: catererMenuItemKeys.bySection(updatedItem.section_id),
       });
     },

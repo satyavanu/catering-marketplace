@@ -2,6 +2,14 @@
 
 import React, { useState } from 'react';
 
+type NotificationKey =
+  | 'newOrders'
+  | 'orderUpdates'
+  | 'promotions'
+  | 'weeklyReport'
+  | 'paymentNotifications'
+  | 'systemAlerts';
+
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('profile');
   const [businessProfile, setBusinessProfile] = useState({
@@ -66,7 +74,7 @@ export default function SettingsPage() {
     }));
   };
 
-  const handleNotificationChange = (key: string) => {
+  const handleNotificationChange = (key: NotificationKey) => {
     setNotifications((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
@@ -531,14 +539,14 @@ export default function SettingsPage() {
           <h2 style={sectionTitleStyle}>Notification Preferences</h2>
 
           <div style={{ display: 'grid', gap: '1.5rem' }}>
-            {[
+            {([
               { key: 'newOrders', label: 'New Orders', description: 'Get notified when you receive new orders' },
               { key: 'orderUpdates', label: 'Order Updates', description: 'Receive updates on order status changes' },
               { key: 'promotions', label: 'Promotions', description: 'Marketing emails and special offers' },
               { key: 'weeklyReport', label: 'Weekly Reports', description: 'Summary of your business performance' },
               { key: 'paymentNotifications', label: 'Payment Notifications', description: 'Updates about payments and refunds' },
               { key: 'systemAlerts', label: 'System Alerts', description: 'Important system notifications' },
-            ].map((item) => (
+            ] satisfies Array<{ key: NotificationKey; label: string; description: string }>).map((item) => (
               <div
                 key={item.key}
                 style={{

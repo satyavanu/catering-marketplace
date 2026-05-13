@@ -26,15 +26,47 @@ import {
   Star,
 } from 'lucide-react';
 
+type BaseMessage = {
+  id: number;
+  sender: 'business' | 'user';
+  timestamp: string;
+  read: boolean;
+};
+
+type TextMessage = BaseMessage & {
+  text: string;
+  type?: undefined;
+};
+
+type TemplateMessage = BaseMessage & {
+  type: 'template';
+  templateType: 'venue_details' | 'menu_confirmation' | string;
+  content: Record<string, any>;
+};
+
+type Message = TextMessage | TemplateMessage;
+
+type Conversation = {
+  id: number;
+  name: string;
+  type: string;
+  avatar: string;
+  lastMessage: string;
+  timestamp: string;
+  unread: number;
+  isPinned: boolean;
+  messages: Message[];
+};
+
 export default function MessagesPage() {
-  const [activeConversation, setActiveConversation] = useState(null);
+  const [activeConversation, setActiveConversation] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [messageText, setMessageText] = useState('');
-  const [showMoreOptions, setShowMoreOptions] = useState(null);
+  const [showMoreOptions, setShowMoreOptions] = useState<number | null>(null);
 
-  const [conversations, setConversations] = useState([
+  const [conversations, setConversations] = useState<Conversation[]>([
     {
       id: 1,
       name: 'The Grand Banquet Hall',
@@ -187,6 +219,14 @@ export default function MessagesPage() {
 
   const handleSendMessage = () => {
     if (messageText.trim() && activeConversation) {
+      const newMessage: Message = {
+        id: 0,
+        sender: 'user',
+        text: messageText,
+        timestamp: 'now',
+        read: false,
+      };
+
       const updatedConversations = conversations.map((conv) => {
         if (conv.id === activeConversation) {
           return {
@@ -194,11 +234,8 @@ export default function MessagesPage() {
             messages: [
               ...conv.messages,
               {
+                ...newMessage,
                 id: conv.messages.length + 1,
-                sender: 'user',
-                text: messageText,
-                timestamp: 'now',
-                read: false,
               },
             ],
             lastMessage: messageText,
@@ -212,7 +249,7 @@ export default function MessagesPage() {
     }
   };
 
-  const togglePin = (convId) => {
+  const togglePin = (convId: number) => {
     setConversations(
       conversations.map((conv) =>
         conv.id === convId ? { ...conv, isPinned: !conv.isPinned } : conv
@@ -220,14 +257,14 @@ export default function MessagesPage() {
     );
   };
 
-  const deleteConversation = (convId) => {
+  const deleteConversation = (convId: number) => {
     setConversations(conversations.filter((conv) => conv.id !== convId));
     if (activeConversation === convId) {
       setActiveConversation(null);
     }
   };
 
-  const MessageBubble = ({ message }) => {
+  const MessageBubble = ({ message }: { message: Message }) => {
     const isUser = message.sender === 'user';
 
     if (message.type === 'template') {
@@ -288,7 +325,7 @@ export default function MessagesPage() {
                 <div style={styles.templateField}>
                   <span style={styles.templateLabel}>🍽️ Menu Options</span>
                   <div style={styles.menuList}>
-                    {message.content.menuOptions.map((option, idx) => (
+                    {(message.content.menuOptions as string[]).map((option: string, idx: number) => (
                       <div key={idx} style={styles.menuItem}>✓ {option}</div>
                     ))}
                   </div>
@@ -506,7 +543,7 @@ export default function MessagesPage() {
                     setShowTemplateModal(false);
                     setMessageText(`[Template: ${template.name}]\n\n`);
                   }}
-                  style={styles.templateCard}
+                  style={styles.modalTemplateCard}
                 >
                   <p style={styles.templateCardTitle}>{template.name}</p>
                   <p style={styles.templateCardDescription}>{template.description}</p>
@@ -527,7 +564,7 @@ export default function MessagesPage() {
   );
 }
 
-const styles = {
+const styles: Record<string, React.CSSProperties> = {
   container: {
     minHeight: '100vh',
     backgroundColor: '#f9fafb',
@@ -771,26 +808,26 @@ const styles = {
     overflowY: 'auto',
     padding: '20px',
     display: 'flex',
-    flexDirection: 'column',
+    flexDirection: 'column' as const,
     gap: '16px',
     backgroundColor: '#ffffff',
   },
   messageBubble: {
     display: 'flex',
-    flexDirection: 'column',
+    flexDirection: 'column' as const,
     maxWidth: '65%',
     padding: '12px 16px',
     borderRadius: '12px',
-    wordWrap: 'break-word',
+    wordWrap: 'break-word' as const,
   },
   userBubble: {
-    alignSelf: 'flex-end',
+    alignSelf: 'flex-end' as const,
     backgroundColor: '#2563eb',
     color: '#ffffff',
     borderBottomRightRadius: '4px',
   },
   businessBubble: {
-    alignSelf: 'flex-start',
+    alignSelf: 'flex-start' as const,
     backgroundColor: '#f3f4f6',
     color: '#111827',
     borderBottomLeftRadius: '4px',
@@ -805,7 +842,7 @@ const styles = {
     fontSize: '11px',
     opacity: 0.7,
   },
-  templateCard: {
+  modalTemplateCard: {
     backgroundColor: '#f0fdf4',
     border: '1px solid #dcfce7',
     borderRadius: '12px',

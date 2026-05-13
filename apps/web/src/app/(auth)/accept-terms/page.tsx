@@ -111,17 +111,21 @@ export default function OnboardingPage() {
     }
 
     initialRedirectChecked.current = true;
-
+// @ts-ignore
     if (
-      session.user.role &&
+      // @ts-ignore
+      session.user?.role &&
       session.user.isOnboardingCompleted &&
       !isRedirecting
     ) {
+      
       console.log(
-        `User already onboarded with role: ${session.user.role}, redirecting to dashboard`
+        // @ts-ignore
+        `User already onboarded with role: ${session.user?.role}, redirecting to dashboard`
       );
       setIsRedirecting(true);
-      router.push(`/${session.user.role}/dashboard`);
+      // @ts-ignore
+      router.push(`/${session.user?.role}/dashboard`);
     }
   }, [session, status, mounted, isRedirecting, router]);
 

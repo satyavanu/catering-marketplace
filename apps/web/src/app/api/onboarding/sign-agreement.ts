@@ -1,5 +1,4 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { prisma } from '@/lib/prisma';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
 const s3Client = new S3Client({ region: process.env.AWS_REGION });
@@ -47,21 +46,6 @@ export default async function handler(
         ContentType: 'application/pdf',
       })
     );
-
-    // Save record to database
-    const signedAgreement = await prisma.signedAgreement.create({
-      data: {
-        documentId,
-        partnerId,
-        signatureS3Url: `s3://${process.env.AWS_S3_BUCKET}/${signatureKey}`,
-        agreementPdfS3Url: `s3://${process.env.AWS_S3_BUCKET}/${pdfKey}`,
-        termsAccepted,
-        privacyAccepted,
-        signedAt: new Date(signedAt),
-        ipAddress,
-        userAgent: req.headers['user-agent'],
-      },
-    });
 
     res.status(200).json({
       success: true,

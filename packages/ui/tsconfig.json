@@ -24,6 +24,7 @@
   "exclude": ["node_modules", "dist"],
   "references": [
     { "path": "../types" },
+    { "path": "../shared" },
     { "path": "../themes" }
   ]
 }

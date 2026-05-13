@@ -430,7 +430,7 @@ export default function CalendarDatePage({ params }: { params: { date: string } 
             </div>
             <div>
               <p style={styles.metricLabel}>Status</p>
-              <h3 style={styles.metricValue} style={{ textTransform: 'uppercase' }}>
+              <h3 style={{ ...styles.metricValue, textTransform: 'uppercase' }}>
                 {dayData.status}
               </h3>
             </div>

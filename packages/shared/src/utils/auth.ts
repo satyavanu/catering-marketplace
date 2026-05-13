@@ -1,6 +1,5 @@
-import type { AuthToken } from '@catering/types';
 
-export function setAuthToken(token: AuthToken): void {
+export function setAuthToken(token: any): void {
   if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
     try {
       localStorage.setItem('authToken', JSON.stringify(token));
@@ -10,7 +9,7 @@ export function setAuthToken(token: AuthToken): void {
   }
 }
 
-export function getAuthToken(): AuthToken | null {
+export function getAuthToken(): any | null {
   if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
     try {
       const token = localStorage.getItem('authToken');

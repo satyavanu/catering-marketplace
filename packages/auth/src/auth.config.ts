@@ -2,7 +2,7 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
 import FacebookProvider from 'next-auth/providers/facebook';
 import AppleProvider from 'next-auth/providers/apple';
-import type { NextAuthOptions, User as NextAuthUser } from 'next-auth';
+import type { DefaultSession, NextAuthOptions, User as NextAuthUser } from 'next-auth';
 
 export type PartnerSessionProfile = {
   id: string;
@@ -24,6 +24,21 @@ export type PartnerSessionProfile = {
 };
 
 declare module 'next-auth' {
+  interface Session {
+    user?: DefaultSession['user'] & {
+      permissions?: string[];
+      refreshToken?: string;
+      accessToken?: string;
+      fullName?: string;
+      referralCode?: string;
+      tokenExpiresIn?: number;
+      tokenExpiresAt?: number;
+      isOnboardingCompleted?: boolean;
+      isPartner?: boolean;
+      partner?: PartnerSessionProfile | null;
+    };
+  }
+
   interface User {
     permissions?: string[];
     refreshToken?: string;

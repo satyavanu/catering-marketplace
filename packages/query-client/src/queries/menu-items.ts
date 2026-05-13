@@ -4,6 +4,7 @@ import { getSession } from 'next-auth/react';
 export interface MenuItem {
   id: string;
   name: string;
+  category_id?: string;
   category: string;
   description: string;
   price: number;

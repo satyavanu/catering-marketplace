@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getSession } from 'next-auth/react';
 
 // ============ TYPES ============
+type MenuItemPricingType = 'included' | 'extra' | 'on_request' | 'per_plate' | 'per_person';
+
 interface MenuItem {
   id: string;
   section_id: string;
@@ -12,7 +14,7 @@ interface MenuItem {
   is_vegan: boolean;
   is_gluten_free: boolean;
   spice_level?: 'mild' | 'medium' | 'spicy';
-  pricing_type: 'included' | 'extra' | 'on_request';
+  pricing_type: MenuItemPricingType;
   price?: number;
   currency_code?: string;
   sort_order: number;
@@ -21,6 +23,21 @@ interface MenuItem {
   updated_at: string;
 }
 
+type SectionSelectionType = 'fixed' | 'single' | 'multi';
+type SectionAdditionalChargeType = 'none' | 'per_item' | 'percentage';
+
+type MenuSectionPayload = {
+  name: string;
+  description?: string;
+  sort_order: number;
+  is_active?: boolean;
+  max_items_selectable?: number;
+  selection_type?: SectionSelectionType;
+  additional_charge_type?: SectionAdditionalChargeType;
+  additional_charge_amount?: number;
+  additional_charge_description?: string;
+};
+
 export interface MenuSection {
   id: string;
   collection_id?: string;
@@ -28,6 +45,11 @@ export interface MenuSection {
   description?: string;
   sort_order: number;
   is_active: boolean;
+  max_items_selectable?: number;
+  selection_type?: SectionSelectionType;
+  additional_charge_type?: SectionAdditionalChargeType;
+  additional_charge_amount?: number;
+  additional_charge_description?: string;
   created_at: string;
   updated_at: string;
   items?: MenuItem[];
@@ -38,12 +60,15 @@ export interface MenuCollection {
   caterer_id: string;
   name: string;
   description?: string;
+  type?: 'fixed' | 'customizable';
   image_url?: string;
   pricing_type: 'per_plate' | 'per_person' | 'fixed' | 'on_request';
   base_price: number;
   currency_code: string;
   min_guests: number;
   max_guests: number;
+  sections_count?: number;
+  is_subscribable?: boolean;
   is_active: boolean;
   sort_order: number;
   created_at: string;
@@ -254,11 +279,7 @@ export const packagesMenuApi = {
    */
   createCollectionSection: async (
     collectionId: string,
-    data: {
-      name: string;
-      description?: string;
-      sort_order: number;
-    }
+    data: MenuSectionPayload
   ): Promise<MenuSection> => {
     try {
       const headers = await getAuthHeaders();
@@ -295,7 +316,7 @@ export const packagesMenuApi = {
         name: string;
         description?: string;
         sort_order: number;
-      }>;
+      } & Omit<MenuSectionPayload, 'name' | 'description' | 'sort_order'>>;
     }
   ): Promise<MenuSection[]> => {
     try {
@@ -355,11 +376,7 @@ export const packagesMenuApi = {
   /**
    * Create a standalone section
    */
-  createSection: async (data: {
-    name: string;
-    description?: string;
-    sort_order: number;
-  }): Promise<MenuSection> => {
+  createSection: async (data: MenuSectionPayload): Promise<MenuSection> => {
     try {
       const headers = await getAuthHeaders();
       const res = await fetch(`${API_BASE_URL}/api/v1/my/menu/sections`, {
@@ -435,12 +452,7 @@ export const packagesMenuApi = {
    */
   updateSection: async (
     sectionId: string,
-    data: Partial<{
-      name: string;
-      description: string;
-      is_active: boolean;
-      sort_order: number;
-    }>
+    data: Partial<MenuSectionPayload>
   ): Promise<MenuSection> => {
     try {
       const headers = await getAuthHeaders();
@@ -505,7 +517,7 @@ export const packagesMenuApi = {
       is_vegan: boolean;
       is_gluten_free: boolean;
       spice_level?: 'mild' | 'medium' | 'spicy';
-      pricing_type: 'included' | 'extra' | 'on_request';
+      pricing_type: MenuItemPricingType;
       price?: number;
       currency_code?: string;
       sort_order: number;
@@ -550,7 +562,7 @@ export const packagesMenuApi = {
         is_vegan: boolean;
         is_gluten_free: boolean;
         spice_level?: 'mild' | 'medium' | 'spicy';
-        pricing_type: 'included' | 'extra' | 'on_request';
+        pricing_type: MenuItemPricingType;
         price?: number;
         currency_code?: string;
         sort_order: number;
@@ -622,7 +634,7 @@ export const packagesMenuApi = {
       is_vegan: boolean;
       is_gluten_free: boolean;
       spice_level: 'mild' | 'medium' | 'spicy';
-      pricing_type: 'included' | 'extra' | 'on_request';
+      pricing_type: MenuItemPricingType;
       price: number;
       currency_code: string;
       is_active: boolean;

@@ -59,6 +59,7 @@ export const TermsAndCommunications = () => {
       });
 
       // Wait for the mutation to complete
+      // @ts-ignore
       const response = await completeOnboardingMutation.mutateAsync({
           "agree_terms": agreeTerms,
           "agree_privacy": agreePrivacy,

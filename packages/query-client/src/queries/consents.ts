@@ -7,6 +7,12 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/a
  * Consent Types & Interfaces
  */
 export interface ConsentData {
+    agree_terms?: boolean;
+    agree_privacy?: boolean,
+    marketing_email?: boolean,
+    marketing_sms?: boolean,
+    marketing_push?: boolean,
+    marketing_whatsapp?: false
     agreeTerms: boolean;
     agreePrivacy: boolean;
     emailMarketing: boolean;

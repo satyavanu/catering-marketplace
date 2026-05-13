@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import {
@@ -11,17 +11,10 @@ import {
   verifyBookingPayment,
 } from '@catering-marketplace/query-client';
 import {
-  CalendarIcon,
   CheckIcon,
-  XMarkIcon,
-  ShoppingCartIcon,
-  StarIcon,
   ArrowRightIcon,
   ArrowLeftIcon,
   CheckCircleIcon,
-  ClockIcon,
-  DocumentTextIcon,
-  SparklesIcon,
   LockClosedIcon,
 } from '@heroicons/react/24/outline';
 
@@ -288,7 +281,24 @@ const ALL_PLANS: MealPlan[] = [
   },
 ];
 
+
 export default function CheckoutPage() {
+  return (
+    <Suspense fallback={<CheckoutLoading />}>
+      <CheckoutPageInner />
+    </Suspense>
+  );
+}
+
+function CheckoutLoading() {
+  return (
+    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>
+      Loading checkout...
+    </div>
+  );
+}
+
+function CheckoutPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { status: sessionStatus } = useSession();
