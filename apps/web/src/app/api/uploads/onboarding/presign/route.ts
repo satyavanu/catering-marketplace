@@ -25,10 +25,10 @@ const ALLOWED_CONTENT_TYPES = new Set([
 const MAX_FILE_SIZE_MB = 10;
 
 const s3Client = new S3Client({
-  region: process.env.AWS_REGION!,
+  region: process.env.AMPLIFY_AWS_REGION!,
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    accessKeyId: process.env.AMPLIFY_AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.AMPLIFY_AWS_SECRET_ACCESS_KEY!,
   },
 });
 
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const bucket = process.env.AWS_S3_ONBOARDING_BUCKET;
+    const bucket = process.env.AMPLIFY_AWS_S3_ONBOARDING_BUCKET;
 
     if (!bucket) {
       return NextResponse.json(
@@ -140,7 +140,7 @@ export async function POST(req: NextRequest) {
       expiresIn: 60 * 5,
     });
 
-    const publicBaseUrl = process.env.AWS_S3_ONBOARDING_PUBLIC_BASE_URL;
+    const publicBaseUrl = process.env.AMPLIFY_AWS_S3_ONBOARDING_PUBLIC_BASE_URL;
 
     return NextResponse.json({
       uploadUrl,

@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
-const s3Client = new S3Client({ region: process.env.AWS_REGION });
+const s3Client = new S3Client({ region: process.env.AMPLIFY_AWS_REGION });
 
 export default async function handler(
   req: NextApiRequest,
@@ -29,7 +29,7 @@ export default async function handler(
     const signatureKey = `signatures/${documentId}_signature.png`;
     await s3Client.send(
       new PutObjectCommand({
-        Bucket: process.env.AWS_S3_BUCKET,
+        Bucket: process.env.AMPLIFY_AWS_S3_BUCKET,
         Key: signatureKey,
         Body: Buffer.from(signatureImage.split(',')[1], 'base64'),
         ContentType: 'image/png',
@@ -40,7 +40,7 @@ export default async function handler(
     const pdfKey = `agreements/${documentId}_agreement.pdf`;
     await s3Client.send(
       new PutObjectCommand({
-        Bucket: process.env.AWS_S3_BUCKET,
+        Bucket: process.env.AMPLIFY_AWS_S3_BUCKET,
         Key: pdfKey,
         Body: Buffer.from(signedAgreementPDF, 'base64'),
         ContentType: 'application/pdf',
