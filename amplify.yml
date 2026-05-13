@@ -1,0 +1,22 @@
+version: 1
+
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - rm -rf apps/web/node_modules
+        - npm install
+
+    build:
+      commands:
+        - npm run build:web
+
+  artifacts:
+    baseDirectory: apps/web/.next
+    files:
+      - '**/*'
+
+  cache:
+    paths:
+      - node_modules/**/*
+      - apps/web/.next/cache/**/*

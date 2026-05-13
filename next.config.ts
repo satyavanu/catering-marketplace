@@ -1,13 +1,9 @@
-import { NextConfig } from 'next';
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
   images: {
-    domains: ['example.com'], // Replace with your image domains
-  },
-  experimental: {
-    appDir: true,
+    domains: ['example.com'],
   },
 };
 
