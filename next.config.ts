@@ -5,6 +5,9 @@ const nextConfig: NextConfig = {
   images: {
     domains: ['example.com'],
   },
+  outputFileTracingIncludes: {
+    '/*': ['./.env.production'],
+  },
 };
 
 export default nextConfig;
