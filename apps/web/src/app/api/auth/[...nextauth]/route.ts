@@ -10,6 +10,8 @@ console.log('AUTH CHECK', {
     nextAuthUrl: process.env.NEXTAUTH_URL,
 });
 
+console.log("All envs,", process.env);
+
 
 const handler = NextAuth({
   ...authOptions,
