@@ -4,6 +4,13 @@ import NextAuth from 'next-auth';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+console.log('AUTH CHECK', {
+    hasNextAuthSecret: !!process.env.NEXTAUTH_SECRET,
+    hasAuthSecret: !!process.env.AUTH_SECRET,
+    nextAuthUrl: process.env.NEXTAUTH_URL,
+});
+
+
 const handler = NextAuth({
   ...authOptions,
   secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET,
