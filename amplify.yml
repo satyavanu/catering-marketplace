@@ -1,17 +1,32 @@
 version: 1
 applications:
   - appRoot: apps/web
-    buildPath: /
     frontend:
       phases:
         preBuild:
           commands:
+            - cd ../..
             - npm install
-            - npm dedupe
         build:
           commands:
-            - npm run build
+           - mkdir -p apps/web
+            - rm -f apps/web/.env.production
+            - touch apps/web/.env.production
+            - env | grep -e '^NEXTAUTH_' >> apps/web/.env.production || true
+            - env | grep -e '^AUTH_' >> apps/web/.env.production || true
+            - env | grep -e '^GOOGLE_' >> apps/web/.env.production || true
+            - env | grep -e '^RAZORPAY_' >> apps/web/.env.production || true
+            - env | grep -e '^AWS_' >> apps/web/.env.production || true
+            - env | grep -e '^S3_' >> apps/web/.env.production || true
+            - env | grep -e '^NEXT_PUBLIC_' >> apps/web/.env.production || true
+            - echo "---- .env.production ----"
+            - cat apps/web/.env.production | sed 's/=.*/=***MASKED***/'
+            - npm run build:web
       artifacts:
         baseDirectory: apps/web/.next
         files:
           - '**/*'
+      cache:
+        paths:
+          - ../../node_modules/**/*
+          -  apps/web/.next/cache/**/*
