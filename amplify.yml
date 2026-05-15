@@ -17,6 +17,7 @@ applications:
             - env | grep -e '^NEXTAUTH_' >> apps/web/.env.production || true
             - env | grep -e '^AUTH_' >> apps/web/.env.production || true
             - env | grep -e '^GOOGLE_' >> apps/web/.env.production || true
+            - env | grep -e '^AMPLIFY_' >> apps/web/.env.production || true
             - env | grep -e '^RAZORPAY_' >> apps/web/.env.production || true
             - env | grep -e '^AWS_' >> apps/web/.env.production || true
             - env | grep -e '^S3_' >> apps/web/.env.production || true
