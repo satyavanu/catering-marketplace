@@ -366,6 +366,11 @@ export const authOptions: NextAuthOptions = {
       clientId: process.env.FACEBOOK_CLIENT_ID || '',
       clientSecret: process.env.FACEBOOK_CLIENT_SECRET || '',
       allowDangerousEmailAccountLinking: true,
+      authorization: {
+        params: {
+          scope: 'email public_profile',
+        },
+      },
       profile: async (profile) => {
         return {
           id: profile.id,
