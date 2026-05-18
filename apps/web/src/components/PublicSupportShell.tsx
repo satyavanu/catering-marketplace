@@ -13,9 +13,8 @@ type PublicSupportShellProps = {
   showFooter?: boolean;
 };
 
-const navItems = [
+const headerItems = [
   { label: 'FAQ', href: '/faq', match: '/faq' },
-  { label: 'Terms', href: '/terms-of-use', match: '/terms-of-use' },
   { label: 'Contact', href: '/contact-us', match: '/contact-us' },
   {
     label: 'Become a Partner',
@@ -23,6 +22,13 @@ const navItems = [
     match: '/partner-with-us',
     extraMatches: ['/onboarding', '/become-a-caterer'],
   },
+];
+
+const footerItems = [
+  { label: 'Help', href: '/faq', match: '/faq' },
+  { label: 'Privacy', href: '/privacy-policy', match: '/privacy-policy' },
+  { label: 'Terms', href: '/terms-of-use', match: '/terms-of-use' },
+  { label: 'Contact', href: '/contact-us', match: '/contact-us' },
 ];
 
 export default function PublicSupportShell({
@@ -125,7 +131,7 @@ export default function PublicSupportShell({
           </Link>
 
           <nav aria-label="Support pages" className="support-nav">
-            {navItems.map((item) => {
+            {headerItems.map((item) => {
               const isActive =
                 pathname === item.match ||
                 item.extraMatches?.some((match) => pathname.startsWith(match));
@@ -168,7 +174,7 @@ export default function PublicSupportShell({
               © 2026 Droooly. All rights reserved.
             </span>
             <div style={styles.footerLinks}>
-              {navItems.slice(1).map((item) => (
+              {footerItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
