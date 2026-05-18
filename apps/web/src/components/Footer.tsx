@@ -99,7 +99,7 @@ const Footer = () => {
               <FooterLink href="/press-media" label="Press & Media" />
               <FooterLink href="/careers" label="Careers" />
               <FooterLink href="/blog" label="Blog" />
-              <FooterLink href="/contact" label="Contact Us" />
+              <FooterLink href="/contact-us" label="Contact Us" />
             </div>
           </div>
 
@@ -125,7 +125,7 @@ const Footer = () => {
               <FooterLink href="/corporate-catering" label="Corporate Catering" />
               <FooterLink href="/wedding-catering" label="Wedding Catering" />
               <FooterLink href="/offers-deals" label="Offers & Deals" />
-              <FooterLink href="/help-center" label="Help Center" />
+              <FooterLink href="/faq" label="Help Center" />
               <FooterLink href="/track-order" label="Track Your Order" />
             </div>
           </div>
@@ -147,7 +147,7 @@ const Footer = () => {
             </h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               <FooterLink href="/partner-with-us" label="Partner With Us" />
-              <FooterLink href="/become-caterer" label="Become a Caterer" />
+              <FooterLink href="/become-a-caterer" label="Become a Caterer" />
               <FooterLink href="/become-chef" label="Become a Chef" />
               <FooterLink href="/gift-cards" label="Gift Cards" />
               <FooterLink href="/partner-login" label="Partner Login" />
@@ -172,11 +172,11 @@ const Footer = () => {
               Legal
             </h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <FooterLink href="/terms-conditions" label="Terms & Conditions" />
+              <FooterLink href="/terms-of-use" label="Terms & Conditions" />
               <FooterLink href="/privacy-policy" label="Privacy Policy" />
               <FooterLink href="/refund-cancellation" label="Refund & Cancellation" />
               <FooterLink href="/shipping-policy" label="Shipping Policy" />
-              <FooterLink href="/cookies-policy" label="Cookies Policy" />
+              <FooterLink href="/cookie-policy" label="Cookies Policy" />
             </div>
           </div>
 

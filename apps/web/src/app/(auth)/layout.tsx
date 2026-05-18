@@ -3,9 +3,9 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import React from 'react';
-
-const LOGO_URL =
-  'https://ckklrguidafoseanzmdk.supabase.co/storage/v1/object/public/assets/logo/logo.png';
+import PublicSupportShell, {
+  DROOOLY_LOGO_URL,
+} from '@/components/PublicSupportShell';
 
 export default function AuthLayout({
   children,
@@ -14,6 +14,14 @@ export default function AuthLayout({
 }) {
   const pathname = usePathname();
   const isOnboarding = pathname.startsWith('/onboarding');
+
+  if (isOnboarding) {
+    return (
+      <PublicSupportShell contentMaxWidth={860}>
+        {children}
+      </PublicSupportShell>
+    );
+  }
 
   return (
     <div
@@ -63,7 +71,7 @@ export default function AuthLayout({
             }}
           >
             <img
-              src={LOGO_URL}
+              src={DROOOLY_LOGO_URL}
               alt="Droooly"
               style={{
                 width: 124,
@@ -89,36 +97,16 @@ export default function AuthLayout({
               lineHeight: 1.4,
             }}
           >
-            <Link
-              href="/help-center"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={styles.footerLink}
-            >
-              Help
+            <Link href="/faq" style={styles.footerLink}>
+              FAQ
             </Link>
-            <Link
-              href="/privacy-policy"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={styles.footerLink}
-            >
+            <Link href="/privacy-policy" style={styles.footerLink}>
               Privacy
             </Link>
-            <Link
-              href="/terms-of-use"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={styles.footerLink}
-            >
+            <Link href="/terms-of-use" style={styles.footerLink}>
               Terms
             </Link>
-            <Link
-              href="/contact"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={styles.footerLink}
-            >
+            <Link href="/contact-us" style={styles.footerLink}>
               Contact
             </Link>
           </footer>

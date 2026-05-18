@@ -1283,7 +1283,7 @@ function ServiceCheckout({
               </button>
               <button
                 type="button"
-                onClick={() => window.location.assign('/contact')}
+                onClick={() => window.location.assign('/contact-us')}
               >
                 Contact support
               </button>

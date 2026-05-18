@@ -604,7 +604,7 @@ export default function AboutUsPage() {
             </Link>
 
             <Link
-              href="/become-caterer"
+              href="/become-a-caterer"
               style={{
                 padding: '12px 28px',
                 backgroundColor: 'rgba(255, 255, 255, 0.15)',

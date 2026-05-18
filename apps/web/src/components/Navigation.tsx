@@ -9,7 +9,7 @@ const Navigation: React.FC = () => {
                 <li><a href="/caterers" className="hover:underline">Caterers</a></li>
                 <li><a href="/menus" className="hover:underline">Menus</a></li>
                 <li><a href="/about" className="hover:underline">About Us</a></li>
-                <li><a href="/contact" className="hover:underline">Contact</a></li>
+                <li><a href="/contact-us" className="hover:underline">Contact</a></li>
             </ul>
             <div>
                 <button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
