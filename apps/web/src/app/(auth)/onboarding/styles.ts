@@ -13,11 +13,11 @@ export const styles: { [key: string]: React.CSSProperties } = {
   content: {
     width: '100%',
     maxWidth: '760px',
-    backgroundColor: 'white',
-    border: '1px solid #e5e7eb',
-    borderRadius: '18px',
-    boxShadow: '0 18px 45px rgba(15, 23, 42, 0.08)',
-    padding: 'clamp(1.25rem, 4vw, 2rem)',
+    backgroundColor: 'transparent',
+    border: 'none',
+    borderRadius: 0,
+    boxShadow: 'none',
+    padding: 0,
   } as React.CSSProperties,
   progressContainer: {
     width: '100%',

@@ -66,11 +66,11 @@ export default function TermsOfUsePage() {
 
 const styles: Record<string, CSSProperties> = {
   card: {
-    background: '#ffffff',
-    border: '1px solid #e5e7eb',
-    borderRadius: 18,
-    boxShadow: '0 18px 45px rgba(15, 23, 42, 0.08)',
-    padding: 'clamp(24px, 5vw, 44px)',
+    background: 'transparent',
+    border: 'none',
+    borderRadius: 0,
+    boxShadow: 'none',
+    padding: 0,
   },
   hero: {
     textAlign: 'center',
@@ -117,10 +117,11 @@ const styles: Record<string, CSSProperties> = {
     lineHeight: 1.8,
   },
   callout: {
-    marginTop: 28,
-    padding: 22,
+    marginTop: 34,
+    padding: '22px 24px',
     borderRadius: 14,
-    background: 'linear-gradient(135deg, #f3e8ff 0%, #eef6ff 100%)',
+    border: '1px solid #ede9fe',
+    background: 'linear-gradient(135deg, #f5f3ff 0%, #fbfaff 100%)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',

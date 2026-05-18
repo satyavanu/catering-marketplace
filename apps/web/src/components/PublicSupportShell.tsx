@@ -29,14 +29,93 @@ export default function PublicSupportShell({
   const pathname = usePathname();
 
   return (
-    <div style={styles.page}>
-      <div style={{ ...styles.wrap, maxWidth: contentMaxWidth }}>
-        <header style={styles.header}>
+    <div className="support-page" style={styles.page}>
+      <style>{`
+        .support-shell {
+          border-radius: 14px;
+        }
+
+        .support-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+        }
+
+        .support-nav {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 22px;
+        }
+
+        .support-nav-link {
+          position: relative;
+        }
+
+        .support-nav-link::after {
+          content: '';
+          position: absolute;
+          left: 0;
+          right: 0;
+          bottom: -8px;
+          height: 3px;
+          border-radius: 999px;
+          background: transparent;
+        }
+
+        .support-nav-link-active::after {
+          background: #8b5cf6;
+        }
+
+        @media (max-width: 760px) {
+          .support-page {
+            padding: 12px;
+          }
+
+          .support-shell {
+            border-radius: 12px;
+          }
+
+          .support-header {
+            align-items: flex-start;
+            gap: 14px;
+          }
+
+          .support-nav {
+            width: 100%;
+            justify-content: flex-start;
+            gap: 14px;
+            overflow-x: auto;
+            padding: 2px 0 12px;
+            scrollbar-width: none;
+          }
+
+          .support-body {
+            padding: 20px 18px 28px !important;
+          }
+
+          .support-nav::-webkit-scrollbar {
+            display: none;
+          }
+
+          .support-footer {
+            align-items: flex-start;
+            flex-direction: column;
+          }
+        }
+      `}</style>
+
+      <div
+        className="support-shell"
+        style={{ ...styles.shell, maxWidth: contentMaxWidth }}
+      >
+        <header className="support-header" style={styles.header}>
           <Link href="/" aria-label="Droooly home" style={styles.logoLink}>
             <img src={DROOOLY_LOGO_URL} alt="Droooly" style={styles.logo} />
           </Link>
 
-          <nav aria-label="Support pages" style={styles.nav}>
+          <nav aria-label="Support pages" className="support-nav">
             {navItems.map((item) => {
               const isActive = pathname === item.match;
 
@@ -44,6 +123,9 @@ export default function PublicSupportShell({
                 <Link
                   key={item.href}
                   href={item.href}
+                  className={`support-nav-link${
+                    isActive ? ' support-nav-link-active' : ''
+                  }`}
                   style={{
                     ...styles.navLink,
                     ...(isActive ? styles.navLinkActive : null),
@@ -56,10 +138,12 @@ export default function PublicSupportShell({
           </nav>
         </header>
 
-        {children}
+        <div className="support-body" style={styles.body}>
+          {children}
+        </div>
 
         {showFooter ? (
-          <footer style={styles.footer}>
+          <footer className="support-footer" style={styles.footer}>
             <span style={styles.copyright}>
               © 2026 Droooly. All rights reserved.
             </span>
@@ -89,24 +173,27 @@ const styles: Record<string, CSSProperties> = {
     width: '100%',
     minHeight: '100vh',
     background:
-      'radial-gradient(circle at top left, rgba(124, 58, 237, 0.12), transparent 32rem), linear-gradient(180deg, #fbfbff 0%, #eef2f7 100%)',
+      'radial-gradient(circle at top, rgba(139, 92, 246, 0.12), transparent 42rem), linear-gradient(180deg, #fbfbff 0%, #eef2f7 100%)',
     fontFamily:
       '"Google Sans", roboto, "Noto Sans Myanmar UI", "Noto Sans Khmer", arial, sans-serif',
     color: '#151126',
-    padding: 'clamp(16px, 3vw, 32px)',
+    padding: 'clamp(18px, 4vw, 48px)',
   },
-  wrap: {
+  shell: {
     width: '100%',
+    minHeight: 'calc(100vh - 96px)',
     margin: '0 auto',
+    background: '#ffffff',
+    border: '1px solid #e8eaf0',
+    boxShadow: '0 22px 60px rgba(15, 23, 42, 0.09)',
+    overflow: 'hidden',
   },
   header: {
     width: '100%',
-    minHeight: 68,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    minHeight: 76,
     gap: 24,
-    marginBottom: 20,
+    padding: '22px clamp(24px, 5vw, 48px) 16px',
+    borderBottom: '1px solid transparent',
   },
   logoLink: {
     display: 'inline-flex',
@@ -115,47 +202,42 @@ const styles: Record<string, CSSProperties> = {
     textDecoration: 'none',
   },
   logo: {
-    width: 122,
+    width: 108,
     height: 'auto',
     display: 'block',
     objectFit: 'contain',
   },
-  nav: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: 6,
-    flexWrap: 'wrap',
+  body: {
+    padding: '24px clamp(24px, 5vw, 48px) 32px',
   },
   navLink: {
-    minHeight: 36,
+    minHeight: 28,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '0 12px',
-    borderRadius: 8,
+    padding: 0,
+    borderRadius: 0,
     color: '#64748b',
     fontSize: 13,
     fontWeight: 800,
     lineHeight: 1,
     textDecoration: 'none',
-    borderBottom: '2px solid transparent',
+    whiteSpace: 'nowrap',
   },
   navLinkActive: {
     color: '#7c3aed',
-    background: '#f3e8ff',
-    borderBottomColor: '#8b5cf6',
   },
   footer: {
-    marginTop: 24,
-    padding: '18px 6px 0',
+    padding: '18px clamp(24px, 5vw, 48px) 22px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 16,
     flexWrap: 'wrap',
+    borderTop: '1px solid #eef2f7',
+    background: '#ffffff',
     color: '#64748b',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: 700,
   },
   copyright: {

@@ -126,11 +126,11 @@ export default function ContactUsPage() {
 
 const styles: Record<string, CSSProperties> = {
   card: {
-    background: '#ffffff',
-    border: '1px solid #e5e7eb',
-    borderRadius: 18,
-    boxShadow: '0 18px 45px rgba(15, 23, 42, 0.08)',
-    padding: 'clamp(24px, 5vw, 44px)',
+    background: 'transparent',
+    border: 'none',
+    borderRadius: 0,
+    boxShadow: 'none',
+    padding: 0,
   },
   hero: {
     textAlign: 'center',
@@ -163,13 +163,13 @@ const styles: Record<string, CSSProperties> = {
   },
   form: {
     padding: 22,
-    borderRadius: 14,
+    borderRadius: 10,
     border: '1px solid #eef2f7',
     background: '#fbfdff',
   },
   sidePanel: {
     padding: 22,
-    borderRadius: 14,
+    borderRadius: 10,
     border: '1px solid #eef2f7',
     background: '#fbfdff',
   },
@@ -256,10 +256,11 @@ const styles: Record<string, CSSProperties> = {
     lineHeight: 1.5,
   },
   callout: {
-    marginTop: 28,
-    padding: 22,
+    marginTop: 34,
+    padding: '22px 24px',
     borderRadius: 14,
-    background: 'linear-gradient(135deg, #eef6ff 0%, #f3e8ff 100%)',
+    border: '1px solid #dbeafe',
+    background: 'linear-gradient(135deg, #eff6ff 0%, #f8fbff 100%)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',

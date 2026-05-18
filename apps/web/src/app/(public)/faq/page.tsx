@@ -69,6 +69,17 @@ export default function FAQPage() {
 
   return (
     <PublicSupportShell>
+      <style>{`
+        @media (max-width: 680px) {
+          .faq-layout {
+            grid-template-columns: 1fr !important;
+          }
+
+          .faq-categories {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+      `}</style>
       <main style={styles.card}>
         <section style={styles.hero}>
           <p style={styles.kicker}>FAQ</p>
@@ -88,8 +99,12 @@ export default function FAQPage() {
           />
         </label>
 
-        <div style={styles.layout}>
-          <aside style={styles.categoryList} aria-label="FAQ categories">
+        <div className="faq-layout" style={styles.layout}>
+          <aside
+            className="faq-categories"
+            style={styles.categoryList}
+            aria-label="FAQ categories"
+          >
             {categories.map((category) => {
               const isActive = activeCategory === category;
 
@@ -160,11 +175,11 @@ export default function FAQPage() {
 
 const styles: Record<string, CSSProperties> = {
   card: {
-    background: '#ffffff',
-    border: '1px solid #e5e7eb',
-    borderRadius: 18,
-    boxShadow: '0 18px 45px rgba(15, 23, 42, 0.08)',
-    padding: 'clamp(24px, 5vw, 44px)',
+    background: 'transparent',
+    border: 'none',
+    borderRadius: 0,
+    boxShadow: 'none',
+    padding: 0,
   },
   hero: {
     textAlign: 'center',
@@ -212,8 +227,8 @@ const styles: Record<string, CSSProperties> = {
   },
   layout: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
-    gap: 20,
+    gridTemplateColumns: 'minmax(150px, 220px) minmax(0, 1fr)',
+    gap: 18,
     alignItems: 'start',
   },
   categoryList: {
@@ -277,10 +292,11 @@ const styles: Record<string, CSSProperties> = {
     fontSize: 14,
   },
   callout: {
-    marginTop: 28,
-    padding: 22,
+    marginTop: 34,
+    padding: '22px 24px',
     borderRadius: 14,
-    background: 'linear-gradient(135deg, #ecfdf5 0%, #eef6ff 100%)',
+    border: '1px solid #d8f5e4',
+    background: 'linear-gradient(135deg, #ecfdf5 0%, #f2fbf7 100%)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
