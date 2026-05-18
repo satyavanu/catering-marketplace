@@ -30,7 +30,7 @@ const contactOptions = [
 
 export default function ContactUsPage() {
   return (
-    <PublicSupportShell contentMaxWidth={980}>
+    <PublicSupportShell>
       <main style={styles.card}>
         <section style={styles.hero}>
           <p style={styles.kicker}>Contact Us</p>

@@ -14,16 +14,20 @@ type PublicSupportShellProps = {
 };
 
 const navItems = [
-  { label: 'Become a Partner', href: '/onboarding', match: '/onboarding' },
   { label: 'FAQ', href: '/faq', match: '/faq' },
-  { label: 'Privacy', href: '/privacy-policy', match: '/privacy-policy' },
   { label: 'Terms', href: '/terms-of-use', match: '/terms-of-use' },
   { label: 'Contact', href: '/contact-us', match: '/contact-us' },
+  {
+    label: 'Become a Partner',
+    href: '/become-a-caterer',
+    match: '/become-a-caterer',
+    extraMatches: ['/onboarding'],
+  },
 ];
 
 export default function PublicSupportShell({
   children,
-  contentMaxWidth = 920,
+  contentMaxWidth = 1280,
   showFooter = true,
 }: PublicSupportShellProps) {
   const pathname = usePathname();
@@ -32,7 +36,7 @@ export default function PublicSupportShell({
     <div className="support-page" style={styles.page}>
       <style>{`
         .support-shell {
-          border-radius: 14px;
+          border-radius: 16px;
         }
 
         .support-header {
@@ -74,7 +78,7 @@ export default function PublicSupportShell({
           }
 
           .support-shell {
-            border-radius: 12px;
+            border-radius: 0;
           }
 
           .support-header {
@@ -93,6 +97,11 @@ export default function PublicSupportShell({
 
           .support-body {
             padding: 20px 18px 28px !important;
+          }
+
+          .support-actions {
+            width: 100%;
+            justify-content: flex-start !important;
           }
 
           .support-nav::-webkit-scrollbar {
@@ -117,7 +126,9 @@ export default function PublicSupportShell({
 
           <nav aria-label="Support pages" className="support-nav">
             {navItems.map((item) => {
-              const isActive = pathname === item.match;
+              const isActive =
+                pathname === item.match ||
+                item.extraMatches?.some((match) => pathname.startsWith(match));
 
               return (
                 <Link
@@ -136,6 +147,15 @@ export default function PublicSupportShell({
               );
             })}
           </nav>
+
+          <div className="support-actions" style={styles.actions}>
+            <Link href="/login" style={styles.signInButton}>
+              Sign in
+            </Link>
+            <Link href="/onboarding" style={styles.getStartedButton}>
+              Get Started
+            </Link>
+          </div>
         </header>
 
         <div className="support-body" style={styles.body}>
@@ -177,11 +197,11 @@ const styles: Record<string, CSSProperties> = {
     fontFamily:
       '"Google Sans", roboto, "Noto Sans Myanmar UI", "Noto Sans Khmer", arial, sans-serif',
     color: '#151126',
-    padding: 'clamp(18px, 4vw, 48px)',
+    padding: '0 clamp(12px, 3vw, 28px)',
   },
   shell: {
     width: '100%',
-    minHeight: 'calc(100vh - 96px)',
+    minHeight: '100vh',
     margin: '0 auto',
     background: '#ffffff',
     border: '1px solid #e8eaf0',
@@ -190,9 +210,9 @@ const styles: Record<string, CSSProperties> = {
   },
   header: {
     width: '100%',
-    minHeight: 76,
-    gap: 24,
-    padding: '22px clamp(24px, 5vw, 48px) 16px',
+    minHeight: 86,
+    gap: 26,
+    padding: '18px clamp(28px, 4vw, 52px) 14px',
     borderBottom: '1px solid transparent',
   },
   logoLink: {
@@ -202,13 +222,13 @@ const styles: Record<string, CSSProperties> = {
     textDecoration: 'none',
   },
   logo: {
-    width: 108,
+    width: 104,
     height: 'auto',
     display: 'block',
     objectFit: 'contain',
   },
   body: {
-    padding: '24px clamp(24px, 5vw, 48px) 32px',
+    padding: '16px clamp(28px, 4vw, 52px) 30px',
   },
   navLink: {
     minHeight: 28,
@@ -218,7 +238,7 @@ const styles: Record<string, CSSProperties> = {
     padding: 0,
     borderRadius: 0,
     color: '#64748b',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: 800,
     lineHeight: 1,
     textDecoration: 'none',
@@ -227,8 +247,48 @@ const styles: Record<string, CSSProperties> = {
   navLinkActive: {
     color: '#7c3aed',
   },
+  actions: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 12,
+    marginLeft: 'auto',
+  },
+  signInButton: {
+    minWidth: 78,
+    minHeight: 42,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '0 18px',
+    border: '1px solid #a78bfa',
+    borderRadius: 8,
+    color: '#7c3aed',
+    background: '#ffffff',
+    fontSize: 13,
+    fontWeight: 850,
+    textDecoration: 'none',
+    whiteSpace: 'nowrap',
+  },
+  getStartedButton: {
+    minWidth: 108,
+    minHeight: 42,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '0 20px',
+    border: '1px solid transparent',
+    borderRadius: 8,
+    color: '#ffffff',
+    background: 'linear-gradient(90deg, #8b5cf6, #7c3aed)',
+    boxShadow: '0 10px 22px rgba(124, 58, 237, 0.2)',
+    fontSize: 13,
+    fontWeight: 850,
+    textDecoration: 'none',
+    whiteSpace: 'nowrap',
+  },
   footer: {
-    padding: '18px clamp(24px, 5vw, 48px) 22px',
+    padding: '22px clamp(28px, 4vw, 52px) 28px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',

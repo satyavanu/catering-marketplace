@@ -16,11 +16,7 @@ export default function AuthLayout({
   const isOnboarding = pathname.startsWith('/onboarding');
 
   if (isOnboarding) {
-    return (
-      <PublicSupportShell contentMaxWidth={860}>
-        {children}
-      </PublicSupportShell>
-    );
+    return <PublicSupportShell>{children}</PublicSupportShell>;
   }
 
   return (
