@@ -146,8 +146,8 @@ const Footer = () => {
               For Partners
             </h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <FooterLink href="/become-a-caterer" label="Partner With Us" />
-              <FooterLink href="/become-a-caterer" label="Become a Caterer" />
+              <FooterLink href="/partner-with-us" label="Partner With Us" />
+              <FooterLink href="/partner-with-us" label="Become a Caterer" />
               <FooterLink href="/become-chef" label="Become a Chef" />
               <FooterLink href="/gift-cards" label="Gift Cards" />
               <FooterLink href="/partner-login" label="Partner Login" />

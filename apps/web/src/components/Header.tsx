@@ -1037,7 +1037,7 @@ const Header = () => {
           <div className="desktop-actions">
             <CityButton />
             <Link
-              href="/become-a-caterer"
+              href="/partner-with-us"
               style={{
                 fontSize: '14px',
                 fontWeight: '500',
@@ -1706,7 +1706,7 @@ const Header = () => {
                   </Link>
 
                   <Link
-                    href="/become-a-caterer"
+                    href="/partner-with-us"
                     onClick={() => setIsMobileMenuOpen(false)}
                     style={{
                       fontSize: '13px',
@@ -1753,7 +1753,7 @@ const Header = () => {
               ) : (
                 <>
                   <Link
-                    href="/become-a-caterer"
+                    href="/partner-with-us"
                     onClick={() => setIsMobileMenuOpen(false)}
                     style={{
                       fontSize: '13px',

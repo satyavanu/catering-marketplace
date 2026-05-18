@@ -524,7 +524,7 @@ export default function HomePage() {
                 style={styles.partnerButton}
                 onClick={() => {
                   closeMobileNav();
-                  router.push('/become-a-caterer');
+                  router.push('/partner-with-us');
                 }}
               >
                 Become a Partner

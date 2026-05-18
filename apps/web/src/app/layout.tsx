@@ -32,9 +32,21 @@ export const manrope = Manrope({
 export const metadata: Metadata = {
   title: 'Droooly - Find & Book Catering Services',
   description: 'Discover and book trusted catering services for your events',
+  manifest: '/favicon/site.webmanifest',
   icons: {
-    icon: '/favicon.ico',
-    apple: '/apple-touch-icon.png',
+    icon: [
+      { url: '/favicon/favicon.ico' },
+      {
+        url: '/favicon/favicon.svg',
+        type: 'image/svg+xml',
+      },
+      {
+        url: '/favicon/favicon-96x96.png',
+        sizes: '96x96',
+        type: 'image/png',
+      },
+    ],
+    apple: '/favicon/apple-touch-icon.png',
   },
 };
 
@@ -57,7 +69,7 @@ export default function RootLayout({
     >
       <head>
         <meta charSet="utf-8" />
-        <meta name="theme-color" content="#667eea" />
+        <meta name="theme-color" content="#8b5cf6" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta

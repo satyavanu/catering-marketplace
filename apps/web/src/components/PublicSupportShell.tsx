@@ -19,9 +19,9 @@ const navItems = [
   { label: 'Contact', href: '/contact-us', match: '/contact-us' },
   {
     label: 'Become a Partner',
-    href: '/become-a-caterer',
-    match: '/become-a-caterer',
-    extraMatches: ['/onboarding'],
+    href: '/partner-with-us',
+    match: '/partner-with-us',
+    extraMatches: ['/onboarding', '/become-a-caterer'],
   },
 ];
 
