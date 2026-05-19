@@ -48,7 +48,7 @@ type AuthMode = 'login' | 'signup';
 type ContactMethod = 'email' | 'phone' | 'invalid';
 
 const OTP_LENGTH = 6;
-const RESEND_SECONDS = 30;
+const RESEND_SECONDS = 180;
 const SOCIAL_ICONS = {
   google:
     'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg',
