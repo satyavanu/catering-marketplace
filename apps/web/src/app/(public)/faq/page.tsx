@@ -6,44 +6,153 @@ import Link from 'next/link';
 import { ChevronDown, Search } from 'lucide-react';
 import PublicSupportShell from '@/components/PublicSupportShell';
 
-const categories = ['General', 'Onboarding', 'Account & Security', 'Billing', 'Partnerships'];
+const categories = [
+  'General',
+  'Customers',
+  'Bookings & Quotes',
+  'Payments & Refunds',
+  'Partners',
+  'Account & Privacy',
+];
 
 const faqs = [
   {
     category: 'General',
     question: 'What is Droooly?',
     answer:
-      'Droooly is a catering marketplace and partner onboarding platform that helps customers find trusted food service providers and helps partners set up their profiles, documents, service areas, and agreements.',
+      'Droooly is a food services marketplace operated by Droooly Labs Private Limited. It helps customers discover and book catering, private chef, restaurant experiences, and related food services from independent partners.',
   },
   {
-    category: 'Onboarding',
-    question: 'How does partner onboarding work?',
+    category: 'General',
+    question: 'Where is Droooly currently available?',
     answer:
-      'Partners complete a guided flow for profile details, business information, service areas, KYC and bank details, and agreement acceptance. Saved progress can be resumed when you sign back in.',
+      'Droooly may initially be available in selected cities and service areas. Availability depends on partner coverage, service type, event location, and operational readiness.',
   },
   {
-    category: 'Onboarding',
-    question: 'How long does verification take?',
+    category: 'Customers',
+    question: 'Do I need an account to use Droooly?',
     answer:
-      'Most partner profiles can be reviewed quickly after all required details are submitted. Complex document checks or missing information may take longer.',
+      'You may browse available services without completing every account detail, but bookings, quote requests, payments, order tracking, support, and account deletion require a verified account.',
   },
   {
-    category: 'Account & Security',
-    question: 'Is my data secure?',
+    category: 'Customers',
+    question: 'What types of services can I book?',
     answer:
-      'Droooly uses security controls for account access, payments, and partner verification. You should also keep your login details private and use a trusted device when completing onboarding.',
+      'Depending on availability, you may book catering, private chef services, restaurant experiences, event food packages, custom menus, add-ons, and related food service options.',
   },
   {
-    category: 'Billing',
+    category: 'Bookings & Quotes',
+    question: 'What is the difference between instant booking and quote request?',
+    answer:
+      'Instant booking is used when price, package, date, guest count, and service details are clear. Quote request is used when the partner needs to review your event requirements and send a custom price before you confirm.',
+  },
+  {
+    category: 'Bookings & Quotes',
+    question: 'What happens after I request a quote?',
+    answer:
+      'The partner reviews your event details and may approve, reject, or respond with a custom quote. Once you approve the quote, Droooly may create a booking and ask for deposit or full payment based on the booking rules.',
+  },
+  {
+    category: 'Bookings & Quotes',
+    question: 'Can I change my booking after confirmation?',
+    answer:
+      'Changes may be possible depending on partner availability, event date, preparation work, guest count, menu, and pricing impact. Some changes may require partner approval or additional payment.',
+  },
+  {
+    category: 'Bookings & Quotes',
+    question: 'Can a partner reject my booking or quote request?',
+    answer:
+      'Yes. A partner may reject a request if they are unavailable, outside the service area, unable to support the guest count, or unable to meet the requested menu, timing, or event requirements.',
+  },
+  {
+    category: 'Payments & Refunds',
     question: 'How are payments handled?',
     answer:
-      'Payments are processed through secure payment providers. Booking, refund, and cancellation details are shown during the relevant checkout or partner workflow.',
+      'Payments are processed through trusted third-party payment providers. Droooly may support deposits, full payments, refunds, and partner payouts depending on the service and booking status.',
   },
   {
-    category: 'Partnerships',
-    question: 'Can I save my progress and continue later?',
+    category: 'Payments & Refunds',
+    question: 'Do I need to pay a deposit?',
     answer:
-      'Yes. Once your onboarding session starts, Droooly saves your completed steps so you can return and continue where you left off.',
+      'Some bookings may require an advance or deposit to confirm the order. The payable amount, balance amount, and payment status will be shown during checkout or booking confirmation.',
+  },
+  {
+    category: 'Payments & Refunds',
+    question: 'How do refunds work?',
+    answer:
+      'Refund eligibility depends on the cancellation timing, partner policy, preparation work already started, payment status, event date, and applicable platform rules. Refund timelines may also depend on the payment provider or bank.',
+  },
+  {
+    category: 'Payments & Refunds',
+    question: 'What happens if a partner cancels?',
+    answer:
+      'If a partner cancels, Droooly may help review the case, notify the customer, support refunds where applicable, and take action against the partner such as payout hold, deduction, suspension, or delisting.',
+  },
+  {
+    category: 'Partners',
+    question: 'Who can become a Droooly partner?',
+    answer:
+      'Caterers, private chefs, restaurants, cloud kitchens, and eligible food service providers may apply to become partners, subject to service area, documentation, verification, and platform approval.',
+  },
+  {
+    category: 'Partners',
+    question: 'How does partner onboarding work?',
+    answer:
+      'Partners complete a guided onboarding flow with profile details, business information, service areas, KYC, bank details, documents, service setup, and agreement acceptance. Progress can be saved and resumed later.',
+  },
+  {
+    category: 'Partners',
+    question: 'What documents are required for partners?',
+    answer:
+      'Required documents may vary by country and business type. In India, partners may be asked for PAN, GST details if applicable, FSSAI details if applicable, bank details, business information, and other verification documents.',
+  },
+  {
+    category: 'Partners',
+    question: 'How long does partner verification take?',
+    answer:
+      'Verification time depends on completeness of information, document quality, business type, and review volume. Missing, expired, unclear, or incorrect documents may delay approval.',
+  },
+  {
+    category: 'Partners',
+    question: 'When do partners receive payouts?',
+    answer:
+      'Partner payouts may be processed after successful service completion, subject to settlement cycle, refunds, disputes, deductions, taxes, payment provider timelines, and platform rules.',
+  },
+  {
+    category: 'Partners',
+    question: 'Can partners update pricing and packages?',
+    answer:
+      'Yes. Partners may update packages, add-ons, service areas, pricing, images, and availability where supported. Some changes may be reviewed by Droooly before becoming visible.',
+  },
+  {
+    category: 'Account & Privacy',
+    question: 'Is my data secure?',
+    answer:
+      'Droooly uses reasonable technical, administrative, and organisational safeguards to protect account, booking, payment, and partner verification information. Users should also keep login access and devices secure.',
+  },
+  {
+    category: 'Account & Privacy',
+    question: 'How can I delete my account?',
+    answer:
+      'You can request deletion from the app through Account → Delete Account, or by contacting Droooly support. We may verify your identity before processing the request.',
+  },
+  {
+    category: 'Account & Privacy',
+    question: 'Will all my data be deleted immediately?',
+    answer:
+      'Some personal data may be deleted or anonymised, but records related to active orders, payments, refunds, invoices, taxes, disputes, fraud prevention, partner KYC, agreements, or payouts may be retained where legally or operationally required.',
+  },
+  {
+    category: 'Account & Privacy',
+    question: 'Can I correct my account information?',
+    answer:
+      'Yes. You can update supported profile details in your account or contact support for correction requests. Some verified partner, payment, tax, or KYC details may require additional review before changes are applied.',
+  },
+  {
+    category: 'Account & Privacy',
+    question: 'How can I contact Droooly support?',
+    answer:
+      'You can contact Droooly through the Contact Us page for account, booking, partner onboarding, privacy, refund, or support-related questions.',
   },
 ];
 
