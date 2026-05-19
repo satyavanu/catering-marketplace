@@ -9,12 +9,16 @@ export default function CookiePolicyPage() {
       <div style={{ backgroundColor: '#f97316', color: 'white', paddingTop: '4rem', paddingBottom: '2rem', marginBottom: '4rem' }}>
         <div className="max-w-7xl px-4">
           <h1 style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '1rem' }}>Cookie Policy</h1>
-          <p style={{ fontSize: '1rem', opacity: 0.9 }}>Last updated: March 11, 2026</p>
+          <p style={{ fontSize: '1rem', opacity: 0.9 }}>Last updated: May 20, 2026</p>
         </div>
       </div>
 
       <div className="max-w-7xl px-4" style={{ marginBottom: '4rem', maxWidth: '800px' }}>
         <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', padding: '2rem', border: '1px solid #e5e7eb' }}>
+          <p style={{ color: '#6b7280', lineHeight: '1.8', marginBottom: '2rem' }}>
+            This Cookie Policy explains how Droooly Labs Private Limited uses cookies and similar technologies across the Droooly website, account dashboard, and related web experiences.
+          </p>
+
           <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#111827', marginBottom: '1rem' }}>
             1. What Are Cookies?
           </h2>

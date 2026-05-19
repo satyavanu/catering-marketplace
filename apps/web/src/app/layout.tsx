@@ -6,6 +6,7 @@ import './globals.css';
 import Script from 'next/script';
 import { Inter, Manrope, Plus_Jakarta_Sans, Sora } from 'next/font/google';
 import { OnboardingMasterDataProvider } from './context/OnboardingMasterDataContext';
+import CookieConsentBanner from '@/components/CookieConsentBanner';
 
 export const inter = Inter({
   subsets: ['latin'],
@@ -83,14 +84,10 @@ export default function RootLayout({
       />
       <body>
         <Providers>
-        
-                <OnboardingMasterDataProvider>
-                {children}
-                  
-                  </OnboardingMasterDataProvider>
- 
- 
-        
+          <OnboardingMasterDataProvider>
+            {children}
+            <CookieConsentBanner />
+          </OnboardingMasterDataProvider>
         </Providers>
       </body>
     </html>
