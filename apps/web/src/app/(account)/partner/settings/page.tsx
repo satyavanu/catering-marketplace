@@ -2,7 +2,6 @@
 
 import type React from 'react';
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import {
   Bell,
@@ -227,9 +226,9 @@ export default function PartnerSettingsPage() {
             icon={<Building2 size={18} />}
           >
             <div style={styles.reviewGrid}>
-              <ReviewItem title="Business profile" status={onboardingStatus} description="Kitchen profile, service details, and partner onboarding information." href="/partner/profile" />
-              <ReviewItem title="KYC documents" status="Review in profile" description="PAN, GST, FSSAI, and supporting verification documents." href="/partner/profile" />
-              <ReviewItem title="Payout details" status="Review in profile" description="Bank account, UPI, and settlement readiness." href="/partner/profile" />
+              <ReviewItem title="Business profile" status={onboardingStatus} description="Kitchen profile, service details, and partner onboarding information." />
+              <ReviewItem title="KYC documents" status="Locked" description="PAN, GST, FSSAI, and supporting verification documents are managed through onboarding review." />
+              <ReviewItem title="Payout details" status="Locked" description="Bank account, UPI, and settlement readiness are shown on Earnings." />
             </div>
           </SettingsSection>
         </div>
@@ -243,9 +242,7 @@ export default function PartnerSettingsPage() {
             <div style={styles.stack}>
               <InfoItem label="Login method" value="OTP / Social sign-in" icon={<Smartphone size={16} />} />
               <InfoItem label="Session state" value="Active" icon={<CheckCircle2 size={16} />} />
-              <Link href="/partner/profile" style={styles.secondaryLink}>
-                Review Profile
-              </Link>
+              <span style={styles.secondaryNote}>Profile editing is disabled for now.</span>
             </div>
           </SettingsSection>
 
@@ -336,21 +333,19 @@ function ReviewItem({
   title,
   status,
   description,
-  href,
 }: {
   title: string;
   status: string;
   description: string;
-  href: string;
 }) {
   return (
-    <Link href={href} style={styles.reviewItem}>
+    <div style={styles.reviewItem}>
       <span>
         <strong style={styles.reviewTitle}>{title}</strong>
         <span style={styles.reviewDescription}>{description}</span>
       </span>
       <span style={styles.statusBadge}>{status}</span>
-    </Link>
+    </div>
   );
 }
 
@@ -571,17 +566,16 @@ const styles: Record<string, React.CSSProperties> = {
     whiteSpace: 'nowrap',
   },
   stack: { display: 'grid', gap: 10 },
-  secondaryLink: {
+  secondaryNote: {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 36,
+    minHeight: 34,
     borderRadius: 8,
-    border: '1px solid #cbd5e1',
-    color: '#334155',
-    textDecoration: 'none',
+    background: '#f8fafc',
+    color: '#64748b',
     fontSize: 13,
-    fontWeight: 850,
+    fontWeight: 750,
   },
   checkList: { display: 'grid', gap: 10 },
   checkRow: {

@@ -8,9 +8,11 @@ import {
   useCustomerBookings,
   usePartnerBooking,
   usePartnerBookings,
+  useMyPartnerService,
   type BookingDetail,
   type BookingOrderSummary,
   type BookingPaymentSummary,
+  type PartnerServiceDetail,
 } from '@catering-marketplace/query-client';
 
 type BookingsPanelProps = {
@@ -304,6 +306,10 @@ function BookingDetailModal({
   onClose: () => void;
   onCancel?: () => void;
 }) {
+  const serviceQuery = useMyPartnerService(
+    role === 'partner' ? booking?.serviceId : undefined
+  );
+
   return (
     <div style={styles.modalOverlay}>
       <section style={styles.modal}>
@@ -361,6 +367,13 @@ function BookingDetailModal({
               />
             </div>
 
+            <ServiceDetailsPanel
+              booking={booking}
+              service={serviceQuery.data}
+              isLoading={serviceQuery.isLoading}
+              isError={serviceQuery.isError}
+            />
+
             {booking.paymentSummary && (
               <section style={styles.subPanel}>
                 <h3 style={styles.subTitle}>Payment summary</h3>
@@ -404,6 +417,68 @@ function BookingDetailModal({
         )}
       </section>
     </div>
+  );
+}
+
+function ServiceDetailsPanel({
+  booking,
+  service,
+  isLoading,
+  isError,
+}: {
+  booking: BookingDetail;
+  service?: PartnerServiceDetail;
+  isLoading: boolean;
+  isError: boolean;
+}) {
+  const attributes = service?.attributes || {};
+
+  return (
+    <section style={styles.subPanel}>
+      <h3 style={styles.subTitle}>Service details</h3>
+      {booking.serviceId && isLoading ? (
+        <div style={styles.miniEmpty}>Loading service details...</div>
+      ) : isError ? (
+        <div style={styles.miniEmpty}>
+          Service record could not be loaded. Showing booking snapshot.
+        </div>
+      ) : (
+        <div style={styles.sectionGrid}>
+          <DetailBlock
+            label="Service"
+            value={service?.title || labelize(booking.serviceType)}
+            sub={service?.short_description || booking.serviceId || 'Service id pending'}
+          />
+          <DetailBlock
+            label="Pricing"
+            value={
+              service
+                ? formatServicePrice(service)
+                : formatCurrency(booking.totalAmount, booking.currency)
+            }
+            sub={
+              service?.pricing_model
+                ? labelize(service.pricing_model)
+                : 'Booking total snapshot'
+            }
+          />
+          <DetailBlock
+            label="Guest limits"
+            value={
+              service
+                ? `${service.min_guests || 1}-${service.max_guests || 'many'}`
+                : `${booking.guestCount}`
+            }
+            sub={`${service?.advance_notice_hours ?? 0} hours advance notice`}
+          />
+          <DetailBlock
+            label="Service attributes"
+            value={formatAttributeList(attributes)}
+            sub={`${service?.service_areas?.length || 0} service areas`}
+          />
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -674,6 +749,27 @@ function formatTime(value?: string) {
     hour: 'numeric',
     minute: '2-digit',
   }).format(date);
+}
+
+function formatServicePrice(service: PartnerServiceDetail) {
+  if (service.base_price == null) return 'Custom quote';
+  return new Intl.NumberFormat('en', {
+    style: 'currency',
+    currency: service.currency_code || 'INR',
+    maximumFractionDigits: 0,
+  }).format(service.base_price);
+}
+
+function formatAttributeList(attributes: Record<string, unknown>) {
+  const values = [
+    attributes.food_type,
+    attributes.service_location,
+    attributes.location_model,
+  ]
+    .filter(Boolean)
+    .map((value) => labelize(String(value)));
+
+  return values.length ? values.join(' · ') : 'Attributes pending';
 }
 
 function formatCurrency(value: number, currency: string) {

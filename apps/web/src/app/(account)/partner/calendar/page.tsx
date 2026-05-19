@@ -96,7 +96,7 @@ export default function PartnerCalendarPage() {
             Unable to load the booking calendar right now.
           </div>
         ) : (
-          <div style={styles.layout}>
+          <div style={styles.calendarStack}>
             <div style={styles.calendarScroll}>
               <div style={styles.calendarSurface}>
                 <div style={styles.weekHeader}>
@@ -147,8 +147,17 @@ export default function PartnerCalendarPage() {
               </div>
             </div>
 
-            <aside style={styles.sidePanel}>
-              <h3 style={styles.sideTitle}>{formatDate(selectedDate)}</h3>
+            <section style={styles.agendaPanel}>
+              <div style={styles.agendaHeader}>
+                <div>
+                  <h3 style={styles.sideTitle}>{formatDate(selectedDate)}</h3>
+                  <p style={styles.panelHint}>
+                    {selectedItems.length
+                      ? `${selectedItems.length} booking${selectedItems.length === 1 ? '' : 's'} scheduled`
+                      : 'No booking selected for this date'}
+                  </p>
+                </div>
+              </div>
               {selectedItems.length === 0 ? (
                 <div style={styles.sideEmpty}>No bookings on this date.</div>
               ) : (
@@ -158,7 +167,7 @@ export default function PartnerCalendarPage() {
                   ))}
                 </div>
               )}
-            </aside>
+            </section>
           </div>
         )}
 
@@ -387,11 +396,9 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 800,
     cursor: 'pointer',
   },
-  layout: {
+  calendarStack: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
     gap: 16,
-    alignItems: 'start',
   },
   calendarScroll: { overflowX: 'auto', paddingBottom: 2 },
   calendarSurface: { minWidth: 760 },
@@ -443,11 +450,17 @@ const styles: Record<string, React.CSSProperties> = {
     whiteSpace: 'nowrap',
   },
   moreText: { color: '#475569', fontSize: 11, fontWeight: 800 },
-  sidePanel: {
+  agendaPanel: {
     borderRadius: 8,
     border: '1px solid #e5e7eb',
     background: '#f8fafc',
     padding: 14,
+  },
+  agendaHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 12,
   },
   sideTitle: { margin: '0 0 12px', color: '#111827', fontSize: 16, fontWeight: 850 },
   sideEmpty: {
@@ -459,7 +472,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 13,
     fontWeight: 750,
   },
-  eventList: { display: 'grid', gap: 12 },
+  eventList: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 },
   eventCard: {
     padding: 12,
     borderRadius: 8,

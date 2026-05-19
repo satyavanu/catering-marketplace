@@ -1631,7 +1631,7 @@ function EventPreview({
         <div style={styles.previewChecklist}>
           {steps.slice(0, -1).map((step) => (
             <span key={step.key} style={styles.previewCheck}>
-              {stepValidity[step.key] ? 'OK' : 'Todo'} {step.label}
+              {stepValidity[step.key] ? 'Ready' : 'Needs info'} {step.label}
             </span>
           ))}
         </div>
@@ -1652,7 +1652,6 @@ const styles: Record<string, React.CSSProperties> = {
   page: {
     padding: '6px 0 32px',
     color: '#111827',
-    fontFamily: 'var(--font-manrope), var(--font-sora), sans-serif',
   },
   backLink: {
     border: 'none',

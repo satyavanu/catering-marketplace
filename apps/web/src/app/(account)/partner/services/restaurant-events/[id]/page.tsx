@@ -285,7 +285,6 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     gap: 18,
-    fontFamily: 'var(--font-manrope), var(--font-sora), sans-serif',
   },
   header: {
     display: 'flex',
