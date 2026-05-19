@@ -14,6 +14,21 @@ const publicRoutes = [
     changeFrequency: 'weekly',
   },
   {
+    path: '/become-a-caterer',
+    priority: 0.8,
+    changeFrequency: 'weekly',
+  },
+  {
+    path: '/become-a-caterer/signup',
+    priority: 0.6,
+    changeFrequency: 'monthly',
+  },
+  {
+    path: '/login',
+    priority: 0.5,
+    changeFrequency: 'monthly',
+  },
+  {
     path: '/how-it-works',
     priority: 0.8,
     changeFrequency: 'monthly',
@@ -25,6 +40,11 @@ const publicRoutes = [
   },
   {
     path: '/faq',
+    priority: 0.7,
+    changeFrequency: 'monthly',
+  },
+  {
+    path: '/help-center',
     priority: 0.7,
     changeFrequency: 'monthly',
   },

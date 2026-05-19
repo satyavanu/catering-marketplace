@@ -95,10 +95,6 @@ const Footer = () => {
             </h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               <FooterLink href="/about-us" label="About Us" />
-              <FooterLink href="/how-it-works" label="How It Works" />
-              <FooterLink href="/press-media" label="Press & Media" />
-              <FooterLink href="/careers" label="Careers" />
-              <FooterLink href="/blog" label="Blog" />
               <FooterLink href="/contact-us" label="Contact Us" />
             </div>
           </div>
@@ -119,14 +115,11 @@ const Footer = () => {
               For Customers
             </h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <FooterLink href="/browse-caterers" label="Browse Caterers" />
-              <FooterLink href="/meal-plans" label="Meal Plans" />
-              <FooterLink href="/personal-chefs" label="Personal Chefs" />
-              <FooterLink href="/corporate-catering" label="Corporate Catering" />
-              <FooterLink href="/wedding-catering" label="Wedding Catering" />
-              <FooterLink href="/offers-deals" label="Offers & Deals" />
-              <FooterLink href="/faq" label="Help Center" />
-              <FooterLink href="/track-order" label="Track Your Order" />
+              <FooterLink href="/" label="Home" />
+              <FooterLink href="/how-it-works" label="How It Works" />
+              <FooterLink href="/faq" label="FAQ" />
+              <FooterLink href="/help-center" label="Help Center" />
+              <FooterLink href="/login" label="Login At Droooly" />
             </div>
           </div>
 
@@ -146,13 +139,10 @@ const Footer = () => {
               For Partners
             </h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <FooterLink href="/partner-with-us" label="Partner With Us" />
-              <FooterLink href="/partner-with-us" label="Become a Caterer" />
-              <FooterLink href="/become-chef" label="Become a Chef" />
-              <FooterLink href="/gift-cards" label="Gift Cards" />
-              <FooterLink href="/partner-login" label="Partner Login" />
-              <FooterLink href="/resources" label="Resources" />
-              <FooterLink href="/success-stories" label="Success Stories" />
+              <FooterLink href="/partner-with-us" label="Become a Partner" />
+              <FooterLink href="/become-a-caterer" label="Become a Caterer" />
+              <FooterLink href="/become-a-caterer/signup" label="Partner Signup" />
+              <FooterLink href="/login" label="Partner Login" />
             </div>
           </div>
 
@@ -174,9 +164,7 @@ const Footer = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               <FooterLink href="/terms-of-use" label="Terms & Conditions" />
               <FooterLink href="/privacy-policy" label="Privacy Policy" />
-              <FooterLink href="/refund-cancellation" label="Refund & Cancellation" />
-              <FooterLink href="/shipping-policy" label="Shipping Policy" />
-              <FooterLink href="/cookie-policy" label="Cookies Policy" />
+              <FooterLink href="/cookie-policy" label="Cookie Policy" />
             </div>
           </div>
 
