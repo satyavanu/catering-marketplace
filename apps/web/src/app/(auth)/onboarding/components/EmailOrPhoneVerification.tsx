@@ -130,6 +130,7 @@ export default function EmailOrPhoneVerification({
     try {
       const result = await sendOtpApi({
         ...normalizedContact,
+        intent,
       });
 
       if (!result.success) {
@@ -161,6 +162,7 @@ export default function EmailOrPhoneVerification({
     try {
       const result = await sendOtpApi({
         ...normalizedContact,
+        intent,
       });
 
       if (!result.success) {
@@ -194,6 +196,7 @@ export default function EmailOrPhoneVerification({
       const result = await signIn(provider, {
         ...normalizedContact,
         otp,
+        intent,
         redirect: false,
       });
 

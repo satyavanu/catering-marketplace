@@ -6,7 +6,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 interface SendOtpPayload {
   email?: string;
   phone?: string;
-  intent?: 'login' | 'signup';
+  intent?: 'login' | 'signup' | 'partner_onboarding';
   full_name?: string;
 }
 
@@ -14,7 +14,7 @@ interface VerifyOtpPayload {
   email?: string;
   phone?: string;
   otp: string;
-  intent?: 'login' | 'signup';
+  intent?: 'login' | 'signup' | 'partner_onboarding';
   full_name?: string;
   referral_code?: string;
 }
