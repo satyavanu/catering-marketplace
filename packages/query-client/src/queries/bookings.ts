@@ -392,9 +392,9 @@ export const useCancelPartnerBooking = (
   return useMutation({
     mutationFn: cancelPartnerBooking,
     ...options,
-    onSuccess: (data, variables, context) => {
+    onSuccess: (data, variables, context, mutation) => {
       queryClient.invalidateQueries({ queryKey: bookingQueryKeys.all });
-      options?.onSuccess?.(data, variables, context);
+      options?.onSuccess?.(data, variables, context, mutation);
     },
   });
 };
