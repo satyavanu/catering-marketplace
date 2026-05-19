@@ -107,7 +107,11 @@ export interface Booking {
   platformFeeAmount: number;
   partnerEarningAmount: number;
   totalAmount: number;
+  advanceAmount?: number;
+  paidAmount?: number;
+  balanceAmount?: number;
   paymentStatus: string;
+  paymentSummary?: PaymentSummary;
   payoutStatus: string;
   customerName?: string;
   customerEmail?: string;
@@ -116,6 +120,15 @@ export interface Booking {
   cityName?: string;
   postalCode?: string;
   countryCode?: string;
+  billingType?: string;
+  companyName?: string;
+  taxNumberType?: string;
+  taxNumber?: string;
+  billingDetails?: Record<string, unknown>;
+  billingAddress?: Record<string, unknown>;
+  pricingSnapshot?: Record<string, unknown>;
+  cancellationReason?: string;
+  cancelledBy?: string;
   metadata?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
@@ -126,10 +139,12 @@ export interface BookingOrderSummary {
   orderNumber: string;
   razorpayOrderId?: string;
   status: string;
+  paymentStage?: string;
   totalAmount: number;
   currency: string;
   paidAt?: string;
   createdAt: string;
+  payments?: BookingPaymentSummary[];
 }
 
 export interface BookingPaymentSummary {
@@ -146,8 +161,50 @@ export interface BookingPaymentSummary {
 }
 
 export interface BookingDetail extends Booking {
+  orders?: BookingOrderSummary[];
   order?: BookingOrderSummary;
   payment?: BookingPaymentSummary;
+}
+
+export interface PaymentSummary {
+  advanceAmount: number;
+  paidAmount: number;
+  balanceAmount: number;
+  paymentStatus: string;
+  isAdvancePaid?: boolean | null;
+  isFullyPaid: boolean;
+  nextPayment?: {
+    type: string;
+    amount: number;
+  } | null;
+}
+
+export interface PartnerBookingCalendarItem {
+  id: string;
+  bookingNumber: string;
+  title: string;
+  status: string;
+  paymentStatus: string;
+  eventDate: string;
+  startTime?: string;
+  endTime?: string;
+  guestCount: number;
+  customerName?: string;
+  customerPhone?: string;
+  location: string;
+  currency: string;
+  totalAmount: number;
+  balanceAmount: number;
+  serviceType: string;
+  bookingType: string;
+  quoteId?: string;
+  flags?: string[];
+}
+
+export interface PartnerBookingCalendarResponse {
+  from?: string;
+  to?: string;
+  items: PartnerBookingCalendarItem[];
 }
 
 export interface PaymentOrder {
@@ -167,6 +224,11 @@ export interface VerifyPaymentPayload {
   razorpaySignature: string;
 }
 
+export interface CancelBookingPayload {
+  bookingId: string;
+  reason: string;
+}
+
 export const bookingQueryKeys = {
   all: ['bookings'] as const,
   customer: () => [...bookingQueryKeys.all, 'customer'] as const,
@@ -175,6 +237,8 @@ export const bookingQueryKeys = {
   partner: () => [...bookingQueryKeys.all, 'partner'] as const,
   partnerDetail: (bookingId: string) =>
     [...bookingQueryKeys.partner(), bookingId] as const,
+  partnerCalendar: (from?: string, to?: string) =>
+    [...bookingQueryKeys.partner(), 'calendar', from || '', to || ''] as const,
   adminPartner: (partnerId: string) =>
     [...bookingQueryKeys.all, 'admin-partner', partnerId] as const,
 };
@@ -191,6 +255,20 @@ export const getPartnerBookings = () =>
 export const getPartnerBooking = (bookingId: string) =>
   apiGet<BookingDetail>(`/api/v1/partner/bookings/${bookingId}`);
 
+export const getPartnerBookingCalendar = (params?: {
+  from?: string;
+  to?: string;
+}) => {
+  const searchParams = new URLSearchParams();
+  if (params?.from) searchParams.set('from', params.from);
+  if (params?.to) searchParams.set('to', params.to);
+
+  const queryString = searchParams.toString();
+  return apiGet<PartnerBookingCalendarResponse>(
+    `/api/v1/partner/bookings/calendar${queryString ? `?${queryString}` : ''}`
+  );
+};
+
 export const getAdminPartnerBookings = (partnerId: string) =>
   apiGet<BookingDetail[]>(`/api/v1/admin/partners/${partnerId}/bookings`);
 
@@ -205,6 +283,11 @@ export const verifyBookingPayment = (payload: VerifyPaymentPayload) =>
 
 export const completeBooking = (bookingId: string) =>
   apiPost<Booking>(`/api/v1/bookings/${bookingId}/complete`);
+
+export const cancelPartnerBooking = (payload: CancelBookingPayload) =>
+  apiPost<Booking>(`/api/v1/partner/bookings/${payload.bookingId}/cancel`, {
+    reason: payload.reason,
+  });
 
 export const useCustomerBookings = (enabled = true) =>
   useQuery({
@@ -232,6 +315,16 @@ export const usePartnerBooking = (bookingId: string) =>
     queryKey: bookingQueryKeys.partnerDetail(bookingId),
     queryFn: () => getPartnerBooking(bookingId),
     enabled: Boolean(bookingId),
+  });
+
+export const usePartnerBookingCalendar = (
+  params?: { from?: string; to?: string },
+  enabled = true
+) =>
+  useQuery({
+    queryKey: bookingQueryKeys.partnerCalendar(params?.from, params?.to),
+    queryFn: () => getPartnerBookingCalendar(params),
+    enabled,
   });
 
 export const useAdminPartnerBookings = (partnerId?: string) =>
@@ -288,5 +381,20 @@ export const useCompleteBooking = (
       queryClient.invalidateQueries({ queryKey: bookingQueryKeys.all });
     },
     ...options,
+  });
+};
+
+export const useCancelPartnerBooking = (
+  options?: UseMutationOptions<Booking, Error, CancelBookingPayload>
+) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: cancelPartnerBooking,
+    ...options,
+    onSuccess: (data, variables, context) => {
+      queryClient.invalidateQueries({ queryKey: bookingQueryKeys.all });
+      options?.onSuccess?.(data, variables, context);
+    },
   });
 };

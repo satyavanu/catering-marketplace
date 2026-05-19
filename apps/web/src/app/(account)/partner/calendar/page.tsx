@@ -1,1229 +1,527 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import type React from 'react';
+import { useMemo, useState } from 'react';
 import {
-  ChevronLeft,
-  ChevronRight,
-  Package,
-  ShoppingCart,
-  RotateCcw,
-  X,
-  Clock,
-  AlertCircle,
-  CheckCircle,
-  TrendingUp,
-  Calendar as CalendarIcon,
-  Truck,
-  Users,
-  Utensils,
-} from 'lucide-react';
+  usePartnerBookingCalendar,
+  type PartnerBookingCalendarItem,
+} from '@catering-marketplace/query-client';
 
-interface Delivery {
-  id: string;
-  type: 'bulk_order' | 'subscription' | 'meal';
-  quantity: number;
-  timeSlot?: string;
-  customerName: string;
-  status: 'pending' | 'confirmed' | 'completed';
-}
-
-interface DayData {
-  date: string;
-  dayOfWeek: string;
-  meals: number;
-  orders: number;
-  subscriptions: number;
-  cancelled: number;
-  revenue: number;
-  status: 'normal' | 'busy' | 'quiet' | 'critical';
-  deliveries: Delivery[];
-}
-
-const MOCK_CALENDAR_DATA: { [key: string]: DayData } = {
-  '2026-03-01': {
-    date: '2026-03-01',
-    dayOfWeek: 'Sunday',
-    meals: 28,
-    orders: 6,
-    subscriptions: 22,
-    cancelled: 1,
-    revenue: 4200,
-    status: 'normal',
-    deliveries: [
-      { id: '1', type: 'bulk_order', quantity: 50, timeSlot: '12:00 PM - 01:00 PM', customerName: 'Tech Corp', status: 'confirmed' },
-      { id: '2', type: 'subscription', quantity: 22, customerName: 'Regular Users', status: 'confirmed' },
-      { id: '3', type: 'meal', quantity: 6, customerName: 'Individual Orders', status: 'pending' },
-    ],
-  },
-  '2026-03-02': {
-    date: '2026-03-02',
-    dayOfWeek: 'Monday',
-    meals: 56,
-    orders: 15,
-    subscriptions: 41,
-    cancelled: 0,
-    revenue: 8950,
-    status: 'busy',
-    deliveries: [
-      { id: '1', type: 'bulk_order', quantity: 80, timeSlot: '11:30 AM - 12:30 PM', customerName: 'StartUp Inc', status: 'confirmed' },
-      { id: '2', type: 'bulk_order', quantity: 60, timeSlot: '02:00 PM - 03:00 PM', customerName: 'Finance Ltd', status: 'confirmed' },
-      { id: '3', type: 'subscription', quantity: 41, customerName: 'Subscription Members', status: 'confirmed' },
-      { id: '4', type: 'meal', quantity: 15, customerName: 'Individual Orders', status: 'pending' },
-    ],
-  },
-  '2026-03-03': {
-    date: '2026-03-03',
-    dayOfWeek: 'Tuesday',
-    meals: 42,
-    orders: 10,
-    subscriptions: 32,
-    cancelled: 3,
-    revenue: 6800,
-    status: 'normal',
-    deliveries: [
-      { id: '1', type: 'bulk_order', quantity: 45, timeSlot: '12:15 PM - 01:15 PM', customerName: 'Design Studio', status: 'confirmed' },
-      { id: '2', type: 'subscription', quantity: 32, customerName: 'Regular Users', status: 'confirmed' },
-      { id: '3', type: 'meal', quantity: 10, customerName: 'Individual Orders', status: 'confirmed' },
-    ],
-  },
-  '2026-03-25': {
-    date: '2026-03-25',
-    dayOfWeek: 'Wednesday',
-    meals: 42,
-    orders: 10,
-    subscriptions: 32,
-    cancelled: 3,
-    revenue: 6800,
-    status: 'normal',
-    deliveries: [
-      { id: '1', type: 'bulk_order', quantity: 50, timeSlot: '12:00 PM - 01:00 PM', customerName: 'Marketing Team', status: 'confirmed' },
-      { id: '2', type: 'subscription', quantity: 32, customerName: 'Subscription Members', status: 'confirmed' },
-      { id: '3', type: 'meal', quantity: 10, customerName: 'Individual Orders', status: 'pending' },
-    ],
-  },
+const statusTone: Record<string, { bg: string; color: string; border: string }> = {
+  confirmed: { bg: '#ecfdf5', color: '#047857', border: '#bbf7d0' },
+  in_progress: { bg: '#e0f2fe', color: '#0369a1', border: '#bae6fd' },
+  pending_payment: { bg: '#fff7ed', color: '#c2410c', border: '#fed7aa' },
+  completed: { bg: '#eef2ff', color: '#4338ca', border: '#c7d2fe' },
+  cancelled: { bg: '#fef2f2', color: '#b91c1c', border: '#fecaca' },
+  expired: { bg: '#f8fafc', color: '#64748b', border: '#e2e8f0' },
 };
 
-export default function CatererCalendar() {
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 2, 1));
-  const [selectedDate, setSelectedDate] = useState<string | null>('2026-03-25');
-  const [windowWidth, setWindowWidth] = useState(1024);
-
-  useEffect(() => {
-    setWindowWidth(window.innerWidth);
-    const handleResize = () => setWindowWidth(window.innerWidth);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  const monthYear = currentDate.toLocaleDateString('en-US', {
-    month: 'long',
-    year: 'numeric',
+export default function PartnerCalendarPage() {
+  const [visibleMonth, setVisibleMonth] = useState(() =>
+    startOfMonth(new Date())
+  );
+  const [selectedDate, setSelectedDate] = useState(() => toDateKey(new Date()));
+  const calendarRange = useMemo(
+    () => getCalendarRange(visibleMonth),
+    [visibleMonth]
+  );
+  const query = usePartnerBookingCalendar({
+    from: calendarRange.from,
+    to: calendarRange.to,
   });
-
-  const getDaysInMonth = (date: Date) => {
-    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-  };
-
-  const getFirstDayOfMonth = (date: Date) => {
-    return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
-  };
-
-  const daysInMonth = getDaysInMonth(currentDate);
-  const firstDay = getFirstDayOfMonth(currentDate);
-  const daysArray: (number | null)[] = [
-    ...Array(firstDay).fill(null),
-    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
-  ];
-
-  const handlePrevMonth = () => {
-    setCurrentDate(
-      new Date(currentDate.getFullYear(), currentDate.getMonth() - 1)
-    );
-  };
-
-  const handleNextMonth = () => {
-    setCurrentDate(
-      new Date(currentDate.getFullYear(), currentDate.getMonth() + 1)
-    );
-  };
-
-  const getDateString = (day: number): string => {
-    const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-    const dayStr = String(day).padStart(2, '0');
-    return `${currentDate.getFullYear()}-${month}-${dayStr}`;
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'busy':
-        return { bg: '#dcfce7', border: '#86efac', icon: TrendingUp, color: '#166534', label: 'Busy' };
-      case 'normal':
-        return { bg: '#dbeafe', border: '#7dd3fc', icon: CheckCircle, color: '#0c4a6e', label: 'Normal' };
-      case 'quiet':
-        return { bg: '#f3e8ff', border: '#e9d5ff', icon: Clock, color: '#6b21a8', label: 'Quiet' };
-      case 'critical':
-        return { bg: '#fee2e2', border: '#fecaca', icon: AlertCircle, color: '#991b1b', label: 'Critical' };
-      default:
-        return { bg: '#f3f4f6', border: '#e5e7eb', icon: CalendarIcon, color: '#374151', label: 'Unknown' };
-    }
-  };
-
-  const getDeliveryTypeIcon = (type: string) => {
-    switch (type) {
-      case 'bulk_order':
-        return { icon: Truck, label: 'Bulk Orders', color: '#0284c7', bg: '#eff6ff' };
-      case 'subscription':
-        return { icon: Users, label: 'Subscriptions', color: '#ec4899', bg: '#fdf2f8' };
-      case 'meal':
-        return { icon: Utensils, label: 'One-time Meals', color: '#16a34a', bg: '#f0fdf4' };
-      default:
-        return { icon: Package, label: 'Unknown', color: '#6b7280', bg: '#f3f4f6' };
-    }
-  };
-
-  const selectedDateData = selectedDate ? MOCK_CALENDAR_DATA[selectedDate] : null;
-  const isMobile = windowWidth < 768;
-  const isTablet = windowWidth < 1024;
-  const isDesktop = windowWidth >= 1024;
-
-  const getResponsiveStyles = () => {
-    if (isMobile) {
-      return {
-        gridTemplateColumns: '1fr',
-        containerPadding: '16px',
-        cardPadding: '16px',
-        calendarGap: '4px',
-        contentGap: '16px',
-        dayMinHeight: '100px',
-        dayPadding: '8px',
-        fontSize: {
-          title: '24px',
-          monthTitle: '20px',
-          dayNumber: '13px',
-          metric: '9px',
-        },
-      };
-    } else if (isTablet) {
-      return {
-        gridTemplateColumns: '1fr 280px',
-        containerPadding: '20px',
-        cardPadding: '16px',
-        calendarGap: '6px',
-        contentGap: '16px',
-        dayMinHeight: '100px',
-        dayPadding: '8px',
-        fontSize: {
-          title: '28px',
-          monthTitle: '20px',
-          dayNumber: '12px',
-          metric: '9px',
-        },
-      };
-    } else {
-      return {
-        gridTemplateColumns: '1fr',
-        containerPadding: '20px',
-        cardPadding: '16px',
-        calendarGap: '6px',
-        contentGap: '20px',
-        dayMinHeight: '110px',
-        dayPadding: '10px',
-        fontSize: {
-          title: '32px',
-          monthTitle: '22px',
-          dayNumber: '14px',
-          metric: '10px',
-        },
-      };
-    }
-  };
-
-  const responsive = getResponsiveStyles();
-
-  // Get all days with data for current month
-  const daysWithData = daysArray
-    .filter((day) => day !== null)
-    .map((day) => {
-      const dateStr = getDateString(day!);
-      return {
-        day: day!,
-        dateStr,
-        data: MOCK_CALENDAR_DATA[dateStr],
-      };
-    });
+  const items = query.data?.items ?? [];
+  const days = useMemo(() => getCalendarDays(visibleMonth), [visibleMonth]);
+  const itemsByDate = useMemo(() => groupCalendarItems(items), [items]);
+  const selectedItems = itemsByDate.get(selectedDate) ?? [];
 
   return (
-    <div style={{ ...styles.container, padding: responsive.containerPadding }}>
-      <div style={styles.maxWidth}>
-        {/* Header */}
-        <div style={styles.header}>
-          <h1 style={{ ...styles.title, fontSize: responsive.fontSize.title }}>
-            Catering Calendar
-          </h1>
-          <p style={styles.subtitle}>
-            View your daily deliveries by type, time slots, and order status
+    <div style={styles.page}>
+      <section style={styles.header}>
+        <div>
+          <p style={styles.eyebrow}>Partner workspace</p>
+          <h1 style={styles.title}>Booking calendar</h1>
+          <p style={styles.description}>
+            Confirmed partner bookings by event date, with payment and balance
+            context from the booking calendar endpoint.
           </p>
         </div>
+      </section>
 
-        {/* Mobile List View */}
-        {isMobile ? (
-          <>
-            {/* List View for Mobile */}
-            <div style={{ ...styles.calendarCard, padding: responsive.cardPadding }}>
-              {/* Month Navigation */}
-              <div style={styles.monthHeader}>
-                <button
-                  onClick={handlePrevMonth}
-                  style={styles.navButton}
-                >
-                  <ChevronLeft size={20} />
-                </button>
-                <h2 style={{ ...styles.monthTitle, fontSize: responsive.fontSize.monthTitle }}>
-                  {monthYear}
-                </h2>
-                <button
-                  onClick={handleNextMonth}
-                  style={styles.navButton}
-                >
-                  <ChevronRight size={20} />
-                </button>
-              </div>
+      <section style={styles.panel}>
+        <div style={styles.calendarHeader}>
+          <div>
+            <h2 style={styles.panelTitle}>{formatMonth(visibleMonth)}</h2>
+            <p style={styles.panelHint}>
+              Showing {formatDate(calendarRange.from)} to{' '}
+              {formatDate(calendarRange.to)}
+            </p>
+          </div>
+          <div style={styles.controls}>
+            <button
+              type="button"
+              onClick={() =>
+                setVisibleMonth((current) => addMonths(current, -1))
+              }
+              style={styles.button}
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const today = new Date();
+                setVisibleMonth(startOfMonth(today));
+                setSelectedDate(toDateKey(today));
+              }}
+              style={styles.button}
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                setVisibleMonth((current) => addMonths(current, 1))
+              }
+              style={styles.button}
+            >
+              Next
+            </button>
+          </div>
+        </div>
 
-              {/* List View */}
-              <div style={styles.listContainer}>
-                {daysWithData.map(({ day, dateStr, data }) => {
-                  const isSelected = selectedDate === dateStr;
-                  const statusColor = data ? getStatusColor(data.status) : null;
+        {query.isLoading ? (
+          <div style={styles.emptyState}>Loading calendar...</div>
+        ) : query.isError ? (
+          <div style={styles.emptyState}>
+            Unable to load the booking calendar right now.
+          </div>
+        ) : (
+          <div style={styles.layout}>
+            <div style={styles.calendarScroll}>
+              <div style={styles.calendarSurface}>
+                <div style={styles.weekHeader}>
+                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(
+                    (day) => (
+                      <span key={day}>{day}</span>
+                    )
+                  )}
+                </div>
+                <div style={styles.calendarGrid}>
+                  {days.map((day) => {
+                    const key = toDateKey(day);
+                    const dayItems = itemsByDate.get(key) ?? [];
+                    const inMonth = day.getMonth() === visibleMonth.getMonth();
+                    const isSelected = selectedDate === key;
 
-                  return (
-                    <Link
-                      key={`list-${day}`}
-                      href={`/caterer/calendar/${dateStr}`}
-                      style={{ textDecoration: 'none' }}
-                    >
-                      <div
-                        onClick={() => setSelectedDate(dateStr)}
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setSelectedDate(key)}
                         style={{
-                          ...styles.listItem,
-                          ...(isSelected ? styles.listItemSelected : {}),
-                          ...(statusColor ? {
-                            borderLeftColor: statusColor.border,
-                          } : {}),
+                          ...styles.dayCell,
+                          ...(inMonth ? {} : styles.dayCellMuted),
+                          ...(isSelected ? styles.dayCellSelected : {}),
                         }}
                       >
-                        <div style={styles.listItemDate}>
-                          <div style={styles.listItemDay}>{day}</div>
-                          <div style={styles.listItemMonth}>
-                            {new Date(dateStr).toLocaleDateString('en-US', { weekday: 'short' })}
-                          </div>
+                        <span style={styles.dayNumber}>{day.getDate()}</span>
+                        <span style={styles.dayTotal}>
+                          {dayItems.length
+                            ? `${dayItems.length} booking${dayItems.length === 1 ? '' : 's'}`
+                            : ''}
+                        </span>
+                        <div style={styles.dayBookings}>
+                          {dayItems.slice(0, 3).map((item) => (
+                            <CalendarChip key={item.id} item={item} />
+                          ))}
+                          {dayItems.length > 3 && (
+                            <span style={styles.moreText}>
+                              +{dayItems.length - 3} more
+                            </span>
+                          )}
                         </div>
-
-                        {data && statusColor && (
-                          <>
-                            <div style={styles.listItemMetrics}>
-                              <div style={styles.listMetricItem}>
-                                <span style={styles.listMetricLabel}>Meals</span>
-                                <span style={styles.listMetricValue}>{data.meals}</span>
-                              </div>
-                              <div style={styles.listMetricItem}>
-                                <span style={styles.listMetricLabel}>Orders</span>
-                                <span style={styles.listMetricValue}>{data.orders}</span>
-                              </div>
-                              <div style={styles.listMetricItem}>
-                                <span style={styles.listMetricLabel}>Subs</span>
-                                <span style={styles.listMetricValue}>{data.subscriptions}</span>
-                              </div>
-                            </div>
-
-                            <div style={styles.listItemRight}>
-                              <div style={styles.listRevenue}>₹{data.revenue.toLocaleString()}</div>
-                              <div
-                                style={{
-                                  ...styles.listStatus,
-                                  backgroundColor: statusColor.bg,
-                                  color: statusColor.color,
-                                }}
-                              >
-                                {statusColor.label}
-                              </div>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Mobile Details Card */}
-            {selectedDateData && (
-              <div style={{ ...styles.detailsCard, padding: responsive.cardPadding, marginTop: responsive.contentGap }}>
-                <div style={styles.detailsHeader}>
-                  <h3 style={styles.detailsTitle}>
-                    {new Date(selectedDateData.date).toLocaleDateString('en-US', {
-                      weekday: 'long',
-                      month: 'short',
-                      day: 'numeric',
-                    })}
-                  </h3>
-                </div>
-
-                <div style={{ ...styles.detailsContent, gap: responsive.contentGap }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    <div>
-                      <p style={styles.metricLabel}>Total Meals</p>
-                      <h4 style={styles.metricValue}>{selectedDateData.meals}</h4>
-                    </div>
-                    <div>
-                      <p style={styles.metricLabel}>Orders</p>
-                      <h4 style={styles.metricValue}>{selectedDateData.orders}</h4>
-                    </div>
-                    <div>
-                      <p style={styles.metricLabel}>Subscriptions</p>
-                      <h4 style={styles.metricValue}>{selectedDateData.subscriptions}</h4>
-                    </div>
-                    <div>
-                      <p style={styles.metricLabel}>Cancelled</p>
-                      <h4 style={{ ...styles.metricValue, color: selectedDateData.cancelled > 0 ? '#991b1b' : '#16a34a' }}>
-                        {selectedDateData.cancelled}
-                      </h4>
-                    </div>
-                  </div>
-
-                  <div style={styles.revenueCard}>
-                    <p style={styles.revenueLabel}>Daily Revenue</p>
-                    <h2 style={styles.revenueValue}>₹{selectedDateData.revenue.toLocaleString()}</h2>
-                  </div>
-
-                  {/* Deliveries by Type */}
-                  <div style={styles.deliveriesSection}>
-                    <h4 style={styles.deliveriesSectionTitle}>Deliveries Breakdown</h4>
-                    <div style={styles.deliveriesGrid}>
-                      {selectedDateData.deliveries.map((delivery) => {
-                        const typeInfo = getDeliveryTypeIcon(delivery.type);
-                        return (
-                          <div key={delivery.id} style={{ ...styles.deliveryTypeCard, backgroundColor: typeInfo.bg }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                              <typeInfo.icon size={16} style={{ color: typeInfo.color }} />
-                              <span style={{ fontSize: '12px', fontWeight: '600', color: typeInfo.color }}>
-                                {typeInfo.label}
-                              </span>
-                            </div>
-                            <div style={{ fontSize: '20px', fontWeight: '700', color: '#111827', marginBottom: '4px' }}>
-                              {delivery.quantity}
-                            </div>
-                            {delivery.timeSlot && (
-                              <div style={{ fontSize: '10px', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <Clock size={12} />
-                                {delivery.timeSlot}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <Link
-                    href={`/caterer/calendar/${selectedDateData.date}`}
-                    style={{ ...styles.actionButton, display: 'block', textAlign: 'center', textDecoration: 'none', color: '#ffffff' }}
-                  >
-                    View Full Details
-                  </Link>
-                </div>
-              </div>
-            )}
-          </>
-        ) : (
-          /* Desktop & Tablet Grid View */
-          <>
-            {/* Day Details Card - Above Calendar (Desktop Only) */}
-            {selectedDateData && isDesktop && (
-              <div style={{ ...styles.detailsCard, padding: responsive.cardPadding, marginBottom: responsive.contentGap }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: responsive.contentGap, alignItems: 'start' }}>
-                  {/* Date & Header */}
-                  <div style={{ gridColumn: '1 / 2' }}>
-                    <h3 style={{ ...styles.detailsTitle, fontSize: '18px' }}>
-                      {new Date(selectedDateData.date).toLocaleDateString('en-US', {
-                        weekday: 'short',
-                        month: 'short',
-                        day: 'numeric',
-                      })}
-                    </h3>
-                  </div>
-
-                  {/* Revenue */}
-                  <div>
-                    <p style={styles.metricLabel}>Daily Revenue</p>
-                    <h2 style={{ ...styles.revenueValue, fontSize: '18px', margin: '4px 0 0 0' }}>
-                      ₹{selectedDateData.revenue.toLocaleString()}
-                    </h2>
-                  </div>
-
-                  {/* Status */}
-                  <div>
-                    <p style={styles.statusLabel}>Status</p>
-                    {(() => {
-                      const statusColor = getStatusColor(selectedDateData.status);
-                      const StatusIcon = statusColor.icon;
-                      return (
-                        <div
-                          style={{
-                            ...styles.statusBadge,
-                            backgroundColor: statusColor.bg,
-                            color: statusColor.color,
-                            marginTop: '6px',
-                          }}
-                        >
-                          <StatusIcon size={12} />
-                          <span style={{ textTransform: 'uppercase', fontWeight: '700', fontSize: '10px' }}>
-                            {selectedDateData.status}
-                          </span>
-                        </div>
-                      );
-                    })()}
-                  </div>
-
-                  {/* Action */}
-                  <div style={{ textAlign: 'right' }}>
-                    <Link
-                      href={`/caterer/calendar/${selectedDateData.date}`}
-                      style={{ ...styles.actionButton, padding: '8px 12px', fontSize: '12px', display: 'inline-block', width: 'auto', textDecoration: 'none', color: '#ffffff' }}
-                    >
-                      View Details →
-                    </Link>
-                  </div>
-
-                  {/* Divider */}
-                  <div style={{ gridColumn: '1 / -1', height: '1px', backgroundColor: '#e5e7eb', margin: responsive.contentGap + ' 0' }} />
-
-                  {/* Metrics Row */}
-                  <div style={styles.desktopMetricItem}>
-                    <p style={styles.metricLabel}>Total Meals</p>
-                    <h4 style={{ ...styles.metricValue, fontSize: '18px' }}>{selectedDateData.meals}</h4>
-                  </div>
-
-                  <div style={styles.desktopMetricItem}>
-                    <p style={styles.metricLabel}>Orders</p>
-                    <h4 style={{ ...styles.metricValue, fontSize: '18px' }}>{selectedDateData.orders}</h4>
-                  </div>
-
-                  <div style={styles.desktopMetricItem}>
-                    <p style={styles.metricLabel}>Subscriptions</p>
-                    <h4 style={{ ...styles.metricValue, fontSize: '18px' }}>{selectedDateData.subscriptions}</h4>
-                  </div>
-
-                  <div style={styles.desktopMetricItem}>
-                    <p style={styles.metricLabel}>Cancelled</p>
-                    <h4 style={{
-                      ...styles.metricValue,
-                      fontSize: '18px',
-                      color: selectedDateData.cancelled > 0 ? '#991b1b' : '#16a34a',
-                    }}>
-                      {selectedDateData.cancelled}
-                    </h4>
-                  </div>
-
-                  {/* Divider */}
-                  <div style={{ gridColumn: '1 / -1', height: '1px', backgroundColor: '#e5e7eb', margin: responsive.contentGap + ' 0' }} />
-
-                  {/* Deliveries Header */}
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <p style={{ ...styles.deliveriesSectionLabel, margin: '0 0 12px 0' }}>Deliveries by Type</p>
-                  </div>
-
-                  {/* Deliveries Grid */}
-                  {selectedDateData.deliveries.map((delivery) => {
-                    const typeInfo = getDeliveryTypeIcon(delivery.type);
-                    return (
-                      <div key={delivery.id} style={{ ...styles.desktopDeliveryCard, backgroundColor: typeInfo.bg }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                          <typeInfo.icon size={14} style={{ color: typeInfo.color }} />
-                          <span style={{ fontSize: '11px', fontWeight: '600', color: typeInfo.color }}>
-                            {typeInfo.label.split(' ')[0]}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: '18px', fontWeight: '700', color: '#111827', marginBottom: '4px' }}>
-                          {delivery.quantity}
-                        </div>
-                        {delivery.timeSlot && (
-                          <div style={{ fontSize: '9px', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                            <Clock size={10} />
-                            {delivery.timeSlot}
-                          </div>
-                        )}
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
               </div>
-            )}
-
-            {/* Calendar Section - Full Width */}
-            <div style={{ ...styles.calendarCard, padding: responsive.cardPadding, marginBottom: responsive.contentGap }}>
-              {/* Month Navigation */}
-              <div style={styles.monthHeader}>
-                <button
-                  onClick={handlePrevMonth}
-                  style={styles.navButton}
-                >
-                  <ChevronLeft size={20} />
-                </button>
-                <h2 style={{ ...styles.monthTitle, fontSize: responsive.fontSize.monthTitle }}>
-                  {monthYear}
-                </h2>
-                <button
-                  onClick={handleNextMonth}
-                  style={styles.navButton}
-                >
-                  <ChevronRight size={20} />
-                </button>
-              </div>
-
-              {/* Days of Week Header */}
-              <div style={styles.weekDaysHeader}>
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                  <div key={day} style={styles.weekDayLabel}>
-                    {isTablet ? day.slice(0, 1) : day}
-                  </div>
-                ))}
-              </div>
-
-              {/* Calendar Grid */}
-              <div style={{ ...styles.calendarGrid, gap: responsive.calendarGap }}>
-                {daysArray.map((day, idx) => {
-                  if (day === null) {
-                    return <div key={`empty-${idx}`} style={styles.emptyCell} />;
-                  }
-
-                  const dateStr = getDateString(day);
-                  const dayData = MOCK_CALENDAR_DATA[dateStr];
-                  const isSelected = selectedDate === dateStr;
-                  const statusColor = dayData ? getStatusColor(dayData.status) : null;
-
-                  return (
-                    <Link
-                      key={`day-${day}`}
-                      href={`/caterer/calendar/${dateStr}`}
-                      style={{ textDecoration: 'none' }}
-                    >
-                      <div
-                        onClick={() => setSelectedDate(dateStr)}
-                        style={{
-                          ...styles.dayCell,
-                          padding: responsive.dayPadding,
-                          minHeight: responsive.dayMinHeight,
-                          ...(isSelected ? styles.dayCellSelected : {}),
-                          ...(statusColor ? {
-                            borderColor: statusColor.border,
-                            backgroundColor: isSelected ? statusColor.bg : '#ffffff',
-                          } : {}),
-                        }}
-                      >
-                        <div style={{ ...styles.dayNumber, fontSize: responsive.fontSize.dayNumber }}>
-                          {day}
-                        </div>
-
-                        {dayData && statusColor && (
-                          <>
-                            <div style={{ ...styles.dayMetrics, fontSize: responsive.fontSize.metric }}>
-                              <span style={styles.metric} title="Meals">
-                                🍱 {dayData.meals}
-                              </span>
-                              <span style={styles.metric} title="Orders">
-                                🧾 {dayData.orders}
-                              </span>
-                            </div>
-
-                            <div style={{ ...styles.dayMetrics, fontSize: responsive.fontSize.metric }}>
-                              <span style={styles.metric} title="Subscriptions">
-                                🔁 {dayData.subscriptions}
-                              </span>
-                              {dayData.cancelled > 0 && (
-                                <span style={{ ...styles.metric, ...styles.metricCritical }} title="Cancelled">
-                                  ❌ {dayData.cancelled}
-                                </span>
-                              )}
-                            </div>
-
-                            <div
-                              style={{
-                                ...styles.statusDot,
-                                backgroundColor: statusColor.color,
-                              }}
-                            />
-                          </>
-                        )}
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
             </div>
 
-            {/* Tablet Details Card - Below Calendar */}
-            {selectedDateData && isTablet && (
-              <div style={{ ...styles.detailsCard, padding: responsive.cardPadding }}>
-                <div style={styles.detailsHeader}>
-                  <div>
-                    <h3 style={styles.detailsTitle}>
-                      {new Date(selectedDateData.date).toLocaleDateString('en-US', {
-                        weekday: 'short',
-                        month: 'short',
-                        day: 'numeric',
-                      })}
-                    </h3>
-                  </div>
-                  <Link
-                    href={`/caterer/calendar/${selectedDateData.date}`}
-                    style={styles.viewDetailsLink}
-                  >
-                    View Full →
-                  </Link>
+            <aside style={styles.sidePanel}>
+              <h3 style={styles.sideTitle}>{formatDate(selectedDate)}</h3>
+              {selectedItems.length === 0 ? (
+                <div style={styles.sideEmpty}>No bookings on this date.</div>
+              ) : (
+                <div style={styles.eventList}>
+                  {selectedItems.map((item) => (
+                    <CalendarEvent key={item.id} item={item} />
+                  ))}
                 </div>
-
-                {/* Compact Metrics Grid */}
-                <div style={styles.compactMetricsGrid}>
-                  <div style={styles.compactMetricCard}>
-                    <div style={{ ...styles.compactMetricIcon, backgroundColor: '#eff6ff' }}>
-                      <Package size={16} style={{ color: '#0284c7' }} />
-                    </div>
-                    <div>
-                      <p style={styles.compactMetricLabel}>Meals</p>
-                      <h4 style={styles.compactMetricValue}>{selectedDateData.meals}</h4>
-                    </div>
-                  </div>
-
-                  <div style={styles.compactMetricCard}>
-                    <div style={{ ...styles.compactMetricIcon, backgroundColor: '#f0fdf4' }}>
-                      <ShoppingCart size={16} style={{ color: '#16a34a' }} />
-                    </div>
-                    <div>
-                      <p style={styles.compactMetricLabel}>Orders</p>
-                      <h4 style={styles.compactMetricValue}>{selectedDateData.orders}</h4>
-                    </div>
-                  </div>
-
-                  <div style={styles.compactMetricCard}>
-                    <div style={{ ...styles.compactMetricIcon, backgroundColor: '#fdf2f8' }}>
-                      <RotateCcw size={16} style={{ color: '#ec4899' }} />
-                    </div>
-                    <div>
-                      <p style={styles.compactMetricLabel}>Subs</p>
-                      <h4 style={styles.compactMetricValue}>{selectedDateData.subscriptions}</h4>
-                    </div>
-                  </div>
-
-                  <div style={styles.compactMetricCard}>
-                    <div style={{ ...styles.compactMetricIcon, backgroundColor: '#fee2e2' }}>
-                      <X size={16} style={{ color: '#991b1b' }} />
-                    </div>
-                    <div>
-                      <p style={styles.compactMetricLabel}>Cancelled</p>
-                      <h4 style={{
-                        ...styles.compactMetricValue,
-                        color: selectedDateData.cancelled > 0 ? '#991b1b' : '#16a34a',
-                      }}>
-                        {selectedDateData.cancelled}
-                      </h4>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Revenue Card */}
-                <div style={styles.compactRevenueCard}>
-                  <p style={styles.revenueLabel}>Daily Revenue</p>
-                  <h2 style={styles.revenueValue}>₹{selectedDateData.revenue.toLocaleString()}</h2>
-                </div>
-
-                {/* Deliveries Summary */}
-                <div style={styles.deliveriesSummarySection}>
-                  <p style={styles.deliveriesSectionLabel}>Deliveries by Type</p>
-                  <div style={styles.deliveryTypesSummary}>
-                    {selectedDateData.deliveries.map((delivery) => {
-                      const typeInfo = getDeliveryTypeIcon(delivery.type);
-                      return (
-                        <div key={delivery.id} style={{ ...styles.smallDeliveryCard, backgroundColor: typeInfo.bg }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <typeInfo.icon size={14} style={{ color: typeInfo.color }} />
-                              <span style={{ fontSize: '10px', fontWeight: '600', color: typeInfo.color }}>
-                                {typeInfo.label.split(' ')[0]}
-                              </span>
-                            </div>
-                            <span style={{ fontSize: '13px', fontWeight: '700', color: '#111827' }}>
-                              {delivery.quantity}
-                            </span>
-                          </div>
-                          {delivery.timeSlot && (
-                            <div style={{ fontSize: '9px', color: '#6b7280', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                              <Clock size={10} />
-                              {delivery.timeSlot}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Status Badge */}
-                <div style={styles.statusSection}>
-                  <p style={styles.statusLabel}>Status</p>
-                  {(() => {
-                    const statusColor = getStatusColor(selectedDateData.status);
-                    const StatusIcon = statusColor.icon;
-                    return (
-                      <div
-                        style={{
-                          ...styles.statusBadge,
-                          backgroundColor: statusColor.bg,
-                          color: statusColor.color,
-                        }}
-                      >
-                        <StatusIcon size={14} />
-                        <span style={{ textTransform: 'uppercase', fontWeight: '700', fontSize: '11px' }}>
-                          {selectedDateData.status}
-                        </span>
-                      </div>
-                    );
-                  })()}
-                </div>
-
-                {/* Quick Action Button */}
-                <Link
-                  href={`/caterer/calendar/${selectedDateData.date}`}
-                  style={{ ...styles.actionButton, display: 'block', textAlign: 'center', textDecoration: 'none', color: '#ffffff', marginTop: '12px' }}
-                >
-                  View Day Insights
-                </Link>
-              </div>
-            )}
-          </>
+              )}
+            </aside>
+          </div>
         )}
-      </div>
+
+        {!query.isLoading && !query.isError && items.length === 0 && (
+          <div style={styles.monthEmpty}>No bookings scheduled this month.</div>
+        )}
+      </section>
     </div>
   );
 }
 
-const styles = {
-  container: {
-    minHeight: '100vh',
-    backgroundColor: '#f9fafb',
-  } as const,
-  maxWidth: {
-    maxWidth: '1400px',
-    margin: '0 auto',
-  } as const,
+function CalendarChip({ item }: { item: PartnerBookingCalendarItem }) {
+  const tone = toneFor(item.status);
+  return (
+    <span
+      title={`${item.bookingNumber} - ${item.title}`}
+      style={{ ...styles.chip, background: tone.bg, color: tone.color }}
+    >
+      {item.title}
+    </span>
+  );
+}
+
+function CalendarEvent({ item }: { item: PartnerBookingCalendarItem }) {
+  const tone = toneFor(item.status);
+  return (
+    <article style={styles.eventCard}>
+      <div style={styles.eventTop}>
+        <strong style={styles.eventTitle}>{item.title}</strong>
+        <span style={{ ...styles.badge, ...badgeStyle(tone) }}>
+          {labelize(item.status)}
+        </span>
+      </div>
+      <p style={styles.eventMeta}>
+        {item.bookingNumber} · {formatTimeRange(item.startTime, item.endTime)}
+      </p>
+      <div style={styles.eventGrid}>
+        <Info label="Guests" value={`${item.guestCount}`} />
+        <Info label="Payment" value={labelize(item.paymentStatus)} />
+        <Info label="Total" value={formatCurrency(item.totalAmount, item.currency)} />
+        <Info label="Balance" value={formatCurrency(item.balanceAmount, item.currency)} />
+      </div>
+      <p style={styles.eventLocation}>{item.location || 'Location pending'}</p>
+      {(item.customerName || item.customerPhone) && (
+        <p style={styles.eventMeta}>
+          {[item.customerName, item.customerPhone].filter(Boolean).join(' · ')}
+        </p>
+      )}
+    </article>
+  );
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={styles.info}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function startOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function addMonths(date: Date, count: number) {
+  return new Date(date.getFullYear(), date.getMonth() + count, 1);
+}
+
+function getCalendarRange(month: Date) {
+  const days = getCalendarDays(month);
+  return { from: toDateKey(days[0]), to: toDateKey(days[days.length - 1]) };
+}
+
+function getCalendarDays(month: Date) {
+  const firstDay = startOfMonth(month);
+  const start = new Date(firstDay);
+  start.setDate(firstDay.getDate() - firstDay.getDay());
+
+  const lastDay = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+  const end = new Date(lastDay);
+  end.setDate(lastDay.getDate() + (6 - lastDay.getDay()));
+
+  const days: Date[] = [];
+  const current = new Date(start);
+  while (current <= end) {
+    days.push(new Date(current));
+    current.setDate(current.getDate() + 1);
+  }
+  return days;
+}
+
+function groupCalendarItems(items: PartnerBookingCalendarItem[]) {
+  const grouped = new Map<string, PartnerBookingCalendarItem[]>();
+  items.forEach((item) => {
+    const dayItems = grouped.get(item.eventDate) ?? [];
+    dayItems.push(item);
+    grouped.set(item.eventDate, dayItems);
+  });
+  grouped.forEach((dayItems) => {
+    dayItems.sort((first, second) =>
+      (first.startTime || '').localeCompare(second.startTime || '')
+    );
+  });
+  return grouped;
+}
+
+function toDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatMonth(date: Date) {
+  return new Intl.DateTimeFormat('en', {
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+}
+
+function formatDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat('en', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date);
+}
+
+function formatTimeRange(startTime?: string, endTime?: string) {
+  if (!startTime && !endTime) return 'Time pending';
+  if (!endTime) return formatTime(startTime);
+  return `${formatTime(startTime)}-${formatTime(endTime)}`;
+}
+
+function formatTime(value?: string) {
+  if (!value) return '';
+  const [hourText, minuteText = '00'] = value.split(':');
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return value;
+  const date = new Date();
+  date.setHours(hour, minute, 0, 0);
+  return new Intl.DateTimeFormat('en', {
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date);
+}
+
+function formatCurrency(value: number, currency: string) {
+  return new Intl.NumberFormat('en', {
+    style: 'currency',
+    currency: currency || 'INR',
+    maximumFractionDigits: 0,
+  }).format(value || 0);
+}
+
+function labelize(value?: string) {
+  if (!value) return 'Pending';
+  return value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function toneFor(status?: string) {
+  return statusTone[status || ''] || { bg: '#f8fafc', color: '#475569', border: '#e2e8f0' };
+}
+
+function badgeStyle(tone: { bg: string; color: string; border: string }) {
+  return {
+    background: tone.bg,
+    color: tone.color,
+    borderColor: tone.border,
+  };
+}
+
+const styles: Record<string, React.CSSProperties> = {
+  page: { display: 'flex', flexDirection: 'column', gap: 20 },
   header: {
-    marginBottom: '32px',
-  } as const,
-  title: {
-    fontWeight: '700',
-    color: '#111827',
-    margin: '0 0 8px 0',
-  } as const,
-  subtitle: {
-    fontSize: '16px',
-    color: '#6b7280',
-    margin: 0,
-  } as const,
-  contentGrid: {
-    display: 'grid',
-    transition: 'grid-template-columns 0.3s ease',
-  } as const,
-  desktopDetailsContainer: {
-    width: '100%',
-  } as const,
-  calendarCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: '12px',
+    padding: 24,
+    borderRadius: 8,
+    background: '#ffffff',
     border: '1px solid #e5e7eb',
-  } as const,
-  monthHeader: {
+    boxShadow: '0 12px 28px rgba(15, 23, 42, 0.05)',
+  },
+  eyebrow: {
+    margin: '0 0 8px',
+    color: '#ef4d2f',
+    fontSize: 12,
+    fontWeight: 800,
+    textTransform: 'uppercase',
+  },
+  title: { margin: 0, color: '#111827', fontSize: 28, fontWeight: 800 },
+  description: {
+    maxWidth: 760,
+    margin: '10px 0 0',
+    color: '#64748b',
+    fontSize: 15,
+    lineHeight: 1.6,
+  },
+  panel: {
+    padding: 22,
+    borderRadius: 8,
+    background: '#ffffff',
+    border: '1px solid #e5e7eb',
+  },
+  calendarHeader: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '24px',
-    gap: '12px',
-  } as const,
-  navButton: {
-    width: '40px',
-    height: '40px',
-    borderRadius: '8px',
-    border: '1px solid #e5e7eb',
-    backgroundColor: '#ffffff',
+    alignItems: 'flex-start',
+    gap: 16,
+    marginBottom: 18,
+    flexWrap: 'wrap',
+  },
+  panelTitle: { margin: 0, color: '#111827', fontSize: 20, fontWeight: 850 },
+  panelHint: { margin: '6px 0 0', color: '#64748b', fontSize: 13 },
+  controls: { display: 'flex', gap: 8, flexWrap: 'wrap' },
+  button: {
+    minHeight: 36,
+    padding: '0 12px',
+    borderRadius: 8,
+    border: '1px solid #cbd5e1',
+    background: '#ffffff',
+    color: '#334155',
+    fontSize: 13,
+    fontWeight: 800,
     cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: '#6b7280',
-    transition: 'all 0.2s',
-    flexShrink: 0,
-  } as const,
-  monthTitle: {
-    fontWeight: '700',
-    color: '#111827',
-    margin: 0,
-    textAlign: 'center' as const,
-    flex: 1,
-  } as const,
-  weekDaysHeader: {
+  },
+  layout: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(7, 1fr)',
-    gap: '8px',
-    marginBottom: '16px',
-  } as const,
-  weekDayLabel: {
-    textAlign: 'center' as const,
-    fontSize: '13px',
-    fontWeight: '600',
-    color: '#6b7280',
-    padding: '8px',
-  } as const,
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
+    gap: 16,
+    alignItems: 'start',
+  },
+  calendarScroll: { overflowX: 'auto', paddingBottom: 2 },
+  calendarSurface: { minWidth: 760 },
+  weekHeader: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+    gap: 1,
+    marginBottom: 1,
+    color: '#64748b',
+    fontSize: 12,
+    fontWeight: 850,
+    textAlign: 'center',
+  },
   calendarGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(7, 1fr)',
-  } as const,
-  emptyCell: {
-    aspectRatio: '1',
-  } as const,
+    gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+    gap: 1,
+    overflow: 'hidden',
+    borderRadius: 8,
+    border: '1px solid #e5e7eb',
+    background: '#e5e7eb',
+  },
   dayCell: {
-    aspectRatio: '1 / 1.1',
-    backgroundColor: '#ffffff',
-    border: '1px solid #e5e7eb',
-    borderRadius: '10px',
+    minHeight: 132,
+    padding: 8,
+    background: '#ffffff',
+    border: '2px solid transparent',
     display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '6px',
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    gap: 6,
+    textAlign: 'left',
     cursor: 'pointer',
-    transition: 'all 0.2s',
-    position: 'relative' as const,
-  } as const,
-  dayCellSelected: {
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-    transform: 'translateY(-2px)',
-  } as const,
-  dayNumber: {
-    fontWeight: '700',
-    color: '#111827',
-  } as const,
-  dayMetrics: {
-    display: 'flex',
-    gap: '4px',
-    flexWrap: 'wrap' as const,
-    color: '#6b7280',
-  } as const,
-  metric: {
-    backgroundColor: '#f3f4f6',
-    padding: '2px 6px',
-    borderRadius: '4px',
-    whiteSpace: 'nowrap' as const,
-  } as const,
-  metricCritical: {
-    backgroundColor: '#fee2e2',
-    color: '#991b1b',
-  } as const,
-  statusDot: {
-    width: '8px',
-    height: '8px',
-    borderRadius: '50%',
-    position: 'absolute' as const,
-    bottom: '8px',
-    right: '8px',
-  } as const,
-  listContainer: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '12px',
-  } as const,
-  listItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    padding: '12px',
-    backgroundColor: '#f9fafb',
-    borderRadius: '10px',
+  },
+  dayCellMuted: { background: '#f8fafc', color: '#94a3b8' },
+  dayCellSelected: { borderColor: '#ef4d2f' },
+  dayNumber: { color: '#334155', fontSize: 12, fontWeight: 850 },
+  dayTotal: { minHeight: 14, color: '#64748b', fontSize: 11, fontWeight: 750 },
+  dayBookings: { display: 'grid', gap: 5, minWidth: 0 },
+  chip: {
+    display: 'block',
+    minHeight: 22,
+    padding: '4px 6px',
+    borderRadius: 6,
+    fontSize: 11,
+    fontWeight: 800,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  moreText: { color: '#475569', fontSize: 11, fontWeight: 800 },
+  sidePanel: {
+    borderRadius: 8,
     border: '1px solid #e5e7eb',
-    borderLeft: '4px solid transparent',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-  } as const,
-  listItemSelected: {
-    backgroundColor: '#ffffff',
-    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-  } as const,
-  listItemDate: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: '50px',
-    padding: '8px',
-    backgroundColor: '#ffffff',
-    borderRadius: '8px',
+    background: '#f8fafc',
+    padding: 14,
+  },
+  sideTitle: { margin: '0 0 12px', color: '#111827', fontSize: 16, fontWeight: 850 },
+  sideEmpty: {
+    padding: 14,
+    borderRadius: 8,
+    border: '1px dashed #cbd5e1',
+    color: '#64748b',
+    background: '#ffffff',
+    fontSize: 13,
+    fontWeight: 750,
+  },
+  eventList: { display: 'grid', gap: 12 },
+  eventCard: {
+    padding: 12,
+    borderRadius: 8,
     border: '1px solid #e5e7eb',
-  } as const,
-  listItemDay: {
-    fontSize: '16px',
-    fontWeight: '700',
-    color: '#111827',
-  } as const,
-  listItemMonth: {
-    fontSize: '11px',
-    color: '#6b7280',
-    fontWeight: '500',
-  } as const,
-  listItemMetrics: {
-    display: 'flex',
-    gap: '16px',
-    flex: 1,
-  } as const,
-  listMetricItem: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    alignItems: 'center',
-  } as const,
-  listMetricLabel: {
-    fontSize: '10px',
-    color: '#6b7280',
-    fontWeight: '500',
-  } as const,
-  listMetricValue: {
-    fontSize: '14px',
-    fontWeight: '700',
-    color: '#111827',
-  } as const,
-  listItemRight: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    alignItems: 'flex-end',
-    gap: '6px',
-  } as const,
-  listRevenue: {
-    fontSize: '14px',
-    fontWeight: '700',
-    color: '#16a34a',
-  } as const,
-  listStatus: {
-    fontSize: '10px',
-    fontWeight: '600',
-    padding: '4px 8px',
-    borderRadius: '6px',
-    textTransform: 'uppercase',
-  } as const,
-  detailsCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: '12px',
-    border: '1px solid #e5e7eb',
-    height: 'fit-content',
-  } as const,
-  detailsHeader: {
-    marginBottom: '16px',
-    paddingBottom: '12px',
-    borderBottom: '1px solid #e5e7eb',
+    background: '#ffffff',
+  },
+  eventTop: {
     display: 'flex',
     justifyContent: 'space-between',
+    gap: 10,
     alignItems: 'flex-start',
-  } as const,
-  detailsTitle: {
-    fontSize: '16px',
-    fontWeight: '700',
-    color: '#111827',
-    margin: 0,
-  } as const,
-  viewDetailsLink: {
-    color: '#2563eb',
-    textDecoration: 'none',
-    fontSize: '12px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-    marginLeft: '8px',
-  } as const,
-  detailsContent: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-  } as const,
-  compactMetricsGrid: {
+  },
+  eventTitle: { color: '#111827', fontSize: 14, fontWeight: 850 },
+  eventMeta: { margin: '6px 0 0', color: '#64748b', fontSize: 12, lineHeight: 1.45 },
+  eventLocation: { margin: '8px 0 0', color: '#334155', fontSize: 13, fontWeight: 750 },
+  eventGrid: {
     display: 'grid',
-    gridTemplateColumns: '1fr',
-    gap: '10px',
-    marginBottom: '14px',
-  } as const,
-  compactMetricCard: {
-    display: 'flex',
-    gap: '10px',
-    alignItems: 'flex-start',
-    padding: '10px',
-    backgroundColor: '#f9fafb',
-    borderRadius: '8px',
-    border: '1px solid #e5e7eb',
-  } as const,
-  compactMetricIcon: {
-    width: '36px',
-    height: '36px',
-    borderRadius: '6px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  } as const,
-  compactMetricLabel: {
-    fontSize: '10px',
-    color: '#6b7280',
-    margin: 0,
-    fontWeight: '500',
-  } as const,
-  compactMetricValue: {
-    fontSize: '16px',
-    fontWeight: '700',
-    color: '#111827',
-    margin: '2px 0 0 0',
-  } as const,
-  compactRevenueCard: {
-    padding: '12px',
-    backgroundColor: '#f0fdf4',
-    borderRadius: '8px',
-    border: '1px solid #dcfce7',
-    marginBottom: '12px',
-  } as const,
-  revenueCard: {
-    padding: '16px',
-    backgroundColor: '#f0fdf4',
-    borderRadius: '10px',
-    border: '1px solid #dcfce7',
-  } as const,
-  revenueLabel: {
-    fontSize: '11px',
-    color: '#6b7280',
-    margin: 0,
-    fontWeight: '600',
-  } as const,
-  revenueValue: {
-    fontSize: '20px',
-    fontWeight: '700',
-    color: '#16a34a',
-    margin: '6px 0 0 0',
-  } as const,
-  deliveriesSection: {
-    marginTop: '16px',
-  } as const,
-  deliveriesSectionTitle: {
-    fontSize: '13px',
-    fontWeight: '600',
-    color: '#111827',
-    margin: '0 0 12px 0',
-  } as const,
-  deliveriesSummarySection: {
-    marginBottom: '12px',
-  } as const,
-  deliveriesSectionLabel: {
-    fontSize: '11px',
-    color: '#6b7280',
-    margin: '0 0 10px 0',
-    fontWeight: '600',
-  } as const,
-  deliveriesGrid: {
+    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+    gap: 8,
+    marginTop: 10,
+  },
+  info: {
     display: 'grid',
-    gridTemplateColumns: '1fr',
-    gap: '10px',
-  } as const,
-  deliveryTypesSummary: {
-    display: 'grid',
-    gridTemplateColumns: '1fr',
-    gap: '8px',
-  } as const,
-  deliveryTypeCard: {
-    padding: '12px',
-    borderRadius: '8px',
-    border: '1px solid transparent',
-  } as const,
-  desktopDeliveryCard: {
-    padding: '12px',
-    borderRadius: '8px',
-    border: '1px solid transparent',
-  } as const,
-  smallDeliveryCard: {
-    padding: '8px',
-    borderRadius: '6px',
-    border: '1px solid transparent',
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '4px',
-  } as const,
-  desktopMetricItem: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '4px',
-  } as const,
-  statusSection: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '8px',
-    marginBottom: '12px',
-  } as const,
-  statusLabel: {
-    fontSize: '11px',
-    color: '#6b7280',
-    margin: 0,
-    fontWeight: '600',
-  } as const,
-  statusBadge: {
+    gap: 3,
+    padding: 8,
+    borderRadius: 6,
+    background: '#f8fafc',
+    color: '#64748b',
+    fontSize: 11,
+  },
+  badge: {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: '6px',
-    padding: '6px 10px',
-    borderRadius: '6px',
-    fontSize: '11px',
-  } as const,
-  actionButton: {
-    padding: '10px 16px',
-    borderRadius: '8px',
-    border: 'none',
-    backgroundColor: '#2563eb',
-    color: '#ffffff',
-    fontWeight: '600',
-    fontSize: '13px',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    width: '100%',
-  } as const,
-  metricsGrid: {
+    minHeight: 24,
+    padding: '0 8px',
+    border: '1px solid',
+    borderRadius: 999,
+    fontSize: 11,
+    fontWeight: 800,
+    whiteSpace: 'nowrap',
+  },
+  emptyState: {
+    minHeight: 220,
     display: 'grid',
-    gridTemplateColumns: '1fr',
-    gap: '12px',
-  } as const,
-  metricCard: {
-    display: 'flex',
-    gap: '12px',
-    alignItems: 'flex-start',
-    padding: '12px',
-    backgroundColor: '#f9fafb',
-    borderRadius: '8px',
-    border: '1px solid #e5e7eb',
-  } as const,
-  metricIcon: {
-    width: '40px',
-    height: '40px',
-    borderRadius: '8px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  } as const,
-  metricLabel: {
-    fontSize: '11px',
-    color: '#6b7280',
-    margin: 0,
-    fontWeight: '500',
-  } as const,
-  metricValue: {
-    fontSize: '18px',
-    fontWeight: '700',
-    color: '#111827',
-    margin: '4px 0 0 0',
-  } as const,
+    placeItems: 'center',
+    color: '#64748b',
+    borderRadius: 8,
+    border: '1px dashed #cbd5e1',
+    background: '#f8fafc',
+    fontSize: 14,
+    fontWeight: 700,
+    textAlign: 'center',
+  },
+  monthEmpty: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 8,
+    border: '1px dashed #cbd5e1',
+    background: '#f8fafc',
+    color: '#64748b',
+    fontSize: 13,
+    fontWeight: 750,
+    textAlign: 'center',
+  },
 };
