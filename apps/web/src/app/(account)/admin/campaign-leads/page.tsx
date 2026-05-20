@@ -4,14 +4,18 @@ import type { CSSProperties, ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import {
-  type CampaignPartnerLead,
-  fetchCampaignPartnerLeads,
-} from '@/lib/campaign-partner-leads';
+  type AdminCampaignLead,
+  fetchAdminCampaignLeads,
+  updateAdminCampaignLead,
+} from '@/lib/admin-campaign-leads-api';
+
+const leadStatuses = ['new', 'contacted', 'qualified', 'converted', 'closed'];
 
 export default function AdminCampaignLeadsPage() {
-  const [leads, setLeads] = useState<CampaignPartnerLead[]>([]);
+  const [leads, setLeads] = useState<AdminCampaignLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [updatingId, setUpdatingId] = useState('');
   const [error, setError] = useState('');
 
   const loadLeads = async (mode: 'initial' | 'refresh' = 'initial') => {
@@ -23,7 +27,7 @@ export default function AdminCampaignLeadsPage() {
     setError('');
 
     try {
-      const nextLeads = await fetchCampaignPartnerLeads();
+      const nextLeads = await fetchAdminCampaignLeads();
       setLeads(nextLeads);
     } catch (err) {
       setError(
@@ -34,6 +38,34 @@ export default function AdminCampaignLeadsPage() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const updateLeadStatus = async (id: string, status: string) => {
+    setUpdatingId(id);
+    setError('');
+
+    try {
+      await updateAdminCampaignLead(id, { status });
+      setLeads((current) =>
+        current.map((lead) =>
+          lead.id === id
+            ? {
+                ...lead,
+                status,
+                updatedAt: new Date().toISOString(),
+              }
+            : lead
+        )
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Unable to update campaign lead.'
+      );
+    } finally {
+      setUpdatingId('');
     }
   };
 
@@ -128,9 +160,20 @@ export default function AdminCampaignLeadsPage() {
                     <Td>{lead.city || '-'}</Td>
                     <Td>{formatPartnerType(lead.partnerType)}</Td>
                     <Td>
-                      <span style={styles.statusPill}>
-                        {formatPartnerType(lead.status)}
-                      </span>
+                      <select
+                        value={lead.status || 'new'}
+                        disabled={updatingId === lead.id}
+                        onChange={(event) =>
+                          updateLeadStatus(lead.id, event.target.value)
+                        }
+                        style={styles.statusSelect}
+                      >
+                        {leadStatuses.map((status) => (
+                          <option key={status} value={status}>
+                            {formatPartnerType(status)}
+                          </option>
+                        ))}
+                      </select>
                     </Td>
                     <Td>{formatDateTime(lead.createdAt)}</Td>
                     <Td>
@@ -195,12 +238,15 @@ function formatPartnerType(value: string) {
     .join(' ');
 }
 
-function formatDateTime(value: Date | null) {
+function formatDateTime(value?: string | null) {
   if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+
   return new Intl.DateTimeFormat('en-IN', {
     dateStyle: 'medium',
     timeStyle: 'short',
-  }).format(value);
+  }).format(date);
 }
 
 const styles: Record<string, CSSProperties> = {
@@ -362,14 +408,17 @@ const styles: Record<string, CSSProperties> = {
     fontSize: 11,
     fontWeight: 900,
   },
-  statusPill: {
-    display: 'inline-flex',
-    padding: '5px 9px',
-    borderRadius: 999,
-    background: '#f3e8ff',
+  statusSelect: {
+    minHeight: 34,
+    minWidth: 126,
+    border: '1px solid #ddd6fe',
+    borderRadius: 8,
+    background: '#f8f5ff',
     color: '#6d28d9',
-    fontSize: 11,
-    fontWeight: 950,
+    padding: '0 8px',
+    fontSize: 12,
+    fontWeight: 900,
+    outline: 'none',
   },
   docId: {
     color: '#64748b',
