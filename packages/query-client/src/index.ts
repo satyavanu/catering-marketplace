@@ -33,7 +33,6 @@ export type { Reply, Review } from './queries/reviews';
 export type { VerificationStatus } from './queries/profile';
 // Mutation Hooks
 export * from './mutations/newsletter';
-export * from './mutations/campaign-leads';
 
 // Types
 export * from './types';

@@ -1,9 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
 import type { FormEvent, ReactNode } from 'react';
 import { useMemo, useState } from 'react';
+import type { ConfirmationResult, Auth } from 'firebase/auth';
+import {
+  getAuth,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+} from 'firebase/auth';
 import {
   ArrowRight,
   BadgeCheck,
@@ -21,11 +26,12 @@ import {
 } from 'lucide-react';
 import PublicSupportShell from '@/components/PublicSupportShell';
 import {
+  createCampaignPartnerLead,
+  getFirebaseClientApp,
+} from '@/lib/campaign-partner-leads';
+import {
   type City,
-  useCreateCampaignLead,
   useOnboardingLocations,
-  useSendOtp,
-  useVerifyOtp,
 } from '@catering-marketplace/query-client';
 
 const SUPPORT_PHONE = '+91 81242 22266';
@@ -58,56 +64,9 @@ const partnerTypes = [
   { value: 'multi_service', label: 'Multiple services' },
 ];
 
-const firebaseConfig = {
-  apiKey:
-    process.env.NEXT_PUBLIC_FIREBASE_API_KEY ||
-    'AIzaSyBvP1Fm5zzBXbJW442ITudkE4VruGjtIjs',
-  authDomain:
-    process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'droooly.firebaseapp.com',
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'droooly',
-  storageBucket:
-    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
-    'droooly.firebasestorage.app',
-  messagingSenderId:
-    process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '118844553260',
-  appId:
-    process.env.NEXT_PUBLIC_FIREBASE_APP_ID ||
-    '1:118844553260:web:83106d771be8cb55673989',
-  measurementId:
-    process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || 'G-E07TF5FRFW',
-};
-
 type Step = 'details' | 'otp' | 'done';
 
-async function getFirebaseMessagingToken() {
-  const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
-
-  if (!vapidKey || typeof window === 'undefined') return undefined;
-  if (!('Notification' in window) || !('serviceWorker' in navigator)) {
-    return undefined;
-  }
-
-  const permission =
-    Notification.permission === 'default'
-      ? await Notification.requestPermission()
-      : Notification.permission;
-
-  if (permission !== 'granted') return undefined;
-
-  const [{ initializeApp, getApps }, { getMessaging, getToken }] =
-    await Promise.all([import('firebase/app'), import('firebase/messaging')]);
-
-  const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
-  const registration = await navigator.serviceWorker.register(
-    '/firebase-messaging-sw.js'
-  );
-  const messaging = getMessaging(app);
-
-  return getToken(messaging, {
-    vapidKey,
-    serviceWorkerRegistration: registration,
-  });
-}
+let recaptchaVerifier: RecaptchaVerifier | null = null;
 
 function normalizeIndianPhone(value: string) {
   const digits = value.replace(/\D/g, '').slice(-10);
@@ -125,11 +84,26 @@ function getAllCities(locations?: { countries: { states: { cities: City[] }[] }[
     : fallbackCities;
 }
 
+function getRecaptchaVerifier(auth: Auth) {
+  if (!recaptchaVerifier) {
+    recaptchaVerifier = new RecaptchaVerifier(
+      auth,
+      'partner-onboarding-recaptcha',
+      {
+        size: 'invisible',
+      }
+    );
+  }
+
+  return recaptchaVerifier;
+}
+
+function resetRecaptchaVerifier() {
+  recaptchaVerifier?.clear();
+  recaptchaVerifier = null;
+}
+
 export default function PartnerOnboardingCampaign() {
-  const searchParams = useSearchParams();
-  const sendOtp = useSendOtp();
-  const verifyOtp = useVerifyOtp();
-  const createLead = useCreateCampaignLead();
   const { data: locations } = useOnboardingLocations();
 
   const cityOptions = useMemo(() => getAllCities(locations), [locations]);
@@ -143,23 +117,14 @@ export default function PartnerOnboardingCampaign() {
   const [otp, setOtp] = useState('');
   const [accepted, setAccepted] = useState(true);
   const [message, setMessage] = useState('');
+  const [confirmationResult, setConfirmationResult] =
+    useState<ConfirmationResult | null>(null);
+  const [isSending, setIsSending] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   const selectedCityName =
     cityOptions.find((city) => city.id === cityId)?.name || cityName;
   const normalizedPhone = normalizeIndianPhone(phone);
-  const isSending = sendOtp.isPending;
-  const isVerifying = verifyOtp.isPending || createLead.isPending;
-
-  const campaignMeta = useMemo(
-    () => ({
-      campaign: searchParams.get('utm_campaign') || 'partner-onboarding',
-      source: searchParams.get('utm_source') || 'droooly-campaign',
-      medium: searchParams.get('utm_medium') || 'organic',
-      term: searchParams.get('utm_term') || undefined,
-      content: searchParams.get('utm_content') || undefined,
-    }),
-    [searchParams]
-  );
 
   const handleGetOtp = async (event: FormEvent) => {
     event.preventDefault();
@@ -185,19 +150,28 @@ export default function PartnerOnboardingCampaign() {
       return;
     }
 
-    const response = await sendOtp.mutateAsync({
-      phone: normalizedPhone,
-      intent: 'partner_onboarding',
-      full_name: name.trim(),
-    });
-
-    if (!response.success) {
-      setMessage(response.error || response.message || 'Could not send OTP.');
-      return;
+    setIsSending(true);
+    try {
+      const auth = getAuth(getFirebaseClientApp());
+      const verifier = getRecaptchaVerifier(auth);
+      const result = await signInWithPhoneNumber(
+        auth,
+        normalizedPhone,
+        verifier
+      );
+      setConfirmationResult(result);
+      setStep('otp');
+      setMessage(`OTP sent to ${normalizedPhone.replace('+91', '+91 ')}.`);
+    } catch (error) {
+      resetRecaptchaVerifier();
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : 'Could not send OTP. Please check Firebase Phone sign-in setup.'
+      );
+    } finally {
+      setIsSending(false);
     }
-
-    setStep('otp');
-    setMessage(`OTP sent to ${normalizedPhone.replace('+91', '+91 ')}.`);
   };
 
   const handleVerifyOtp = async (event: FormEvent) => {
@@ -209,53 +183,30 @@ export default function PartnerOnboardingCampaign() {
       return;
     }
 
-    const response = await verifyOtp.mutateAsync({
-      phone: normalizedPhone,
-      otp: otp.replace(/\D/g, ''),
-      intent: 'partner_onboarding',
-      full_name: name.trim(),
-    });
-
-    if (!response.success) {
-      setMessage(response.error || response.message || 'OTP verification failed.');
+    if (!confirmationResult) {
+      setMessage('Please request a fresh OTP before verifying.');
       return;
     }
 
-    let fcmToken: string | undefined;
+    setIsVerifying(true);
     try {
-      fcmToken = await getFirebaseMessagingToken();
-    } catch (error) {
-      console.warn('[Campaign] FCM token capture failed', error);
-    }
-
-    try {
-      await createLead.mutateAsync({
-        ...campaignMeta,
+      await confirmationResult.confirm(otp.replace(/\D/g, ''));
+      await createCampaignPartnerLead({
         name: name.trim(),
         phone: normalizedPhone,
         city: selectedCityName,
-        city_id: cityId,
-        partner_interest: partnerInterest,
-        fcm_token: fcmToken,
-        notification_permission:
-          typeof window !== 'undefined' && 'Notification' in window
-            ? Notification.permission
-            : 'unsupported',
-        page_url:
-          typeof window !== 'undefined' ? window.location.href : undefined,
-        user_agent:
-          typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
+        partnerType: partnerInterest,
       });
+      setStep('done');
     } catch (error) {
       setMessage(
         error instanceof Error
           ? error.message
-          : 'Phone verified, but we could not save the campaign lead.'
+          : 'OTP verification failed. Please try again.'
       );
-      return;
+    } finally {
+      setIsVerifying(false);
     }
-
-    setStep('done');
   };
 
   return (
@@ -300,13 +251,14 @@ export default function PartnerOnboardingCampaign() {
                 team callback
               </span>
               <span>
-                <strong>FCM</strong>
-                low-cost follow-up
+                <strong>OTP</strong>
+                Firebase phone auth
               </span>
             </div>
           </div>
 
           <section id="partner-form" className="formPanel" aria-label="Partner registration form">
+            <div id="partner-onboarding-recaptcha" />
             {step === 'done' ? (
               <div className="successState">
                 <span>
@@ -445,6 +397,7 @@ export default function PartnerOnboardingCampaign() {
                         setStep('details');
                         setOtp('');
                         setMessage('');
+                        setConfirmationResult(null);
                       }}
                     >
                       Edit details
