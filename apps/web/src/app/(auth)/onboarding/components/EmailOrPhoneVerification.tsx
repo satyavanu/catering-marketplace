@@ -2,8 +2,10 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { signIn, useSession } from 'next-auth/react';
+import type { ConfirmationResult } from 'firebase/auth';
 import { sendOtpApi } from '@catering-marketplace/query-client';
 import { PhoneWithShield } from '@/components/SVGS';
+import { sendFirebasePhoneOtp } from '@/lib/firebase-phone-auth';
 
 type AuthIntent = 'partner_onboarding';
 type InputType = 'email' | 'phone' | 'invalid';
@@ -27,6 +29,7 @@ interface EmailOrPhoneVerificationProps {
 
 const RESEND_SECONDS = 180;
 const OTP_LENGTH = 6;
+const PHONE_RECAPTCHA_ID = 'partner-onboarding-phone-recaptcha';
 
 export default function EmailOrPhoneVerification({
   initialData,
@@ -48,6 +51,8 @@ export default function EmailOrPhoneVerification({
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
 
   const [error, setError] = useState('');
+  const [phoneConfirmation, setPhoneConfirmation] =
+    useState<ConfirmationResult | null>(null);
 
   useEffect(() => {
     if (resendTimer <= 0) return;
@@ -84,6 +89,10 @@ export default function EmailOrPhoneVerification({
 
     return {};
   }, [emailOrPhone, inputType]);
+  const normalizedPhone =
+    inputType === 'phone'
+      ? (normalizedContact as { phone?: string }).phone
+      : undefined;
 
   const contactLabel = inputType === 'email' ? 'Email address' : 'Mobile number';
   const contactDisplay =
@@ -138,6 +147,14 @@ export default function EmailOrPhoneVerification({
         return;
       }
 
+      if (inputType === 'phone' && normalizedPhone) {
+        const confirmation = await sendFirebasePhoneOtp(
+          normalizedPhone,
+          PHONE_RECAPTCHA_ID
+        );
+        setPhoneConfirmation(confirmation);
+      }
+
       setOtpSent(true);
       setOtp('');
       setResendTimer(RESEND_SECONDS);
@@ -170,6 +187,14 @@ export default function EmailOrPhoneVerification({
         return;
       }
 
+      if (inputType === 'phone' && normalizedPhone) {
+        const confirmation = await sendFirebasePhoneOtp(
+          normalizedPhone,
+          PHONE_RECAPTCHA_ID
+        );
+        setPhoneConfirmation(confirmation);
+      }
+
       setOtp('');
       setResendTimer(RESEND_SECONDS);
 
@@ -191,11 +216,23 @@ export default function EmailOrPhoneVerification({
     setIsVerifyingOtp(true);
 
     try {
+      let firebaseIDToken = '';
+      if (inputType === 'phone') {
+        if (!phoneConfirmation) {
+          setError('Please request a fresh OTP and try again.');
+          return;
+        }
+
+        const credential = await phoneConfirmation.confirm(otp);
+        firebaseIDToken = await credential.user.getIdToken();
+      }
+
       const provider = inputType === 'email' ? 'email-otp' : 'phone-otp';
 
       const result = await signIn(provider, {
         ...normalizedContact,
         otp,
+        ...(firebaseIDToken ? { firebase_id_token: firebaseIDToken } : {}),
         intent,
         redirect: false,
       });
@@ -277,10 +314,12 @@ export default function EmailOrPhoneVerification({
     setOtp('');
     setError('');
     setResendTimer(0);
+    setPhoneConfirmation(null);
   };
 
   return (
     <div style={styles.card}>
+      <div id={PHONE_RECAPTCHA_ID} />
       <div style={styles.hero}>
         <div style={styles.iconWrap}>
           <PhoneWithShield />

@@ -20,6 +20,8 @@ export async function verifyOtp(payload: {
   email?: string;
   phone?: string;
   otp: string;
+  firebase_id_token?: string;
+  firebaseIdToken?: string;
   intent?: AuthIntent;
 }) {
   const response = await fetch(`${API_URL}/api/auth/verify-otp`, {

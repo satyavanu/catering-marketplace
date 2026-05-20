@@ -46,7 +46,7 @@ async function parseError(response: Response, fallback: string) {
 }
 
 export async function fetchAdminCampaignLeads(): Promise<AdminCampaignLead[]> {
-  const response = await fetch(`${API_URL}/api/admin/campaign-leads`, {
+  const response = await fetch(`${API_URL}/api/v1/admin/campaign-leads`, {
     headers: await getAdminHeaders(),
   });
 
@@ -65,7 +65,7 @@ export async function updateAdminCampaignLead(
   payload: UpdateAdminCampaignLeadPayload
 ) {
   const response = await fetch(
-    `${API_URL}/api/admin/campaign-leads/${encodeURIComponent(id)}`,
+    `${API_URL}/api/v1/admin/campaign-leads/${encodeURIComponent(id)}`,
     {
       method: 'PATCH',
       headers: await getAdminHeaders(),

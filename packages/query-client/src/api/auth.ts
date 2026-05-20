@@ -14,6 +14,8 @@ interface VerifyOtpPayload {
   email?: string;
   phone?: string;
   otp: string;
+  firebase_id_token?: string;
+  firebaseIdToken?: string;
   intent?: 'login' | 'signup' | 'partner_onboarding';
   full_name?: string;
   referral_code?: string;

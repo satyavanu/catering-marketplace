@@ -390,6 +390,7 @@ export const authOptions: NextAuthOptions = {
         intent: { label: 'Intent', type: 'text' },
         full_name: { label: 'Full name', type: 'text' },
         referral_code: { label: 'Referral code', type: 'text' },
+        firebase_id_token: { label: 'Firebase ID token', type: 'text' },
       },
       async authorize(credentials) {
         return await authorizeOtpUser(credentials, 'email');
@@ -404,6 +405,7 @@ export const authOptions: NextAuthOptions = {
         intent: { label: 'Intent', type: 'text' },
         full_name: { label: 'Full name', type: 'text' },
         referral_code: { label: 'Referral code', type: 'text' },
+        firebase_id_token: { label: 'Firebase ID token', type: 'text' },
       },
       async authorize(credentials) {
         return await authorizeOtpUser(credentials, 'phone');

@@ -4,10 +4,12 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { signIn, useSession } from 'next-auth/react';
+import type { ConfirmationResult } from 'firebase/auth';
 import {
   sendOtpApi,
   useCompleteOnboarding,
 } from '@catering-marketplace/query-client';
+import { sendFirebasePhoneOtp } from '@/lib/firebase-phone-auth';
 
 declare module 'next-auth' {
   interface User {
@@ -49,6 +51,7 @@ type ContactMethod = 'email' | 'phone' | 'invalid';
 
 const OTP_LENGTH = 6;
 const RESEND_SECONDS = 180;
+const PHONE_RECAPTCHA_ID = 'login-phone-recaptcha';
 const SOCIAL_ICONS = {
   google:
     'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg',
@@ -83,6 +86,8 @@ export default function LoginPage() {
   const [marketingEmail, setMarketingEmail] = useState(true);
   const [marketingSms, setMarketingSms] = useState(false);
   const [referralCode, setReferralCode] = useState('');
+  const [phoneConfirmation, setPhoneConfirmation] =
+    useState<ConfirmationResult | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -198,6 +203,7 @@ export default function LoginPage() {
     setOtpSent(false);
     setResendTimer(0);
     setError('');
+    setPhoneConfirmation(null);
   };
 
   const switchAuthMode = (mode: AuthMode) => {
@@ -223,6 +229,14 @@ export default function LoginPage() {
         return;
       }
 
+      if (contactMethod === 'phone' && normalizedContact.phone) {
+        const confirmation = await sendFirebasePhoneOtp(
+          normalizedContact.phone,
+          PHONE_RECAPTCHA_ID
+        );
+        setPhoneConfirmation(confirmation);
+      }
+
       setOtpSent(true);
       setOtp('');
       setResendTimer(RESEND_SECONDS);
@@ -245,10 +259,22 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      let firebaseIDToken = '';
+      if (contactMethod === 'phone') {
+        if (!phoneConfirmation) {
+          setError('Please request a fresh OTP and try again.');
+          return;
+        }
+
+        const credential = await phoneConfirmation.confirm(otp);
+        firebaseIDToken = await credential.user.getIdToken();
+      }
+
       const provider = contactMethod === 'email' ? 'email-otp' : 'phone-otp';
       const result = await signIn(provider, {
         ...normalizedContact,
         otp,
+        ...(firebaseIDToken ? { firebase_id_token: firebaseIDToken } : {}),
         intent: authMode,
         ...(isSignup ? { full_name: fullName.trim() } : {}),
         ...(isSignup && referralCode ? { referral_code: referralCode } : {}),
@@ -385,6 +411,7 @@ export default function LoginPage() {
 
   return (
     <div style={styles.page}>
+      <div id={PHONE_RECAPTCHA_ID} />
       <section style={styles.authShell}>
         <div style={styles.card}>
           <div style={styles.header}>
