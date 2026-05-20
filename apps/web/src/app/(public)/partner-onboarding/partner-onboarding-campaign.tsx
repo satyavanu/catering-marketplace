@@ -2,23 +2,61 @@
 
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import type { FormEvent } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { useMemo, useState } from 'react';
 import {
-  Check,
-  Facebook,
-  Instagram,
+  ArrowRight,
+  BadgeCheck,
+  CalendarCheck2,
+  ChefHat,
+  ClipboardList,
+  Headphones,
   Loader2,
+  Megaphone,
   Phone,
   ShieldCheck,
+  Sparkles,
+  Utensils,
+  Zap,
 } from 'lucide-react';
+import PublicSupportShell from '@/components/PublicSupportShell';
 import {
+  type City,
   useCreateCampaignLead,
+  useOnboardingLocations,
   useSendOtp,
   useVerifyOtp,
 } from '@catering-marketplace/query-client';
 
 const SUPPORT_PHONE = '+91 81242 22266';
+
+const fallbackCities: City[] = [
+  'Mumbai',
+  'Delhi',
+  'Bangalore',
+  'Hyderabad',
+  'Pune',
+  'Chennai',
+  'Kolkata',
+  'Ahmedabad',
+  'Jaipur',
+  'Chandigarh',
+].map((name) => ({
+  id: name.toLowerCase().replace(/\s+/g, '-'),
+  name,
+  latitude: 0,
+  longitude: 0,
+  timezone: 'Asia/Kolkata',
+  serviceAreas: [],
+}));
+
+const partnerTypes = [
+  { value: 'catering', label: 'Catering business' },
+  { value: 'private_chef', label: 'Private chef' },
+  { value: 'restaurant_events', label: 'Restaurant / hosted events' },
+  { value: 'cloud_kitchen', label: 'Cloud kitchen' },
+  { value: 'multi_service', label: 'Multiple services' },
+];
 
 const firebaseConfig = {
   apiKey:
@@ -76,19 +114,41 @@ function normalizeIndianPhone(value: string) {
   return digits.length === 10 ? `+91${digits}` : '';
 }
 
+function getAllCities(locations?: { countries: { states: { cities: City[] }[] }[] }) {
+  const cities =
+    locations?.countries.flatMap((country) =>
+      country.states.flatMap((state) => state.cities)
+    ) ?? [];
+
+  return cities.length > 0
+    ? [...cities].sort((a, b) => a.name.localeCompare(b.name))
+    : fallbackCities;
+}
+
 export default function PartnerOnboardingCampaign() {
   const searchParams = useSearchParams();
   const sendOtp = useSendOtp();
   const verifyOtp = useVerifyOtp();
   const createLead = useCreateCampaignLead();
+  const { data: locations } = useOnboardingLocations();
+
+  const cityOptions = useMemo(() => getAllCities(locations), [locations]);
 
   const [step, setStep] = useState<Step>('details');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [city, setCity] = useState('');
+  const [cityId, setCityId] = useState('');
+  const [cityName, setCityName] = useState('');
+  const [partnerInterest, setPartnerInterest] = useState('catering');
   const [otp, setOtp] = useState('');
   const [accepted, setAccepted] = useState(true);
   const [message, setMessage] = useState('');
+
+  const selectedCityName =
+    cityOptions.find((city) => city.id === cityId)?.name || cityName;
+  const normalizedPhone = normalizeIndianPhone(phone);
+  const isSending = sendOtp.isPending;
+  const isVerifying = verifyOtp.isPending || createLead.isPending;
 
   const campaignMeta = useMemo(
     () => ({
@@ -101,10 +161,6 @@ export default function PartnerOnboardingCampaign() {
     [searchParams]
   );
 
-  const normalizedPhone = normalizeIndianPhone(phone);
-  const isSending = sendOtp.isPending;
-  const isVerifying = verifyOtp.isPending || createLead.isPending;
-
   const handleGetOtp = async (event: FormEvent) => {
     event.preventDefault();
     setMessage('');
@@ -116,6 +172,11 @@ export default function PartnerOnboardingCampaign() {
 
     if (!normalizedPhone) {
       setMessage('Please enter a valid 10 digit mobile number.');
+      return;
+    }
+
+    if (!cityId) {
+      setMessage('Please select your city.');
       return;
     }
 
@@ -172,7 +233,9 @@ export default function PartnerOnboardingCampaign() {
         ...campaignMeta,
         name: name.trim(),
         phone: normalizedPhone,
-        city: city.trim() || undefined,
+        city: selectedCityName,
+        city_id: cityId,
+        partner_interest: partnerInterest,
         fcm_token: fcmToken,
         notification_permission:
           typeof window !== 'undefined' && 'Notification' in window
@@ -196,94 +259,142 @@ export default function PartnerOnboardingCampaign() {
   };
 
   return (
-    <main className="partnerCampaign">
-      <header className="campaignHeader">
-        <Link href="/" className="brand" aria-label="Droooly home">
-          <img src="/logo.png" alt="Droooly" />
-        </Link>
-        <a className="supportLink" href={`tel:${SUPPORT_PHONE.replace(/\s/g, '')}`}>
-          <Phone size={17} />
-          Need help? Call {SUPPORT_PHONE}
-        </a>
-      </header>
-
-      <section className="heroBand">
-        <div className="heroInner">
+    <PublicSupportShell contentMaxWidth={1360}>
+      <main className="campaignPage">
+        <section className="campaignHero">
           <div className="heroCopy">
-            <p className="eyebrow">Droooly partner onboarding</p>
+            <span className="kicker">
+              <Megaphone size={16} />
+              Partner onboarding campaign
+            </span>
             <h1>
-              Grow Catering, Chef, Quote and Instant Bookings with{' '}
-              <span>Droooly</span>
+              Grow your food business with real catering, chef, quote and
+              instant booking demand.
             </h1>
-            <p className="subcopy">
-              Join early partner campaigns built for caterers, private chefs,
-              cloud kitchens, restaurants, and event food teams who want more
-              qualified demand.
+            <p>
+              Droooly helps partners convert high-intent event customers across
+              managed catering orders, private chef requests, custom quotes and
+              book-now experiences.
             </p>
-            <div className="channelGrid" aria-label="Droooly partner channels">
-              <span>Catering orders</span>
-              <span>Private chef requests</span>
-              <span>Custom quotes</span>
-              <span>Instant booking</span>
+
+            <div className="heroActions">
+              <a href="#partner-form" className="primaryAction">
+                Start with OTP <ArrowRight size={18} />
+              </a>
+              <a
+                href={`tel:${SUPPORT_PHONE.replace(/\s/g, '')}`}
+                className="secondaryAction"
+              >
+                <Phone size={18} />
+                {SUPPORT_PHONE}
+              </a>
             </div>
-            <div className="trustRow" aria-label="Campaign highlights">
+
+            <div className="metricRow" aria-label="Campaign highlights">
               <span>
-                <Check size={16} /> Verified customer intent
+                <strong>4</strong>
+                booking paths
               </span>
               <span>
-                <Check size={16} /> FCM follow-ups where available
+                <strong>24h</strong>
+                team callback
               </span>
               <span>
-                <Check size={16} /> Onboarding support
+                <strong>FCM</strong>
+                low-cost follow-up
               </span>
             </div>
           </div>
 
-          <section className="formPanel" aria-label="Register as a Droooly partner">
+          <section id="partner-form" className="formPanel" aria-label="Partner registration form">
             {step === 'done' ? (
               <div className="successState">
-                <span className="successIcon">
+                <span>
                   <ShieldCheck size={34} />
                 </span>
-                <h2>Phone verified. You are on the list.</h2>
+                <h2>Phone verified. You are on the partner list.</h2>
                 <p>
                   Thanks, {name.trim()}. Our team will review your details and
-                  contact you within 24 hours with the next steps for catering,
-                  chef, quote, or instant booking onboarding.
+                  contact you within 24 hours with the best next step for{' '}
+                  {selectedCityName || 'your city'}.
                 </p>
-                <a href={`tel:${SUPPORT_PHONE.replace(/\s/g, '')}`}>
-                  Call support
-                </a>
+                <Link href="/onboarding">Continue full onboarding</Link>
               </div>
             ) : (
               <>
-                <h2>Register as a partner</h2>
-                <p className="panelIntro">
-                  Share your details below and we will reach out within 24 hours
-                  to help you start with the right booking flow.
-                </p>
+                <div className="formHeader">
+                  <span>
+                    <BadgeCheck size={18} />
+                    Verified lead capture
+                  </span>
+                  <h2>Register as a Droooly partner</h2>
+                  <p>
+                    Share a few details. We will verify your number and route
+                    you to the right onboarding flow.
+                  </p>
+                </div>
 
                 {step === 'details' ? (
                   <form onSubmit={handleGetOtp} className="leadForm">
-                    <input
-                      value={name}
-                      onChange={(event) => setName(event.target.value)}
-                      placeholder="Enter your name"
-                      autoComplete="name"
-                    />
-                    <input
-                      value={phone}
-                      onChange={(event) => setPhone(event.target.value)}
-                      placeholder="Enter your mobile number"
-                      inputMode="tel"
-                      autoComplete="tel"
-                    />
-                    <input
-                      value={city}
-                      onChange={(event) => setCity(event.target.value)}
-                      placeholder="City or service area"
-                      autoComplete="address-level2"
-                    />
+                    <label>
+                      <span>Your name</span>
+                      <input
+                        value={name}
+                        onChange={(event) => setName(event.target.value)}
+                        placeholder="Enter your full name"
+                        autoComplete="name"
+                      />
+                    </label>
+
+                    <label>
+                      <span>Mobile number</span>
+                      <input
+                        value={phone}
+                        onChange={(event) => setPhone(event.target.value)}
+                        placeholder="10 digit mobile number"
+                        inputMode="tel"
+                        autoComplete="tel"
+                      />
+                    </label>
+
+                    <label>
+                      <span>Primary city</span>
+                      <select
+                        value={cityId}
+                        onChange={(event) => {
+                          const nextCityId = event.target.value;
+                          const nextCity = cityOptions.find(
+                            (city) => city.id === nextCityId
+                          );
+                          setCityId(nextCityId);
+                          setCityName(nextCity?.name || '');
+                        }}
+                      >
+                        <option value="">Select city</option>
+                        {cityOptions.map((city) => (
+                          <option key={city.id} value={city.id}>
+                            {city.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label>
+                      <span>Main partner type</span>
+                      <select
+                        value={partnerInterest}
+                        onChange={(event) =>
+                          setPartnerInterest(event.target.value)
+                        }
+                      >
+                        {partnerTypes.map((type) => (
+                          <option key={type.value} value={type.value}>
+                            {type.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
                     <label className="consentRow">
                       <input
                         type="checkbox"
@@ -291,12 +402,14 @@ export default function PartnerOnboardingCampaign() {
                         onChange={(event) => setAccepted(event.target.checked)}
                       />
                       <span>
-                        By selecting Get OTP, you agree to the{' '}
-                        <Link href="/terms-of-use">Terms & Conditions</Link> and{' '}
+                        I agree to Droooly's{' '}
+                        <Link href="/terms-of-use">Terms</Link> and{' '}
                         <Link href="/privacy-policy">Privacy Policy</Link>.
                       </span>
                     </label>
-                    {message && <p className="formMessage">{message}</p>}
+
+                    {message ? <p className="formMessage">{message}</p> : null}
+
                     <button type="submit" disabled={isSending}>
                       {isSending ? <Loader2 className="spin" size={18} /> : null}
                       Get OTP
@@ -304,21 +417,26 @@ export default function PartnerOnboardingCampaign() {
                   </form>
                 ) : (
                   <form onSubmit={handleVerifyOtp} className="leadForm">
-                    <input
-                      value={otp}
-                      onChange={(event) =>
-                        setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))
-                      }
-                      placeholder="Enter 6 digit OTP"
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                    />
-                    {message && <p className="formMessage">{message}</p>}
+                    <label>
+                      <span>OTP sent to {normalizedPhone.replace('+91', '+91 ')}</span>
+                      <input
+                        value={otp}
+                        onChange={(event) =>
+                          setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))
+                        }
+                        placeholder="Enter 6 digit OTP"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                      />
+                    </label>
+
+                    {message ? <p className="formMessage">{message}</p> : null}
+
                     <button type="submit" disabled={isVerifying}>
                       {isVerifying ? (
                         <Loader2 className="spin" size={18} />
                       ) : null}
-                      Verify OTP
+                      Verify and submit
                     </button>
                     <button
                       className="textButton"
@@ -329,118 +447,99 @@ export default function PartnerOnboardingCampaign() {
                         setMessage('');
                       }}
                     >
-                      Edit phone number
+                      Edit details
                     </button>
                   </form>
                 )}
               </>
             )}
           </section>
-        </div>
-      </section>
+        </section>
 
-      <section className="assistBand">
-        <div>
-          <h2>Need assistance? Talk to our experts.</h2>
-          <p>Monday - Saturday, 9:30 AM to 6:30 PM</p>
-        </div>
-        <a href={`tel:${SUPPORT_PHONE.replace(/\s/g, '')}`}>Call us at {SUPPORT_PHONE}</a>
-      </section>
+        <section className="pathGrid" aria-label="Droooly partner booking paths">
+          <PartnerPath
+            icon={<Utensils size={24} />}
+            title="Catering orders"
+            text="Event menus, guest counts, dates and delivery requirements in one flow."
+          />
+          <PartnerPath
+            icon={<ChefHat size={24} />}
+            title="Private chef requests"
+            text="Host-at-home dining, live counters and curated chef-led experiences."
+          />
+          <PartnerPath
+            icon={<ClipboardList size={24} />}
+            title="Custom quotes"
+            text="Capture richer requirements before pricing larger or complex events."
+          />
+          <PartnerPath
+            icon={<Zap size={24} />}
+            title="Instant booking"
+            text="Let customers book packaged services faster when availability is clear."
+          />
+        </section>
 
-      <footer className="campaignFooter">
-        <div className="footerTop">
-          <Link href="/" className="footerBrand" aria-label="Droooly home">
-            <img src="/logo.png" alt="Droooly" />
-          </Link>
-          <nav aria-label="Legal links">
-            <Link href="/terms-of-use">Terms & conditions</Link>
-            <Link href="/privacy-policy">Privacy policy</Link>
-          </nav>
-          <div className="socials" aria-label="Social links">
-            <span>Follow us on</span>
-            <div>
-              <a href="#" aria-label="Droooly Facebook">
-                <Facebook size={20} />
-              </a>
-              <a href="#" aria-label="Droooly Instagram">
-                <Instagram size={20} />
-              </a>
-              <a href="#" aria-label="Droooly Pinterest">
-                P
-              </a>
-            </div>
+        <section className="campaignStrip">
+          <div>
+            <span>
+              <CalendarCheck2 size={20} />
+              Campaign-ready onboarding
+            </span>
+            <h2>Built for quick partner launches without losing quality.</h2>
           </div>
-        </div>
-        <p className="copyright">
-          Copyright 2026 Droooly Labs Private Limited - All Rights Reserved
-        </p>
-      </footer>
+          <div className="stripItems">
+            <span>
+              <ShieldCheck size={18} />
+              OTP verified leads
+            </span>
+            <span>
+              <Sparkles size={18} />
+              UTM campaign tracking
+            </span>
+            <span>
+              <Headphones size={18} />
+              Human callback support
+            </span>
+          </div>
+        </section>
+      </main>
 
       <style jsx>{`
-        .partnerCampaign {
-          min-height: 100vh;
-          background: #fff;
-          color: #0f172a;
-        }
-
-        .campaignHeader {
-          position: relative;
-          z-index: 2;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
+        .campaignPage {
+          display: grid;
           gap: 24px;
-          height: 94px;
-          padding: 0 clamp(20px, 11vw, 190px);
-          background: #fff;
-          box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
         }
 
-        .brand,
-        .footerBrand {
-          display: inline-flex;
+        .campaignHero {
+          display: grid;
+          grid-template-columns: minmax(0, 1.06fr) minmax(380px, 0.72fr);
+          gap: 28px;
           align-items: center;
+          padding: clamp(32px, 5vw, 58px);
+          border-radius: 14px;
+          background:
+            radial-gradient(circle at 78% 18%, rgba(249, 115, 22, 0.13), transparent 18rem),
+            radial-gradient(circle at 16% 18%, rgba(139, 92, 246, 0.15), transparent 20rem),
+            linear-gradient(135deg, #fbfaff 0%, #fff7ed 52%, #ffffff 100%);
+          overflow: hidden;
         }
 
-        .brand img,
-        .footerBrand img {
-          width: 154px;
-          height: auto;
-          object-fit: contain;
+        .heroCopy {
+          max-width: 720px;
         }
 
-        .supportLink,
-        .assistBand a,
-        .successState a {
+        .kicker,
+        .formHeader > span,
+        .campaignStrip span,
+        .stripItems span {
           display: inline-flex;
           align-items: center;
           gap: 8px;
-          color: #111827;
-          text-decoration: none;
-          font-weight: 800;
         }
 
-        .heroBand {
-          background:
-            radial-gradient(circle at 17% 22%, rgba(255, 103, 88, 0.13), transparent 32%),
-            linear-gradient(110deg, #fff1f1 0%, #fff 56%);
-          min-height: 724px;
-          display: flex;
-          align-items: center;
-        }
-
-        .heroInner {
-          width: min(1310px, calc(100% - 40px));
-          margin: 0 auto;
-          display: grid;
-          grid-template-columns: minmax(0, 1.2fr) 475px;
-          gap: clamp(40px, 7vw, 120px);
-          align-items: center;
-        }
-
-        .eyebrow {
-          margin: 0 0 16px;
-          color: #e4473f;
+        .kicker {
+          margin-bottom: 18px;
+          color: #7c3aed;
           font-size: 13px;
           font-weight: 900;
           letter-spacing: 0;
@@ -448,174 +547,214 @@ export default function PartnerOnboardingCampaign() {
         }
 
         .heroCopy h1 {
-          max-width: 760px;
           margin: 0;
-          font-size: clamp(42px, 5.1vw, 76px);
-          line-height: 1.15;
+          color: #111827;
+          font-size: clamp(38px, 5vw, 62px);
+          line-height: 1.08;
+          font-weight: 950;
           letter-spacing: 0;
-          font-weight: 900;
         }
 
-        .heroCopy h1 span {
-          color: #ff5a52;
-          white-space: nowrap;
-        }
-
-        .subcopy {
-          max-width: 710px;
-          margin: 28px 0 0;
-          color: #111827;
-          font-size: clamp(20px, 2vw, 26px);
-          line-height: 1.35;
-          font-weight: 800;
-        }
-
-        .channelGrid {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 12px;
+        .heroCopy p {
           max-width: 650px;
-          margin-top: 28px;
+          margin: 20px 0 0;
+          color: #475569;
+          font-size: 18px;
+          line-height: 1.72;
+          font-weight: 650;
         }
 
-        .channelGrid span {
-          border: 1px solid rgba(15, 23, 42, 0.1);
-          border-left: 4px solid #ff5a52;
-          border-radius: 8px;
-          background: rgba(255, 255, 255, 0.76);
-          padding: 14px 16px;
-          color: #111827;
-          font-size: 15px;
-          font-weight: 900;
-          box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
-        }
-
-        .trustRow {
+        .heroActions {
           display: flex;
           flex-wrap: wrap;
           gap: 12px;
+          margin-top: 28px;
+        }
+
+        .primaryAction,
+        .secondaryAction,
+        .successState a {
+          min-height: 50px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 0 24px;
+          border-radius: 8px;
+          text-decoration: none;
+          font-size: 15px;
+          font-weight: 900;
+        }
+
+        .primaryAction,
+        .successState a {
+          color: #fff;
+          background: linear-gradient(90deg, #8b5cf6, #ec4899);
+          box-shadow: 0 16px 30px rgba(124, 58, 237, 0.22);
+        }
+
+        .secondaryAction {
+          color: #7c3aed;
+          background: #fff;
+          border: 1px solid #ddd6fe;
+        }
+
+        .metricRow {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 12px;
+          max-width: 640px;
           margin-top: 30px;
         }
 
-        .trustRow span {
-          display: inline-flex;
-          align-items: center;
-          gap: 7px;
-          border: 1px solid rgba(255, 90, 82, 0.23);
-          background: rgba(255, 255, 255, 0.7);
-          padding: 10px 13px;
-          border-radius: 8px;
-          color: #374151;
-          font-size: 14px;
+        .metricRow span {
+          min-height: 86px;
+          display: grid;
+          align-content: center;
+          gap: 3px;
+          padding: 16px;
+          border: 1px solid rgba(139, 92, 246, 0.12);
+          border-radius: 10px;
+          background: rgba(255, 255, 255, 0.72);
+          color: #64748b;
+          font-size: 13px;
           font-weight: 800;
         }
 
-        .formPanel {
-          background: #fff;
-          border: 1px solid rgba(15, 23, 42, 0.06);
-          border-radius: 18px;
-          box-shadow: 0 20px 48px rgba(15, 23, 42, 0.13);
-          padding: 38px;
+        .metricRow strong {
+          color: #111827;
+          font-size: 24px;
+          line-height: 1;
+          font-weight: 950;
         }
 
-        .formPanel h2,
-        .assistBand h2,
-        .successState h2 {
-          margin: 0;
-          color: #030712;
-          font-size: 30px;
-          line-height: 1.2;
+        .formPanel {
+          background: rgba(255, 255, 255, 0.94);
+          border: 1px solid #e8eaf0;
+          border-radius: 14px;
+          box-shadow: 0 24px 48px rgba(15, 23, 42, 0.12);
+          padding: 28px;
+        }
+
+        .formHeader {
+          margin-bottom: 22px;
+        }
+
+        .formHeader > span {
+          margin-bottom: 12px;
+          color: #7c3aed;
+          font-size: 12px;
           font-weight: 900;
+          text-transform: uppercase;
+        }
+
+        .formHeader h2,
+        .successState h2,
+        .campaignStrip h2 {
+          margin: 0;
+          color: #111827;
+          font-size: 25px;
+          line-height: 1.22;
+          font-weight: 950;
           letter-spacing: 0;
         }
 
-        .panelIntro {
-          margin: 12px 0 28px;
-          color: #111827;
-          font-size: 17px;
-          line-height: 1.35;
-          font-weight: 750;
+        .formHeader p,
+        .successState p {
+          margin: 10px 0 0;
+          color: #64748b;
+          font-size: 14px;
+          line-height: 1.65;
+          font-weight: 700;
         }
 
         .leadForm {
-          display: flex;
-          flex-direction: column;
-          gap: 18px;
+          display: grid;
+          gap: 15px;
         }
 
-        .leadForm input[type='text'],
-        .leadForm input[type='tel'],
-        .leadForm input:not([type]) {
+        .leadForm label:not(.consentRow) {
+          display: grid;
+          gap: 7px;
+        }
+
+        .leadForm label span {
+          color: #334155;
+          font-size: 12px;
+          font-weight: 900;
+        }
+
+        .leadForm input,
+        .leadForm select {
           width: 100%;
-          height: 64px;
-          border: 1px solid #d9dee7;
+          min-height: 50px;
+          border: 1px solid #dbe3ef;
           border-radius: 8px;
-          padding: 0 20px;
+          background: #fff;
+          padding: 0 14px;
           color: #111827;
-          font-size: 17px;
+          font-size: 14px;
           font-weight: 750;
           outline: none;
         }
 
-        .leadForm input:focus {
-          border-color: #ff5a52;
-          box-shadow: 0 0 0 3px rgba(255, 90, 82, 0.12);
+        .leadForm input:focus,
+        .leadForm select:focus {
+          border-color: #8b5cf6;
+          box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.12);
         }
 
         .consentRow {
           display: flex;
           align-items: flex-start;
           gap: 10px;
-          margin-top: 8px;
-          color: #111827;
-          font-size: 14px;
-          line-height: 1.35;
-          font-weight: 700;
+          color: #475569;
+          font-size: 13px;
+          line-height: 1.45;
+          font-weight: 750;
         }
 
         .consentRow input {
           width: 16px;
-          height: 16px;
+          min-height: 16px;
           margin-top: 2px;
-          accent-color: #ff5a52;
+          accent-color: #8b5cf6;
           flex: 0 0 auto;
         }
 
         .consentRow a {
-          color: #2563eb;
+          color: #7c3aed;
+          font-weight: 900;
         }
 
         .formMessage {
           margin: 0;
           color: #be123c;
-          font-size: 14px;
-          font-weight: 800;
+          font-size: 13px;
+          font-weight: 850;
         }
 
-        .leadForm button,
-        .successState a {
-          min-height: 64px;
-          justify-content: center;
+        .leadForm button {
+          min-height: 52px;
           border: 0;
           border-radius: 8px;
-          background: #ff315f;
+          background: linear-gradient(90deg, #8b5cf6, #ec4899);
           color: #fff;
-          font-size: 16px;
-          font-weight: 900;
+          font-size: 15px;
+          font-weight: 950;
           cursor: pointer;
         }
 
         .leadForm button:disabled {
           cursor: not-allowed;
-          opacity: 0.72;
+          opacity: 0.7;
         }
 
         .leadForm .textButton {
           min-height: auto;
           background: transparent;
-          color: #475569;
-          padding: 0;
-          font-size: 14px;
+          color: #7c3aed;
+          font-size: 13px;
           text-decoration: underline;
         }
 
@@ -626,120 +765,97 @@ export default function PartnerOnboardingCampaign() {
         }
 
         .successState {
-          display: flex;
-          flex-direction: column;
+          display: grid;
           gap: 18px;
-          align-items: flex-start;
+          justify-items: start;
         }
 
-        .successIcon {
-          display: inline-flex;
+        .successState > span {
           width: 64px;
           height: 64px;
+          display: inline-flex;
           align-items: center;
           justify-content: center;
           border-radius: 18px;
-          background: #e9fbf1;
+          background: #ecfdf5;
           color: #047857;
         }
 
-        .successState p {
+        .pathGrid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 16px;
+        }
+
+        .pathCard {
+          min-height: 168px;
+          padding: 22px;
+          border: 1px solid #e8eaf0;
+          border-radius: 14px;
+          background: #fff;
+          box-shadow: 0 16px 36px rgba(15, 23, 42, 0.06);
+        }
+
+        .pathIcon {
+          width: 48px;
+          height: 48px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 14px;
+          background: #f3e8ff;
+          color: #7c3aed;
+        }
+
+        .pathCard h3 {
+          margin: 16px 0 8px;
+          color: #111827;
+          font-size: 16px;
+          font-weight: 950;
+        }
+
+        .pathCard p {
           margin: 0;
-          color: #475569;
-          font-size: 17px;
-          line-height: 1.55;
+          color: #64748b;
+          font-size: 13px;
+          line-height: 1.65;
           font-weight: 700;
         }
 
-        .assistBand {
-          width: min(1290px, calc(100% - 40px));
-          margin: 118px auto 40px;
-          min-height: 170px;
+        .campaignStrip {
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 24px;
-          padding: 36px 54px;
-          border: 1px solid #ff5a72;
-          border-radius: 16px;
-          background: linear-gradient(100deg, #fff 0%, #fff4f4 100%);
-        }
-
-        .assistBand p {
-          margin: 10px 0 0;
-          color: #111827;
-          font-size: 19px;
-          font-weight: 650;
-        }
-
-        .assistBand a {
-          font-size: 25px;
-        }
-
-        .campaignFooter {
-          margin-top: 40px;
-          background: #fff0f3;
-          padding: 54px clamp(20px, 9vw, 160px) 34px;
-        }
-
-        .footerTop {
-          display: grid;
-          grid-template-columns: 1fr auto 1fr;
-          gap: 32px;
-          align-items: center;
-          padding-bottom: 52px;
-          border-bottom: 1px solid rgba(100, 116, 139, 0.22);
-        }
-
-        .footerTop nav {
-          display: flex;
-          align-items: center;
-          gap: 18px;
-        }
-
-        .footerTop nav a {
-          color: #111827;
-          text-decoration: none;
-          font-size: 17px;
-          font-weight: 650;
-        }
-
-        .socials {
-          justify-self: end;
-        }
-
-        .socials span {
-          display: block;
-          margin-bottom: 10px;
-          color: #111827;
-          font-weight: 900;
-        }
-
-        .socials div {
-          display: flex;
-          gap: 12px;
-        }
-
-        .socials a {
-          width: 52px;
-          height: 52px;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          background: #fff;
+          padding: 28px 32px;
           border-radius: 14px;
-          color: #ff315f;
-          text-decoration: none;
-          font-weight: 900;
-          font-size: 20px;
+          background: linear-gradient(135deg, #111827, #312e81);
+          color: #fff;
         }
 
-        .copyright {
-          margin: 36px 0 0;
-          text-align: center;
-          color: #52525b;
-          font-size: 16px;
-          font-weight: 650;
+        .campaignStrip > div:first-child > span {
+          margin-bottom: 10px;
+          color: #fbcfe8;
+          font-size: 13px;
+          font-weight: 900;
+          text-transform: uppercase;
+        }
+
+        .campaignStrip h2 {
+          max-width: 560px;
+          color: #fff;
+        }
+
+        .stripItems {
+          display: grid;
+          gap: 10px;
+          min-width: 280px;
+        }
+
+        .stripItems span {
+          color: #e0e7ff;
+          font-size: 13px;
+          font-weight: 850;
         }
 
         @keyframes spin {
@@ -748,86 +864,63 @@ export default function PartnerOnboardingCampaign() {
           }
         }
 
-        @media (max-width: 980px) {
-          .campaignHeader {
-            height: auto;
-            padding: 22px 20px;
-            align-items: flex-start;
-            flex-direction: column;
-          }
-
-          .heroBand {
-            min-height: auto;
-            padding: 58px 0;
-          }
-
-          .heroInner {
+        @media (max-width: 1020px) {
+          .campaignHero {
             grid-template-columns: 1fr;
           }
 
-          .formPanel {
-            padding: 28px;
-          }
-
-          .assistBand,
-          .footerTop {
-            align-items: flex-start;
-            grid-template-columns: 1fr;
-            flex-direction: column;
-          }
-
-          .socials {
-            justify-self: start;
+          .pathGrid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
           }
         }
 
-        @media (max-width: 560px) {
-          .supportLink {
-            font-size: 14px;
-          }
-
-          .heroInner,
-          .assistBand {
-            width: calc(100% - 28px);
+        @media (max-width: 680px) {
+          .campaignHero {
+            padding: 28px 20px;
           }
 
           .heroCopy h1 {
-            font-size: 39px;
+            font-size: 36px;
           }
 
-          .subcopy {
-            font-size: 18px;
-          }
-
-          .channelGrid {
+          .metricRow,
+          .pathGrid {
             grid-template-columns: 1fr;
           }
 
           .formPanel {
             padding: 22px;
-            border-radius: 14px;
           }
 
-          .formPanel h2,
-          .assistBand h2,
-          .successState h2 {
-            font-size: 25px;
+          .campaignStrip {
+            align-items: flex-start;
+            flex-direction: column;
+            padding: 24px;
           }
 
-          .assistBand {
-            margin-top: 58px;
-            padding: 28px 22px;
-          }
-
-          .assistBand a {
-            font-size: 18px;
-          }
-
-          .campaignFooter {
-            padding-top: 42px;
+          .stripItems {
+            min-width: 0;
           }
         }
       `}</style>
-    </main>
+    </PublicSupportShell>
+  );
+}
+
+function PartnerPath({
+  icon,
+  title,
+  text,
+}: {
+  icon: ReactNode;
+  title: string;
+  text: string;
+}) {
+  return (
+    <article className="pathCard">
+      <span className="pathIcon">{icon}</span>
+      <h3>{title}</h3>
+      <p>{text}</p>
+    </article>
   );
 }

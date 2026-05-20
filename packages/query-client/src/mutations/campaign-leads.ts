@@ -7,6 +7,8 @@ export interface CampaignLeadPayload {
   name: string;
   phone: string;
   city?: string;
+  city_id?: string;
+  partner_interest?: string;
   source?: string;
   medium?: string;
   term?: string;
