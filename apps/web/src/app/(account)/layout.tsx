@@ -155,6 +155,12 @@ const adminNavItems: NavItem[] = [
     icon: <ApprovalIcon />,
   },
   {
+    key: 'campaign-leads',
+    label: 'Campaign Leads',
+    href: '/admin/campaign-leads',
+    icon: <MessagesIcon />,
+  },
+  {
     key: 'approvals',
     label: 'Approvals',
     href: '/admin/approvals',
