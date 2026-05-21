@@ -10,14 +10,12 @@ import {
   signInWithPhoneNumber,
 } from 'firebase/auth';
 import {
-  ArrowRight,
   BadgeCheck,
   CalendarCheck2,
   ChefHat,
   ClipboardList,
   Headphones,
   Loader2,
-  Phone,
   ShieldCheck,
   Sparkles,
   Utensils,
@@ -32,8 +30,6 @@ import {
   type City,
   useOnboardingLocations,
 } from '@catering-marketplace/query-client';
-
-const SUPPORT_PHONE = '+91 81242 22266';
 
 const fallbackCities: City[] = [
   'Mumbai',
@@ -226,32 +222,37 @@ export default function PartnerOnboardingCampaign() {
               platform fees.
             </p>
 
-            <div className="heroActions">
-              <a href="#partner-form" className="primaryAction">
-                Start with OTP <ArrowRight size={18} />
-              </a>
-              <a
-                href={`tel:${SUPPORT_PHONE.replace(/\s/g, '')}`}
-                className="secondaryAction"
-              >
-                <Phone size={18} />
-                {SUPPORT_PHONE}
-              </a>
-            </div>
-
-            <div className="metricRow" aria-label="Campaign highlights">
-              <span>
-                <strong>Curated</strong>
-                partner network
-              </span>
-              <span>
-                <strong>Lower</strong>
-                launch fees
-              </span>
-              <span>
-                <strong>24h</strong>
-                partner callback
-              </span>
+            <div className="valueGrid" aria-label="Droooly partner benefits">
+              <ValuePoint
+                icon={<Sparkles size={20} />}
+                title="Get discovered"
+                text="Reach customers searching for trusted food experiences in your city."
+              />
+              <ValuePoint
+                icon={<CalendarCheck2 size={20} />}
+                title="Quality leads"
+                text="Receive real event requests with dates, guest counts and service context."
+              />
+              <ValuePoint
+                icon={<ShieldCheck size={20} />}
+                title="Build trust"
+                text="Showcase your services, menus, reviews and previous work."
+              />
+              <ValuePoint
+                icon={<BadgeCheck size={20} />}
+                title="Lower platform cost"
+                text="Launch with partner-friendly fees while your demand grows."
+              />
+              <ValuePoint
+                icon={<ClipboardList size={20} />}
+                title="Manage bookings"
+                text="Use structured flows for catering, private chef and quote requests."
+              />
+              <ValuePoint
+                icon={<Headphones size={20} />}
+                title="Human support"
+                text="Our partner team helps you get listed and improve your first enquiries."
+              />
             </div>
           </div>
 
@@ -485,7 +486,8 @@ export default function PartnerOnboardingCampaign() {
         .kicker,
         .formHeader > span,
         .campaignStrip span,
-        .stripItems span {
+        .stripItems span,
+        .valuePointIcon {
           display: inline-flex;
           align-items: center;
           gap: 8px;
@@ -518,66 +520,48 @@ export default function PartnerOnboardingCampaign() {
           font-weight: 650;
         }
 
-        .heroActions {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 12px;
-          margin-top: 28px;
-        }
-
-        .primaryAction,
-        .secondaryAction {
-          min-height: 50px;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          padding: 0 24px;
-          border-radius: 8px;
-          text-decoration: none;
-          font-size: 15px;
-          font-weight: 900;
-        }
-
-        .primaryAction {
-          color: #fff;
-          background: linear-gradient(90deg, #8b5cf6, #ec4899);
-          box-shadow: 0 16px 30px rgba(124, 58, 237, 0.22);
-        }
-
-        .secondaryAction {
-          color: #7c3aed;
-          background: #fff;
-          border: 1px solid #ddd6fe;
-        }
-
-        .metricRow {
+        .valueGrid {
           display: grid;
           grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 12px;
-          max-width: 640px;
-          margin-top: 30px;
+          gap: 14px;
+          margin-top: 34px;
         }
 
-        .metricRow span {
-          min-height: 86px;
+        .valuePoint {
+          min-height: 156px;
           display: grid;
-          align-content: center;
-          gap: 3px;
-          padding: 16px;
+          gap: 9px;
+          align-content: start;
+          padding: 18px;
           border: 1px solid rgba(139, 92, 246, 0.12);
-          border-radius: 10px;
+          border-radius: 14px;
           background: rgba(255, 255, 255, 0.72);
+          box-shadow: 0 14px 32px rgba(15, 23, 42, 0.05);
+        }
+
+        .valuePointIcon {
+          width: 42px;
+          height: 42px;
+          justify-content: center;
+          border-radius: 999px;
+          background: #ecfdf5;
+          color: #166534;
+        }
+
+        .valuePoint h3 {
+          margin: 0;
+          color: #111827;
+          font-size: 15px;
+          line-height: 1.25;
+          font-weight: 950;
+        }
+
+        .valuePoint p {
+          margin: 0;
           color: #64748b;
           font-size: 13px;
-          font-weight: 800;
-        }
-
-        .metricRow strong {
-          color: #111827;
-          font-size: 24px;
-          line-height: 1;
-          font-weight: 950;
+          line-height: 1.55;
+          font-weight: 700;
         }
 
         .formPanel {
@@ -844,7 +828,7 @@ export default function PartnerOnboardingCampaign() {
             font-size: 36px;
           }
 
-          .metricRow,
+          .valueGrid,
           .pathGrid {
             grid-template-columns: 1fr;
           }
@@ -880,6 +864,24 @@ function PartnerPath({
   return (
     <article className="pathCard">
       <span className="pathIcon">{icon}</span>
+      <h3>{title}</h3>
+      <p>{text}</p>
+    </article>
+  );
+}
+
+function ValuePoint({
+  icon,
+  title,
+  text,
+}: {
+  icon: ReactNode;
+  title: string;
+  text: string;
+}) {
+  return (
+    <article className="valuePoint">
+      <span className="valuePointIcon">{icon}</span>
       <h3>{title}</h3>
       <p>{text}</p>
     </article>
