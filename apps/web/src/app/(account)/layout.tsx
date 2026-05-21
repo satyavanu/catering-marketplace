@@ -161,6 +161,12 @@ const adminNavItems: NavItem[] = [
     icon: <MessagesIcon />,
   },
   {
+    key: 'push-notifications',
+    label: 'Push Marketing',
+    href: '/admin/push-notifications',
+    icon: <BellIcon />,
+  },
+  {
     key: 'approvals',
     label: 'Approvals',
     href: '/admin/approvals',
