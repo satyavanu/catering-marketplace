@@ -18,6 +18,59 @@ const roleHomePath: Record<AccountRole, string> = {
   super_admin: '/admin',
 };
 
+const campaignAllowedPages = new Set([
+  '/',
+  '/faq',
+  '/contact-us',
+  '/terms-of-use',
+  '/privacy-policy',
+]);
+
+function isCampaignMode(req: NextRequest) {
+  const campaignFlag =
+    process.env.NEXT_PUBLIC_IS_CAMPAIGN ||
+    process.env.NEXT_PUBLIC_IS_CAMPAIGHN;
+
+  if (campaignFlag !== 'true') {
+    return false;
+  }
+
+  const host = (req.headers.get('host') || '').split(':')[0].toLowerCase();
+  return host === 'droooly.com' || host === 'www.droooly.com';
+}
+
+function isAssetOrApiPath(pathname: string) {
+  return (
+    pathname.startsWith('/_next/') ||
+    pathname.startsWith('/api/') ||
+    pathname === '/favicon.ico' ||
+    pathname === '/robots.txt' ||
+    pathname === '/sitemap.xml' ||
+    /\.[a-zA-Z0-9]+$/.test(pathname)
+  );
+}
+
+function campaignResponse(req: NextRequest) {
+  if (!isCampaignMode(req)) {
+    return null;
+  }
+
+  const { pathname } = req.nextUrl;
+  if (isAssetOrApiPath(pathname)) {
+    return NextResponse.next();
+  }
+
+  if (pathname === '/') {
+    return NextResponse.rewrite(new URL('/partner-onboarding', req.url));
+  }
+
+  if (campaignAllowedPages.has(pathname)) {
+    return NextResponse.next();
+  }
+
+  return NextResponse.redirect(new URL('/', req.url));
+}
+
 function getRouteArea(pathname: string): RouteArea | null {
   if (pathname === '/customer' || pathname.startsWith('/customer/')) {
     return 'customer';
@@ -51,6 +104,11 @@ function normalizeRole(role: unknown, isPartner: unknown): AccountRole {
 }
 
 export async function middleware(req: NextRequest) {
+  const campaign = campaignResponse(req);
+  if (campaign) {
+    return campaign;
+  }
+
   const routeArea = getRouteArea(req.nextUrl.pathname);
 
   if (!routeArea) {
@@ -79,5 +137,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/customer/:path*', '/partner/:path*', '/admin/:path*'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };
