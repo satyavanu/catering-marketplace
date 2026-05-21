@@ -17,7 +17,6 @@ import {
   ClipboardList,
   Headphones,
   Loader2,
-  Megaphone,
   Phone,
   ShieldCheck,
   Sparkles,
@@ -210,22 +209,21 @@ export default function PartnerOnboardingCampaign() {
   };
 
   return (
-    <PublicSupportShell contentMaxWidth={1360}>
+    <PublicSupportShell contentMaxWidth={1360} logoOnlyHeader>
       <main className="campaignPage">
         <section className="campaignHero">
           <div className="heroCopy">
             <span className="kicker">
-              <Megaphone size={16} />
-              Partner onboarding campaign
+              <ShieldCheck size={16} />
+              Curated partner marketplace
             </span>
             <h1>
-              Grow your food business with real catering, chef, quote and
-              instant booking demand.
+              Get discovered by customers planning real food experiences.
             </h1>
             <p>
-              Droooly helps partners convert high-intent event customers across
-              managed catering orders, private chef requests, custom quotes and
-              book-now experiences.
+              Droooly connects trusted chefs, caterers and event food brands
+              with high-intent customers, clear booking flows and launch-friendly
+              platform fees.
             </p>
 
             <div className="heroActions">
@@ -243,16 +241,16 @@ export default function PartnerOnboardingCampaign() {
 
             <div className="metricRow" aria-label="Campaign highlights">
               <span>
-                <strong>4</strong>
-                booking paths
+                <strong>Curated</strong>
+                partner network
+              </span>
+              <span>
+                <strong>Lower</strong>
+                launch fees
               </span>
               <span>
                 <strong>24h</strong>
-                team callback
-              </span>
-              <span>
-                <strong>OTP</strong>
-                Firebase phone auth
+                partner callback
               </span>
             </div>
           </div>
@@ -267,10 +265,13 @@ export default function PartnerOnboardingCampaign() {
                 <h2>Phone verified. You are on the partner list.</h2>
                 <p>
                   Thanks, {name.trim()}. Our team will review your details and
-                  contact you within 24 hours with the best next step for{' '}
-                  {selectedCityName || 'your city'}.
+                  contact you within 24 hours. We will help you choose the best
+                  next step for {selectedCityName || 'your city'}.
                 </p>
-                <Link href="/onboarding">Continue full onboarding</Link>
+                <p className="successNote">
+                  Keep your phone nearby. No full onboarding is needed from this
+                  page right now.
+                </p>
               </div>
             ) : (
               <>
@@ -281,8 +282,8 @@ export default function PartnerOnboardingCampaign() {
                   </span>
                   <h2>Register as a Droooly partner</h2>
                   <p>
-                    Share a few details. We will verify your number and route
-                    you to the right onboarding flow.
+                    Share a few details and verify your number. We will call
+                    back with the right marketplace fit for your service.
                   </p>
                 </div>
 
@@ -413,22 +414,22 @@ export default function PartnerOnboardingCampaign() {
           <PartnerPath
             icon={<Utensils size={24} />}
             title="Catering orders"
-            text="Event menus, guest counts, dates and delivery requirements in one flow."
+            text="Receive structured event requests with city, date, guest count and menu context."
           />
           <PartnerPath
             icon={<ChefHat size={24} />}
             title="Private chef requests"
-            text="Host-at-home dining, live counters and curated chef-led experiences."
+            text="Reach hosts looking for home dining, live counters and chef-led celebrations."
           />
           <PartnerPath
             icon={<ClipboardList size={24} />}
             title="Custom quotes"
-            text="Capture richer requirements before pricing larger or complex events."
+            text="Quote confidently after customers share clearer requirements and budgets."
           />
           <PartnerPath
             icon={<Zap size={24} />}
             title="Instant booking"
-            text="Let customers book packaged services faster when availability is clear."
+            text="Package your best services so customers can move faster when availability is clear."
           />
         </section>
 
@@ -436,18 +437,18 @@ export default function PartnerOnboardingCampaign() {
           <div>
             <span>
               <CalendarCheck2 size={20} />
-              Campaign-ready onboarding
+              Why partners choose Droooly
             </span>
-            <h2>Built for quick partner launches without losing quality.</h2>
+            <h2>A more trusted way to find customers without heavy platform costs.</h2>
           </div>
           <div className="stripItems">
             <span>
               <ShieldCheck size={18} />
-              OTP verified leads
+              Curated marketplace trust
             </span>
             <span>
               <Sparkles size={18} />
-              UTM campaign tracking
+              Profile and listing support
             </span>
             <span>
               <Headphones size={18} />
@@ -525,8 +526,7 @@ export default function PartnerOnboardingCampaign() {
         }
 
         .primaryAction,
-        .secondaryAction,
-        .successState a {
+        .secondaryAction {
           min-height: 50px;
           display: inline-flex;
           align-items: center;
@@ -539,8 +539,7 @@ export default function PartnerOnboardingCampaign() {
           font-weight: 900;
         }
 
-        .primaryAction,
-        .successState a {
+        .primaryAction {
           color: #fff;
           background: linear-gradient(90deg, #8b5cf6, #ec4899);
           box-shadow: 0 16px 30px rgba(124, 58, 237, 0.22);
@@ -732,6 +731,15 @@ export default function PartnerOnboardingCampaign() {
           border-radius: 18px;
           background: #ecfdf5;
           color: #047857;
+        }
+
+        .successNote {
+          width: 100%;
+          padding: 14px 16px;
+          border: 1px solid #bbf7d0;
+          border-radius: 10px;
+          background: #f0fdf4;
+          color: #166534 !important;
         }
 
         .pathGrid {

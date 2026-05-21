@@ -11,6 +11,7 @@ type PublicSupportShellProps = {
   children: ReactNode;
   contentMaxWidth?: number;
   showFooter?: boolean;
+  logoOnlyHeader?: boolean;
 };
 
 const headerItems = [
@@ -35,6 +36,7 @@ export default function PublicSupportShell({
   children,
   contentMaxWidth = 1280,
   showFooter = true,
+  logoOnlyHeader = false,
 }: PublicSupportShellProps) {
   const pathname = usePathname();
 
@@ -130,38 +132,44 @@ export default function PublicSupportShell({
             <img src={DROOOLY_LOGO_URL} alt="Droooly" style={styles.logo} />
           </Link>
 
-          <nav aria-label="Support pages" className="support-nav">
-            {headerItems.map((item) => {
-              const isActive =
-                pathname === item.match ||
-                item.extraMatches?.some((match) => pathname.startsWith(match));
+          {logoOnlyHeader ? null : (
+            <>
+              <nav aria-label="Support pages" className="support-nav">
+                {headerItems.map((item) => {
+                  const isActive =
+                    pathname === item.match ||
+                    item.extraMatches?.some((match) =>
+                      pathname.startsWith(match)
+                    );
 
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`support-nav-link${
-                    isActive ? ' support-nav-link-active' : ''
-                  }`}
-                  style={{
-                    ...styles.navLink,
-                    ...(isActive ? styles.navLinkActive : null),
-                  }}
-                >
-                  {item.label}
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`support-nav-link${
+                        isActive ? ' support-nav-link-active' : ''
+                      }`}
+                      style={{
+                        ...styles.navLink,
+                        ...(isActive ? styles.navLinkActive : null),
+                      }}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+
+              <div className="support-actions" style={styles.actions}>
+                <Link href="/login" style={styles.signInButton}>
+                  Sign in
                 </Link>
-              );
-            })}
-          </nav>
-
-          <div className="support-actions" style={styles.actions}>
-            <Link href="/login" style={styles.signInButton}>
-              Sign in
-            </Link>
-            <Link href="/onboarding" style={styles.getStartedButton}>
-              Get Started
-            </Link>
-          </div>
+                <Link href="/onboarding" style={styles.getStartedButton}>
+                  Get Started
+                </Link>
+              </div>
+            </>
+          )}
         </header>
 
         <div className="support-body" style={styles.body}>
